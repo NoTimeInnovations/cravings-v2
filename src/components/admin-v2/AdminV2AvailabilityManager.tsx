@@ -17,6 +17,8 @@ import { FreePlanBanner } from "./FreePlanBanner";
 import Img from "../Img";
 import { VisibilityEditor } from "./availability/VisibilityEditor";
 import { resolveVisibility, formatSchedule, VisibilityConfig, normalizeVisibility } from "@/lib/visibility";
+import { updatePartner } from "@/api/partners";
+import { revalidateTag } from "@/app/actions/revalidate";
 
 interface AdminV2AvailabilityManagerProps {
     onBack: () => void;
@@ -25,7 +27,7 @@ interface AdminV2AvailabilityManagerProps {
 export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManagerProps) {
     const { categories, fetchCategories, updateCategory } = useCategoryStore();
     const { items, fetchMenu, updateItem, bulkSetAvailability } = useMenuStore();
-    const { userData } = useAuthStore();
+    const { userData, setState } = useAuthStore();
     const partner = userData as Partner | undefined;
     const timezone = (partner as any)?.timezone || "Asia/Kolkata";
     const planId = partner?.subscription_details?.plan?.id;
@@ -36,6 +38,8 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
     const [expandedItem, setExpandedItem] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [hideUnavailable, setHideUnavailable] = useState<boolean>(false);
+    const [savingHideUnavailable, setSavingHideUnavailable] = useState(false);
 
     useEffect(() => {
         if (userData?.id) {
@@ -43,6 +47,10 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
             fetchMenu();
         }
     }, [userData, fetchCategories, fetchMenu]);
+
+    useEffect(() => {
+        setHideUnavailable(!!partner?.hide_unavailable);
+    }, [partner?.hide_unavailable]);
 
     useEffect(() => {
         if (categories.length > 0 && items.length > 0) {
@@ -123,6 +131,28 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
         }
     };
 
+    const handleHideUnavailableChange = async (checked: boolean) => {
+        if (!userData?.id) return;
+        const prev = hideUnavailable;
+        setHideUnavailable(checked);
+        setSavingHideUnavailable(true);
+        toast.loading(`Setting unavailable items to ${checked ? "hidden" : "shown"}...`);
+        try {
+            await updatePartner(userData.id, { hide_unavailable: checked });
+            revalidateTag(userData.id);
+            setState({ hide_unavailable: checked });
+            toast.dismiss();
+            toast.success(`Unavailable items are now ${checked ? "hidden from" : "shown on"} your menu`);
+        } catch (error) {
+            setHideUnavailable(prev);
+            toast.dismiss();
+            toast.error("Failed to update setting");
+            console.error("Error updating hide_unavailable:", error);
+        } finally {
+            setSavingHideUnavailable(false);
+        }
+    };
+
     // ----- bulk selection -----
     const allItemIdSet = new Set(items.map((i) => i.id).filter(Boolean) as string[]);
     const validSelectedIds = Array.from(selectedIds).filter((id) => allItemIdSet.has(id));
@@ -198,6 +228,21 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
+            </div>
+
+            <div className="flex items-start justify-between gap-4 rounded-lg border bg-card p-4">
+                <div className="space-y-0.5">
+                    <p className="font-semibold">Hide unavailable items</p>
+                    <p className="text-sm text-muted-foreground">
+                        When on, items that are unavailable, out of stock, or off-schedule are removed from your live menu. When off, they stay on the menu shown as &ldquo;Unavailable&rdquo;. Applies to all items.
+                    </p>
+                </div>
+                <Switch
+                    checked={hideUnavailable}
+                    disabled={savingHideUnavailable}
+                    onCheckedChange={handleHideUnavailableChange}
+                    className="flex-shrink-0"
+                />
             </div>
 
             {filteredData.length > 0 && (
@@ -276,7 +321,6 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                                         </div>
                                         {isCatExpanded && (
                                             <VisibilityEditor
-                                                scope="category"
                                                 value={category.visibility_config}
                                                 onChange={(next) => handleCategoryVisibilityChange(category, next)}
                                             />
