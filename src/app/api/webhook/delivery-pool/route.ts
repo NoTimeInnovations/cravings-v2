@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 
 /* ──────────────────────────────────────────────────────────────
  * Menuthere Delivery Pool — inbound webhook.
@@ -46,7 +47,7 @@ const SET_ORDER_STATUS_BY_POOL_ID = `
     update_orders(
       where: { delivery_provider_order_id: { _eq: $poolId }, delivery_provider: { _eq: "menuthere_pool" } },
       _set: { status: $status }
-    ) { affected_rows }
+    ) { affected_rows returning { id } }
   }
 `;
 // pool rider state → cravings order status
@@ -116,10 +117,19 @@ export async function POST(req: NextRequest) {
     // Advance the cravings order status: picked_up → dispatched, delivered → completed.
     const mappedStatus = POOL_TO_ORDER_STATUS[String(payload.status ?? "")];
     if (mappedStatus) {
+      let completedOrderId: string | null = null;
       if (sourceId && UUID_RE.test(sourceId)) {
         await fetchFromHasura(SET_ORDER_STATUS_BY_SOURCE, { id: sourceId, status: mappedStatus });
+        completedOrderId = sourceId;
       } else if (poolId) {
-        await fetchFromHasura(SET_ORDER_STATUS_BY_POOL_ID, { poolId, status: mappedStatus });
+        const res = await fetchFromHasura(SET_ORDER_STATUS_BY_POOL_ID, { poolId, status: mappedStatus });
+        completedOrderId = res?.update_orders?.returning?.[0]?.id ?? null;
+      }
+      // delivered → completed: award the customer's loyalty points. The POS /
+      // order-store completion paths do this, but a pool delivery sets status
+      // directly and would otherwise skip it. awardLoyaltyForOrder is idempotent.
+      if (mappedStatus === "completed" && completedOrderId) {
+        await awardLoyaltyForOrder(completedOrderId);
       }
     }
     // Persist the assigned rider's contact so the order UIs can show a rider card.
