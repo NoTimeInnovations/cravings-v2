@@ -6,8 +6,9 @@ import { useMenuStore, MenuItem } from "@/store/menuStore_hasura";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, Search, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Search, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
@@ -23,7 +24,7 @@ interface AdminV2AvailabilityManagerProps {
 
 export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManagerProps) {
     const { categories, fetchCategories, updateCategory } = useCategoryStore();
-    const { items, fetchMenu, updateItem } = useMenuStore();
+    const { items, fetchMenu, updateItem, bulkSetAvailability } = useMenuStore();
     const { userData } = useAuthStore();
     const partner = userData as Partner | undefined;
     const timezone = (partner as any)?.timezone || "Asia/Kolkata";
@@ -34,6 +35,7 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
     const [filteredData, setFilteredData] = useState<{ category: Category; items: MenuItem[] }[]>([]);
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
     const [expandedItem, setExpandedItem] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         if (userData?.id) {
@@ -121,6 +123,51 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
         }
     };
 
+    // ----- bulk selection -----
+    const allItemIdSet = new Set(items.map((i) => i.id).filter(Boolean) as string[]);
+    const validSelectedIds = Array.from(selectedIds).filter((id) => allItemIdSet.has(id));
+    const selectedCount = validSelectedIds.length;
+    const visibleIds = filteredData
+        .flatMap((g) => g.items)
+        .map((i) => i.id)
+        .filter(Boolean) as string[];
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+
+    const toggleItemSelection = (id?: string) => {
+        if (!id) return;
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const setManySelected = (ids: string[], selected: boolean) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            ids.forEach((id) => (selected ? next.add(id) : next.delete(id)));
+            return next;
+        });
+    };
+
+    const clearSelection = () => setSelectedIds(new Set());
+
+    const handleBulkSetAvailability = async (makeAvailable: boolean) => {
+        if (validSelectedIds.length === 0) return;
+        // On the free plan, turning items OFF is a premium action (mirrors single toggle).
+        if (isOnFreePlan && !makeAvailable) {
+            setShowUpgradeDialog(true);
+            return;
+        }
+        try {
+            await bulkSetAvailability(validSelectedIds, makeAvailable);
+            clearSelection();
+        } catch {
+            // store surfaces the error toast; keep selection so the user can retry
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <UpgradePlanDialog
@@ -153,6 +200,24 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                 </div>
             </div>
 
+            {filteredData.length > 0 && (
+                <div className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                        <Checkbox
+                            checked={allVisibleSelected}
+                            onCheckedChange={() => setManySelected(visibleIds, !allVisibleSelected)}
+                        />
+                        <span className="text-muted-foreground">
+                            {allVisibleSelected ? "Deselect all" : "Select all"}
+                            {searchQuery ? " (filtered)" : ""}
+                        </span>
+                    </label>
+                    {selectedCount > 0 && (
+                        <span className="text-sm text-muted-foreground">{selectedCount} selected</span>
+                    )}
+                </div>
+            )}
+
             <div className="space-y-4">
                 {filteredData.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
@@ -162,6 +227,8 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                     <Accordion type="multiple" className="space-y-4">
                         {filteredData.map(({ category, items }) => {
                             const isCatExpanded = expandedCategory === category.id;
+                            const catIds = items.map((i) => i.id).filter(Boolean) as string[];
+                            const catAllSelected = catIds.length > 0 && catIds.every((id) => selectedIds.has(id));
                             const catVisibleNow = resolveVisibility(
                                 category.visibility_config,
                                 { type: "default", hidden: false },
@@ -215,6 +282,16 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                                             />
                                         )}
 
+                                        {items.length > 0 && (
+                                            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none w-fit">
+                                                <Checkbox
+                                                    checked={catAllSelected}
+                                                    onCheckedChange={() => setManySelected(catIds, !catAllSelected)}
+                                                />
+                                                Select all {items.length} item{items.length > 1 ? "s" : ""} in this category
+                                            </label>
+                                        )}
+
                                         {items.map(item => {
                                             const resolved = resolveVisibility(item.visibility_config, category.visibility_config, timezone);
                                             const isItemExpanded = expandedItem === item.id;
@@ -224,6 +301,11 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                                             <div key={item.id} className="border rounded-md bg-background">
                                                 <div className="flex items-center justify-between p-3">
                                                     <div className="flex items-center gap-3 overflow-hidden">
+                                                        <Checkbox
+                                                            className="flex-shrink-0"
+                                                            checked={item.id ? selectedIds.has(item.id) : false}
+                                                            onCheckedChange={() => toggleItemSelection(item.id)}
+                                                        />
                                                         <div className="h-10 w-10 rounded-md overflow-hidden bg-muted flex-shrink-0">
                                                             {item.image_url ? (
                                                                 <Img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
@@ -285,6 +367,32 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                     </Accordion>
                 )}
             </div>
+
+            {selectedCount > 0 && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 sm:gap-3 rounded-full border bg-background shadow-lg px-3 sm:px-4 py-2 max-w-[calc(100vw-1.5rem)]">
+                    <span className="text-sm font-medium px-1 whitespace-nowrap">{selectedCount} selected</span>
+                    <Button
+                        size="sm"
+                        className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => handleBulkSetAvailability(true)}
+                    >
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span className="hidden sm:inline">Mark </span>Available
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => handleBulkSetAvailability(false)}
+                    >
+                        <Ban className="h-4 w-4" />
+                        <span className="hidden sm:inline">Mark </span>Unavailable
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={clearSelection}>
+                        Clear
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }

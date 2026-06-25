@@ -159,6 +159,18 @@ export const updateMenu = `
     }
 `;
 
+export const bulkUpdateMenuAvailability = `
+    mutation BulkUpdateMenuAvailability($ids: [uuid!]!, $is_available: Boolean!) {
+        update_menu(where: { id: { _in: $ids } }, _set: { is_available: $is_available }) {
+            affected_rows
+            returning {
+                id
+                is_available
+            }
+        }
+    }
+`;
+
 export const deleteMenu = `
     mutation UpdateMenuDeletionStatus($id: uuid!) {
         update_menu(where: {id: {_eq: $id}}, _set: {deletion_status: 1}) {

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   addMenu,
+  bulkUpdateMenuAvailability,
   delCategoryAndItems,
   deleteMenu,
   getCategoryImages,
@@ -156,6 +157,7 @@ interface MenuState {
   addItem: (item: Omit<MenuItem, "id">) => Promise<void>;
   fetchMenu: (hotelId?: string, forceRefresh?: boolean) => Promise<MenuItem[] | []>;
   updateItem: (id: string, updatedItem: Partial<MenuItem>) => Promise<void>;
+  bulkSetAvailability: (ids: string[], is_available: boolean) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   fetchCategorieImages: (category: string) => Promise<CategoryImages[]>;
   groupItems: () => void;
@@ -445,6 +447,38 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       console.error("Error ", error);
       toast.dismiss();
       toast.error("Failed to update item");
+    }
+  },
+
+  bulkSetAvailability: async (ids, is_available) => {
+    const uniqueIds = Array.from(new Set(ids)).filter(Boolean) as string[];
+    if (uniqueIds.length === 0) return;
+    try {
+      toast.loading(`Updating ${uniqueIds.length} item${uniqueIds.length > 1 ? "s" : ""}...`);
+      const userData = useAuthStore.getState().userData as AuthUser;
+
+      await fetchFromHasura(bulkUpdateMenuAvailability, {
+        ids: uniqueIds,
+        is_available,
+      });
+
+      const idSet = new Set(uniqueIds);
+      set({
+        items: get().items.map((item) =>
+          item.id && idSet.has(item.id) ? { ...item, is_available } : item
+        ),
+      });
+      revalidateTag(userData?.id);
+      get().groupItems();
+      toast.dismiss();
+      toast.success(
+        `${uniqueIds.length} item${uniqueIds.length > 1 ? "s" : ""} marked ${is_available ? "available" : "unavailable"}`
+      );
+    } catch (error) {
+      console.error("Error bulk updating availability", error);
+      toast.dismiss();
+      toast.error("Failed to update items");
+      throw error;
     }
   },
 
