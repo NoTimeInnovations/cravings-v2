@@ -133,30 +133,20 @@ function VegMark({ isVeg }: { isVeg: boolean }) {
   );
 }
 
-// V4 list rows surface the veg/non-veg status as a labelled badge (the source
-// design shows "VEG" / "NON-VEG" text next to the colored mark), unlike V3's
-// bare square.
+// V4 list rows surface the veg/non-veg status as the colored mark only — the
+// icon alone conveys the status, no "VEG" / "NON-VEG" text label.
 function VegBadge({ isVeg }: { isVeg: boolean }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div
+      className={`flex h-[15px] w-[15px] items-center justify-center rounded-[3px] border-[1.5px] ${
+        isVeg ? "border-emerald-600" : "border-red-600"
+      }`}
+    >
       <div
-        className={`flex h-[15px] w-[15px] items-center justify-center rounded-[3px] border-[1.5px] ${
-          isVeg ? "border-emerald-600" : "border-red-600"
+        className={`h-1.5 w-1.5 rounded-full ${
+          isVeg ? "bg-emerald-600" : "bg-red-600"
         }`}
-      >
-        <div
-          className={`h-1.5 w-1.5 rounded-full ${
-            isVeg ? "bg-emerald-600" : "bg-red-600"
-          }`}
-        />
-      </div>
-      <span
-        className={`text-[10px] font-bold uppercase tracking-wide ${
-          isVeg ? "text-emerald-600" : "text-red-600"
-        }`}
-      >
-        {isVeg ? "Veg" : "Non-Veg"}
-      </span>
+      />
     </div>
   );
 }
