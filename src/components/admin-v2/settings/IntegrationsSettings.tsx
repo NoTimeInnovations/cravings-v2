@@ -116,13 +116,24 @@ export function IntegrationsSettings() {
     // returns the auth code.
     useEffect(() => {
         const onMessage = (event: MessageEvent) => {
-            if (
-                event.origin !== "https://www.facebook.com" &&
-                event.origin !== "https://web.facebook.com" &&
-                event.origin !== "https://business.facebook.com"
-            ) {
+            // Accept the session-info message from ANY Facebook host. On mobile,
+            // Embedded Signup is served from m.facebook.com (and other
+            // *.facebook.com subdomains), so an exact www/web/business allowlist
+            // silently dropped the message on phones — losing the WABA / phone
+            // IDs and failing the connect. Mirror Meta's sample listener (a
+            // hostname suffix check), scoped to facebook.com / fb.com.
+            let originHost: string;
+            try {
+                originHost = new URL(event.origin).hostname;
+            } catch {
                 return;
             }
+            const isFacebookOrigin =
+                originHost === "facebook.com" ||
+                originHost.endsWith(".facebook.com") ||
+                originHost === "fb.com" ||
+                originHost.endsWith(".fb.com");
+            if (!isFacebookOrigin) return;
             try {
                 const parsed =
                     typeof event.data === "string" ? JSON.parse(event.data) : event.data;
