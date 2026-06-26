@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Inbox, MessageSquare, Workflow, Megaphone, ChevronLeft } from "lucide-react";
+import { Inbox, MessageSquare, Workflow, Megaphone, ChevronLeft, MousePointerClick } from "lucide-react";
 import { AdminV2WhatsAppInbox } from "@/components/admin-v2/AdminV2WhatsAppInbox";
 import { AdminV2WhatsAppTemplates } from "@/components/admin-v2/AdminV2WhatsAppTemplates";
 import { AdminV2WhatsAppFlows } from "@/components/admin-v2/AdminV2WhatsAppFlows";
 import { AdminV2WhatsAppBroadcast } from "@/components/admin-v2/AdminV2WhatsAppBroadcast";
+import { AdminV2WhatsAppLinkClicks } from "@/components/admin-v2/AdminV2WhatsAppLinkClicks";
 
-type Screen = "Inbox" | "Templates" | "Flows" | "Broadcast";
+type Screen = "Inbox" | "Templates" | "Flows" | "Broadcast" | "LinkClicks";
 
 const SCREENS: {
   id: Screen;
@@ -21,6 +22,7 @@ const SCREENS: {
   { id: "Templates", title: "Templates", desc: "Create and manage message templates.", icon: MessageSquare, accent: "text-blue-600" },
   { id: "Flows", title: "Flows", desc: "Build automated conversation flows.", icon: Workflow, accent: "text-purple-600" },
   { id: "Broadcast", title: "Broadcast", desc: "Send a template to many customers at once.", icon: Megaphone, accent: "text-orange-600" },
+  { id: "LinkClicks", title: "Order link taps", desc: "See who tapped an “order now” link from your flows.", icon: MousePointerClick, accent: "text-pink-600" },
 ];
 
 // The merged WhatsApp view: a hub of buttons that open Inbox / Templates / Flows.
@@ -95,6 +97,11 @@ export function AdminV2WhatsApp() {
       {mounted.includes("Broadcast") && (
         <div className={screen === "Broadcast" ? "block" : "hidden"}>
           <AdminV2WhatsAppBroadcast />
+        </div>
+      )}
+      {mounted.includes("LinkClicks") && (
+        <div className={screen === "LinkClicks" ? "block" : "hidden"}>
+          <AdminV2WhatsAppLinkClicks />
         </div>
       )}
     </div>
