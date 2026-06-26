@@ -64,6 +64,9 @@ export interface MenuItem {
   show_on_takeaway?: boolean;
   tax_inclusive?: boolean;
   visibility_config?: any;
+  /** Manually-curated cross-sell list: ids of other menu items to recommend
+   *  ("you will love pairing it with") when this item is added to the cart. */
+  recommendations?: string[];
 }
 
 interface MenuItem_withOffer_price {
@@ -157,6 +160,9 @@ interface MenuState {
   addItem: (item: Omit<MenuItem, "id">) => Promise<void>;
   fetchMenu: (hotelId?: string, forceRefresh?: boolean) => Promise<MenuItem[] | []>;
   updateItem: (id: string, updatedItem: Partial<MenuItem>) => Promise<void>;
+  /** Set an item's recommendation list, keeping the relationship reciprocal:
+   *  adding B to A also adds A to B; removing B from A also removes A from B. */
+  setRecommendations: (itemId: string, recommendationIds: string[]) => Promise<void>;
   bulkSetAvailability: (ids: string[], is_available: boolean) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   fetchCategorieImages: (category: string) => Promise<CategoryImages[]>;
@@ -245,6 +251,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           delivery_price: mi.delivery_price ?? undefined,
           show_on_delivery: mi.show_on_delivery,
           show_on_takeaway: mi.show_on_takeaway,
+          recommendations: Array.isArray(mi.recommendations) ? mi.recommendations : [],
         };
 
         // Add optional fields if they exist
@@ -328,6 +335,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         is_price_as_per_size: item.is_price_as_per_size || false,
         is_veg: item.is_veg ?? null,
         tags: item.tags || [],
+        recommendations: item.recommendations ?? [],
       };
 
       const { insert_menu } = await fetchFromHasura(addMenu, {
@@ -447,6 +455,77 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       console.error("Error ", error);
       toast.dismiss();
       toast.error("Failed to update item");
+    }
+  },
+
+  setRecommendations: async (itemId, recommendationIds) => {
+    try {
+      toast.loading("Saving recommendations...");
+      const userData = useAuthStore.getState().userData as AuthUser;
+      const items = get().items;
+      const existsById = new Map(items.map((i) => [i.id as string, i]));
+
+      const self = existsById.get(itemId);
+      const prev = (self?.recommendations || []).filter((x) => x && x !== itemId);
+      // Keep only ids that resolve to a live item; dedupe; never self-reference.
+      const next = Array.from(
+        new Set(recommendationIds.filter((x) => x && x !== itemId && existsById.has(x))),
+      );
+
+      const prevSet = new Set(prev);
+      const nextSet = new Set(next);
+      const added = next.filter((x) => !prevSet.has(x));
+      const removed = prev.filter((x) => !nextSet.has(x));
+
+      // Build id -> new recommendations array for every row that must change.
+      const updates = new Map<string, string[]>();
+      updates.set(itemId, next);
+
+      for (const otherId of added) {
+        const other = existsById.get(otherId);
+        if (!other) continue;
+        const cur = updates.get(otherId) ?? (other.recommendations || []);
+        updates.set(otherId, Array.from(new Set([...cur, itemId])));
+      }
+      for (const otherId of removed) {
+        const other = existsById.get(otherId);
+        if (!other) continue;
+        const cur = updates.get(otherId) ?? (other.recommendations || []);
+        updates.set(otherId, cur.filter((x) => x !== itemId));
+      }
+
+      // Persist all changed rows in one batched mutation (jsonb via variables).
+      const entries = Array.from(updates.entries());
+      if (entries.length > 0) {
+        const varDefs = entries.map((_, i) => `$rec${i}: jsonb`).join(", ");
+        const body = entries
+          .map(
+            ([id], i) =>
+              `u${i}: update_menu_by_pk(pk_columns: { id: "${id}" }, _set: { recommendations: $rec${i} }) { id }`,
+          )
+          .join("\n");
+        const mutation = `mutation SetRecommendationsBatch(${varDefs}) {\n${body}\n}`;
+        const variables: Record<string, unknown> = {};
+        entries.forEach(([, recs], i) => {
+          variables[`rec${i}`] = recs;
+        });
+        await fetchFromHasura(mutation, variables);
+      }
+
+      set({
+        items: get().items.map((i) =>
+          i.id && updates.has(i.id) ? { ...i, recommendations: updates.get(i.id) } : i,
+        ),
+      });
+      revalidateTag(userData?.id);
+      get().groupItems();
+      toast.dismiss();
+      toast.success("Recommendations saved");
+    } catch (error) {
+      console.error("Error saving recommendations:", error);
+      toast.dismiss();
+      toast.error("Failed to save recommendations");
+      throw error;
     }
   },
 

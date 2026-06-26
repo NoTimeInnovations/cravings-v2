@@ -259,6 +259,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       name_secondary_rtl
       price
       visibility_config
+      recommendations
       offers(where: {_and: [{ offer_type : { _in : $offer_types } } ,{end_time: {_gt: "now()"}}, {deletion_status: {_eq: 0}}]}) {
         offer_price
       }

@@ -35,6 +35,7 @@ export const getMenu = `
             show_on_takeaway
             tax_inclusive
             visibility_config
+            recommendations
         }
     }
 `;
@@ -123,6 +124,7 @@ export const addMenu = `
             variants
             tags
             tax_inclusive
+            recommendations
         }
     }
 }`;
@@ -154,6 +156,7 @@ export const updateMenu = `
             is_veg
             tags
             variants
+            recommendations
             }
         }
     }

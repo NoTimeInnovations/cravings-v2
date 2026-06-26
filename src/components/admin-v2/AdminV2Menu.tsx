@@ -42,10 +42,12 @@ import {
   Loader2,
   Crown,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import Img from "../Img";
 import { formatPrice } from "@/lib/constants";
 import { AdminV2EditMenuItem } from "./AdminV2EditMenuItem";
+import { AdminV2ItemRecommendations } from "./AdminV2ItemRecommendations";
 import { AdminV2AddMenuItem } from "./AdminV2AddMenuItem";
 import { AdminV2PriorityChanger } from "./AdminV2PriorityChanger";
 import { AdminV2AvailabilityManager } from "./AdminV2AvailabilityManager";
@@ -73,6 +75,7 @@ export function AdminV2Menu() {
     "all" | "available" | "unavailable"
   >("all");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [recommendingItemId, setRecommendingItemId] = useState<string | null>(null);
   const [lastEditedItemId, setLastEditedItemId] = useState<string | null>(null);
   const [isPriorityMode, setIsPriorityMode] = useState(false);
   const [isAvailabilityMode, setIsAvailabilityMode] = useState(false);
@@ -351,6 +354,23 @@ export function AdminV2Menu() {
           item={itemToEdit}
           onBack={(savedItemId) => {
             setEditingItemId(null);
+            if (savedItemId) {
+              setLastEditedItemId(savedItemId);
+            }
+          }}
+        />
+      );
+    }
+  }
+
+  if (recommendingItemId) {
+    const itemForRecs = menu.find((item) => item.id === recommendingItemId);
+    if (itemForRecs) {
+      return (
+        <AdminV2ItemRecommendations
+          item={itemForRecs}
+          onBack={(savedItemId) => {
+            setRecommendingItemId(null);
             if (savedItemId) {
               setLastEditedItemId(savedItemId);
             }
@@ -653,7 +673,7 @@ export function AdminV2Menu() {
                               <TableHead className="hidden md:table-cell">
                                 Description
                               </TableHead>
-                              <TableHead className="w-[80px] text-right">
+                              <TableHead className="w-[110px] text-right">
                                 Action
                               </TableHead>
                             </TableRow>
@@ -720,13 +740,30 @@ export function AdminV2Menu() {
                                   </p>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setEditingItemId(item.id!)}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex items-center justify-end gap-0.5">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="relative"
+                                      title="Manage recommendations"
+                                      onClick={() => setRecommendingItemId(item.id!)}
+                                    >
+                                      <Sparkles className="h-4 w-4" />
+                                      {(item.recommendations?.length ?? 0) > 0 && (
+                                        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
+                                          {item.recommendations!.length}
+                                        </span>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      title="Edit item"
+                                      onClick={() => setEditingItemId(item.id!)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
