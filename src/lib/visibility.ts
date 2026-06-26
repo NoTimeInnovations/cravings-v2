@@ -149,14 +149,19 @@ export type ItemDisplayState = "visible" | "hidden" | "unavailable";
 //   "hidden"      — drop from menu
 //   "unavailable" — keep in menu but force is_available=false (show "Unavailable" badge)
 //
-// Whether a not-currently-visible item is dropped ("hidden") or kept on the menu
-// greyed-out ("unavailable") is governed by a SINGLE partner-level flag
-// (hotelHideUnavailable = partner.hide_unavailable), applied uniformly to every
-// not-visible case:
-//   1. category.is_active === false
-//   2. item.is_available === false
-//   3. category schedule not currently visible
-//   4. item schedule not currently visible
+// Two different "not visible" meanings:
+//   - AVAILABILITY (category.is_active === false, item.is_available === false):
+//     a temporary "out of stock". Greyed ("unavailable") by default, and only
+//     dropped ("hidden") when the partner enables hide-unavailable.
+//   - SCHEDULE (category / item visibility_config out of window, or an explicit
+//     "hidden" default): an intentional "don't show this now" instruction — the
+//     editor labels it "Visible on these days". Always dropped ("hidden"),
+//     regardless of the hide-unavailable flag.
+// Order of precedence:
+//   1. category.is_active === false   → availability (flag-governed)
+//   2. item.is_available === false    → availability (flag-governed)
+//   3. category schedule out of window → always "hidden"
+//   4. item schedule out of window     → always "hidden"
 //   5. otherwise → "visible"
 export function getItemDisplayState(
   item: { visibility_config?: unknown; category?: { visibility_config?: unknown; is_active?: boolean } | null; is_available?: boolean },
@@ -171,11 +176,14 @@ export function getItemDisplayState(
   // Main availability toggle has top priority over schedules
   if (item.is_available === false) return notVisible;
 
-  // Category schedule
-  if (!isVisibleNow(item.category?.visibility_config, timezone, now)) return notVisible;
+  // Visibility SCHEDULES are an explicit "don't show this now" instruction
+  // (the editor labels it "Visible on these days"), distinct from a temporary
+  // out-of-stock. An out-of-window category/item is ALWAYS removed from the
+  // menu — independent of the hide-unavailable flag — otherwise scheduling
+  // silently does nothing whenever a partner keeps unavailable items visible.
+  if (!isVisibleNow(item.category?.visibility_config, timezone, now)) return "hidden";
 
-  // Item schedule
-  if (!isVisibleNow(item.visibility_config, timezone, now)) return notVisible;
+  if (!isVisibleNow(item.visibility_config, timezone, now)) return "hidden";
 
   return "visible";
 }
