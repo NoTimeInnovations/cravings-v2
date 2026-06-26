@@ -38,7 +38,7 @@ interface RunState {
 }
 
 interface Outbound {
-  kind: "text" | "image" | "audio" | "document" | "buttons" | "cta";
+  kind: "text" | "image" | "video" | "audio" | "document" | "buttons" | "cta";
   text?: string;
   mediaUrl?: string;
   caption?: string;
@@ -441,6 +441,14 @@ function executeForward(
         });
         nodeId = firstEdgeTarget(graph, node.id);
         break;
+      case "send_video":
+        outbound.push({
+          kind: "video",
+          mediaUrl: data.mediaUrl || "",
+          caption: interpolate(data.caption || "", state.variables),
+        });
+        nodeId = firstEdgeTarget(graph, node.id);
+        break;
       case "send_audio":
         outbound.push({ kind: "audio", mediaUrl: data.mediaUrl || "" });
         nodeId = firstEdgeTarget(graph, node.id);
@@ -568,6 +576,12 @@ function buildPayload(to: string, o: Outbound): { payload: Record<string, unknow
         type: "image",
         body: o.caption || "",
         payload: { to, type: "image", image: { link: o.mediaUrl, caption: o.caption || undefined } },
+      };
+    case "video":
+      return {
+        type: "video",
+        body: o.caption || "",
+        payload: { to, type: "video", video: { link: o.mediaUrl, caption: o.caption || undefined } },
       };
     case "audio":
       return {

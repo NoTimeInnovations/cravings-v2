@@ -43,6 +43,7 @@ import {
   Trash2,
   MessageSquare,
   Image as ImageIcon,
+  Video as VideoIcon,
   FileText,
   ListChecks,
   MessageCircleQuestion,
@@ -75,6 +76,7 @@ const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; 
   trigger: { label: "Trigger", icon: Zap, accent: "#f59e0b" },
   send_text: { label: "Send text", icon: MessageSquare, accent: "#16a34a" },
   send_image: { label: "Send image", icon: ImageIcon, accent: "#0ea5e9" },
+  send_video: { label: "Send video", icon: VideoIcon, accent: "#db2777" },
   send_audio: { label: "Send audio", icon: AudioLines, accent: "#14b8a6" },
   send_document: { label: "Send document", icon: FileText, accent: "#6366f1" },
   buttons: { label: "Buttons", icon: ListChecks, accent: "#a855f7" },
@@ -93,6 +95,7 @@ const PALETTE: FlowNodeType[] = [
   "trigger",
   "send_text",
   "send_image",
+  "send_video",
   "send_audio",
   "send_document",
   "buttons",
@@ -115,6 +118,8 @@ function defaultData(type: FlowNodeType): Record<string, unknown> {
     case "send_text":
       return { text: "" };
     case "send_image":
+      return { mediaUrl: "", caption: "" };
+    case "send_video":
       return { mediaUrl: "", caption: "" };
     case "send_audio":
       return { mediaUrl: "" };
@@ -171,6 +176,8 @@ function nodeSummary(type: FlowNodeType, data: any): string {
       return t(data?.text) || "Empty message";
     case "send_image":
       return data?.mediaUrl ? t(data.mediaUrl) : "No image";
+    case "send_video":
+      return data?.mediaUrl ? t(data.mediaUrl) : "No video";
     case "send_audio":
       return data?.mediaUrl ? t(data.mediaUrl) : "No audio";
     case "send_document":
@@ -737,6 +744,13 @@ function Inspector({
       {type === "send_image" && (
         <>
           <MediaField label="Image" accept="image/*" value={data.mediaUrl || ""} onChange={(url) => onChange({ mediaUrl: url })} />
+          <Field label="Caption"><Input value={data.caption || ""} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
+        </>
+      )}
+
+      {type === "send_video" && (
+        <>
+          <MediaField label="Video" accept="video/*" value={data.mediaUrl || ""} onChange={(url) => onChange({ mediaUrl: url })} />
           <Field label="Caption"><Input value={data.caption || ""} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
         </>
       )}
