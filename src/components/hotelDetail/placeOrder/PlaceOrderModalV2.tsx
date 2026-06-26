@@ -21,6 +21,9 @@ import {
   Clock,
   Users,
   AlertCircle,
+  Home,
+  Store,
+  Wallet,
 } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
@@ -213,8 +216,15 @@ const PlaceOrderModalV2 = ({
   }, [hasCashfree, hasCod, paymentMethod]);
   const [showBreakdown, setShowBreakdown] = useState(true);
   const [orderStatus, setOrderStatus] = useState<
-    "idle" | "loading" | "placing" | "verifying" | "success" | "failed" | "processing"
+    "idle" | "loading" | "confirming" | "placing" | "verifying" | "success" | "failed" | "processing"
   >(hasCashfreeReturn ? "verifying" : "idle");
+  // ----- "Placing your order" undo window (cash / pay-on-delivery only) -----
+  // After the customer taps Pay now we show a cancellable countdown; the order is
+  // only committed to the DB when the countdown finishes. CANCEL aborts cleanly.
+  const CONFIRM_WINDOW_MS = 4000;
+  const [confirmFill, setConfirmFill] = useState(false);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commitCashRef = useRef<() => void>(() => {});
   const [successClosing, setSuccessClosing] = useState(false);
   const [savedOrderTotal, setSavedOrderTotal] = useState<number | null>(null);
   /** Captures the placed order's id so the success screen can deep-link to /order/[id]. */
@@ -1653,7 +1663,15 @@ const PlaceOrderModalV2 = ({
       return;
     }
 
+    // Cash / pay-on-delivery: open the cancellable "Placing your order" window.
+    // The order is only written to the DB when the countdown elapses
+    // (commitCashOrder), so CANCEL within the window aborts cleanly.
     setSavedOrderTotal(payableTotal);
+    setOrderStatus("confirming");
+  };
+
+  // The actual COD / cash order commit — invoked when the undo window finishes.
+  const commitCashOrder = async () => {
     setOrderStatus("placing");
     try {
       const extraCharges: { name: string; amount: number; charge_type: string }[] = [];
@@ -1753,6 +1771,40 @@ const PlaceOrderModalV2 = ({
     }
   };
 
+  // Always point the timer at the latest commit closure (fresh totals/cart)
+  // without re-arming the countdown on every render.
+  useEffect(() => {
+    commitCashRef.current = commitCashOrder;
+  });
+
+  // Run the undo-window countdown: animate the progress bar, then commit when it
+  // elapses. Cleanup clears the timer if the status changes (e.g. CANCEL) or the
+  // component unmounts — so a cancelled order is never written.
+  useEffect(() => {
+    if (orderStatus !== "confirming") return;
+    setConfirmFill(false);
+    const raf = requestAnimationFrame(() => setConfirmFill(true));
+    const timer = setTimeout(() => {
+      commitCashRef.current();
+    }, CONFIRM_WINDOW_MS);
+    confirmTimerRef.current = timer;
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      confirmTimerRef.current = null;
+    };
+  }, [orderStatus]);
+
+  const cancelConfirmWindow = () => {
+    if (confirmTimerRef.current) {
+      clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = null;
+    }
+    setConfirmFill(false);
+    setSavedOrderTotal(null);
+    setOrderStatus("idle");
+  };
+
   const handleSuccessClose = () => {
     processingActiveRef.current = false;
     setSuccessClosing(true);
@@ -1784,6 +1836,77 @@ const PlaceOrderModalV2 = ({
   };
 
   if (!open_place_order_modal) return null;
+
+  // ----- "Placing your order" undo window (cash / pay-on-delivery) -----
+  if (orderStatus === "confirming") {
+    const confirmTotal = savedOrderTotal ?? payableTotal;
+    const isDeliveryOrder = orderType === "delivery";
+    const deliverHeading = isDeliveryOrder
+      ? `Delivering to ${selectedAddressLabel || "your address"}`
+      : orderType === "takeaway"
+        ? `Pickup from ${hotelData?.store_name || "store"}`
+        : `Dine-in at ${hotelData?.store_name || "store"}`;
+    return (
+      <div className="fixed inset-0 z-[500] flex flex-col justify-end bg-black/40">
+        <div
+          className="w-full md:mx-auto md:max-w-2xl rounded-t-3xl bg-white px-5 pt-5 pb-7"
+          style={{ animation: "v2ConfirmSheetIn 280ms ease-out forwards" }}
+        >
+          <style>{`@keyframes v2ConfirmSheetIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          <h2 className="text-[26px] font-extrabold tracking-tight text-gray-900">Placing your order</h2>
+
+          {/* Payment method */}
+          <div className="mt-6 flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 ring-gray-200">
+              <Wallet className="h-6 w-6 text-gray-700" />
+            </div>
+            <p className="text-[17px] font-medium text-gray-900">
+              Pay {currency}{confirmTotal.toFixed(0)} {isDeliveryOrder ? "on delivery" : "at store"} (UPI/cash)
+            </p>
+          </div>
+
+          {/* Delivery / pickup destination */}
+          <div className="mt-5 flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 ring-gray-200">
+              {isDeliveryOrder ? (
+                <Home className="h-6 w-6 text-gray-700" />
+              ) : (
+                <Store className="h-6 w-6 text-gray-700" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[17px] font-bold text-gray-900">{deliverHeading}</p>
+              {isDeliveryOrder && address && (
+                <p className="truncate text-[15px] text-gray-400">{address}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Countdown progress + cancel */}
+          <div className="mt-7 flex items-center gap-4">
+            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: confirmFill ? "100%" : "0%",
+                  backgroundColor: "#16a34a",
+                  transition: `width ${CONFIRM_WINDOW_MS}ms linear`,
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={cancelConfirmWindow}
+              className="shrink-0 text-[15px] font-bold uppercase tracking-wide"
+              style={{ color: "#e11d48" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (
     orderStatus === "placing" ||
@@ -2645,41 +2768,39 @@ const PlaceOrderModalV2 = ({
     {view === "main" && (items?.length ?? 0) > 0 && (
       <>
         <div className="v2-checkout-fixed fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[510]">
-          <div className="px-4 py-3 flex items-center justify-between gap-3">
+          <div className="px-3 py-3 flex items-center gap-2.5">
+          {/* To pay */}
+          <div className="shrink-0">
+            <p className="text-[11px] font-medium text-gray-500 leading-none">To pay</p>
+            <p className="mt-1 text-[17px] font-extrabold text-gray-900 leading-none">
+              {currency}{payableTotal.toFixed(0)}
+            </p>
+          </div>
+          {/* Payment method selector card */}
           <button
             type="button"
             onClick={() => {
-              if (hasCashfree && hasCod) setShowPaymentMethods((v) => !v);
+              if (hasCashfree && hasCod) setShowPaymentMethods(true);
             }}
-            className="flex flex-col items-start"
-            style={{ cursor: hasCashfree && hasCod ? "pointer" : "default" }}
+            className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-xl border-2 px-2 py-1.5 text-center"
+            style={{ borderColor: `${accent}55`, cursor: hasCashfree && hasCod ? "pointer" : "default" }}
           >
-            <span className="text-[11px] text-gray-500 flex items-center gap-1 uppercase tracking-wide">
-              Pay using{" "}
-              {hasCashfree && hasCod ? (
-                showPaymentMethods ? (
-                  <ChevronDown className="h-3 w-3" />
-                ) : (
-                  <ChevronUp className="h-3 w-3" />
-                )
-              ) : null}
+            <span className="max-w-full truncate text-[13px] font-bold leading-tight" style={{ color: accent }}>
+              {paymentMethod === "online" ? "Pay online" : orderType === "delivery" ? "Pay on delivery" : "Pay at store"}
             </span>
-            <span className="text-sm font-semibold text-gray-900">
-              {paymentMethod === "online" ? "Pay Online" : orderType === "delivery" ? "Cash on Delivery" : "Pay at Store"}
+            <span className="max-w-full truncate text-[11px] leading-tight text-gray-400">
+              {paymentMethod === "online" ? "UPI · Cards" : "Cash or UPI"}
             </span>
           </button>
+          {/* Pay now */}
           <button
             type="button"
             onClick={handlePay}
             disabled={orderStatus !== "idle" || !items || items.length === 0 || (orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || porterBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || isBelowMinimum}
-            className="flex-1 max-w-[60%] rounded-xl py-3.5 font-semibold text-white disabled:opacity-60"
+            className="shrink-0 rounded-xl px-5 py-3.5 font-semibold text-white disabled:opacity-60"
             style={{ backgroundColor: accent }}
           >
-            {paymentMethod === "online" ? (
-              `Pay ${currency}${payableTotal.toFixed(0)}`
-            ) : (
-              "Place Order"
-            )}
+            Pay now
           </button>
          </div>
         </div>
@@ -2697,10 +2818,14 @@ const PlaceOrderModalV2 = ({
               {(
                 [
                   ...(hasCod
-                    ? [{ id: "cash" as const, label: orderType === "delivery" ? "Cash on Delivery" : "Pay at Store" }]
+                    ? [{
+                        id: "cash" as const,
+                        label: orderType === "delivery" ? "Pay on delivery" : "Pay at store",
+                        sub: "Cash or UPI",
+                      }]
                     : []),
                   ...(hasCashfree
-                    ? [{ id: "online" as const, label: "Pay Online" }]
+                    ? [{ id: "online" as const, label: "Pay online", sub: "UPI, Cards, Netbanking" }]
                     : []),
                 ]
               ).map((opt) => (
@@ -2717,7 +2842,10 @@ const PlaceOrderModalV2 = ({
                       : "border-gray-200"
                   }`}
                 >
-                  <span className="font-medium text-gray-900">{opt.label}</span>
+                  <span className="flex flex-col items-start">
+                    <span className="font-semibold text-gray-900">{opt.label}</span>
+                    <span className="text-[11px] text-gray-400">{opt.sub}</span>
+                  </span>
                   {paymentMethod === opt.id && (
                     <Check className="h-4 w-4" style={{ color: accent }} />
                   )}

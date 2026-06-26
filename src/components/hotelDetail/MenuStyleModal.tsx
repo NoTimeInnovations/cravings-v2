@@ -15,7 +15,8 @@ export const MENUSTYLES = [
   { id: "compact", name: "Compact Style" },
   { id: "sidebar", name: "Sidebar Style" },
   { id: "v3", name: "V3 Style" },
-  { id: "v4", name: "V4 Style" }
+  { id: "v4", name: "V4 Style" },
+  { id: "v5", name: "V5 Zom" }
 ];
 
 const MenuStyleModal = ({ open, onOpenChange, onSave , theme }: MenuStyleModalProps) => {

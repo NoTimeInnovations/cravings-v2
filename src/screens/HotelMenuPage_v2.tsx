@@ -22,6 +22,7 @@ import Compact from "@/components/hotelDetail/styles/Compact/Compact";
 import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import V3 from "@/components/hotelDetail/styles/V3/V3";
 import V4 from "@/components/hotelDetail/styles/V4/V4";
+import V5 from "@/components/hotelDetail/styles/V5/V5";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { applyVisibilityState } from "@/lib/visibility";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
@@ -524,6 +525,8 @@ const HotelMenuPage = ({
         return <V3 {...defaultProps} />;
       case "v4":
         return <V4 {...defaultProps} />;
+      case "v5":
+        return <V5 {...defaultProps} />;
       default:
         return <Default {...defaultProps} />;
     }
@@ -561,6 +564,7 @@ const HotelMenuPage = ({
     theme?.menuStyle !== "sidebar" &&
     theme?.menuStyle !== "v3" &&
     theme?.menuStyle !== "v4" &&
+    theme?.menuStyle !== "v5" &&
     ((pathname.includes("qrScan") && features?.ordering.enabled) ||
       (!pathname.includes("qrScan") &&
         features?.delivery.enabled &&

@@ -3,6 +3,7 @@ import { CompactPreview } from "./previews/CompactPreview";
 import { SidebarPreview } from "./previews/SidebarPreview";
 import { V3Preview } from "./previews/V3Preview";
 import { V4Preview } from "./previews/V4Preview";
+import { V5Preview } from "./previews/V5Preview";
 import type { PreviewStyles } from "./previews/sampleData";
 
 interface MobilePreviewProps {
@@ -66,7 +67,10 @@ export function MobilePreview({ menuStyle, colors, fontFamily, showGrid }: Mobil
           {menuStyle === "v4" && (
             <V4Preview styles={styles} fontFamily={fontFamily} showGrid={showGrid} />
           )}
-          {(menuStyle === "default" || (menuStyle !== "compact" && menuStyle !== "sidebar" && menuStyle !== "v3" && menuStyle !== "v4")) && (
+          {menuStyle === "v5" && (
+            <V5Preview styles={styles} fontFamily={fontFamily} showGrid={showGrid} />
+          )}
+          {(menuStyle === "default" || (menuStyle !== "compact" && menuStyle !== "sidebar" && menuStyle !== "v3" && menuStyle !== "v4" && menuStyle !== "v5")) && (
             <DefaultPreview styles={styles} fontFamily={fontFamily} showGrid={showGrid} />
           )}
         </div>

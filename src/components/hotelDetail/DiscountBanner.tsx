@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Tag, Clock, Copy, Check } from "lucide-react";
+import { Tag, Clock, Copy, Check, BadgePercent, ChevronDown } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { useAuthStore } from "@/store/authStore";
 import useOrderStore from "@/store/orderStore";
@@ -31,12 +31,19 @@ const DiscountBanner = ({
   partnerId,
   currency,
   accent,
+  variant = "cards",
 }: {
   partnerId: string;
   currency: string;
   accent: string;
+  // "cards" (default) — the full scrollable discount cards (V3/V4).
+  // "summary" — a single compact "Items up to X% off · N offers ⌄" row that
+  // expands to reveal the cards (V5 / Zomato-style header).
+  variant?: "cards" | "summary";
 }) => {
   const [discounts, setDiscounts] = useState<DiscountData[]>([]);
+  // Index of the offer currently shown in the rotating "summary" ticker.
+  const [offerIndex, setOfferIndex] = useState(0);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [freebieItemNames, setFreebieItemNames] = useState<Record<string, string>>({});
   const [userUsageMap, setUserUsageMap] = useState<Record<string, number>>({});
@@ -125,6 +132,16 @@ const DiscountBanner = ({
       .catch((err) => console.error("DiscountBanner fetch failed:", err));
   }, [partnerId, (user as any)?.id, lastOrderPlacedAt]);
 
+  // Rotate the summary ticker through offers one at a time. Only cycles when
+  // there's more than one offer to show.
+  useEffect(() => {
+    if (variant !== "summary" || discounts.length <= 1) return;
+    const id = setInterval(() => {
+      setOfferIndex((i) => (i + 1) % discounts.length);
+    }, 3500);
+    return () => clearInterval(id);
+  }, [variant, discounts.length]);
+
   if (discounts.length === 0) return null;
 
   const handleCopy = (code: string) => {
@@ -159,32 +176,62 @@ const DiscountBanner = ({
     return null;
   };
 
-  return (
-    <div className="relative py-2">
-      <div
-        ref={scrollRef}
-        className="flex gap-2.5 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4"
-      >
-        {discounts.map((disc) => {
+  // ----- Rotating "summary" ticker — one offer at a time -----
+  const offerCount = discounts.length;
+  // A human sentence for a single offer: its description if present, otherwise a
+  // generated "Get up to X% off" / "Get ₹X off" / "Free <item>" line.
+  const offerSentence = (d: DiscountData): string => {
+    const desc = (d as any)?.description;
+    if (typeof desc === "string" && desc.trim()) return desc.trim();
+    if (d.discount_type === "freebie") {
+      const names = d.freebie_item_ids
+        ?.split(",")
+        .map((id) => freebieItemNames[id.trim()])
+        .filter(Boolean);
+      return names?.length ? `Free ${names.join(", ")}` : "Free item with your order";
+    }
+    if (d.discount_type === "percentage") {
+      return d.min_order_value
+        ? `Get ${d.discount_value}% off above ${currency}${d.min_order_value}`
+        : `Get up to ${d.discount_value}% off`;
+    }
+    return d.min_order_value
+      ? `Get ${currency}${d.discount_value} off above ${currency}${d.min_order_value}`
+      : `Get ${currency}${d.discount_value} off`;
+  };
+  const activeOffer = discounts[offerIndex % discounts.length];
+  const activeSentence = activeOffer ? offerSentence(activeOffer) : "";
+  const activeTag = activeOffer
+    ? activeOffer.has_coupon
+      ? activeOffer.code
+      : "Auto Apply"
+    : null;
+
+  const cardsList = (
+    <div
+      ref={scrollRef}
+      className="flex gap-2.5 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4"
+    >
+      {discounts.map((disc) => {
           const daysLeft = getDaysLeft(disc.expires_at);
           const timeRange = formatDateTimeRange(disc.starts_at, disc.expires_at);
 
           return (
             <div
               key={disc.id}
-              className="snap-start shrink-0 w-full rounded-xl overflow-hidden border relative"
+              className="snap-start shrink-0 w-full rounded-2xl overflow-hidden border relative shadow-sm"
               style={{
-                borderColor: accent + "25",
-                background: `linear-gradient(135deg, ${accent}06 0%, ${accent}12 100%)`,
+                borderColor: accent + "33",
+                background: `linear-gradient(135deg, ${accent}16 0%, ${accent}2b 100%)`,
               }}
             >
-              <div className="px-3 py-2.5 flex items-center gap-3">
+              <div className="px-3 py-3 flex items-center gap-3">
                 {/* Icon */}
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: accent + "18" }}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                  style={{ backgroundColor: accent, color: "#ffffff" }}
                 >
-                  <Tag size={15} style={{ color: accent }} />
+                  <Tag size={16} className="text-white" />
                 </div>
 
                 {/* Info */}
@@ -265,9 +312,52 @@ const DiscountBanner = ({
             </div>
           );
         })}
-      </div>
     </div>
   );
+
+  if (variant === "summary") {
+    // Rotating ticker — one offer shown at a time; each new offer slides in from
+    // the top with a fade. Informational only (the chevron is decorative).
+    return (
+      <div className="flex w-full items-center justify-between gap-2 border-t border-gray-100 px-4 py-3">
+        <style>{`
+          @keyframes offerTickerIn {
+            0% { transform: translateY(-100%); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+          }
+        `}</style>
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <BadgePercent className="h-[18px] w-[18px] shrink-0" style={{ color: accent }} />
+          {/* Ticker viewport (fixed height, clips the sliding offer) */}
+          <span className="relative block h-5 min-w-0 flex-1 overflow-hidden">
+            <span
+              key={offerIndex}
+              className="absolute inset-0 flex items-center gap-2"
+              style={{ animation: "offerTickerIn 450ms ease-out" }}
+            >
+              <span className="truncate text-[14px] font-bold text-gray-900">{activeSentence}</span>
+              {activeTag && (
+                <span
+                  className="shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                  style={{ backgroundColor: `${accent}1a`, color: accent }}
+                >
+                  {activeTag}
+                </span>
+              )}
+            </span>
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-gray-400">
+          <span className="whitespace-nowrap text-[13px] font-medium">
+            {offerCount} offer{offerCount > 1 ? "s" : ""}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0" />
+        </span>
+      </div>
+    );
+  }
+
+  return <div className="relative py-2">{cardsList}</div>;
 };
 
 export default DiscountBanner;
