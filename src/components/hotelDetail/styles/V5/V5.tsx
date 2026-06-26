@@ -172,7 +172,10 @@ const V5 = ({
       } else {
         pool = (hoteldata?.menus || []).filter((item) => item.category.id === category.id);
       }
-      const hideUnavForCat = category.id === "must-try" ? false : hideUnav;
+      // Respect the partner's "hide unavailable" toggle in EVERY section,
+      // including "Recommended" — when it's on, unavailable bestsellers are
+      // hidden too (previously must-try forced this off and leaked them).
+      const hideUnavForCat = hideUnav;
       const catItems = pool
         .map((item) => {
           const state = getItemDisplayState(item as any, tz, undefined, hideUnavForCat);
