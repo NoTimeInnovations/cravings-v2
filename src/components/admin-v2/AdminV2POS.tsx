@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePOSStore } from "@/store/posStore";
 import { useAuthStore } from "@/store/authStore";
 import { Loader2, Receipt } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 import { POSMenu } from "./pos/POSMenu";
 import { POSCartSidebar } from "@/components/admin-v2/pos/POSCartSidebar";
 import { EditOrderModal } from "@/components/admin/pos/EditOrderModal";
@@ -18,8 +19,13 @@ export function AdminV2POS() {
         cartItems,
         pastBills,
         fetchPastBills,
-        setIsCaptainOrder
+        setIsCaptainOrder,
+        calculateTotalWithCharges,
+        // subscribed so the FAB total re-renders when charges/discounts change
+        extraCharges,
+        discounts,
     } = usePOSStore();
+    void extraCharges; void discounts;
     const { userData } = useAuthStore();
 
 
@@ -114,11 +120,11 @@ export function AdminV2POS() {
 
     return (
         <div className="flex flex-col h-full md:overflow-hidden overflow-auto relative">
-            <div className="flex-1 flex gap-4 md:overflow-hidden overflow-visible relative md:p-0 p-0">
+            <div className="flex-1 min-h-0 flex gap-4 md:overflow-hidden overflow-visible relative md:p-0 p-0">
                 {/* Left Side: Menu (Grid) */}
                 <div
                     className={`
-                        flex-1 overflow-hidden rounded-lg md:border bg-card shadow-sm flex flex-col md:flex
+                        flex-1 min-h-0 min-w-0 overflow-hidden rounded-lg md:border bg-card shadow-sm flex flex-col md:flex
                         ${activeTab === "menu" ? "flex" : "hidden"}
                     `}
                 >
@@ -163,19 +169,29 @@ export function AdminV2POS() {
 
                     {/* Bottom Right: Cart */}
                     <div className="md:hidden fixed bottom-6 right-6 z-50">
-                        <button
-                            onClick={() => handleSwitchToCart("current")}
-                            className="relative bg-orange-600 text-white p-4 rounded-full shadow-lg hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center"
-                        >
-                            <div className="relative">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shopping-cart"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></svg>
-                                {cartItems.reduce((acc, item) => acc + item.quantity, 0) > 0 && (
-                                    <span className="absolute -top-3 -right-3 bg-white text-orange-600 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-orange-600">
-                                        {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
-                                    </span>
-                                )}
-                            </div>
-                        </button>
+                        {(() => {
+                            const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+                            return (
+                                <button
+                                    onClick={() => handleSwitchToCart("current")}
+                                    className={`relative bg-orange-600 text-white rounded-full shadow-lg hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center gap-2 ${cartCount > 0 ? "pl-4 pr-5 py-3.5" : "p-4"}`}
+                                >
+                                    <div className="relative">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shopping-cart"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></svg>
+                                        {cartCount > 0 && (
+                                            <span className="absolute -top-3 -right-3 bg-white text-orange-600 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-orange-600">
+                                                {cartCount}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {cartCount > 0 && (
+                                        <span className="font-bold text-sm whitespace-nowrap">
+                                            {formatCurrency(calculateTotalWithCharges())}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })()}
                     </div>
                 </>
             )}
