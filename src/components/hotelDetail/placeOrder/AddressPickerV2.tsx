@@ -393,13 +393,16 @@ const AddressPickerV2 = ({
   const reverseGeocode = useCallback(
     (lat: number, lng: number) => {
       if (!isLoaded) return;
-      // Refine serviceability to ROAD distance (matches checkout). The haversine
-      // value set on map-idle is just an instant estimate; overwrite it with the
-      // authoritative road distance once the pin settles, so an address inside
-      // the straight-line circle but too far by road is flagged out-of-range.
+      // Serviceability is judged by ROAD distance (matches checkout). Clear the
+      // distance first → the UI shows "Checking…" until the road distance
+      // resolves, then we set THAT (falling back to straight-line only if Mapbox
+      // is unreachable). We never display the raw straight-line value as
+      // authoritative — a point can read "available" by straight-line yet be far
+      // longer (and out of range) by road.
       if (hotelCoords) {
+        setPinDistanceKm(null);
         roadDistanceKm(hotelCoords, { lat, lng }).then((km) => {
-          if (km != null) setPinDistanceKm(km);
+          setPinDistanceKm(km ?? haversineKm(hotelCoords, { lat, lng }));
         });
       }
       setGeocoding(true);
@@ -573,9 +576,9 @@ const AddressPickerV2 = ({
     const lat = center.lat();
     const lng = center.lng();
     mapCenterRef.current = { lat, lng };
-    if (hotelCoords) {
-      setPinDistanceKm(haversineKm(hotelCoords, { lat, lng }));
-    }
+    // Distance/serviceability is set from ROAD distance in reverseGeocode (which
+    // runs once the pin settles), NOT here — setting a straight-line value on
+    // every idle would overwrite the road distance and wrongly show "available".
 
     if (!mapInitializedRef.current) {
       mapInitializedRef.current = true;
