@@ -61,18 +61,29 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
     setIsPriceModalOpen(false);
   };
 
-  // Helper function to render quantity controls
-  const renderQuantityControls = (itemId: string, itemData: MenuItem) => {
+  // Helper function to render quantity controls.
+  // `fullWidthAdd` makes the not-yet-added state a full-width "Add" button (used
+  // on the menu card); the in-cart "- qty +" stepper keeps its compact size.
+  const renderQuantityControls = (
+    itemId: string,
+    itemData: MenuItem,
+    fullWidthAdd = false,
+  ) => {
     const cartItem = cartItems.find((i) => i.id === itemId);
 
     if (!cartItem) {
       return (
         <Button
           size="sm"
-          className="h-7 w-7 p-0 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md shrink-0"
+          className={
+            fullWidthAdd
+              ? "w-full h-9 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium"
+              : "h-7 w-7 p-0 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md shrink-0"
+          }
           onClick={(e) => handleAddToCartClick(e, itemData)}
         >
           <Plus className="h-4 w-4" />
+          {fullWidthAdd && <span className="ml-1">Add</span>}
         </Button >
       );
     }
@@ -264,7 +275,7 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
               )}
             </p>
             <div className="flex justify-end">
-              {renderQuantityControls(item.id!, item)}
+              {renderQuantityControls(item.id!, item, true)}
             </div>
           </CardContent>
         </Card>
