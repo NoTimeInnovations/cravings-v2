@@ -109,6 +109,26 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
   };
 
 
+  // Item thumbnail shown at the top of the card. Falls back to the item's first
+  // letter on a muted tile when no image_url is set, so the grid stays uniform.
+  const thumb = (
+    <div className="w-full aspect-[4/3] rounded-md overflow-hidden bg-muted mb-2">
+      {item.image_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.image_url}
+          alt={item.name}
+          loading="lazy"
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-lg font-semibold uppercase">
+          {item.name?.charAt(0) || "?"}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       {isPriceModalOpen && (
@@ -170,6 +190,7 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
           <PopoverTrigger asChild>
             <Card className="h-full hover:shadow-md transition-all cursor-pointer border shadow-sm group active:scale-[0.98] duration-200 bg-card">
               <CardContent className="p-3">
+                {thumb}
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-sm leading-tight line-clamp-2 text-card-foreground mb-1.5 min-h-[2.5em]">
@@ -225,8 +246,9 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
           className="h-full hover:shadow-md transition-all cursor-pointer border shadow-sm group active:scale-[0.98] duration-200 bg-card"
         >
           <CardContent className="p-3">
-            <div className="flex justify-between items-start gap-2 h-full">
-              <div className="flex-1 flex flex-col min-w-0 justify-between h-full">
+            {thumb}
+            <div className="flex justify-between items-start gap-2">
+              <div className="flex-1 flex flex-col min-w-0">
                 <h3 className="font-semibold text-sm leading-tight line-clamp-2 text-card-foreground mb-2 min-h-[2.5em]">
                   {item.name}
                 </h3>

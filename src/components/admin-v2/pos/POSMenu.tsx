@@ -51,6 +51,11 @@ export function POSMenu() {
         }
     }, [groupedItems, searchQuery, selectedCategory, userData?.id]);
 
+    // A category has no image of its own, so use its first item's image
+    // (first item in the group that actually has one).
+    const categoryImage = (category: string): string | undefined =>
+        (groupedItems?.[category] || []).find((i) => i.image_url)?.image_url || undefined;
+
     return (
         <div className="flex h-full">
             <ShopClosedModalWarning
@@ -59,21 +64,32 @@ export function POSMenu() {
             />
 
             {/* Desktop: Vertical Category Sidebar */}
-            <div className="hidden lg:flex w-40 flex-col border-r bg-card h-full">
+            <div className="hidden lg:flex w-48 flex-col border-r bg-card h-full">
                 <div className="p-4 border-b font-semibold text-lg">Categories</div>
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                    {groupedItems && Object.keys(groupedItems).map((category) => (
-                        <button
-                            key={category}
-                            onClick={() => setSelectedCategory(category)}
-                            className={`w-full text-left capitalize px-3 py-2 rounded-md font-medium transition-colors text-sm ${selectedCategory === category
-                                ? "bg-orange-50 text-orange-600 border-l-4 border-orange-600"
-                                : "dark:text-white hover:bg-gray-50 hover:text-gray-900"
-                                }`}
-                        >
-                            {category}
-                        </button>
-                    ))}
+                    {groupedItems && Object.keys(groupedItems).map((category) => {
+                        const img = categoryImage(category);
+                        return (
+                            <button
+                                key={category}
+                                onClick={() => setSelectedCategory(category)}
+                                className={`w-full text-left capitalize px-3 py-2 rounded-md font-medium transition-colors text-sm flex items-center gap-2 ${selectedCategory === category
+                                    ? "bg-orange-50 text-orange-600 border-l-4 border-orange-600"
+                                    : "dark:text-white hover:bg-gray-50 hover:text-gray-900"
+                                    }`}
+                            >
+                                <span className="h-8 w-8 shrink-0 rounded-md overflow-hidden bg-muted flex items-center justify-center text-xs font-semibold uppercase text-muted-foreground">
+                                    {img ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={img} alt={category} loading="lazy" className="h-full w-full object-cover" />
+                                    ) : (
+                                        category.charAt(0)
+                                    )}
+                                </span>
+                                <span className="min-w-0 leading-tight">{category}</span>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
