@@ -80,6 +80,7 @@ interface POSState {
   paymentMethod?: "cash" | "card" | "upi";
   setPaymentMethod: (method: "cash" | "card" | "upi") => void;
   addToCart: (item: MenuItem) => void;
+  addCustomItem: (name: string, price: number) => void;
   removeFromCart: (itemId: string) => void;
   increaseQuantity: (itemId: string) => void;
   decreaseQuantity: (itemId: string) => void;
@@ -395,6 +396,32 @@ export const usePOSStore = create<POSState>((set, get) => ({
     }));
   },
 
+  addCustomItem: (name: string, price: number) => {
+    const trimmed = name.trim();
+    if (!trimmed || !(price > 0)) return;
+    // Synthetic, unique id so each custom line stays its own cart entry and is
+    // saved with menu_id = null at checkout (never written to the menu).
+    const customItem: CartItem = {
+      id: `custom_${uuidv4()}`,
+      name: trimmed,
+      price,
+      quantity: 1,
+      is_custom: true,
+      description: "",
+      image_url: "",
+      category: {
+        id: "",
+        name: "Custom",
+        priority: 9999,
+        is_active: true,
+      } as any,
+    };
+    set((state) => ({
+      cartItems: [...state.cartItems, customItem],
+      totalAmount: state.totalAmount + price,
+    }));
+  },
+
   removeFromCart: (itemId: string) => {
     const { cartItems } = get();
     const item = cartItems.find((item) => item.id === itemId);
@@ -536,13 +563,15 @@ export const usePOSStore = create<POSState>((set, get) => ({
         orderId: editingOrderId,
         items: cartItems.map((item) => ({
           order_id: editingOrderId,
-          menu_id: item.id?.split("|")[0],
+          // Off-menu custom items have no menu row → menu_id stays null.
+          menu_id: item.is_custom ? null : item.id?.split("|")[0],
           quantity: item.quantity,
           item: {
             id: item.id,
             name: item.name,
             price: item.price,
             category: item.category,
+            ...(item.is_custom && { is_custom: true }),
             ...(item.tax_inclusive && { tax_inclusive: true }),
           },
         })),
@@ -787,7 +816,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
               return {
                 id: uuidv4(),
                 order_id: orderId,
-                menu_id: item.id?.split("|")[0].split("_custom_")[0],
+                menu_id: item.is_custom ? null : item.id?.split("|")[0].split("_custom_")[0],
                 quantity: item.quantity,
                 variant: variantName ? {
                   id: variantName,
@@ -800,6 +829,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
                   offers: item.offers,
                   category: item.category,
                   pp_id: item.pp_id,
+                  ...(item.is_custom && { is_custom: true }),
                   ...(isFreebie && { is_freebie: true }),
                   ...(item.tax_inclusive && { tax_inclusive: true }),
                 },
@@ -895,13 +925,15 @@ export const usePOSStore = create<POSState>((set, get) => ({
             );
             return cartItems.map((item) => ({
               order_id: orderId,
-              menu_id: item.id?.split("|")[0].split("_custom_")[0],
+              // Off-menu custom items have no menu row → menu_id stays null.
+              menu_id: item.is_custom ? null : item.id?.split("|")[0].split("_custom_")[0],
               quantity: item.quantity,
               item: {
                 id: item.id,
                 name: item.name,
                 price: item.price,
                 category: item.category,
+                ...(item.is_custom && { is_custom: true }),
                 ...(freebieItemIds.has(item.pp_id || "") && { is_freebie: true }),
                 ...(item.tax_inclusive && { tax_inclusive: true }),
               },

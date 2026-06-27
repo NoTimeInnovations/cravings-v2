@@ -42,6 +42,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         removeFromCart,
         increaseQuantity,
         decreaseQuantity,
+        addCustomItem,
         totalAmount,
         clearCart,
         userPhone,
@@ -90,6 +91,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const activeOrderData = selectedOrder ? (pastBills.find(o => o.id === selectedOrder.id) || selectedOrder) : null;
 
     const [isAddingExtraCharge, setIsAddingExtraCharge] = useState(false);
+    const [isAddingCustomItem, setIsAddingCustomItem] = useState(false);
+    const [customItemName, setCustomItemName] = useState("");
+    const [customItemPrice, setCustomItemPrice] = useState("");
     const [isAddingNote, setIsAddingNote] = useState(false);
     const [isSelectingPaymentMethod, setIsSelectingPaymentMethod] = useState(false);
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -235,6 +239,23 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         setNewChargeName("");
         setNewChargeAmount("");
         setIsAddingExtraCharge(false);
+    };
+
+    // Add an off-menu item (typed name + price) straight into the cart.
+    const handleAddCustomItem = () => {
+        const price = parseFloat(customItemPrice);
+        if (!customItemName.trim()) {
+            toast.error("Enter an item name");
+            return;
+        }
+        if (isNaN(price) || price <= 0) {
+            toast.error("Enter a valid price");
+            return;
+        }
+        addCustomItem(customItemName, price);
+        setCustomItemName("");
+        setCustomItemPrice("");
+        setIsAddingCustomItem(false);
     };
 
     const {
@@ -555,6 +576,46 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                 )}
                             </div>
                         )}
+
+                        {/* Add a custom off-menu item (typed name + price) */}
+                        <div className="mt-3">
+                            {isAddingCustomItem ? (
+                                <div className="flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+                                    <Input
+                                        placeholder="Item name"
+                                        value={customItemName}
+                                        onChange={(e) => setCustomItemName(e.target.value)}
+                                        className="h-8 text-xs flex-1"
+                                        autoFocus
+                                    />
+                                    <Input
+                                        type="number"
+                                        placeholder="Price"
+                                        value={customItemPrice}
+                                        onChange={(e) => setCustomItemPrice(e.target.value)}
+                                        className="h-8 text-xs w-20"
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") handleAddCustomItem();
+                                        }}
+                                    />
+                                    <Button size="sm" variant="ghost" onClick={handleAddCustomItem} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50">
+                                        <CheckCircle className="h-4 w-4" />
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => { setIsAddingCustomItem(false); setCustomItemName(""); setCustomItemPrice(""); }} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    className="w-full border-dashed text-muted-foreground hover:text-foreground"
+                                    onClick={() => setIsAddingCustomItem(true)}
+                                >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add custom item
+                                </Button>
+                            )}
+                        </div>
                     </ScrollArea>
 
                     {/* Footer: Totals & Actions */}

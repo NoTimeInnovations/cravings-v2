@@ -67,6 +67,10 @@ export interface MenuItem {
   /** Manually-curated cross-sell list: ids of other menu items to recommend
    *  ("you will love pairing it with") when this item is added to the cart. */
   recommendations?: string[];
+  /** True for an ad-hoc POS line item typed in at billing time (name + price)
+   *  that does NOT exist in the menu. It rides through the cart/bill/history like
+   *  a normal item but is saved with menu_id = null (never added to the menu). */
+  is_custom?: boolean;
 }
 
 interface MenuItem_withOffer_price {
