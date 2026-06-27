@@ -12,6 +12,8 @@ import {
   Home,
   Building2,
   Navigation,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { GoogleMap, useLoadScript } from "@react-google-maps/api";
 import { HotelData } from "@/app/hotels/[...id]/page";
@@ -139,6 +141,30 @@ function haversineKm(
     Math.sin(dLat / 2) ** 2 +
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// Road (driving) distance in km via Mapbox — the SAME metric checkout uses for
+// the delivery-radius check (calculateDeliveryDistanceAndCost). The picker must
+// validate serviceability by road distance, not straight-line: an address can
+// sit inside the straight-line radius circle yet be far longer by road (e.g.
+// backwater/river detours), and checkout would then reject it. Returns null on
+// any failure so the caller can fall back to the straight-line estimate.
+async function roadDistanceKm(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+): Promise<number | null> {
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  if (!token) return null;
+  try {
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${from.lng},${from.lat};${to.lng},${to.lat}?access_token=${token}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const d = data?.routes?.[0]?.distance;
+    return typeof d === "number" ? d / 1000 : null;
+  } catch {
+    return null;
+  }
 }
 
 const SHOP_PIN_SVG = `data:image/svg+xml,${encodeURIComponent(
@@ -367,6 +393,15 @@ const AddressPickerV2 = ({
   const reverseGeocode = useCallback(
     (lat: number, lng: number) => {
       if (!isLoaded) return;
+      // Refine serviceability to ROAD distance (matches checkout). The haversine
+      // value set on map-idle is just an instant estimate; overwrite it with the
+      // authoritative road distance once the pin settles, so an address inside
+      // the straight-line circle but too far by road is flagged out-of-range.
+      if (hotelCoords) {
+        roadDistanceKm(hotelCoords, { lat, lng }).then((km) => {
+          if (km != null) setPinDistanceKm(km);
+        });
+      }
       setGeocoding(true);
       const geocoder = new google.maps.Geocoder();
       void trackMaps({ api: "geocode", partnerId: hotelData?.id, source: "checkout_v2_address" });
@@ -382,7 +417,7 @@ const AddressPickerV2 = ({
         }
       });
     },
-    [isLoaded],
+    [isLoaded, hotelCoords],
   );
 
   // Qatar only: resolve the nearest blue-plate building from the settled pin,
@@ -582,7 +617,22 @@ const AddressPickerV2 = ({
       toast.error("Please wait for location to load");
       return;
     }
-    if (isPinOutOfRange) {
+    // Authoritative serviceability check by ROAD distance — the same metric
+    // checkout uses. Done here (even if the live refinement already ran) so a
+    // location that's inside the straight-line circle but too far by road can
+    // never be saved and then rejected later at checkout. Falls back to the
+    // straight-line estimate only if the road lookup itself fails.
+    if (radiusKm && hotelCoords && mapCenterRef.current) {
+      const roadKm = await roadDistanceKm(hotelCoords, mapCenterRef.current);
+      const effectiveKm = roadKm ?? pinDistanceKm;
+      if (effectiveKm != null) setPinDistanceKm(effectiveKm);
+      if (effectiveKm != null && effectiveKm > radiusKm) {
+        toast.error(
+          `This location is ${effectiveKm.toFixed(1)} km by road — ${hotelData?.store_name || "this store"} delivers within ${radiusKm} km`,
+        );
+        return;
+      }
+    } else if (isPinOutOfRange) {
       toast.error(
         `This location is ${pinDistanceKm?.toFixed(1)} km away — outside the ${radiusKm} km delivery range`,
       );
@@ -919,18 +969,42 @@ const AddressPickerV2 = ({
             </div>
           ) : null}
 
-          {isPinOutOfRange && !mapMoving && (
-            <div className="flex items-start gap-2.5 mt-4 p-3 rounded-xl border border-red-200 bg-red-50">
-              <MapPin className="h-5 w-5 shrink-0 mt-0.5 text-red-600" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-semibold text-red-700">
-                  Outside delivery range
-                </p>
-                <p className="text-xs mt-0.5 text-red-600">
-                  This location is {pinDistanceKm?.toFixed(1)} km away. {hotelData?.store_name || "This store"} delivers within {radiusKm} km.
+          {/* Selected-location distance + delivery availability. Distance is the
+              ROAD distance (refined after the pin settles); shows a "checking"
+              state until it resolves, then green (available) / red (not). */}
+          {geocodedInfo && !mapMoving && (
+            pinDistanceKm == null ? (
+              <div className="flex items-center gap-2.5 mt-4 p-3 rounded-xl border border-gray-200 bg-gray-50">
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-gray-400" />
+                <p className="text-[13px] font-medium text-gray-600">
+                  Checking delivery availability…
                 </p>
               </div>
-            </div>
+            ) : isPinOutOfRange ? (
+              <div className="flex items-start gap-2.5 mt-4 p-3 rounded-xl border border-red-200 bg-red-50">
+                <XCircle className="h-5 w-5 shrink-0 mt-0.5 text-red-600" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-red-700">
+                    Delivery not available
+                  </p>
+                  <p className="text-xs mt-0.5 text-red-600">
+                    {pinDistanceKm.toFixed(1)} km away · {hotelData?.store_name || "This store"} delivers within {radiusKm} km
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2.5 mt-4 p-3 rounded-xl border border-green-200 bg-green-50">
+                <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5 text-green-600" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-green-700">
+                    Delivery available
+                  </p>
+                  <p className="text-xs mt-0.5 text-green-600">
+                    {pinDistanceKm.toFixed(1)} km away{radiusKm ? ` · within ${radiusKm} km range` : ""}
+                  </p>
+                </div>
+              </div>
+            )
           )}
 
           {isQatar && qarsHit && !mapMoving && !geocoding && (
