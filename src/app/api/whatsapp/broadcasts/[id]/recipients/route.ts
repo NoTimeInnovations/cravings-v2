@@ -60,10 +60,11 @@ const COUNTS = `
     delivered: whatsapp_broadcast_recipients_aggregate(where: { broadcast_id: { _eq: $bid }, status: { _eq: "delivered" } }) { aggregate { count } }
     read: whatsapp_broadcast_recipients_aggregate(where: { broadcast_id: { _eq: $bid }, status: { _eq: "read" } }) { aggregate { count } }
     failed: whatsapp_broadcast_recipients_aggregate(where: { broadcast_id: { _eq: $bid }, status: { _eq: "failed" } }) { aggregate { count } }
+    skipped: whatsapp_broadcast_recipients_aggregate(where: { broadcast_id: { _eq: $bid }, status: { _eq: "skipped" } }) { aggregate { count } }
   }
 `;
 
-const VALID_STATUS = ["pending", "sent", "delivered", "read", "failed"];
+const VALID_STATUS = ["pending", "sent", "delivered", "read", "failed", "skipped"];
 
 export async function GET(
   req: NextRequest,
@@ -121,6 +122,7 @@ export async function GET(
         delivered: c("delivered"),
         read: c("read"),
         failed: c("failed"),
+        skipped: c("skipped"),
       },
     });
   } catch (e: any) {

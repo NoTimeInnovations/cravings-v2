@@ -236,6 +236,7 @@ export function AdminV2WhatsAppBroadcast() {
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [blocklistOpen, setBlocklistOpen] = useState(false);
 
   const loadStatus = async () => {
     if (!partnerId) return;
@@ -336,6 +337,13 @@ export function AdminV2WhatsAppBroadcast() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadBroadcasts} title="Refresh">
             <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setBlocklistOpen(true)}
+            title="Blocked / unsubscribed numbers — never sent broadcasts"
+          >
+            <Ban className="h-4 w-4 mr-2" /> Blocklist
           </Button>
           <Button
             onClick={() => setCreatorOpen(true)}
@@ -517,7 +525,193 @@ export function AdminV2WhatsAppBroadcast() {
         onClose={() => setDetailId(null)}
         onChanged={loadBroadcasts}
       />
+
+      <BlocklistDialog
+        open={blocklistOpen}
+        onOpenChange={setBlocklistOpen}
+        partnerId={partnerId}
+      />
     </div>
+  );
+}
+
+// Per-partner blocklist manager — view/search the numbers excluded from all
+// broadcasts (auto-added on STOP, or added manually), and block/unblock numbers.
+function BlocklistDialog({
+  open,
+  onOpenChange,
+  partnerId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  partnerId?: string;
+}) {
+  const [rows, setRows] = useState<
+    { id?: string; phone: string; reason: string | null; created_at?: string }[]
+  >([]);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [newPhone, setNewPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = async (q = "") => {
+    if (!partnerId) return;
+    setLoading(true);
+    try {
+      const url = `/api/whatsapp/optouts?partnerId=${partnerId}${
+        q ? `&search=${encodeURIComponent(q)}` : ""
+      }`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to load");
+      setRows(data.optouts || []);
+      setTotal(data.total || 0);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to load blocklist");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open) {
+      setSearch("");
+      load("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, partnerId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => load(search.trim()), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  const add = async () => {
+    const phone = newPhone.trim();
+    if (!phone || !partnerId) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/whatsapp/optouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerId, phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to add");
+      toast.success(data.alreadyBlocked ? "Already on the blocklist" : "Number blocked");
+      setNewPhone("");
+      load(search.trim());
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to add");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (phone: string) => {
+    if (!partnerId) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/whatsapp/optouts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerId, phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to remove");
+      toast.success("Unblocked — they can receive broadcasts again");
+      load(search.trim());
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to remove");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Ban className="h-5 w-5 text-red-600" /> Blocklist
+            <span className="text-sm font-normal text-muted-foreground">
+              ({total})
+            </span>
+          </DialogTitle>
+          <DialogDescription>
+            Customers who replied STOP, plus numbers you add here, are never sent
+            any broadcast — excluded automatically at send time. A customer can
+            rejoin on their own by replying START.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex gap-2">
+          <Input
+            placeholder="Block a number (with country code, e.g. 919633440123)"
+            value={newPhone}
+            onChange={(e) => setNewPhone(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+          />
+          <Button onClick={add} disabled={busy || !newPhone.trim()}>
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        <div className="relative">
+          <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+          <Input
+            placeholder="Search blocked numbers…"
+            className="pl-8"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
+          {loading ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading…
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              {search ? "No matches." : "No blocked numbers yet."}
+            </div>
+          ) : (
+            rows.map((r) => (
+              <div
+                key={r.id || r.phone}
+                className="flex items-center justify-between gap-2 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{r.phone}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {r.reason === "STOP" ? "Replied STOP" : "Added manually"}
+                    {r.created_at ? ` · ${fmtTime(r.created_at)}` : ""}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-red-600 shrink-0"
+                  onClick={() => remove(r.phone)}
+                  disabled={busy}
+                  title="Unblock"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1548,6 +1742,7 @@ const STATUS_TABS: { key: string; label: string }[] = [
   { key: "sent", label: "Sent" },
   { key: "pending", label: "Pending" },
   { key: "failed", label: "Failed" },
+  { key: "skipped", label: "Skipped" },
 ];
 
 function fmtTime(s: string | null | undefined): string {
@@ -1589,6 +1784,12 @@ function RecipientTick({ status }: { status: string }) {
       return (
         <span className="flex items-center gap-1 text-red-600">
           <X className="h-4 w-4" /> Failed
+        </span>
+      );
+    case "skipped":
+      return (
+        <span className="flex items-center gap-1 text-stone-500">
+          <Ban className="h-4 w-4" /> Skipped
         </span>
       );
     default:

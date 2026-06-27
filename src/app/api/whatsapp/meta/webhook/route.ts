@@ -11,26 +11,64 @@ import {
   flowTypingEnabledFromFlags,
 } from "@/lib/whatsapp-features";
 
-// Marketing opt-out: a customer who replies STOP (or taps a stop button) is added
-// to the partner's suppression list and excluded from future broadcasts.
+// Marketing opt-out / opt-in: a customer who replies STOP is added to the
+// partner's blocklist (excluded from ALL of that partner's broadcasts — enforced
+// both at creation and at send time); a customer who replies START is removed
+// (resubscribe). Unique on (partner_id, phone).
 const INSERT_OPTOUT = `
   mutation OptOut($obj: whatsapp_broadcast_optouts_insert_input!) {
     insert_whatsapp_broadcast_optouts_one(object: $obj) { id }
   }
 `;
 
-function isStopMessage(msg: any): boolean {
-  const norm = (s?: string) => String(s || "").trim().toLowerCase();
-  if (msg?.type === "text") {
-    return ["stop", "unsubscribe", "stop promotions", "cancel"].includes(
-      norm(msg.text?.body),
-    );
+const DELETE_OPTOUT = `
+  mutation OptIn($pid: uuid!, $phone: String!) {
+    delete_whatsapp_broadcast_optouts(
+      where: { partner_id: { _eq: $pid }, phone: { _eq: $phone } }
+    ) { affected_rows }
   }
-  if (msg?.type === "button") return norm(msg.button?.text).includes("stop");
+`;
+
+// Reduce to letters+spaces so "STOP.", "Stop!", "  stop " all match the keyword.
+function normKeyword(s?: string): string {
+  return String(s || "").toLowerCase().replace(/[^a-z ]/g, "").trim();
+}
+
+// Exact-match keyword sets (exact avoids false positives like "please don't stop").
+const STOP_WORDS = new Set([
+  "stop", "stop promotions", "stop promotion", "stop all", "stop messages",
+  "stop sending", "unsubscribe", "unsub", "cancel", "opt out", "optout", "remove me",
+]);
+const START_WORDS = new Set([
+  "start", "unstop", "resubscribe", "subscribe", "resume", "opt in", "optin",
+]);
+
+function isStopMessage(msg: any): boolean {
+  if (msg?.type === "text") return STOP_WORDS.has(normKeyword(msg.text?.body));
+  if (msg?.type === "button") {
+    const t = normKeyword(msg.button?.text);
+    return t.includes("stop") || t.includes("unsubscribe");
+  }
   if (msg?.type === "interactive") {
-    return norm(
+    const t = normKeyword(
       msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title,
-    ).includes("stop");
+    );
+    return t.includes("stop") || t.includes("unsubscribe");
+  }
+  return false;
+}
+
+function isStartMessage(msg: any): boolean {
+  if (msg?.type === "text") return START_WORDS.has(normKeyword(msg.text?.body));
+  if (msg?.type === "button") {
+    const t = normKeyword(msg.button?.text);
+    return t.includes("resubscribe") || t === "start";
+  }
+  if (msg?.type === "interactive") {
+    const t = normKeyword(
+      msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title,
+    );
+    return t.includes("resubscribe") || t === "start";
   }
   return false;
 }
@@ -45,6 +83,17 @@ async function recordOptOut(partnerId: string, phone: string) {
     if (!String(e?.message || e).toLowerCase().includes("unique")) {
       console.error("Opt-out insert failed:", e);
     }
+  }
+}
+
+async function removeOptOut(partnerId: string, phone: string) {
+  try {
+    await fetchFromHasura(DELETE_OPTOUT, {
+      pid: partnerId,
+      phone: normalizePhone(phone),
+    });
+  } catch (e: any) {
+    console.error("Opt-in (resubscribe) failed:", e);
   }
 }
 
@@ -635,9 +684,11 @@ export async function POST(req: NextRequest) {
             // (and other team members) can see and actually check what customers
             // sent. The flow's own reply is what the customer sees as activity.
 
-            // Marketing STOP/unsubscribe → suppress from this partner's broadcasts.
+            // Marketing opt-out (STOP) / opt-in (START) for this partner's broadcasts.
             if (isStopMessage(msg)) {
               await recordOptOut(partner.partner_id, msg.from);
+            } else if (isStartMessage(msg)) {
+              await removeOptOut(partner.partner_id, msg.from);
             }
 
             // Run the partner's WhatsApp flows for this inbound. Idempotent and

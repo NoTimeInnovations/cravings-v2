@@ -324,3 +324,30 @@ export async function countSentToday(partnerId: string): Promise<number> {
   });
   return data?.whatsapp_broadcast_recipients_aggregate?.aggregate?.count || 0;
 }
+
+/**
+ * Every phone this partner has blocked (replied STOP, or manually added), as a
+ * Set of normalized numbers for O(1) lookup. Used to exclude opted-out customers
+ * from broadcasts at SEND time — the authoritative gate, so a customer who opts
+ * out mid-campaign never receives the rest of an in-flight broadcast. Never
+ * throws (returns an empty set on failure → fail-open is acceptable since the
+ * creation-time filter already removed the known opt-outs).
+ */
+export async function getPartnerOptOuts(partnerId: string): Promise<Set<string>> {
+  try {
+    const query = `
+      query PartnerOptouts($pid: uuid!) {
+        whatsapp_broadcast_optouts(where: { partner_id: { _eq: $pid } }) { phone }
+      }
+    `;
+    const data = await fetchFromHasuraServer(query, { pid: partnerId });
+    return new Set(
+      (data?.whatsapp_broadcast_optouts || []).map((o: any) =>
+        normalizePhone(String(o.phone || "")),
+      ),
+    );
+  } catch (e) {
+    console.error("getPartnerOptOuts failed:", e);
+    return new Set<string>();
+  }
+}

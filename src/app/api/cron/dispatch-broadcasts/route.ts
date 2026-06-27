@@ -3,7 +3,9 @@ import { fetchFromHasuraServer } from "@/lib/hasuraServerClient";
 import {
   sendBroadcastTemplate,
   getPartnerWhatsApp,
+  getPartnerOptOuts,
   countSentToday,
+  normalizePhone,
   type VariableMapItem,
 } from "@/lib/whatsapp-broadcast";
 import { isWhatsappEnabled } from "@/lib/whatsapp-features";
@@ -134,7 +136,7 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const nowIso = now.toISOString();
   const staleIso = new Date(now.getTime() - STALE_LOCK_MS).toISOString();
-  const summary = { due: 0, processed: 0, sent: 0, failed: 0, paused: 0, completed: 0, errors: 0 };
+  const summary = { due: 0, processed: 0, sent: 0, failed: 0, skipped: 0, paused: 0, completed: 0, errors: 0 };
 
   let due: DueBroadcast[] = [];
   try {
@@ -223,10 +225,26 @@ export async function GET(req: NextRequest) {
       }[];
 
       const partnerWa = await getPartnerWhatsApp(b.partner_id);
+      // Send-time blocklist gate: never message a customer who has opted out —
+      // even if they replied STOP AFTER this broadcast was created/queued.
+      const optedOut = await getPartnerOptOuts(b.partner_id);
       let sent = 0;
       let failed = 0;
+      let skipped = 0;
 
       for (const r of recipients) {
+        if (optedOut.has(normalizePhone(r.phone))) {
+          await fetchFromHasuraServer(UPDATE_RECIPIENT, {
+            id: r.id,
+            set: {
+              status: "skipped",
+              error: "Recipient opted out (STOP)",
+              sent_at: new Date().toISOString(),
+            },
+          }).catch(() => {});
+          skipped++;
+          continue;
+        }
         const result = await sendBroadcastTemplate(
           {
             partnerId: b.partner_id,
@@ -273,6 +291,7 @@ export async function GET(req: NextRequest) {
 
       summary.sent += sent;
       summary.failed += failed;
+      summary.skipped += skipped;
 
       // Did we drain the list this tick?
       const remainingAfter = pendingTotal - recipients.length;
