@@ -244,12 +244,29 @@ export async function GET(req: NextRequest) {
           r,
           partnerWa,
         );
-        await fetchFromHasuraServer(UPDATE_RECIPIENT, {
-          id: r.id,
-          set: result.ok
-            ? { status: "sent", meta_message_id: result.metaMessageId || null, sent_at: new Date().toISOString(), error: null }
-            : { status: "failed", error: result.error || "send failed", sent_at: new Date().toISOString() },
-        });
+        const fullSet: Record<string, unknown> = result.ok
+          ? {
+              status: "sent",
+              meta_message_id: result.metaMessageId || null,
+              sent_at: new Date().toISOString(),
+              error: null,
+              sent_from_phone_number_id: result.sentFromPhoneNumberId || null,
+            }
+          : {
+              status: "failed",
+              error: result.error || "send failed",
+              sent_at: new Date().toISOString(),
+              sent_from_phone_number_id: result.sentFromPhoneNumberId || null,
+            };
+        try {
+          await fetchFromHasuraServer(UPDATE_RECIPIENT, { id: r.id, set: fullSet });
+        } catch (e) {
+          // The sent_from column may not be exposed yet (migration/metadata not
+          // reloaded). Retry WITHOUT it so a just-sent message is still marked
+          // sent — never leave it 'pending', which would re-send (and re-charge).
+          const { sent_from_phone_number_id, ...legacy } = fullSet;
+          await fetchFromHasuraServer(UPDATE_RECIPIENT, { id: r.id, set: legacy });
+        }
         if (result.ok) sent++;
         else failed++;
       }

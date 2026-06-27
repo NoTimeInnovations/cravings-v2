@@ -150,6 +150,7 @@ function logWhatsAppMessage(params: {
   status: "sent" | "failed";
   metaMessageId?: string;
   errorDetails?: string;
+  sentFromPhoneNumberId?: string | null;
 }) {
   const mutation = `
     mutation LogWhatsAppMessage($object: whatsapp_message_logs_insert_input!) {
@@ -166,6 +167,7 @@ function logWhatsAppMessage(params: {
       status: params.status,
       meta_message_id: params.metaMessageId || null,
       error_details: params.errorDetails || null,
+      sent_from_phone_number_id: params.sentFromPhoneNumberId || null,
     },
   }).catch((err) => console.error("Failed to log broadcast message:", err));
 }
@@ -174,6 +176,9 @@ export interface SendResult {
   ok: boolean;
   metaMessageId?: string;
   error?: string;
+  // The Meta phone_number_id that actually sent it (partner number, or the
+  // Menuthere fallback) — used to reconcile cost against the correct WABA.
+  sentFromPhoneNumberId?: string | null;
 }
 
 /**
@@ -236,6 +241,9 @@ export async function sendBroadcastTemplate(
       },
     );
 
+  // Track which number actually sends it so cost reconciles against that WABA.
+  let usedPhoneNumberId =
+    partnerWa.partnerPhoneNumberId || menutherePhoneNumberId;
   let res = partnerWa.partnerPhoneNumberId
     ? await sendFrom(
         partnerWa.partnerPhoneNumberId,
@@ -257,6 +265,7 @@ export async function sendBroadcastTemplate(
       partnerError,
     );
     res = await sendFrom(menutherePhoneNumberId, accessToken);
+    usedPhoneNumberId = menutherePhoneNumberId; // fell back to the shared number
   }
 
   if (!res.ok) {
@@ -269,6 +278,7 @@ export async function sendBroadcastTemplate(
       templateName: cfg.templateName,
       status: "failed",
       errorDetails: errBody,
+      sentFromPhoneNumberId: usedPhoneNumberId,
     });
     return { ok: false, error: errBody.slice(0, 500) };
   }
@@ -281,8 +291,9 @@ export async function sendBroadcastTemplate(
     templateName: cfg.templateName,
     status: "sent",
     metaMessageId,
+    sentFromPhoneNumberId: usedPhoneNumberId,
   });
-  return { ok: true, metaMessageId };
+  return { ok: true, metaMessageId, sentFromPhoneNumberId: usedPhoneNumberId };
 }
 
 /**

@@ -132,6 +132,8 @@ interface BroadcastRow {
   failed_count: number;
   total_cost: number;
   cost_currency: string | null;
+  cost_source: string | null; // estimate | partial | meta_analytics
+  cost_reconciled_at: string | null;
   last_error: string | null;
   created_at: string;
 }
@@ -474,7 +476,14 @@ export function AdminV2WhatsAppBroadcast() {
                     <div className="flex items-center justify-between pt-0.5">
                       {b.total_cost > 0 ? (
                         <span className="text-xs font-medium text-foreground">
-                          {formatMoney(b.total_cost, b.cost_currency || "INR")} spent
+                          {formatMoney(b.total_cost, b.cost_currency || "INR")}
+                          <span className="text-muted-foreground font-normal">
+                            {" "}cost
+                          </span>
+                        </span>
+                      ) : b.delivered_count > 0 ? (
+                        <span className="text-xs text-muted-foreground">
+                          Calculating cost…
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
@@ -1477,7 +1486,10 @@ interface DetailBroadcast {
   read_count: number;
   failed_count: number;
   total_cost: number;
+  cost_estimated: number | null;
   cost_currency: string | null;
+  cost_source: string | null; // estimate | partial | meta_analytics
+  cost_reconciled_at: string | null;
   last_error: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -1511,6 +1523,8 @@ interface RecipientRow {
   error_title: string | null;
   cost_amount: number | null;
   cost_currency: string | null;
+  cost_source: string | null;
+  pricing_category: string | null;
 }
 
 interface ErrorBucket {
@@ -1961,7 +1975,7 @@ function BroadcastDetailDialog({
               {/* Cost */}
               <div className="rounded-lg border p-3 space-y-1">
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <IndianRupee className="h-3.5 w-3.5" /> Cost (estimated)
+                  <IndianRupee className="h-3.5 w-3.5" /> Cost
                 </div>
                 <div className="text-xl font-semibold">
                   {formatMoney(
@@ -1970,7 +1984,10 @@ function BroadcastDetailDialog({
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Charged on delivery · {detail.category?.toLowerCase() || "marketing"} rate
+                  Meta published {detail.category?.toLowerCase() || "marketing"} rate
+                  {(detail.delivered_count || 0) > 0
+                    ? " · charged per delivered message"
+                    : " · charged on delivery"}
                 </div>
                 {quality?.actualSpend && (
                   <div className="text-xs text-foreground pt-1 border-t mt-1">

@@ -43,6 +43,8 @@ const LIST = `
       error_title
       cost_amount
       cost_currency
+      cost_source
+      pricing_category
     }
     filtered: whatsapp_broadcast_recipients_aggregate(where: $where) {
       aggregate { count }

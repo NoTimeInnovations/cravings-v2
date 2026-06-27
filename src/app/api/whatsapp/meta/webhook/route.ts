@@ -4,7 +4,8 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerByPhoneNumberIdCached } from "@/lib/whatsapp-meta";
 import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
 import { normalizePhone } from "@/lib/whatsapp-broadcast";
-import { computeMessageCost, getBusinessCurrency } from "@/lib/whatsapp-cost";
+import { getBusinessCurrency } from "@/lib/whatsapp-cost";
+import { estimateMessageCost } from "@/lib/whatsapp-pricing-analytics";
 import {
   whatsappEnabledFromFlags,
   flowTypingEnabledFromFlags,
@@ -327,20 +328,25 @@ async function applyBroadcastStatus(
     console.error("status: recipient advance failed", e);
   }
 
-  // 2) Pricing/cost — set ONCE. Meta charges per DELIVERED template message, so
-  //    we cost it the moment it's delivered/read. Prefer Meta's own pricing
-  //    object (authoritative category/billable) when present; otherwise fall back
-  //    to the broadcast's category (broadcast templates are billable). Skipped
-  //    for `failed` (undelivered → not charged).
+  // 2) Pricing/cost — write a PROVISIONAL ESTIMATE the moment a message is
+  //    delivered (Meta charges per delivered template message). The estimate uses
+  //    the real rate already observed for this market from pricing_analytics, else
+  //    the published rate card — clearly labelled `cost_source='estimate'` and
+  //    OVERWRITTEN with Meta's actual billed cost by the reconciliation cron.
+  //    A message Meta's pricing object marks non-billable is authoritatively free
+  //    → mark it reconciled now so reconciliation never re-charges it. Skipped for
+  //    `failed` (undelivered → not charged).
   const isDeliveredish = status === "delivered" || status === "read";
   if (rcpt.cost_amount == null && partnerId && (pricing || isDeliveredish)) {
     try {
       const category = pricing?.category || rcpt.broadcast?.category || "marketing";
       const billable = pricing ? !!pricing.billable : true;
+      const pricingType = pricing?.type || pricing?.pricing_type || null;
       const businessCurrency = await getBusinessCurrency(partnerId);
-      const cost = await computeMessageCost({
+      const est = await estimateMessageCost({
         recipientPhone: rcpt.phone,
         category,
+        pricingType,
         billable,
         businessCurrency,
       });
@@ -350,8 +356,15 @@ async function applyBroadcastStatus(
           billable,
           pricing_category: category.toLowerCase(),
           pricing_model: pricing?.pricing_model || null,
-          cost_amount: cost.amount,
-          cost_currency: cost.currency,
+          pricing_type: pricingType,
+          cost_amount: est.amount, // best-available now; reconciliation replaces it
+          cost_estimated: est.amount, // preserved so we can measure estimate accuracy
+          cost_currency: est.currency,
+          cost_source: billable ? "rate_card" : "meta_free",
+          // Rate-card cost is FINAL: Meta hides COST for BSP-billed accounts
+          // (verified on the live WABAs), so there is no later reconciliation.
+          // The rate card is Meta's published rate = what the restaurant is charged.
+          cost_reconciled_at: tsIso,
         },
       });
     } catch (e) {
@@ -430,19 +443,25 @@ async function applyLedgerStatus(st: any): Promise<void> {
   if (pricing && log.cost_amount == null && log.partner_id) {
     try {
       const businessCurrency = await getBusinessCurrency(log.partner_id);
-      const cost = await computeMessageCost({
+      const pricingType = pricing.type || pricing.pricing_type || null;
+      const billable = !!pricing.billable;
+      const est = await estimateMessageCost({
         recipientPhone: log.phone,
         category: pricing.category,
-        billable: pricing.billable,
+        pricingType,
+        billable,
         businessCurrency,
       });
       await fetchFromHasura(UPDATE_LOGS, {
         where: { meta_message_id: { _eq: mid }, cost_amount: { _is_null: true } },
         set: {
-          billable: !!pricing.billable,
+          billable,
           pricing_category: pricing.category || null,
-          cost_amount: cost.amount,
-          cost_currency: cost.currency,
+          pricing_type: pricingType,
+          cost_amount: est.amount,
+          cost_estimated: est.amount,
+          cost_currency: est.currency,
+          cost_source: billable ? "estimate" : "meta_free",
         },
       });
     } catch (e) {

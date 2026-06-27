@@ -34,6 +34,8 @@ const LIST = `
       failed_count
       total_cost
       cost_currency
+      cost_source
+      cost_reconciled_at
       last_error
       started_at
       completed_at
