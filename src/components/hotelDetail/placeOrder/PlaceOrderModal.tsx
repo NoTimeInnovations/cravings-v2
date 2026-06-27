@@ -850,7 +850,7 @@ const BillCard = ({
         {parcelCharge > 0 && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--pom-text-muted)" }}>
-              Parcel Charge
+              Packaging Charge
               {parcelChargeType === "variable" && <span className="text-xs ml-1">({totalItemCount} items)</span>}
             </span>
             <span className="text-inherit">{currency}{" "}{parcelCharge.toFixed(2)}</span>
@@ -2672,7 +2672,7 @@ const PlaceOrderModal = ({
       hotelData?.gst_percentage && gstAdditional > 0 ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAdditional.toFixed(2)}` : "",
       !isQrScan && orderType === "delivery" && deliveryCharge > 0 ? `*Delivery Charge:* ${hotelData.currency}${deliveryCharge.toFixed(2)}` : "",
       qrGroup?.extra_charge ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}` : "",
-      parcelCharge > 0 ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}` : "",
+      parcelCharge > 0 ? `*Packaging Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}` : "",
       discountSavingsAmount > 0 ? `*Discount:* -${hotelData.currency}${discountSavingsAmount.toFixed(2)}` : "",
       `*Total Price:* ${hotelData.currency}${grandTotal.toFixed(2)}`,
     ].filter(Boolean).join("\n");
@@ -2877,7 +2877,7 @@ const PlaceOrderModal = ({
             : hotelData.delivery_rules.parcel_charge;
         }
         extraCharges.push({
-          name: "Parcel Charge",
+          name: "Packaging Charge",
           amount: parcelAmount,
           charge_type: "FLAT_FEE",
         });
@@ -3078,7 +3078,7 @@ const PlaceOrderModal = ({
         } else {
           parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
         }
-        extraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
+        extraCharges.push({ name: "Packaging Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
       }
       const { additionalGst: gstAmountCalc } = calculateGstForItems(
         (items || []).map((item) => {

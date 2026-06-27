@@ -1152,7 +1152,7 @@ const PlaceOrderModalV2 = ({
       }
       if (parcelAmount > 0)
         list.push({
-          name: "Parcel Charge",
+          name: "Packaging Charge",
           amount: parcelAmount,
           charge_type: "FLAT_FEE",
         });
@@ -1347,7 +1347,7 @@ const PlaceOrderModalV2 = ({
       ec.push({ name: "Delivery Charge", amount: deliveryCharge, charge_type: "FLAT_FEE" });
     }
     if (parcelCharge > 0) {
-      ec.push({ name: "Parcel Charge", amount: parcelCharge, charge_type: "FLAT_FEE" });
+      ec.push({ name: "Packaging Charge", amount: parcelCharge, charge_type: "FLAT_FEE" });
     }
     return ec;
   };
@@ -1691,7 +1691,7 @@ const PlaceOrderModalV2 = ({
       }
       if (parcelCharge > 0) {
         extraCharges.push({
-          name: "Parcel Charge",
+          name: "Packaging Charge",
           amount: parcelCharge,
           charge_type: "FLAT_FEE",
         });
@@ -2708,7 +2708,7 @@ const PlaceOrderModalV2 = ({
                     </div>
                   )}
                   {parcelCharge > 0 && (
-                    <Row label="Parcel Charge" value={`${currency}${parcelCharge.toFixed(0)}`} />
+                    <Row label="Packaging Charge" value={`${currency}${parcelCharge.toFixed(0)}`} />
                   )}
                   {qrExtraCharge > 0 && qrGroup?.name && (
                     <Row label={qrGroup.name} value={`${currency}${qrExtraCharge.toFixed(0)}`} />

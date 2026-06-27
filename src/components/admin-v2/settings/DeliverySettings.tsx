@@ -1202,7 +1202,7 @@ export function DeliverySettings() {
                     </div>
 
                     <div className="space-y-3">
-                        <Label>Parcel/Packaging Charge</Label>
+                        <Label>Packaging Charge</Label>
                         <div className="flex gap-3 items-start">
                             <Select
                                 value={deliveryRules.parcel_charge_type || "fixed"}

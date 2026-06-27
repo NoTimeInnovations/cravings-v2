@@ -588,7 +588,7 @@ const OrderDrawer = ({
         ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}`
         : "",
       parcelCharge > 0
-        ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}`
+        ? `*Packaging Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}`
         : "",
       discountAmount > 0
         ? `*Discount:* -${hotelData.currency}${discountAmount.toFixed(2)}`
