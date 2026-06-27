@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -21,6 +22,13 @@ import { toast } from "sonner";
 import { Copy, Loader2, MapPin, Phone, Truck } from "lucide-react";
 import { Notification } from "@/app/actions/notification";
 import { useLiveAgentLocation } from "@/hooks/useLiveAgentLocation";
+
+// Mapbox-based live tracker — reused from the customer order page. Lazy-loaded
+// (ssr: false) because mapbox-gl needs window/document.
+const DeliveryMap = dynamic(() => import("@/app/order/[id]/DeliveryMap"), {
+  ssr: false,
+  loading: () => <div className="h-56 w-full animate-pulse rounded-md bg-muted" />,
+});
 
 interface DeliveryBoyOption {
   id: string;
@@ -318,11 +326,17 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
 }
 
 /**
- * Tiny live-position indicator for the assigned rider. Polls the heartbeat
- * hub every 3 s; falls back to the delivery_boys row from the order itself
- * when Redis is empty. Hides itself entirely on terminal orders.
+ * Live map + position indicator for the assigned rider (our own Menuthere
+ * delivery-app riders — NOT the delivery pool). Polls the heartbeat hub every
+ * 3 s via useLiveAgentLocation; falls back to the delivery_boys row from the
+ * order itself when the hub is empty. Renders an embedded map (rider → drop,
+ * with the restaurant + delivery radius) plus a compact "Live · Xs ago" line.
+ * Hides itself entirely on terminal orders.
  */
 function LiveRiderLocation({ order }: { order: Order }) {
+  const { userData } = useAuthStore();
+  const partner = userData as Partner | null;
+
   const isActive =
     !!order.delivery_boy_id &&
     order.status !== "completed" &&
@@ -344,49 +358,95 @@ function LiveRiderLocation({ order }: { order: Order }) {
     seed,
   });
 
-  if (!isActive || !live) return null;
+  if (!isActive) return null;
 
-  const ageLabel =
-    live.ageSec < 60
+  // Drop (customer) + restaurant coordinates for the map.
+  const dropLng = order.delivery_location?.coordinates?.[0] ?? null;
+  const dropLat = order.delivery_location?.coordinates?.[1] ?? null;
+  const hotelGeo = partner?.geo_location as any;
+  const hotelCoords =
+    hotelGeo && typeof hotelGeo === "object" && Array.isArray(hotelGeo.coordinates)
+      ? (hotelGeo.coordinates as [number, number])
+      : null;
+  const hotelLng = hotelCoords?.[0] ?? null;
+  const hotelLat = hotelCoords?.[1] ?? null;
+  const radiusKm = (partner?.delivery_rules as any)?.delivery_radius ?? null;
+
+  const ageLabel = live
+    ? live.ageSec < 60
       ? `${live.ageSec}s ago`
       : live.ageSec < 3600
         ? `${Math.floor(live.ageSec / 60)}m ago`
-        : `${Math.floor(live.ageSec / 3600)}h ${Math.floor((live.ageSec % 3600) / 60)}m ago`;
-  const mapsHref = `https://www.google.com/maps?q=${live.lat},${live.lng}`;
+        : `${Math.floor(live.ageSec / 3600)}h ${Math.floor((live.ageSec % 3600) / 60)}m ago`
+    : null;
 
   return (
-    <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-white/60 dark:bg-purple-900/30 px-2.5 py-1.5 text-xs">
-      <div className="flex items-center gap-1.5 min-w-0">
-        <span className="relative flex h-2 w-2 shrink-0">
-          <span
-            className={
-              live.source === "live"
-                ? "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"
-                : ""
-            }
+    <div className="mt-3 space-y-2">
+      {/* Embedded live map — shown once we know where to drop. The rider marker
+          appears as soon as the app reports a location. */}
+      {dropLat != null && dropLng != null && (
+        <div className="relative h-56 overflow-hidden rounded-md border">
+          <DeliveryMap
+            deliveryLng={dropLng}
+            deliveryLat={dropLat}
+            driverLng={live?.lng ?? null}
+            driverLat={live?.lat ?? null}
+            hotelLng={hotelLng}
+            hotelLat={hotelLat}
+            hotelName={partner?.store_name ?? null}
+            hotelBanner={partner?.store_banner ?? null}
+            routeMode="to_destination"
+            radiusKm={radiusKm}
+            onMapClick={() => {
+              if (!live) return;
+              window.open(
+                `https://www.google.com/maps/dir/${live.lat},${live.lng}/${dropLat},${dropLng}`,
+                "_blank",
+              );
+            }}
           />
-          <span
-            className={`relative inline-flex rounded-full h-2 w-2 ${
-              live.source === "live" ? "bg-green-500" : "bg-amber-400"
-            }`}
-          />
-        </span>
-        <span className="font-medium truncate">
-          {live.source === "live" ? "Live" : "Last seen"} · {ageLabel}
-        </span>
-        <span className="text-muted-foreground truncate font-mono">
-          {live.lat.toFixed(5)}, {live.lng.toFixed(5)}
-        </span>
-      </div>
-      <a
-        href={mapsHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 text-blue-600 hover:underline shrink-0"
-      >
-        <MapPin className="h-3 w-3" />
-        Map
-      </a>
+          {live ? (
+            <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] shadow">
+              <span className="relative flex h-2 w-2">
+                {live.source === "live" && (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                )}
+                <span
+                  className={`relative inline-flex h-2 w-2 rounded-full ${live.source === "live" ? "bg-green-500" : "bg-amber-400"}`}
+                />
+              </span>
+              <span className="font-medium text-gray-800">
+                {live.source === "live" ? "Live" : "Last seen"} · {ageLabel}
+              </span>
+            </div>
+          ) : (
+            <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] text-gray-600 shadow">
+              Waiting for rider location…
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Compact text line — precise coords + open-in-Maps link. */}
+      {live && (
+        <div className="flex items-center justify-between gap-2 rounded-md bg-white/60 dark:bg-purple-900/30 px-2.5 py-1.5 text-xs">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <MapPin className="h-3 w-3 shrink-0 text-purple-600" />
+            <span className="truncate font-mono text-muted-foreground">
+              {live.lat.toFixed(5)}, {live.lng.toFixed(5)}
+            </span>
+          </div>
+          <a
+            href={`https://www.google.com/maps?q=${live.lat},${live.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex shrink-0 items-center gap-1 text-blue-600 hover:underline"
+          >
+            <MapPin className="h-3 w-3" />
+            Open
+          </a>
+        </div>
+      )}
     </div>
   );
 }
