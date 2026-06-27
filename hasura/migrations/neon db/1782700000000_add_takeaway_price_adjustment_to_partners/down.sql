@@ -1,0 +1,1 @@
+-- No-op: columns are never dropped (additive-only migration policy).

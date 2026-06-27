@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { computeDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems } from "@/lib/takeawayPricing";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -35,6 +36,17 @@ interface QrCodeData {
   table_name?: string | null;
 
 }
+
+// Per-item takeaway surcharge configured on the partner. Resolves the value from
+// the logged-in user (partner directly, or a captain's parent partner).
+const resolveTakeawayAdjustment = (): number => {
+  const userData = useAuthStore.getState().userData;
+  const partner =
+    userData?.role === "captain"
+      ? (userData as Captain).partner
+      : (userData as Partner);
+  return getTakeawayAdjustment(partner as any);
+};
 
 interface CartItem extends MenuItem {
   quantity: number;
@@ -514,7 +526,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
       userPhone,
       tableNumber,
       orderNote,
-      totalAmount
+      totalAmount,
+      posOrderType
     } = get();
 
     if (!editingOrderId) return;
@@ -525,8 +538,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const partnerData = userData as Partner;
       const gstPercentage = partnerData?.gst_percentage || 0;
 
+      // Bake the takeaway per-item surcharge into prices when the order is takeaway.
+      const takeawayAdj = posOrderType === "takeaway" ? resolveTakeawayAdjustment() : 0;
+      const effectiveItems = applyTakeawayAdjustment(cartItems, takeawayAdj);
+      const effectiveFoodAmount = totalAmount + takeawayChargeForItems(cartItems, takeawayAdj);
+
       const extraChargesTotal = extraCharges.reduce((acc, curr) => acc + curr.amount, 0);
-      const subtotal = totalAmount + extraChargesTotal;
+      const subtotal = effectiveFoodAmount + extraChargesTotal;
 
       // Calculate Discount
       const discountAmount = discounts.reduce((total, discount) => {
@@ -537,9 +555,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
       }, 0);
 
       const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-      const discountedFoodAmount = Math.max(0, totalAmount - discountAmount);
-      const ratio = totalAmount > 0 ? discountedFoodAmount / totalAmount : 0;
-      const adjustedItems = cartItems.map((item) => ({
+      const discountedFoodAmount = Math.max(0, effectiveFoodAmount - discountAmount);
+      const ratio = effectiveFoodAmount > 0 ? discountedFoodAmount / effectiveFoodAmount : 0;
+      const adjustedItems = effectiveItems.map((item) => ({
         price: item.price * ratio,
         quantity: item.quantity,
         tax_inclusive: item.tax_inclusive,
@@ -561,7 +579,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
       // Update order items by deleting and re-inserting
       await fetchFromHasura(updateOrderItemsMutation, {
         orderId: editingOrderId,
-        items: cartItems.map((item) => ({
+        items: effectiveItems.map((item) => ({
           order_id: editingOrderId,
           // Off-menu custom items have no menu row → menu_id stays null.
           menu_id: item.is_custom ? null : item.id?.split("|")[0],
@@ -625,12 +643,16 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   calculateTotalWithCharges: () => {
-    const { cartItems, extraCharges, discounts } = get();
+    const { cartItems, extraCharges, discounts, posOrderType } = get();
     const hotelData = useAuthStore.getState().userData as Partner;
     const gstPercentage = hotelData?.gst_percentage || 0;
 
+    // Bake the takeaway per-item surcharge into prices when the order is takeaway.
+    const takeawayAdj = posOrderType === "takeaway" ? resolveTakeawayAdjustment() : 0;
+    const effectiveItems = applyTakeawayAdjustment(cartItems, takeawayAdj);
+
     // Calculate food subtotal
-    const foodSubtotal = cartItems.reduce(
+    const foodSubtotal = effectiveItems.reduce(
       (total, item) => total + item.price * item.quantity,
       0
     );
@@ -654,7 +676,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
     const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
 
     const ratio = foodSubtotal > 0 ? discountedFoodSubtotal / foodSubtotal : 0;
-    const adjustedItems = cartItems.map((item) => ({
+    const adjustedItems = effectiveItems.map((item) => ({
       price: item.price * ratio,
       quantity: item.quantity,
       tax_inclusive: item.tax_inclusive,
@@ -708,8 +730,15 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
 
 
+      // Bake the takeaway per-item surcharge into prices when the order is takeaway.
+      // `effectiveItems` is then used for all totals, GST and the persisted line items
+      // so receipts / KOT / Petpooja all reflect the charged price.
+      const isTakeaway = posOrderType === "takeaway";
+      const takeawayAdj = isTakeaway ? resolveTakeawayAdjustment() : 0;
+      const effectiveItems = applyTakeawayAdjustment(cartItems, takeawayAdj);
+
       // Calculate amounts
-      const foodSubtotal = cartItems.reduce(
+      const foodSubtotal = effectiveItems.reduce(
         (sum, item) => sum + item.price * item.quantity,
         0
       );
@@ -733,7 +762,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
 
       const discountRatio = foodSubtotal > 0 ? discountedFoodSubtotal / foodSubtotal : 0;
-      const discountAdjustedItems = cartItems.map((item) => ({
+      const discountAdjustedItems = effectiveItems.map((item) => ({
         price: item.price * discountRatio,
         quantity: item.quantity,
         tax_inclusive: item.tax_inclusive,
@@ -742,7 +771,6 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       const grandTotal = discountedSubtotal + posAdditionalGst;
 
-      const isTakeaway = posOrderType === "takeaway";
       const orderTypeString = isTakeaway ? "delivery" : "pos";
 
       const orderId = uuidv4();
@@ -809,7 +837,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
                 .flatMap((d) => d.freebie_item_ids!.split(",").map((id) => id.trim()))
             );
 
-            return cartItems.map((item) => {
+            return effectiveItems.map((item) => {
               const variantName = item.id?.includes("|") ? item.id.split("|")[1] : null;
               const isFreebie = freebieItemIds.has(item.pp_id || "");
 
@@ -923,7 +951,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
                 .filter((d) => d.type === "freebie" && d.freebie_item_ids)
                 .flatMap((d) => d.freebie_item_ids!.split(",").map((id) => id.trim()))
             );
-            return cartItems.map((item) => ({
+            return effectiveItems.map((item) => ({
               order_id: orderId,
               // Off-menu custom items have no menu row → menu_id stays null.
               menu_id: item.is_custom ? null : item.id?.split("|")[0].split("_custom_")[0],

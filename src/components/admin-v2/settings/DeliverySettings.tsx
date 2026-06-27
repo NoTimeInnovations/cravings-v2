@@ -268,6 +268,7 @@ export function DeliverySettings() {
 
     const [deliveryRate, setDeliveryRate] = useState(0);
     const [priceAdjustment, setPriceAdjustment] = useState<number | null>(null);
+    const [takeawayPriceAdjustment, setTakeawayPriceAdjustment] = useState<number | null>(null);
     const [deliveryRules, setDeliveryRules] = useState<DeliveryRules>({
         delivery_radius: 5,
         delivery_ranges: [],
@@ -310,6 +311,7 @@ export function DeliverySettings() {
         if (userData?.role === "partner") {
             setDeliveryRate(userData.delivery_rate || 0);
             setPriceAdjustment((userData as any).price_adjustment ?? null);
+            setTakeawayPriceAdjustment((userData as any).takeaway_price_adjustment ?? null);
 
             const hasAdvancedRules = userData.delivery_rules?.delivery_ranges && userData.delivery_rules.delivery_ranges.length > 0;
             const hasLegacyRules = userData.delivery_rules?.first_km_range;
@@ -457,6 +459,7 @@ export function DeliverySettings() {
                 whatsapp_numbers: whatsappNumbers,
                 country_code: countryCode,
                 price_adjustment: priceAdjustment,
+                takeaway_price_adjustment: takeawayPriceAdjustment,
                 porter_mobile: porterMobile.trim() || null,
                 uber_mobile: uberMobile.trim() || null,
                 rapido_mobile: rapidoMobile.trim() || null,
@@ -474,7 +477,7 @@ export function DeliverySettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, porterMobile, uberMobile, rapidoMobile, setState]);
+    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, takeawayPriceAdjustment, porterMobile, uberMobile, rapidoMobile, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -526,6 +529,7 @@ export function DeliverySettings() {
         const initialCountryCode = data.country_code || "+91";
 
         const initialPriceAdjustment = data.price_adjustment ?? null;
+        const initialTakeawayPriceAdjustment = data.takeaway_price_adjustment ?? null;
         const initialPorterMobile = data.porter_mobile ?? "";
         const initialUberMobile = data.uber_mobile ?? "";
         const initialRapidoMobile = data.rapido_mobile ?? "";
@@ -536,6 +540,7 @@ export function DeliverySettings() {
             JSON.stringify(whatsappNumbers) !== JSON.stringify(initialWhatsapp) ||
             countryCode !== initialCountryCode ||
             priceAdjustment !== initialPriceAdjustment ||
+            takeawayPriceAdjustment !== initialTakeawayPriceAdjustment ||
             porterMobile !== initialPorterMobile ||
             uberMobile !== initialUberMobile ||
             rapidoMobile !== initialRapidoMobile;
@@ -549,6 +554,7 @@ export function DeliverySettings() {
         whatsappNumbers,
         countryCode,
         priceAdjustment,
+        takeawayPriceAdjustment,
         porterMobile,
         uberMobile,
         rapidoMobile,
@@ -1272,6 +1278,27 @@ export function DeliverySettings() {
                         />
                         <p className="text-sm text-muted-foreground">
                             Positive = increase prices, Negative = decrease prices. Applies to all items on your /hotels/ page.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Takeaway Price Adjustment</CardTitle>
+                    <CardDescription>Extra charge added to each item when the order type is Takeaway.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Extra per item ({currencySymbol})</Label>
+                        <Input
+                            type="number"
+                            placeholder="e.g. 10"
+                            value={takeawayPriceAdjustment ?? ""}
+                            onChange={(e) => setTakeawayPriceAdjustment(e.target.value === "" ? null : parseInt(e.target.value))}
+                        />
+                        <p className="text-sm text-muted-foreground">
+                            Added to each item&apos;s price (per unit) when a customer or cashier selects Takeaway — applies in both online ordering and POS. Leave blank for no adjustment.
                         </p>
                     </div>
                 </CardContent>

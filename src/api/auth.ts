@@ -57,6 +57,8 @@ export const partnerIdQuery = `
       geo_location
       delivery_rate
       delivery_rules
+      price_adjustment
+      takeaway_price_adjustment
       country_code
       location_details
       hide_unavailable
@@ -126,6 +128,8 @@ export const partnerLoginQuery = `
       geo_location
       delivery_rate
       delivery_rules
+      price_adjustment
+      takeaway_price_adjustment
       country_code
       location_details
       hide_unavailable

@@ -10,6 +10,7 @@ import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/Ord
 import Img from "@/components/Img";
 import { formatCurrency } from "@/lib/utils";
 import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
+import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { toast } from "sonner";
 import { hasuraClient, subscribeToHasura } from "@/lib/hasuraSubscription";
 import { subscriptionQuery } from "@/api/orders";
@@ -73,6 +74,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     } = usePOSStore();
     const { userData } = useAuthStore();
     const partnerData = userData as Partner;
+    // Per-item takeaway surcharge, applied to displayed prices/totals only when the
+    // takeaway order type is selected (mirrors the baked-in price used at checkout).
+    const takeawayAdjustment = posOrderType === "takeaway" ? getTakeawayAdjustment(partnerData) : 0;
 
     // UI States
     const [viewMode, setViewMode] = useState<"current" | "today">(initialViewMode);
@@ -303,8 +307,13 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         }
     };
 
+    const posCartItems = usePOSStore.getState().cartItems;
+    const effectivePosItems = applyTakeawayAdjustment(posCartItems, takeawayAdjustment);
+    // Surcharge applies to menu items only — custom items are billed as typed.
+    const effectiveFoodAmount = totalAmount + takeawayChargeForItems(posCartItems, takeawayAdjustment);
+
     const extraChargesTotal = extraCharges.reduce((acc, curr) => acc + curr.amount, 0);
-    const subtotal = totalAmount + extraChargesTotal;
+    const subtotal = effectiveFoodAmount + extraChargesTotal;
 
     // Calculate current order discounts
     const discountAmount = usePOSStore.getState().discounts.reduce((total, discount) => {
@@ -315,10 +324,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     }, 0);
 
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-    const discountedFoodAmount = Math.max(0, totalAmount - discountAmount);
-    const posCartItems = usePOSStore.getState().cartItems;
-    const discRatio = totalAmount > 0 ? discountedFoodAmount / totalAmount : 0;
-    const adjItems = posCartItems.map((item) => ({ price: item.price * discRatio, quantity: item.quantity, tax_inclusive: item.tax_inclusive }));
+    const discountedFoodAmount = Math.max(0, effectiveFoodAmount - discountAmount);
+    const discRatio = effectiveFoodAmount > 0 ? discountedFoodAmount / effectiveFoodAmount : 0;
+    const adjItems = effectivePosItems.map((item) => ({ price: item.price * discRatio, quantity: item.quantity, tax_inclusive: item.tax_inclusive }));
     const { additionalGst: gstAmount } = calculateGstForItems(adjItems, partnerData?.gst_percentage || 0);
     const grandTotal = discountedSubtotal + gstAmount;
 
@@ -535,12 +543,14 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {cartItems.map((item) => (
+                                {cartItems.map((item) => {
+                                    const displayUnitPrice = Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjustment));
+                                    return (
                                     <div key={item.id} className="flex justify-between items-center bg-background p-2 rounded-lg border shadow-sm group gap-2 w-full">
                                         <div className="flex-1 min-w-0 grid gap-0.5">
                                             <h4 className="font-medium text-sm truncate pr-2" title={item.name}>{item.name}</h4>
                                             <p className="text-xs text-muted-foreground">
-                                                {formatCurrency(item.price)} x {item.quantity} = <span className="font-semibold text-foreground">{formatCurrency(item.price * item.quantity)}</span>
+                                                {formatCurrency(displayUnitPrice)} x {item.quantity} = <span className="font-semibold text-foreground">{formatCurrency(displayUnitPrice * item.quantity)}</span>
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-1 bg-muted rounded-md p-0.5 shrink-0">
@@ -563,7 +573,8 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                             </Button>
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                                 {editingOrderId && (
                                     <Button
                                         variant="outline"
@@ -789,7 +800,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                 <div className="space-y-1.5 animate-in slide-in-from-bottom-2 duration-200 border-t pt-2 border-dashed">
                                     <div className="flex justify-between text-muted-foreground">
                                         <span>Subtotal</span>
-                                        <span>{formatCurrency(totalAmount)}</span>
+                                        <span>{formatCurrency(effectiveFoodAmount)}</span>
                                     </div>
                                     {extraCharges.map((charge) => (
                                         <div key={charge.id} className="flex justify-between text-muted-foreground text-xs pl-2 border-l-2 border-muted">

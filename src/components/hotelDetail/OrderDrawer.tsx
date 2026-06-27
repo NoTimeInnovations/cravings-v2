@@ -16,6 +16,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import PlaceOrderModal from "./placeOrder/PlaceOrderModal";
 import PlaceOrderModalV2 from "./placeOrder/PlaceOrderModalV2";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { getTakeawayAdjustment, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import path from "path/win32";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { useAuthStore, User } from "@/store/authStore"; // <-- Added
@@ -387,8 +388,16 @@ const OrderDrawer = ({
   }, [items]);
 
   const calculateGrandTotal = () => {
+    // Bake the per-item takeaway surcharge into the displayed total when takeaway
+    // is the selected order type (mirrors what the checkout modal charges).
+    const takeawayAdj =
+      orderType === "takeaway" ? getTakeawayAdjustment(hotelData) : 0;
     const baseTotal =
-      items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+      items?.reduce(
+        (acc, item) =>
+          acc + Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdj)) * item.quantity,
+        0,
+      ) || 0;
 
     let grandTotal = baseTotal;
 

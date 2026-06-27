@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
+import { getTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
@@ -550,6 +551,7 @@ const ItemsCard = ({
   removeItem,
   currency,
   onAddMore,
+  takeawayAdjPerItem = 0,
 }: {
   items: OrderItem[];
   increaseQuantity: (id: string) => void;
@@ -557,6 +559,7 @@ const ItemsCard = ({
   removeItem: (id: string) => void;
   currency: string;
   onAddMore?: () => void;
+  takeawayAdjPerItem?: number;
 }) => {
   return (
     <div>
@@ -577,7 +580,7 @@ const ItemsCard = ({
               {item.name}
             </DescriptionWithTextBreak>
             <p className="text-[13px] mt-1 font-medium" style={{ color: "var(--pom-text-muted)" }}>
-              {currency}{" "}{(item.price * item.quantity).toFixed(2)}
+              {currency}{" "}{(Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)) * item.quantity).toFixed(2)}
             </p>
           </div>
           {/* Right: Quantity control */}
@@ -658,6 +661,8 @@ interface BillCardProps {
   usePorterForCharge?: boolean;
   /** ₹ value of loyalty points the customer is redeeming on this order. */
   loyaltyRedeemValue?: number;
+  /** Per-item takeaway surcharge baked into prices (0 when not takeaway). */
+  takeawayAdjPerItem?: number;
 }
 
 const BillCard = ({
@@ -677,11 +682,15 @@ const BillCard = ({
   porterQuoteLoading,
   usePorterForCharge,
   loyaltyRedeemValue = 0,
+  takeawayAdjPerItem = 0,
 }: BillCardProps) => {
-  const subtotal = items.reduce(
+  const baseSubtotal = items.reduce(
     (acc, item) => acc + item.price * item.quantity,
     0,
   );
+  // Subtotal shown/charged to the customer, including the takeaway surcharge
+  // (menu items only — custom items are billed as typed).
+  const subtotal = baseSubtotal + takeawayChargeForItems(items, takeawayAdjPerItem);
 
   const qrExtraCharges = qrGroup?.extra_charge
     ? getExtraCharge(
@@ -727,7 +736,7 @@ const BillCard = ({
     (items || []).map((item) => {
       const baseId = item.id.split("|")[0];
       const mi = hotelData?.menus?.find((m) => m.id === baseId);
-      return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+      return { price: Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)), quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
     }),
     gstPercentage || 0,
   );
@@ -746,14 +755,14 @@ const BillCard = ({
     if (discount.type === "freebie") {
       discountSavings = freebieTotalPrice;
     } else if (discount.type === "percentage") {
-      discountSavings = (subtotal * discount.value) / 100;
+      discountSavings = (baseSubtotal * discount.value) / 100;
     } else {
       discountSavings = discount.value;
     }
     if (discount.max_discount_amount) {
       discountSavings = Math.min(discountSavings, discount.max_discount_amount);
     }
-    discountSavings = Math.min(discountSavings, subtotal);
+    discountSavings = Math.min(discountSavings, baseSubtotal);
   }
   const loyaltyApplied = Math.max(0, Math.min(loyaltyRedeemValue, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings));
   const grandTotal = Math.max(0, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings - loyaltyApplied);
@@ -1712,6 +1721,9 @@ const PlaceOrderModal = ({
   } = useOrderStore();
 
   const { userData: user } = useAuthStore();
+
+  // Per-item takeaway surcharge, baked into prices only when takeaway is selected.
+  const takeawayAdjPerItem = orderType === "takeaway" ? getTakeawayAdjustment(hotelData) : 0;
 
   // Check for cart items incompatible with current order type
   // Use allMenus (unfiltered) since filtered menus already excludes incompatible items
@@ -2891,14 +2903,15 @@ const PlaceOrderModal = ({
         (items || []).map((item) => {
           const baseId = item.id.split("|")[0];
           const mi = hotelData?.menus?.find((m) => m.id === baseId);
-          return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+          return { price: Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)), quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
         }),
         hotelData?.gst_percentage as number,
       );
 
+      const takeawayCharge = takeawayChargeForItems(items || [], takeawayAdjPerItem);
       const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
       const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-      const computedFinalAmount = Math.max(0, subtotal + extraChargesTotal + gstAdditionalOrder - discountSavingsAmount);
+      const computedFinalAmount = Math.max(0, subtotal + takeawayCharge + extraChargesTotal + gstAdditionalOrder - discountSavingsAmount);
       setFinalOrderAmount(computedFinalAmount);
       // Snapshots for the GTM purchase event (cart + coupon are cleared on success).
       let purchaseValue = computedFinalAmount;
@@ -3088,13 +3101,14 @@ const PlaceOrderModal = ({
         (items || []).map((item) => {
           const baseId = item.id.split("|")[0];
           const mi = hotelData?.menus?.find((m) => m.id === baseId);
-          return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+          return { price: Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)), quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
         }),
         hotelData?.gst_percentage as number,
       );
+      const takeawayCharge = takeawayChargeForItems(items || [], takeawayAdjPerItem);
       const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
       const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-      const grandTotal = Math.max(0, subtotal + extraChargesTotal + gstAmountCalc - discountSavingsAmount);
+      const grandTotal = Math.max(0, subtotal + takeawayCharge + extraChargesTotal + gstAmountCalc - discountSavingsAmount);
 
       // Create a temporary order ID for Cashfree
       const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -3631,6 +3645,7 @@ const PlaceOrderModal = ({
                   decreaseQuantity={decreaseQuantity}
                   removeItem={removeItem}
                   currency={hotelData?.currency || "₹"}
+                  takeawayAdjPerItem={takeawayAdjPerItem}
                   onAddMore={() => {
                     setOpenPlaceOrderModal(false);
                     setOpenDrawerBottom(true);
@@ -3873,6 +3888,7 @@ const PlaceOrderModal = ({
                   porterQuoteLoading={porterQuoteLoading}
                   usePorterForCharge={usePorterForCharge}
                   loyaltyRedeemValue={loyaltyRedeemValue}
+                  takeawayAdjPerItem={takeawayAdjPerItem}
                 />
               </div>
 

@@ -7,6 +7,7 @@ import {
   baseItemId,
 } from "@/lib/partnerDataLayer";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
+import { getTakeawayAdjustment, applyTakeawayAdjustment } from "@/lib/takeawayPricing";
 import { getFeatures } from "@/lib/getFeatures";
 import { getSafeStorage } from "@/lib/safeStorage";
 import { create } from "zustand";
@@ -1526,8 +1527,16 @@ const useOrderStore = create(
             });
           }
 
+          // Bake the takeaway per-item surcharge into prices when the order is
+          // takeaway. `effectiveItems` then drives the persisted subtotal and the
+          // stored line items so receipts / Petpooja reflect the charged price. The
+          // matching `gstIncluded` is computed on adjusted prices by the checkout modal.
+          const takeawayAdj =
+            state.orderType === "takeaway" ? getTakeawayAdjustment(hotelData) : 0;
+          const effectiveItems = applyTakeawayAdjustment(currentOrder.items, takeawayAdj);
+
           // Calculate totals
-          const subtotal = currentOrder.items.reduce(
+          const subtotal = effectiveItems.reduce(
             (sum, item) => sum + item.price * item.quantity,
             0
           );
@@ -1671,7 +1680,7 @@ const useOrderStore = create(
               petpooja_restaurant_id: hotelData.petpooja_restaurant_id,
               discounts: ppDiscounts,
               items: [
-                ...currentOrder.items.map((item) => {
+                ...effectiveItems.map((item) => {
                   const menuId = item.id.split("|")[0];
                   const ppIdFromMenu = hotelData?.menus?.find((m) => m.id === menuId)?.pp_id;
                   return {
@@ -1823,7 +1832,7 @@ const useOrderStore = create(
               scheduled_time_to,
               booking_persons,
               orderItems: [
-                ...currentOrder.items.map((item) => ({
+                ...effectiveItems.map((item) => ({
                   menu_id: item.id.split("|")[0],
                   quantity: item.quantity,
                   item: {

@@ -49,6 +49,7 @@ import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
+import { getTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const DELIVERY_AGENT_PRICE_MARKUP = 10;
@@ -388,6 +389,16 @@ const PlaceOrderModalV2 = ({
     [items],
   );
 
+  // Per-item takeaway surcharge, baked into prices only when the takeaway order
+  // type is selected. `takeawayCharge` is the total added across the cart.
+  const takeawayAdjPerItem = orderType === "takeaway" ? getTakeawayAdjustment(hotelData) : 0;
+  const takeawayCharge = useMemo(
+    () => takeawayChargeForItems(items || [], takeawayAdjPerItem),
+    [takeawayAdjPerItem, items],
+  );
+  // Subtotal as shown/charged to the customer (includes the takeaway surcharge).
+  const displaySubtotal = subtotal + takeawayCharge;
+
   const isBelowMinimum = orderType === "delivery" && minimumOrderAmount > 0 && subtotal < minimumOrderAmount;
 
   /* ---------------- 3PL delivery-agent serviceability + quote ------------- */
@@ -696,11 +707,11 @@ const PlaceOrderModalV2 = ({
       const enrichedItems = (items || []).map((item) => {
         const baseId = item.id.split("|")[0];
         const menuItem = allMenus.find((m: any) => m.id === baseId);
-        return { price: item.price, quantity: item.quantity, tax_inclusive: menuItem?.tax_inclusive ?? item.tax_inclusive };
+        return { price: Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)), quantity: item.quantity, tax_inclusive: menuItem?.tax_inclusive ?? item.tax_inclusive };
       });
       return calculateGstForItems(enrichedItems, Number(hotelData?.gst_percentage) || 0);
     },
-    [items, hotelData?.gst_percentage, allMenus],
+    [items, hotelData?.gst_percentage, allMenus, takeawayAdjPerItem],
   );
 
   const getFreebieItemsTotal = (disc: AppliedDiscount | null) => {
@@ -726,7 +737,7 @@ const PlaceOrderModalV2 = ({
   }, [appliedDiscount, subtotal, hotelData?.menus]);
 
   const extraChargesTotal = deliveryCharge + parcelCharge + qrExtraCharge;
-  const grandTotal = Math.max(0, subtotal + extraChargesTotal + additionalGst - discountSavings);
+  const grandTotal = Math.max(0, displaySubtotal + extraChargesTotal + additionalGst - discountSavings);
 
   // ---- Loyalty redemption (derived) ----
   // grandTotal is the pre-redemption total; payableTotal is what the customer pays.
@@ -2415,7 +2426,7 @@ const PlaceOrderModalV2 = ({
                   </div>
                   <div className="text-xs font-bold text-gray-900 min-w-[60px] text-right">
                     {currency}
-                    {(item.price * item.quantity).toFixed(0)}
+                    {(Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)) * item.quantity).toFixed(0)}
                   </div>
                 </div>
               ))}
