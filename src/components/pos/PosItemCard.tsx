@@ -247,26 +247,24 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
         >
           <CardContent className="p-3">
             {thumb}
-            {/* Name on its own full-width line, then price + add controls below */}
-            <h3 className="font-semibold text-sm leading-tight line-clamp-2 text-card-foreground mb-2">
+            {/* Each on its own line: name, then amount, then the add controls */}
+            <h3 className="font-semibold text-sm leading-tight line-clamp-2 text-card-foreground mb-1.5">
               {item.name}
             </h3>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-bold text-card-foreground min-w-0 truncate">
-                {item.is_price_as_per_size ? (
-                  <span className="text-xs font-medium italic text-muted-foreground">
-                    Price as per size {savedPrices[item.id!] ? `(${(userData as Partner)?.currency || '₹'}${savedPrices[item.id!]})` : ""}
-                  </span>
-                ) : (
-                  <>
-                    {(userData as Partner)?.currency}
-                    {item.price}
-                  </>
-                )}
-              </p>
-              <div className="shrink-0">
-                {renderQuantityControls(item.id!, item)}
-              </div>
+            <p className="text-sm font-bold text-card-foreground mb-2">
+              {item.is_price_as_per_size ? (
+                <span className="text-xs font-medium italic text-muted-foreground">
+                  Price as per size {savedPrices[item.id!] ? `(${(userData as Partner)?.currency || '₹'}${savedPrices[item.id!]})` : ""}
+                </span>
+              ) : (
+                <>
+                  {(userData as Partner)?.currency}
+                  {item.price}
+                </>
+              )}
+            </p>
+            <div className="flex justify-end">
+              {renderQuantityControls(item.id!, item)}
             </div>
           </CardContent>
         </Card>
