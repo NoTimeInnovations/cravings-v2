@@ -651,6 +651,7 @@ const PlaceOrderModalV2 = ({
   const parcelCharge = useMemo(() => {
     if (
       tableNumber === 0 &&
+      !isDineIn &&
       hotelData?.delivery_rules?.parcel_charge &&
       hotelData.delivery_rules.parcel_charge > 0
     ) {
@@ -669,7 +670,7 @@ const PlaceOrderModalV2 = ({
         : hotelData.delivery_rules.parcel_charge;
     }
     return 0;
-  }, [tableNumber, hotelData?.delivery_rules, items]);
+  }, [tableNumber, isDineIn, hotelData?.delivery_rules, items]);
 
   const qrExtraCharge = useMemo(() => {
     if (!qrGroup?.name) return 0;
@@ -1127,6 +1128,7 @@ const PlaceOrderModalV2 = ({
     }
     if (
       tableNumber === 0 &&
+      !isDineIn &&
       hotelData?.delivery_rules?.parcel_charge &&
       hotelData.delivery_rules.parcel_charge > 0
     ) {

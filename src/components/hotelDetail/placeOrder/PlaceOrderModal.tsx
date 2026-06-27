@@ -635,6 +635,8 @@ interface BillCardProps {
   hotelData: HotelData;
   qrGroup: QrGroup | null;
   tableNumber: number;
+  /** Dine-in (reservation) orders are eaten in — no packaging charge. */
+  isDineIn?: boolean;
   discount?: { code?: string; type: "percentage" | "flat" | "freebie"; value: number; max_discount_amount?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string } | null;
   /** When set, the bill uses the 3PL agent quote instead of `deliveryInfo`. */
   agentQuote?: {
@@ -667,6 +669,7 @@ const BillCard = ({
   hotelData,
   qrGroup,
   tableNumber,
+  isDineIn = false,
   discount,
   agentQuote,
   useAgentForCharge,
@@ -706,7 +709,7 @@ const BillCard = ({
   const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
   const parcelChargeValue = hotelData?.delivery_rules?.parcel_charge || 0;
   let parcelCharge = 0;
-  if (tableNumber === 0 && parcelChargeValue > 0) {
+  if (tableNumber === 0 && !isDineIn && parcelChargeValue > 0) {
     if (parcelChargeType === "itemwise") {
       const custCharges = hotelData?.delivery_rules?.parcel_charge_items || {};
       parcelCharge = items.reduce((acc, item) => {
@@ -2614,7 +2617,7 @@ const PlaceOrderModal = ({
     const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
     const parcelItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
     let parcelCharge = 0;
-    if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge) {
+    if (tableNumber === 0 && !isDineIn && hotelData?.delivery_rules?.parcel_charge) {
       if (parcelChargeType === "itemwise") {
         const defC = hotelData.delivery_rules.parcel_charge || 0;
         const custC = hotelData.delivery_rules.parcel_charge_items || {};
@@ -2861,6 +2864,7 @@ const PlaceOrderModal = ({
 
       if (
         tableNumber === 0 &&
+        !isDineIn &&
         hotelData?.delivery_rules?.parcel_charge &&
         hotelData.delivery_rules.parcel_charge > 0
       ) {
@@ -3067,7 +3071,7 @@ const PlaceOrderModal = ({
             : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
         if (amt > 0) extraCharges.push({ name: "Delivery Charge", amount: amt, charge_type: "FLAT_FEE" });
       }
-      if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
+      if (tableNumber === 0 && !isDineIn && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
         const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
         const itemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
         let parcelAmount: number;
@@ -3491,7 +3495,7 @@ const PlaceOrderModal = ({
   })();
   const _barTotalItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
   const _barParcelCharge = (() => {
-    if (!(tableNumber === 0 && (hotelData?.delivery_rules?.parcel_charge || 0) > 0)) return 0;
+    if (!(tableNumber === 0 && !isDineIn && (hotelData?.delivery_rules?.parcel_charge || 0) > 0)) return 0;
     const ct = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
     if (ct === "itemwise") {
       const defC = hotelData?.delivery_rules?.parcel_charge || 0;
@@ -3861,6 +3865,7 @@ const PlaceOrderModal = ({
                   qrGroup={qrGroup}
                   hotelData={hotelData}
                   tableNumber={tableNumber}
+                  isDineIn={orderType === "dine_in"}
                   discount={appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount, freebie_item_count: appliedDiscount.freebie_item_count, freebie_item_ids: appliedDiscount.freebie_item_ids, freebie_item_names: appliedDiscount.freebie_item_ids?.split(",").map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name).filter(Boolean).join(", ") } : null}
                   agentQuote={agentQuote}
                   useAgentForCharge={useAgentForCharge}
