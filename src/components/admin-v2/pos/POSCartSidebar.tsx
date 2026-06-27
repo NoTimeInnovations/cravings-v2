@@ -429,7 +429,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                     )}
 
                     {/* Header: Customer Info & Order Type */}
-                    <div className="p-4 border-b space-y-3 bg-muted/30">
+                    <div className="p-3 border-b space-y-2 bg-muted/30">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 {onMobileBack && (
@@ -527,7 +527,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                     </div>
 
                     {/* Cart Items */}
-                    <ScrollArea className="flex-1 p-4">
+                    <ScrollArea className="flex-1 min-h-0 p-3">
                         {cartItems.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-40 text-muted-foreground space-y-2 opacity-50">
                                 <ShoppingCart className="h-10 w-10" />
@@ -619,7 +619,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                     </ScrollArea>
 
                     {/* Footer: Totals & Actions */}
-                    <div className="p-4 border-t bg-muted/30 space-y-3">
+                    <div className="p-3 border-t bg-muted/30 space-y-2">
                         {/* Extra Charges Section */}
                         <div className="space-y-2">
                             {isAddingExtraCharge ? (
@@ -659,24 +659,33 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="flex gap-2">
+                                <div className="flex gap-1.5">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="flex-1 text-[10px] h-8 border-dashed text-muted-foreground hover:text-foreground px-2"
+                                        className="flex-1 text-[10px] h-8 border-dashed text-muted-foreground hover:text-foreground px-1"
                                         onClick={() => setIsAddingExtraCharge(true)}
                                     >
-                                        <Plus className="h-3 w-3 mr-1" />
-                                        Add Charge
+                                        <Plus className="h-3 w-3 mr-0.5" />
+                                        Charge
                                     </Button>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="flex-1 text-[10px] h-8 border-dashed text-muted-foreground hover:text-foreground px-2"
+                                        className="flex-1 text-[10px] h-8 border-dashed text-muted-foreground hover:text-foreground px-1"
                                         onClick={() => setIsAddingNote(true)}
                                     >
-                                        <MessageSquare className="h-3 w-3 mr-1" />
-                                        {orderNote ? 'Edit Note' : 'Add Note'}
+                                        <MessageSquare className="h-3 w-3 mr-0.5" />
+                                        {orderNote ? 'Edit Note' : 'Note'}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 text-[10px] h-8 border-dashed text-muted-foreground hover:text-foreground px-1"
+                                        onClick={() => setIsAddingDiscount(true)}
+                                    >
+                                        <Plus className="h-3 w-3 mr-0.5" />
+                                        Discount
                                     </Button>
                                 </div>
                             )}
@@ -743,17 +752,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         </Button>
                                     </div>
                                 </div>
-                            ) : (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-full text-[10px] h-8 border-dashed text-muted-foreground hover:text-foreground px-2"
-                                    onClick={() => setIsAddingDiscount(true)}
-                                >
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    Add Discount
-                                </Button>
-                            )}
+                            ) : null}
 
                             {discounts.length > 0 && (
                                 <div className="space-y-1">
