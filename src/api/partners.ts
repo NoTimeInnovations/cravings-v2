@@ -368,6 +368,7 @@ export const getPartnerInfoByUsernameQuery = `
       place_id
       theme
       storefront_settings
+      feature_flags
     }
   }
 `;

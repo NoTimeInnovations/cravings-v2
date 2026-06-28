@@ -4,6 +4,7 @@ import { getPartnerInfoByUsernameQuery } from "@/api/partners";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import DownloadAppButton from "./DownloadAppButton";
 import { brandColorToHex } from "@/lib/brandColor";
+import { getFeatures } from "@/lib/getFeatures";
 
 const FALLBACK_BRAND = "#ff6a13";
 const FALLBACK_BG = "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=1200";
@@ -37,6 +38,7 @@ interface PartnerInfo {
   place_id: string | null;
   theme: unknown;
   storefront_settings: unknown;
+  feature_flags: string | null;
 }
 
 interface InfoPageSettings {
@@ -114,6 +116,35 @@ function buildPhoneUrl(partner: PartnerInfo): string | null {
   if (!number) return null;
   const cleaned = number.replace(/[^\d+]/g, "");
   return `tel:${cc}${cleaned}`;
+}
+
+const getWhatsappOrderingPhoneQuery = `
+  query GetWaOrderingPhone($partner_id: uuid!) {
+    whatsapp_business_integrations(where: { partner_id: { _eq: $partner_id } }, limit: 1) {
+      display_phone
+    }
+  }
+`;
+
+// The connected WhatsApp Business number for this partner (the one customers
+// message to trigger the WhatsApp-ordering flow). Stored on the integration row.
+async function getWhatsappOrderingPhone(partnerId: string): Promise<string | null> {
+  try {
+    const res = await fetchFromHasura(getWhatsappOrderingPhoneQuery, { partner_id: partnerId });
+    return res?.whatsapp_business_integrations?.[0]?.display_phone || null;
+  } catch (e) {
+    console.error("Error fetching WhatsApp ordering phone:", e);
+    return null;
+  }
+}
+
+// "Send Hi to order" deep link — opens the partner's connected WhatsApp Business
+// number with a prefilled "Hi", which triggers their WhatsApp-ordering flow.
+function buildWaOrderUrl(displayPhone: string | null): string | null {
+  if (!displayPhone) return null;
+  const digits = displayPhone.replace(/\D/g, "");
+  if (!digits) return null;
+  return `https://wa.me/${digits}?text=${encodeURIComponent("Hi")}`;
 }
 
 async function getPartnerInfo(username: string): Promise<PartnerInfo | null> {
@@ -271,6 +302,13 @@ export default async function PartnerInfoPage({
 
   const whatsappUrl = buildWhatsappUrl(partner);
   const phoneUrl = buildPhoneUrl(partner);
+
+  // "Send Hi to order" — only when this partner has the WhatsApp-ordering
+  // feature turned on AND a connected WhatsApp Business number to message.
+  const features = getFeatures(partner.feature_flags ?? null);
+  const waOrderUrl = features?.whatsappOrdering?.enabled
+    ? buildWaOrderUrl(await getWhatsappOrderingPhone(partner.id))
+    : null;
 
   // Resolve which tags & socials to display (default = all on if URL/data exists)
   const tagsEnabled = TAG_KEYS.filter((k) => info.tags?.[k] !== false);
@@ -499,24 +537,54 @@ export default async function PartnerInfoPage({
 
           {/* CTA — picks Play Store or App Store based on the visitor's device */}
           {hasStoreLink && (
-            <>
-              <DownloadAppButton
-                playstoreUrl={playstoreUrl}
-                appstoreUrl={appstoreUrl}
-                buttonColor={buttonColor}
-              />
-              <div
-                style={{
-                  textAlign: "center",
-                  fontSize: 11.5,
-                  color: "#a89882",
-                  fontWeight: 500,
-                  marginTop: -6,
-                }}
-              >
-                {ctaSubtitle}
-              </div>
-            </>
+            <DownloadAppButton
+              playstoreUrl={playstoreUrl}
+              appstoreUrl={appstoreUrl}
+              buttonColor={buttonColor}
+            />
+          )}
+
+          {/* Send "Hi" to order — sits directly under the Download App button.
+              Renders independently so it still shows when there's no app link. */}
+          {waOrderUrl && (
+            <a
+              href={waOrderUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="info-btn-press flex items-center justify-center text-white"
+              style={{
+                height: 56,
+                borderRadius: 16,
+                background: "#25D366",
+                fontSize: 16,
+                fontWeight: 700,
+                letterSpacing: 0.1,
+                gap: 10,
+                boxShadow:
+                  "0 8px 24px rgba(37,211,102,0.33), 0 1px 0 rgba(255,255,255,0.2) inset",
+                textDecoration: "none",
+              }}
+            >
+              <svg viewBox="0 0 24 24" width={22} height={22} fill="currentColor" aria-hidden>
+                <path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.4-.1-.6.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.1-.6-1.5-.9-2-.2-.5-.5-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.3.3-.9.9-.9 2.2 0 1.3.9 2.6 1.1 2.7.1.2 1.8 2.8 4.4 3.9.6.3 1.1.4 1.5.5.6.2 1.2.2 1.7.1.5-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.6-.4zM12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.5 1.3 5L2 22l5.2-1.4c1.4.8 3 1.2 4.8 1.2 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.2.8.8-3.1-.2-.3c-.9-1.4-1.4-3-1.4-4.7 0-4.5 3.7-8.2 8.2-8.2s8.2 3.7 8.2 8.2-3.6 8.2-8.2 8.2z" />
+              </svg>
+              {'Send "Hi" to order'}
+            </a>
+          )}
+
+          {/* App CTA caption — sits under both action buttons */}
+          {hasStoreLink && (
+            <div
+              style={{
+                textAlign: "center",
+                fontSize: 11.5,
+                color: "#a89882",
+                fontWeight: 500,
+                marginTop: -6,
+              }}
+            >
+              {ctaSubtitle}
+            </div>
           )}
 
           {/* Socials row */}
