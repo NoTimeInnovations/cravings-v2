@@ -64,6 +64,7 @@ const DeliveryRiderPanel = dynamic(
 
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { displayChargeName } from "@/lib/chargeLabel";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
 import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
@@ -909,7 +910,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         {(order.extraCharges || []).map((charge, index) => (
                             <TableRow key={`charge-${index}`} className="bg-muted/50 font-medium text-muted-foreground">
                                 <TableCell colSpan={3} className="text-right text-sm">
-                                    {charge.name}
+                                    {displayChargeName(charge.name)}
                                 </TableCell>
                                 <TableCell className="text-right text-sm">
                                     {currency}

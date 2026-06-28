@@ -1165,7 +1165,7 @@ const PlaceOrderModalV2 = ({
       }
       if (parcelAmount > 0)
         list.push({
-          name: "Packaging Charge",
+          name: "Parcel Charge",
           amount: parcelAmount,
           charge_type: "FLAT_FEE",
         });
@@ -1360,7 +1360,7 @@ const PlaceOrderModalV2 = ({
       ec.push({ name: "Delivery Charge", amount: deliveryCharge, charge_type: "FLAT_FEE" });
     }
     if (parcelCharge > 0) {
-      ec.push({ name: "Packaging Charge", amount: parcelCharge, charge_type: "FLAT_FEE" });
+      ec.push({ name: "Parcel Charge", amount: parcelCharge, charge_type: "FLAT_FEE" });
     }
     return ec;
   };
@@ -1704,7 +1704,7 @@ const PlaceOrderModalV2 = ({
       }
       if (parcelCharge > 0) {
         extraCharges.push({
-          name: "Packaging Charge",
+          name: "Parcel Charge",
           amount: parcelCharge,
           charge_type: "FLAT_FEE",
         });

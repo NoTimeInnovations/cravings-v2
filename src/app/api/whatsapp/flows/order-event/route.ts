@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { runOrderTriggeredFlows } from "@/lib/whatsappFlow/engine";
 import { isWhatsappEnabled } from "@/lib/whatsapp-features";
+import { displayChargeName } from "@/lib/chargeLabel";
 
 // Receives the Hasura event trigger on `orders` (INSERT/UPDATE). On a new order
 // or a status change it fires the partner's matching order-triggered WhatsApp
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
     if (Array.isArray(order.extra_charges)) {
       for (const c of order.extra_charges) {
         const amt = Number(c?.amount) || 0;
-        if (amt) chargeLines.push(`${c?.name || "Charge"}: ${currency}${fmtMoney(amt)}`);
+        if (amt) chargeLines.push(`${displayChargeName(c?.name) || "Charge"}: ${currency}${fmtMoney(amt)}`);
       }
     }
 

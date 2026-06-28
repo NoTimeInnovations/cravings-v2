@@ -3,6 +3,7 @@
 import { getDateOnly } from "@/lib/formatDate";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
+import { displayChargeName } from "@/lib/chargeLabel";
 import { ExtraCharge } from "@/store/posStore";
 import { useParams, useSearchParams } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
@@ -92,7 +93,7 @@ const PrintKOTPage = () => {
           extra_charges: (orders_by_pk.extra_charges ?? []).map(
             (charge: any) => ({
               id: charge.id,
-              name: charge.name,
+              name: displayChargeName(charge.name),
               amount: charge.amount,
             })
           ),

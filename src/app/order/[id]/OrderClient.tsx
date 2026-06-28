@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { formatDate, getDateOnly, formatOrderShortId } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { displayChargeName } from "@/lib/chargeLabel";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { useLiveAgentLocation } from "@/hooks/useLiveAgentLocation";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -1168,7 +1169,7 @@ ${itemsText}
 
                                 {order?.extraCharges?.map((charge, index) => (
                                     <div key={index} className="flex justify-between text-gray-700">
-                                        <span>{charge.name}</span>
+                                        <span>{displayChargeName(charge.name)}</span>
                                         <span>{order?.partner?.currency || "₹"}{getExtraCharge(order?.items, charge.amount, charge.charge_type as "FLAT_FEE" | "PER_ITEM").toFixed(2)}</span>
                                     </div>
                                 ))}

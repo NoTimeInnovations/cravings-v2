@@ -5,6 +5,7 @@ import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/Ord
 import { getDateOnly } from "@/lib/formatDate";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { displayChargeName } from "@/lib/chargeLabel";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { OrderItem } from "@/store/orderStore";
@@ -297,7 +298,7 @@ const PrintOrderPage = () => {
               extra_charges:
                 formattedOrder.extra_charges?.length > 0
                   ? formattedOrder.extra_charges.map((charge: any) => ({
-                    name: charge.name,
+                    name: displayChargeName(charge.name),
                     price: getExtraCharge(
                       formattedOrder?.items || [],
                       charge.amount || 0,
@@ -578,7 +579,7 @@ const PrintOrderPage = () => {
                   charge_type?: string;
                 }) => (
                   <li key={charge.id} className="flex justify-between">
-                    <span>{charge.name}</span>
+                    <span>{displayChargeName(charge.name)}</span>
                     <span>
                       {currency}
                       {getExtraCharge(

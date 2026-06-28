@@ -2893,7 +2893,7 @@ const PlaceOrderModal = ({
             : hotelData.delivery_rules.parcel_charge;
         }
         extraCharges.push({
-          name: "Packaging Charge",
+          name: "Parcel Charge",
           amount: parcelAmount,
           charge_type: "FLAT_FEE",
         });
@@ -3095,7 +3095,7 @@ const PlaceOrderModal = ({
         } else {
           parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
         }
-        extraCharges.push({ name: "Packaging Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
+        extraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
       }
       const { additionalGst: gstAmountCalc } = calculateGstForItems(
         (items || []).map((item) => {

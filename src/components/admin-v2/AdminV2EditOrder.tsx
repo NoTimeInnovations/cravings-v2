@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { displayChargeName } from "@/lib/chargeLabel";
 import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import useOrderStore, { Order } from "@/store/orderStore";
@@ -723,7 +724,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                 className="p-3 flex justify-between items-center"
                                             >
                                                 <div>
-                                                    <div className="font-medium text-sm">{charge.name}</div>
+                                                    <div className="font-medium text-sm">{displayChargeName(charge.name)}</div>
                                                     <div className="text-xs text-muted-foreground">
                                                         {currency}
                                                         {charge.amount.toFixed(2)}
