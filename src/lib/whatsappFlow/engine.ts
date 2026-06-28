@@ -846,10 +846,10 @@ function buildMessageRunVars(
   }
 
   // Order-type availability RIGHT NOW (purely time-window based, in the partner's
-  // timezone). Exposed so flows can greet differently when delivery is closed —
-  // e.g. the welcome flow can tell the customer when delivery reopens and whether
-  // takeaway is still on. {{availability_notice}} is a ready-made message and is
-  // empty when delivery is currently available, so a condition node can skip it.
+  // timezone). These are raw DATA variables only — the greeting TEXT lives in the
+  // flow's own send_text nodes (editable per partner in the builder), so messages
+  // aren't hardcoded here. A condition node branches on {{delivery_available_now}}
+  // / {{can_order_now}}; the message uses {{delivery_hours}} / {{takeaway_hours}}.
   const dr =
     typeof p.delivery_rules === "string"
       ? (() => {
@@ -868,22 +868,6 @@ function buildMessageRunVars(
   const deliveryHours = fmtRange(dr?.delivery_time_allowed);
   const takeawayHours = fmtRange(dr?.takeaway_time_allowed);
 
-  let availabilityNotice = "";
-  if (!deliveryNow && !takeawayNow) {
-    // Fully closed — neither delivery nor takeaway is available right now.
-    availabilityNotice = "😴 *Sorry, we're not taking orders right now.*";
-    if (deliveryHours) availabilityNotice += `\n\n🛵 Delivery: *${deliveryHours}*`;
-    if (takeawayHours) availabilityNotice += `\n🥡 Takeaway: *${takeawayHours}*`;
-    if (deliveryHours || takeawayHours)
-      availabilityNotice += `\n\nWe'd love to serve you during these hours! 🙌`;
-  } else if (!deliveryNow) {
-    // Delivery closed, but takeaway is still open.
-    availabilityNotice = deliveryHours
-      ? `🛵 *Delivery isn't available right now* — it's open *${deliveryHours}*.`
-      : `🛵 *Delivery isn't available right now.*`;
-    availabilityNotice += `\n\n🥡 But *Takeaway is available now!* You can still order for pickup.`;
-  }
-
   return {
     delivery_available_now: deliveryNow ? "true" : "false",
     takeaway_available_now: takeawayNow ? "true" : "false",
@@ -891,7 +875,6 @@ function buildMessageRunVars(
     can_order_now: deliveryNow || takeawayNow ? "true" : "false",
     delivery_hours: deliveryHours,
     takeaway_hours: takeawayHours,
-    availability_notice: availabilityNotice,
     store_name: p.store_name || "",
     username,
     currency: cur,
