@@ -20,6 +20,7 @@ export const getActiveDeliveryBoysQuery = `
       id
       name
       phone
+      is_online
     }
   }
 `;

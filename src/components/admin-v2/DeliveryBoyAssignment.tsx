@@ -34,6 +34,7 @@ interface DeliveryBoyOption {
   id: string;
   name: string;
   phone: string;
+  is_online: boolean;
 }
 
 interface DeliveryBoyAssignmentProps {
@@ -61,7 +62,14 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
         partner_id: userData?.id,
       });
       if (response.delivery_boys) {
-        setDeliveryBoys(response.delivery_boys);
+        // Online riders first so the selectable ones are at the top; offline
+        // ones still show (disabled) below.
+        setDeliveryBoys(
+          [...response.delivery_boys].sort(
+            (a: DeliveryBoyOption, b: DeliveryBoyOption) =>
+              Number(b.is_online) - Number(a.is_online),
+          ),
+        );
       }
     } catch (error) {
       console.error("Error fetching delivery boys:", error);
@@ -253,8 +261,13 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
                     {deliveryBoys
                       .filter((boy) => boy.id !== order.delivery_boy_id)
                       .map((boy) => (
-                        <SelectItem key={boy.id} value={boy.id}>
+                        <SelectItem
+                          key={boy.id}
+                          value={boy.id}
+                          disabled={!boy.is_online}
+                        >
                           {boy.name} ({boy.phone})
+                          {!boy.is_online && " — Offline"}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -301,8 +314,13 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
             </SelectTrigger>
             <SelectContent>
               {deliveryBoys.map((boy) => (
-                <SelectItem key={boy.id} value={boy.id}>
+                <SelectItem
+                  key={boy.id}
+                  value={boy.id}
+                  disabled={!boy.is_online}
+                >
                   {boy.name} ({boy.phone})
+                  {!boy.is_online && " — Offline"}
                 </SelectItem>
               ))}
             </SelectContent>
