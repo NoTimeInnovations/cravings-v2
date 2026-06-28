@@ -7,6 +7,7 @@
 // NATIVE WhatsApp interactive reply buttons.
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 import { buildOrderLink } from "@/lib/whatsappFlow/orderLink";
 import { findOrCreateUserByPhone, toLocalPhone } from "@/lib/whatsappFlow/silentUser";
 import type {
@@ -85,7 +86,7 @@ const Q_FLOW = `
 `;
 const Q_PARTNER_INFO = `
   query PartnerInfo($id: uuid!) {
-    partners_by_pk(id: $id) { store_name username currency country_code custom_domain }
+    partners_by_pk(id: $id) { store_name username currency country_code custom_domain delivery_rules timezone }
   }
 `;
 // The customer's most recent order at this partner, matched by PHONE (not user
@@ -800,6 +801,8 @@ interface PartnerInfo {
   currency?: string | null;
   country_code?: string | null;
   custom_domain?: string | null;
+  delivery_rules?: any;
+  timezone?: string | null;
 }
 
 // System variables available to every message-triggered run. Pure (no DB): the
@@ -842,7 +845,53 @@ function buildMessageRunVars(
     if (total > 0) reorderTotal = `${cur}${fmtMoney(total)}`;
   }
 
+  // Order-type availability RIGHT NOW (purely time-window based, in the partner's
+  // timezone). Exposed so flows can greet differently when delivery is closed —
+  // e.g. the welcome flow can tell the customer when delivery reopens and whether
+  // takeaway is still on. {{availability_notice}} is a ready-made message and is
+  // empty when delivery is currently available, so a condition node can skip it.
+  const dr =
+    typeof p.delivery_rules === "string"
+      ? (() => {
+          try {
+            return JSON.parse(p.delivery_rules as string);
+          } catch {
+            return {};
+          }
+        })()
+      : (p.delivery_rules as any) || {};
+  const tz = p.timezone || "Asia/Kolkata";
+  const fmtRange = (w: any) =>
+    w?.from && w?.to ? `${formatTime12h(w.from)} to ${formatTime12h(w.to)}` : "";
+  const deliveryNow = isWithinTimeWindow(dr?.delivery_time_allowed, tz);
+  const takeawayNow = isWithinTimeWindow(dr?.takeaway_time_allowed, tz);
+  const deliveryHours = fmtRange(dr?.delivery_time_allowed);
+  const takeawayHours = fmtRange(dr?.takeaway_time_allowed);
+
+  let availabilityNotice = "";
+  if (!deliveryNow && !takeawayNow) {
+    // Fully closed — neither delivery nor takeaway is available right now.
+    availabilityNotice = "😴 *Sorry, we're not taking orders right now.*";
+    if (deliveryHours) availabilityNotice += `\n\n🛵 Delivery: *${deliveryHours}*`;
+    if (takeawayHours) availabilityNotice += `\n🥡 Takeaway: *${takeawayHours}*`;
+    if (deliveryHours || takeawayHours)
+      availabilityNotice += `\n\nWe'd love to serve you during these hours! 🙌`;
+  } else if (!deliveryNow) {
+    // Delivery closed, but takeaway is still open.
+    availabilityNotice = deliveryHours
+      ? `🛵 *Delivery isn't available right now* — it's open *${deliveryHours}*.`
+      : `🛵 *Delivery isn't available right now.*`;
+    availabilityNotice += `\n\n🥡 But *Takeaway is available now!* You can still order for pickup.`;
+  }
+
   return {
+    delivery_available_now: deliveryNow ? "true" : "false",
+    takeaway_available_now: takeawayNow ? "true" : "false",
+    // "true" if at least one order type (delivery OR takeaway) is open right now.
+    can_order_now: deliveryNow || takeawayNow ? "true" : "false",
+    delivery_hours: deliveryHours,
+    takeaway_hours: takeawayHours,
+    availability_notice: availabilityNotice,
     store_name: p.store_name || "",
     username,
     currency: cur,
