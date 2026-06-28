@@ -7,6 +7,7 @@ export const getDeliveryBoysQuery = `
       name
       phone
       is_active
+      is_online
       partner_id
       created_at
     }

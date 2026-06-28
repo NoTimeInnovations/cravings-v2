@@ -32,6 +32,7 @@ interface DeliveryBoy {
     name: string;
     phone: string;
     is_active: boolean;
+    is_online: boolean;
     partner_id: string;
 }
 
@@ -55,12 +56,17 @@ export function AdminV2DeliveryBoys() {
     useEffect(() => {
         if (userData?.role === "partner" && isDeliveryEnabled) {
             fetchDeliveryBoys();
+            // Live online/offline status: poll every 5s (the codebase's
+            // realtime pattern — there's no websocket client). Silent so the
+            // table doesn't flicker or spam errors.
+            const interval = setInterval(() => fetchDeliveryBoys(true), 5000);
+            return () => clearInterval(interval);
         } else {
             setIsLoading(false);
         }
     }, [userData, isDeliveryEnabled]);
 
-    const fetchDeliveryBoys = async () => {
+    const fetchDeliveryBoys = async (silent = false) => {
         try {
             const response = await fetchFromHasura(getDeliveryBoysQuery, {
                 partner_id: userData?.id,
@@ -69,10 +75,12 @@ export function AdminV2DeliveryBoys() {
                 setDeliveryBoys(response.delivery_boys);
             }
         } catch (error) {
-            console.error("Error fetching delivery boys:", error);
-            toast.error("Failed to load delivery boys");
+            if (!silent) {
+                console.error("Error fetching delivery boys:", error);
+                toast.error("Failed to load delivery boys");
+            }
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     };
 
@@ -340,7 +348,20 @@ export function AdminV2DeliveryBoys() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <TableCell className="font-medium">{boy.name}</TableCell>
+                                                    <TableCell className="font-medium">
+                                                        <div className="flex items-center gap-2">
+                                                            <span
+                                                                className={`inline-block h-2 w-2 rounded-full ${boy.is_online ? "bg-green-500" : "bg-gray-400"}`}
+                                                                title={boy.is_online ? "Online" : "Offline"}
+                                                            />
+                                                            <span>{boy.name}</span>
+                                                            <span
+                                                                className={`text-xs font-medium ${boy.is_online ? "text-green-600" : "text-gray-400"}`}
+                                                            >
+                                                                {boy.is_online ? "Online" : "Offline"}
+                                                            </span>
+                                                        </div>
+                                                    </TableCell>
                                                     <TableCell>{boy.phone}</TableCell>
                                                     <TableCell>
                                                         <Switch
