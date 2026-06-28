@@ -287,6 +287,13 @@ const V3 = ({
   const hideStoreIdentity =
     (!!features?.newonboarding?.enabled || !!brandHeader) && tableNumber === 0;
 
+  // View-only menus (no ordering AND no delivery) don't need the top navbar —
+  // its only useful control there is search (location/profile/orders are all
+  // hidden). When the hero is on screen, drop the navbar and surface search
+  // inside the hero instead. (If the identity is hidden, keep the navbar so
+  // search + back stay reachable.)
+  const showHeroSearch = !hasOrderingOrDelivery && !hideStoreIdentity;
+
   // Social links
   const phoneHref = socialLinks?.phone ? `tel:${socialLinks.phone}` : null;
   const whatsappHref = socialLinks?.whatsapp || null;
@@ -316,7 +323,9 @@ const V3 = ({
           partnerName={hoteldata?.store_name ?? null}
         />
 
-        {/* ===== STICKY HEADER (exact cravings-v3 style) ===== */}
+        {/* ===== STICKY HEADER (exact cravings-v3 style) — hidden on view-only
+            menus, where search moves into the hero (see showHeroSearch) ===== */}
+        {!showHeroSearch && (
         <header className="sticky top-0 z-40 w-full border-b border-gray-200/60 bg-white/90 backdrop-blur-xl">
           <div className="mx-auto flex h-14 max-w-2xl items-center gap-2 px-4">
             {(onShowStorefront || brandHeader?.onChange) && (
@@ -407,6 +416,7 @@ const V3 = ({
             </div>
           </div>
         </header>
+        )}
 
         {/* Search modal - rendered outside header to avoid backdrop-blur stacking context issues */}
         {searchOpen && (
@@ -504,6 +514,18 @@ const V3 = ({
               )}
             </div>
           )}
+
+          {/* View-only menus: search lives here (the top navbar is hidden). */}
+          {showHeroSearch && (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="mt-3 flex w-full items-center gap-2.5 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-left transition hover:bg-gray-100 active:scale-[0.99]"
+              aria-label="Search menu"
+            >
+              <Search className="h-[18px] w-[18px] text-gray-500" strokeWidth={2.2} />
+              <span className="text-sm font-medium text-gray-400">Search the menu…</span>
+            </button>
+          )}
         </section>
         )}
 
@@ -529,8 +551,8 @@ const V3 = ({
           </div>
         )}
 
-        {/* Category pills - sticky below header */}
-        <div className="sticky top-14 z-20 mt-3 border-b border-gray-200/60 bg-white/90 backdrop-blur-xl">
+        {/* Category pills - sticky below header (docks to top when the navbar is hidden) */}
+        <div className={`sticky ${showHeroSearch ? "top-0" : "top-14"} z-20 mt-3 border-b border-gray-200/60 bg-white/90 backdrop-blur-xl`}>
           <div
             ref={categoriesContainerRef}
             className="flex gap-1.5 overflow-x-auto px-4 py-2 scrollbar-hide"
