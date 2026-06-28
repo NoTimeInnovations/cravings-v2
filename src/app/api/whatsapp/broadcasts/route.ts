@@ -107,6 +107,22 @@ function bodyVariableCount(components: any[]): number {
   return indices.size;
 }
 
+// Validate + normalize the requested schedule time into a UTC ISO string the
+// dispatch cron compares against. Empty / past / within-a-second-of-now => send
+// asap (scheduled_at = now). Unparseable => 400. Capped at 90 days out so a
+// fat-fingered year can't park a broadcast forever.
+function normalizeScheduledAt(raw: unknown): { iso?: string; error?: string } {
+  if (raw == null || raw === "") return { iso: new Date().toISOString() };
+  const t = new Date(String(raw)).getTime();
+  if (Number.isNaN(t)) return { error: "Invalid schedule time." };
+  const now = Date.now();
+  if (t <= now + 1000) return { iso: new Date().toISOString() };
+  if (t > now + 90 * 24 * 3600 * 1000) {
+    return { error: "Schedule time is too far ahead (max 90 days)." };
+  }
+  return { iso: new Date(t).toISOString() };
+}
+
 // POST /api/whatsapp/broadcasts
 // Body: { partnerId, templateId, scheduledAt|null, variableMap, headerParams?, recipients:[{phone,name?}] }
 export async function POST(req: NextRequest) {
@@ -133,6 +149,12 @@ export async function POST(req: NextRequest) {
       { error: "WhatsApp is turned off for this account." },
       { status: 403 },
     );
+  }
+
+  // Validate the schedule time up front so a bad value can't silently misfire.
+  const sched = normalizeScheduledAt(scheduledAt);
+  if (sched.error) {
+    return NextResponse.json({ error: sched.error }, { status: 400 });
   }
 
   // Validate the template belongs to the partner and is approved.

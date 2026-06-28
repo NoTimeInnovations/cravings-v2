@@ -177,6 +177,13 @@ function statusBadge(status: string) {
   }
 }
 
+// Format a Date as a <input type="datetime-local"> value (LOCAL time,
+// "YYYY-MM-DDTHH:mm") — used for the schedule picker's min + sensible default.
+function toLocalInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // Count distinct {{n}} placeholders in a BODY component, ordered ascending.
 function bodyVarIndices(components: any[]): number[] {
   const body = (components || []).find((c) => c?.type === "BODY");
@@ -1500,7 +1507,16 @@ function BroadcastCreatorDialog({
                     <input
                       type="radio"
                       checked={scheduleMode === "later"}
-                      onChange={() => setScheduleMode("later")}
+                      onChange={() => {
+                        setScheduleMode("later");
+                        // Default to ~15 min out so the field is never empty or
+                        // accidentally in the past.
+                        if (!scheduleAt) {
+                          setScheduleAt(
+                            toLocalInput(new Date(Date.now() + 15 * 60 * 1000)),
+                          );
+                        }
+                      }}
                     />
                     Schedule for later
                   </label>
@@ -1508,11 +1524,20 @@ function BroadcastCreatorDialog({
                     <Input
                       type="datetime-local"
                       value={scheduleAt}
+                      min={toLocalInput(new Date(Date.now() + 60 * 1000))}
                       onChange={(e) => setScheduleAt(e.target.value)}
                       className="w-auto"
                     />
                   )}
                 </div>
+                {scheduleMode === "later" && (
+                  <p className="text-xs text-muted-foreground">
+                    Sends at this date &amp; time in your local timezone (
+                    {Intl.DateTimeFormat().resolvedOptions().timeZone}); it may
+                    fire up to a minute later. You can cancel any time before it
+                    starts.
+                  </p>
+                )}
               </div>
             </>
           )}
