@@ -454,7 +454,14 @@ const V4ItemCard = ({
                 </button>
               ) : (hasVariants && !offerData) || hasMultipleVariantsOnOffer ? (
                 !defaultShowOptions ? (
-                  itemQuantity > 0 ? (
+                  (!hasOrderingFeature && !hasDeliveryFeature) ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowVariants(true); }}
+                      className="rounded-lg border border-emerald-600/30 bg-white px-6 py-1.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-md transition active:scale-95"
+                    >
+                      View
+                    </button>
+                  ) : itemQuantity > 0 ? (
                     <div className="flex items-center gap-0.5 rounded-lg border border-emerald-600/30 bg-white px-1 py-1 shadow-md">
                       <button
                         onClick={(e) => {

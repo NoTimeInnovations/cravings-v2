@@ -417,7 +417,14 @@ const V3ItemCard = ({
                 </button>
               ) : (hasVariants && !offerData) || hasMultipleVariantsOnOffer ? (
                 !defaultShowOptions ? (
-                  itemQuantity > 0 ? (
+                  (!hasOrderingFeature && !hasDeliveryFeature) ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowVariants(true); }}
+                      className="rounded-md border border-emerald-600/30 bg-white px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-md transition active:scale-95"
+                    >
+                      View
+                    </button>
+                  ) : itemQuantity > 0 ? (
                     <div className="flex items-center gap-0.5 rounded-md border border-emerald-600/30 bg-white px-0.5 py-0.5 shadow-md">
                       <button
                         onClick={(e) => {

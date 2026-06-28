@@ -513,6 +513,15 @@ const V5ItemCard = ({
     // Variant-driven items (incl. multi-variant offers): ADD opens the picker.
     if ((hasVariants && !offerData) || hasMultipleVariantsOnOffer) {
       if (defaultShowOptions) return null;
+      // View-only (ordering + delivery both off): show VIEW instead of Add and
+      // no quantity stepper — it just opens the sheet to see options + prices.
+      if (!hasOrderingFeature && !hasDeliveryFeature) {
+        return (
+          <button onClick={(e) => { e.stopPropagation(); setShowVariants(true); }} className={addOutlineBtn} style={addBtnStyle}>
+            <span className="text-[15px] font-extrabold uppercase tracking-wide leading-none">View</span>
+          </button>
+        );
+      }
       if (itemQuantity > 0) {
         return (
           <div className="flex h-full w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-2 shadow-[0_3px_10px_rgba(0,0,0,0.15)]">
