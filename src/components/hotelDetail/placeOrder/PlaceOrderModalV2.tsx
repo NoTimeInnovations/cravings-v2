@@ -2995,7 +2995,7 @@ const PlaceOrderModalV2 = ({
           <button
             type="button"
             onClick={handlePay}
-            disabled={orderStatus !== "idle" || !items || items.length === 0 || (orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || porterBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || isBelowMinimum}
+            disabled={orderStatus !== "idle" || !items || items.length === 0 || (showPicker && !prebookingArg) || (orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || porterBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || isBelowMinimum}
             className="shrink-0 rounded-xl px-5 py-3.5 font-semibold text-white disabled:opacity-60"
             style={{ backgroundColor: accent }}
           >
