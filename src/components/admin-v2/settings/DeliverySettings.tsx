@@ -280,6 +280,7 @@ export function DeliverySettings() {
         isDeliveryActive: true,
         needDeliveryLocation: true,
         need_user_name: false,
+        need_address_details: false,
         parcel_charge: 0,
         parcel_charge_type: "fixed",
         parcel_charge_items: {},
@@ -329,6 +330,7 @@ export function DeliverySettings() {
                 isDeliveryActive: userData.delivery_rules?.isDeliveryActive ?? true,
                 needDeliveryLocation: userData.delivery_rules?.needDeliveryLocation ?? true,
                 need_user_name: userData.delivery_rules?.need_user_name ?? false,
+                need_address_details: userData.delivery_rules?.need_address_details ?? false,
                 parcel_charge: userData.delivery_rules?.parcel_charge || 0,
                 parcel_charge_type: userData.delivery_rules?.parcel_charge_type || "fixed",
                 parcel_charge_items: userData.delivery_rules?.parcel_charge_items || {},
@@ -516,6 +518,7 @@ export function DeliverySettings() {
             isDeliveryActive: data.delivery_rules?.isDeliveryActive ?? true,
             needDeliveryLocation: data.delivery_rules?.needDeliveryLocation ?? true,
             need_user_name: data.delivery_rules?.need_user_name ?? false,
+            need_address_details: data.delivery_rules?.need_address_details ?? false,
             parcel_charge: data.delivery_rules?.parcel_charge || 0,
             parcel_charge_type: data.delivery_rules?.parcel_charge_type || "fixed",
             hide_delivery_charge: data.delivery_rules?.hide_delivery_charge ?? false,
@@ -1013,13 +1016,16 @@ export function DeliverySettings() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Minimum Order Amount ({currencySymbol})</Label>
+                            <Label>Delivery Minimum Order Amount ({currencySymbol})</Label>
                             <Input
                                 type="number"
                                 min="0"
                                 value={deliveryRules.minimum_order_amount}
                                 onChange={(e) => setDeliveryRules(prev => ({ ...prev, minimum_order_amount: Number(e.target.value) }))}
                             />
+                            <p className="text-sm text-muted-foreground">
+                                Applies to delivery orders only — dine-in and takeaway have no minimum.
+                            </p>
                         </div>
                     </div>
 
@@ -1322,6 +1328,30 @@ export function DeliverySettings() {
                             onCheckedChange={(checked) => setDeliveryRules(prev => ({
                                 ...prev,
                                 need_user_name: checked
+                            }))}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Delivery Address</CardTitle>
+                    <CardDescription>Require customers to type their address details at checkout.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label>Require address details</Label>
+                            <p className="text-sm text-muted-foreground">
+                                When on, the address box below the map (flat / floor / building, landmark) must be filled before a customer can place a delivery order. When off, it stays optional.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={deliveryRules.need_address_details ?? false}
+                            onCheckedChange={(checked) => setDeliveryRules(prev => ({
+                                ...prev,
+                                need_address_details: checked
                             }))}
                         />
                     </div>

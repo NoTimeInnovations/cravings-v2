@@ -88,6 +88,9 @@ export interface DeliveryRules {
   isDeliveryActive: boolean;
   needDeliveryLocation: boolean;
   need_user_name?: boolean;
+  // When true, the customer MUST type their address details (flat / floor /
+  // building) in the box below the map at checkout. False/unset => optional.
+  need_address_details?: boolean;
   parcel_charge?: number;
   parcel_charge_type?: "fixed" | "variable" | "itemwise"; // fixed = flat amount, variable = per item, itemwise = per-item custom charges
   parcel_charge_items?: Record<string, number>;

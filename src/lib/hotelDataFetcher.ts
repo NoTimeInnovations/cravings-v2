@@ -400,8 +400,8 @@ export async function processHotelPage(
   if (hotelMenus && hotelMenus.length > 0) {
     if (cat === "all" || !cat) {
       const sortedItems = [...(hotelMenus ?? [])].sort((a, b) => {
-        if (a.image_url.length && !b.image_url.length) return -1;
-        if (!a.image_url.length && b.image_url.length) return 1;
+        if (a.image_url?.length && !b.image_url?.length) return -1;
+        if (!a.image_url?.length && b.image_url?.length) return 1;
         return 0;
       });
       const sortByCategoryPriority = (a: HotelDataMenus, b: HotelDataMenus) => {
@@ -418,8 +418,8 @@ export async function processHotelPage(
         (item) => item.category.name === cat
       );
       const sortedItems = [...filteredItems].sort((a, b) => {
-        if (a.image_url.length && !b.image_url.length) return -1;
-        if (!a.image_url.length && b.image_url.length) return 1;
+        if (a.image_url?.length && !b.image_url?.length) return -1;
+        if (!a.image_url?.length && b.image_url?.length) return 1;
         return 0;
       });
       filteredMenus = sortedItems.map((item) => ({

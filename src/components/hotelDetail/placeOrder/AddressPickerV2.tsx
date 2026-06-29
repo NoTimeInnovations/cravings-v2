@@ -234,6 +234,10 @@ const AddressPickerV2 = ({
   // House / flat / floor details the customer types in, plus a simple label.
   const [detailsText, setDetailsText] = useState("");
   const [addressType, setAddressType] = useState<"Home" | "Office" | "Other">("Other");
+  const [detailsError, setDetailsError] = useState(false);
+  // Partner can REQUIRE the typed address details (delivery_rules.need_address_details).
+  // When off (default), the details box stays optional — no behaviour change.
+  const needAddressDetails = hotelData?.delivery_rules?.need_address_details ?? false;
   const [locating, setLocating] = useState(false);
   const [locationGranted, setLocationGranted] = useState(false);
   const [mapMoving, setMapMoving] = useState(false);
@@ -333,6 +337,7 @@ const AddressPickerV2 = ({
       setPredictions([]);
       setGeocodedInfo(null);
       setDetailsText("");
+      setDetailsError(false);
       setAddressType("Other");
       setMapMoving(false);
       mapInitializedRef.current = false;
@@ -618,6 +623,12 @@ const AddressPickerV2 = ({
   const handleConfirm = async () => {
     if (!geocodedInfo) {
       toast.error("Please wait for location to load");
+      return;
+    }
+    // Partner requires the typed address details — block confirm until filled.
+    if (needAddressDetails && !detailsText.trim()) {
+      setDetailsError(true);
+      toast.error("Please enter your flat / floor / building details");
       return;
     }
     // Authoritative serviceability check by ROAD distance — the same metric
@@ -1022,14 +1033,34 @@ const AddressPickerV2 = ({
 
           {geocodedInfo && !mapMoving && !isPinOutOfRange && (
             <div className="mt-4 space-y-2.5">
-              {/* Flat / floor / building — typed details (optional) */}
+              {/* Flat / floor / building — required when the partner enables
+                  need_address_details; otherwise optional (unchanged). */}
               <input
                 type="text"
                 value={detailsText}
-                onChange={(e) => setDetailsText(e.target.value)}
-                placeholder="Flat / floor / building, landmark (optional)"
-                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                onChange={(e) => {
+                  setDetailsText(e.target.value);
+                  if (detailsError) setDetailsError(false);
+                }}
+                placeholder={
+                  needAddressDetails
+                    ? "Flat / floor / building, landmark (required)"
+                    : "Flat / floor / building, landmark (optional)"
+                }
+                className={`w-full h-12 px-4 rounded-xl border bg-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${
+                  needAddressDetails
+                    ? detailsError
+                      ? "border-red-500 ring-2 ring-red-400"
+                      : "border-red-300 focus:ring-red-200"
+                    : "border-gray-200 focus:ring-gray-300"
+                }`}
               />
+              {needAddressDetails && detailsError && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <XCircle className="h-3.5 w-3.5" /> Please enter your address
+                  details to continue
+                </p>
+              )}
               {/* Save as: Home / Office / Other (defaults to Other) */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 mr-0.5">Save as</span>
