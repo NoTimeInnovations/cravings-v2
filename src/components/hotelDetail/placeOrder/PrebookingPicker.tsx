@@ -155,11 +155,6 @@ export function PrebookingPicker({
                 </button>
             </div>
 
-            {!reservation && (
-                <p className="text-xs text-muted-foreground">
-                    Optional — pick a date &amp; slot to schedule, or leave empty to order now.
-                </p>
-            )}
 
             {sheet === "date" && (
                 <BottomSheet title="Select date" onClose={() => setSheet(null)}>

@@ -2746,8 +2746,12 @@ const PlaceOrderModal = ({
       return;
     }
 
-    if (isDineIn && !prebookingArg) {
-      toast.error("Please choose a date, time and number of guests for your table.");
+    if (showPicker && !prebookingArg) {
+      toast.error(
+        isDineIn
+          ? "Please choose a date, time and number of guests for your table."
+          : "Please select a date and time slot for your order.",
+      );
       return;
     }
 
@@ -3038,8 +3042,12 @@ const PlaceOrderModal = ({
       return;
     }
 
-    if (isDineIn && !prebookingArg) {
-      toast.error("Please choose a date, time and number of guests for your table.");
+    if (showPicker && !prebookingArg) {
+      toast.error(
+        isDineIn
+          ? "Please choose a date, time and number of guests for your table."
+          : "Please select a date and time slot for your order.",
+      );
       return;
     }
     if (needUserName && !customerName.trim()) {
