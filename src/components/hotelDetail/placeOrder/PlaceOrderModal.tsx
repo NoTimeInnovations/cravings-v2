@@ -1798,6 +1798,16 @@ const PlaceOrderModal = ({
     if (!open_place_order_modal) setRedeemPoints(0);
   }, [open_place_order_modal]);
 
+  // Compute delivery distance + cost when a delivery address is already set on
+  // open (e.g. chosen in the onboarding flow) — without this the charge/distance
+  // only appeared after re-selecting the address inside the modal.
+  useEffect(() => {
+    if (!open_place_order_modal) return;
+    if (orderType !== "delivery" || !selectedCoords) return;
+    calculateDeliveryDistanceAndCost(hotelData as HotelData, selectedCoords);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open_place_order_modal, orderType, selectedCoords?.lat, selectedCoords?.lng, hotelData?.id]);
+
   // Customer name state
   const needUserName = hotelData?.delivery_rules?.need_user_name ?? false;
   const [customerName, setCustomerName] = useState("");

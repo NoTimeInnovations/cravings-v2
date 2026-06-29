@@ -463,6 +463,17 @@ const PlaceOrderModalV2 = ({
     setOrderType(availableOrderTypes[0]);
   }, [isQrScan, open_place_order_modal, orderType, availableOrderTypes, setOrderType]);
 
+  // Compute delivery distance + cost when a delivery address is ALREADY set on
+  // open — e.g. chosen in the onboarding flow. Without this the charge/distance
+  // only appeared after re-selecting the address inside the modal (the in-modal
+  // handlers call calculateDeliveryDistanceAndCost; the onboarding path didn't).
+  useEffect(() => {
+    if (!open_place_order_modal || isQrScan) return;
+    if (orderType !== "delivery" || !userCoordinates) return;
+    calculateDeliveryDistanceAndCost(hotelData, userCoordinates);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open_place_order_modal, isQrScan, orderType, userCoordinates?.lat, userCoordinates?.lng, hotelData?.id]);
+
   // Picker visibility: dine-in uses slot booking; delivery/takeaway use prebooking.
   const showPicker = !!prebookingSettings && (isDineIn ? allowDineInReservation : scheduleEnabled);
   // What we hand to placeOrder: the picker's selection (which already carries
