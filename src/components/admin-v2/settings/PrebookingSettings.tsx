@@ -33,6 +33,7 @@ export function PrebookingSettings() {
 
     const [cfg, setCfg] = useState<PrebookingConfig>(DEFAULT_PREBOOKING_SETTINGS);
     const [enabled, setEnabled] = useState(true);
+    const [todayOnly, setTodayOnly] = useState(false);
     const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
     const [ranges, setRanges] = useState<PrebookingRange[]>([{ from: "10:00", to: "22:00" }]);
     const [initialLoaded, setInitialLoaded] = useState(false);
@@ -42,6 +43,7 @@ export function PrebookingSettings() {
         const merged = mergePrebookingConfig((userData as any)?.prebooking_settings);
         setCfg(merged);
         setEnabled(merged.prebooking_enabled);
+        setTodayOnly(merged.today_only ?? false);
         setDays(new Set(merged.windows.filter((w) => w.enabled).map((w) => w.day)));
         const fe =
             merged.windows.find((w) => w.enabled && w.ranges?.length) ||
@@ -58,7 +60,7 @@ export function PrebookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, windows });
+            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, today_only: todayOnly, windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -68,7 +70,7 @@ export function PrebookingSettings() {
             console.error("Error saving prebooking settings:", e);
             toast.error("Failed to save prebooking settings");
         }
-    }, [cfg, enabled, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, todayOnly, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -78,7 +80,7 @@ export function PrebookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, todayOnly, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -117,6 +119,16 @@ export function PrebookingSettings() {
 
                     {enabled && (
                         <>
+                            <div className="flex items-center justify-between p-4 border rounded-lg">
+                                <div className="space-y-0.5">
+                                    <div className="font-medium">Today only</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Customers can only schedule for today — future dates are hidden.
+                                    </div>
+                                </div>
+                                <Switch checked={todayOnly} onCheckedChange={setTodayOnly} />
+                            </div>
+
                             <div className="space-y-2">
                                 <Label>Open days</Label>
                                 <div className="flex flex-wrap gap-2">

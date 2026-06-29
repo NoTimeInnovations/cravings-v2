@@ -33,6 +33,7 @@ export function SlotBookingSettings() {
 
     const [cfg, setCfg] = useState<PrebookingConfig>(DEFAULT_PREBOOKING_SETTINGS);
     const [enabled, setEnabled] = useState(true);
+    const [todayOnly, setTodayOnly] = useState(false);
     const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
     const [ranges, setRanges] = useState<PrebookingRange[]>([{ from: "10:00", to: "22:00" }]);
     const [initialLoaded, setInitialLoaded] = useState(false);
@@ -42,6 +43,7 @@ export function SlotBookingSettings() {
         const merged = mergePrebookingConfig((userData as any)?.prebooking_settings);
         setCfg(merged);
         setEnabled(merged.slot_booking_enabled);
+        setTodayOnly(merged.dine_in_today_only ?? false);
         setDays(new Set(merged.dine_in_windows.filter((w) => w.enabled).map((w) => w.day)));
         const fe =
             merged.dine_in_windows.find((w) => w.enabled && w.ranges?.length) ||
@@ -58,7 +60,7 @@ export function SlotBookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, dine_in_windows });
+            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, dine_in_today_only: todayOnly, dine_in_windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -68,7 +70,7 @@ export function SlotBookingSettings() {
             console.error("Error saving slot booking settings:", e);
             toast.error("Failed to save slot booking settings");
         }
-    }, [cfg, enabled, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, todayOnly, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -78,7 +80,7 @@ export function SlotBookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, todayOnly, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -118,6 +120,16 @@ export function SlotBookingSettings() {
 
                     {enabled && (
                         <>
+                            <div className="flex items-center justify-between p-4 border rounded-lg">
+                                <div className="space-y-0.5">
+                                    <div className="font-medium">Today only</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Customers can only book a table for today — future dates are hidden.
+                                    </div>
+                                </div>
+                                <Switch checked={todayOnly} onCheckedChange={setTodayOnly} />
+                            </div>
+
                             <div className="space-y-2">
                                 <Label>Open days</Label>
                                 <div className="flex flex-wrap gap-2">

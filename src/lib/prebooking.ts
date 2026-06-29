@@ -137,11 +137,14 @@ export function getPrebookingDates(
     opts: { dineIn?: boolean; fromOffset?: number; throughDay?: number } = {}
 ): { value: string; label: string }[] {
     const out: { value: string; label: string }[] = [];
+    const todayOnly = opts.dineIn
+        ? (settings.dine_in_today_only ?? false)
+        : (settings.today_only ?? false);
     const defaultMax = opts.dineIn
         ? (settings.dine_in_max_advance_days ?? settings.max_advance_days ?? 0)
         : (settings.max_advance_days ?? 0);
-    const from = Math.max(0, opts.fromOffset ?? 0);
-    const through = Math.max(from, opts.throughDay ?? defaultMax);
+    const from = todayOnly ? 0 : Math.max(0, opts.fromOffset ?? 0);
+    const through = todayOnly ? 0 : Math.max(from, opts.throughDay ?? defaultMax);
     for (let i = from; i <= through; i++) {
         const d = new Date(now);
         d.setDate(now.getDate() + i);
@@ -249,6 +252,7 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         slot_booking_enabled: parsed.slot_booking_enabled !== false,
         min_lead_time_minutes: num(parsed.min_lead_time_minutes, base.min_lead_time_minutes),
         max_advance_days: num(parsed.max_advance_days, base.max_advance_days),
+        today_only: parsed.today_only === true,
         windows: normalizeWindows(parsed.windows, base.windows),
         allowed_order_types: parsed.allowed_order_types?.length
             ? parsed.allowed_order_types
@@ -261,6 +265,7 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
             parsed.dine_in_max_advance_days,
             num(parsed.max_advance_days, base.dine_in_max_advance_days)
         ),
+        dine_in_today_only: parsed.dine_in_today_only === true,
         dine_in_windows: normalizeWindows(parsed.dine_in_windows ?? parsed.windows, base.dine_in_windows),
     };
 }

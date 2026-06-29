@@ -177,6 +177,8 @@ export interface PrebookingSettings {
   min_lead_time_minutes: number;
   /** How many days ahead an order may be scheduled (0 = today only). */
   max_advance_days: number;
+  /** When true, only today is selectable (overrides max_advance_days). */
+  today_only?: boolean;
   /** Explicit "schedule for later" slot times per weekday (delivery/takeaway). */
   windows: PrebookingWindow[];
   /** Order types for which "schedule for later" is offered (delivery/takeaway). */
@@ -187,6 +189,8 @@ export interface PrebookingSettings {
   dine_in_min_lead_time_minutes: number;
   /** How many days ahead a table can be booked. */
   dine_in_max_advance_days: number;
+  /** When true, only today is selectable for dine-in (overrides dine_in_max_advance_days). */
+  dine_in_today_only?: boolean;
   /** Explicit dine-in table slot times per weekday. */
   dine_in_windows: PrebookingWindow[];
 }
@@ -208,10 +212,12 @@ export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
   // defaults so the customer picker still works (no artificial lead, week ahead).
   min_lead_time_minutes: 0,
   max_advance_days: 7,
+  today_only: false,
   windows: defaultWindows(),
   allowed_order_types: ["delivery", "takeaway", "dine_in"],
   dine_in_min_lead_time_minutes: 0,
   dine_in_max_advance_days: 7,
+  dine_in_today_only: false,
   dine_in_windows: defaultWindows(),
 };
 
