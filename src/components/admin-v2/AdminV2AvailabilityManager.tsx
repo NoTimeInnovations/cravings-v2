@@ -564,40 +564,42 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
             )}
 
             <Dialog open={!!pendingOffItem} onOpenChange={(o) => { if (!o) setPendingOffItem(null); }}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Turn off &ldquo;{pendingOffItem?.name}&rdquo;</DialogTitle>
+                <DialogContent className="sm:max-w-md flex max-h-[85vh] flex-col gap-0 p-0">
+                    <DialogHeader className="px-6 pt-6 pb-3 text-left">
+                        <DialogTitle className="pr-8">Turn off &ldquo;{pendingOffItem?.name}&rdquo;</DialogTitle>
                         <DialogDescription>When should it automatically turn back on?</DialogDescription>
                     </DialogHeader>
-                    <RadioGroup
-                        value={reactivateChoice}
-                        onValueChange={(v) => setReactivateChoice(v as ReactivateChoice)}
-                        className="space-y-2 py-1"
-                    >
-                        {REACTIVATE_OPTIONS.map((opt) => (
-                            <div key={opt.value}>
-                                <label
-                                    htmlFor={`reactivate-${opt.value}`}
-                                    className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
-                                >
-                                    <RadioGroupItem value={opt.value} id={`reactivate-${opt.value}`} />
-                                    <span className="text-sm font-medium">{opt.label}</span>
-                                </label>
-                                {opt.value === "nextday" && reactivateChoice === "nextday" && (
-                                    <div className="mt-2 ml-9 flex items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">at</span>
-                                        <Input
-                                            type="time"
-                                            value={nextDayTime}
-                                            onChange={(e) => setNextDayTime(e.target.value)}
-                                            className="w-32"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </RadioGroup>
-                    <DialogFooter className="gap-2 sm:gap-0">
+                    <div className="min-h-0 flex-1 overflow-y-auto px-6">
+                        <RadioGroup
+                            value={reactivateChoice}
+                            onValueChange={(v) => setReactivateChoice(v as ReactivateChoice)}
+                            className="space-y-2 pb-2"
+                        >
+                            {REACTIVATE_OPTIONS.map((opt) => (
+                                <div key={opt.value}>
+                                    <label
+                                        htmlFor={`reactivate-${opt.value}`}
+                                        className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                                    >
+                                        <RadioGroupItem value={opt.value} id={`reactivate-${opt.value}`} />
+                                        <span className="text-sm font-medium">{opt.label}</span>
+                                    </label>
+                                    {opt.value === "nextday" && reactivateChoice === "nextday" && (
+                                        <div className="mt-2 ml-9 flex items-center gap-2">
+                                            <span className="text-sm text-muted-foreground">at</span>
+                                            <Input
+                                                type="time"
+                                                value={nextDayTime}
+                                                onChange={(e) => setNextDayTime(e.target.value)}
+                                                className="w-32"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </RadioGroup>
+                    </div>
+                    <DialogFooter className="gap-2 border-t px-6 py-4 sm:gap-2">
                         <Button variant="outline" onClick={() => setPendingOffItem(null)}>Cancel</Button>
                         <Button onClick={confirmTurnOff}>Turn off</Button>
                     </DialogFooter>
