@@ -67,6 +67,11 @@ import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { waitForCashfreeContainer } from "@/lib/cashfreeEmbed";
 import { finalizeCfOrder } from "@/app/actions/cfOrders";
 import {
+  createRazorpayOrderForPartner,
+  verifyRazorpayPayment,
+  markRazorpayOrderPaid,
+} from "@/app/actions/razorpayPartner";
+import {
   resolveCurrencyCode,
   categoryName,
   baseItemId,
@@ -183,9 +188,17 @@ const PlaceOrderModalV2 = ({
   const accent = themeStyles?.accent || "#16A34A";
   const currency = hotelData?.currency || "₹";
 
+  // Flamin Hot Chicken collects "online" payments through their OWN Razorpay
+  // account instead of the platform Cashfree. We treat the online option as
+  // available for them (so the UI renders) and route the charge to Razorpay
+  // in handlePay. Everything else (Petpooja push, notifications) is unchanged.
+  const isFlamin =
+    !!process.env.NEXT_PUBLIC_FLAMIN_PARTNER_ID &&
+    (hotelData as any)?.id === process.env.NEXT_PUBLIC_FLAMIN_PARTNER_ID;
   const baseCashfree =
-    (hotelData as any)?.accept_payments_via_cashfree === true &&
-    !!(hotelData as any)?.cashfree_merchant_id;
+    (((hotelData as any)?.accept_payments_via_cashfree === true &&
+      !!(hotelData as any)?.cashfree_merchant_id) ||
+      isFlamin);
   const baseCod = (hotelData as any)?.accept_cod !== false;
   // Per-order-method overrides (Payment settings → "Payment options by order
   // type"). Online still requires Cashfree (baseCashfree). When unset, fall back
@@ -1572,6 +1585,171 @@ const PlaceOrderModalV2 = ({
     }
   };
 
+  // Razorpay browser checkout has no npm package — load the hosted script once.
+  const loadRazorpayScript = () =>
+    new Promise<void>((resolve, reject) => {
+      if ((window as any).Razorpay) return resolve();
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Failed to load Razorpay checkout"));
+      document.body.appendChild(s);
+    });
+
+  // Flamin-only: collect the online payment via the partner's own Razorpay
+  // account. Reuses the SAME pending-order creation as Cashfree (deferForPayment
+  // => cf_pp_payload), then finalizes through markRazorpayOrderPaid which calls
+  // finalizeCfOrder (Petpooja push + partner notification + idempotency).
+  const handleRazorpayPayAndPlaceOrder = async () => {
+    if (!user) {
+      toast.error("Please login first.");
+      return;
+    }
+    setOrderStatus("loading");
+    try {
+      const rzpExtraCharges = buildCheckoutExtraCharges();
+      const placed = await useOrderStore.getState().placeOrder(
+        hotelData,
+        tableNumber,
+        qrId as string,
+        additionalGst,
+        rzpExtraCharges.length > 0 ? rzpExtraCharges : null,
+        undefined,
+        orderNote || "",
+        tableName,
+        buildDiscountArg(),
+        customerName.trim() || selectedReceiverName || accountReceiverName(user) || undefined,
+        selectedReceiverPhone || (user as any)?.phone || undefined,
+        `RZP_${Date.now()}`,
+        prebookingArg,
+        true, // deferForPayment
+        redeemPoints > 0 && loyaltyCtx?.enabled && loyaltyRedeemValue > 0
+          ? { points: effectiveRedeemPoints, value: loyaltyRedeemValue }
+          : null,
+      );
+      if (!placed?.id) {
+        toast.error("Could not start your order. Please try again.");
+        setOrderStatus("idle");
+        return;
+      }
+      const orderId = placed.id;
+
+      // Redeem loyalty BEFORE locking the charged amount.
+      let payable = grandTotal;
+      if (redeemPoints > 0 && loyaltyCtx?.enabled) {
+        try {
+          const r = await redeemLoyaltyPoints({ orderId, points: redeemPoints });
+          if (r.ok && r.value > 0) payable = r.orderTotal;
+        } catch (e) {
+          console.warn("[loyalty] redeem failed", e);
+        }
+      }
+
+      const rzpRes = await createRazorpayOrderForPartner(
+        hotelData.id,
+        orderId,
+        Math.round(payable * 100) / 100,
+        {
+          id: user.id,
+          name: customerName.trim() || selectedReceiverName || accountReceiverName(user) || "Customer",
+          phone: ((user as any)?.phone || "9999999999").replace(/\D/g, "").slice(-10),
+          email: (user as any)?.email,
+        },
+      );
+
+      if (!rzpRes.success) {
+        if (redeemPoints > 0) refundLoyaltyForOrder(orderId, "Payment could not be started").catch(() => {});
+        toast.error(`Payment failed: ${rzpRes.error || "could not create payment order"}`, { duration: 30000 });
+        setOrderStatus("idle");
+        return;
+      }
+
+      await loadRazorpayScript();
+      setOrderStatus("idle");
+
+      const checkout = new (window as any).Razorpay({
+        key: rzpRes.keyId,
+        order_id: rzpRes.rzpOrderId,
+        amount: Math.round(payable * 100),
+        currency: "INR",
+        name: hotelData?.store_name || "Order",
+        prefill: {
+          name: customerName.trim() || selectedReceiverName || accountReceiverName(user) || "",
+          contact: (user as any)?.phone || "",
+          email: (user as any)?.email || "",
+        },
+        theme: { color: accent },
+        handler: async (resp: any) => {
+          setOrderStatus("verifying");
+          try {
+            const v = await verifyRazorpayPayment(
+              resp.razorpay_order_id,
+              resp.razorpay_payment_id,
+              resp.razorpay_signature,
+            );
+            if (!v.paid) {
+              setPaymentFailReason("Payment signature could not be verified. If money was deducted, contact support.");
+              setOrderStatus("failed");
+              return;
+            }
+            setOrderStatus("loading");
+            // Idempotent with the webhook/cron — a failure here is non-fatal.
+            try {
+              await markRazorpayOrderPaid(orderId, resp.razorpay_payment_id);
+            } catch (e) {
+              console.error("markRazorpayOrderPaid (client) failed; webhook/cron will retry:", e);
+            }
+            localStorage?.setItem("last-order-id", orderId);
+            setPlacedOrderId(orderId);
+            pushPurchaseOnce(orderId, {
+              value: Number.isFinite(Number(payable)) ? Number(payable) : grandTotal,
+              currency: resolveCurrencyCode(hotelData?.currency),
+              payment_type: "razorpay",
+              items: (items || []).map((it) => ({
+                item_id: baseItemId(it.id),
+                item_name: it.name,
+                item_category: categoryName(it.category),
+                item_variant: it.variantSelections?.[0]?.name,
+                price: it.price,
+                quantity: it.quantity,
+              })),
+            });
+            setSavedOrderTotal(payable);
+            try { useOrderStore.getState().clearOrder(); } catch {}
+            useOrderStore.getState().notifyOrderPlaced();
+            try { sessionStorage.removeItem(`order_type_${hotelData.id}`); } catch {}
+            setOrderStatus("success");
+          } catch (e) {
+            console.error("Razorpay verification error:", e);
+            setPaymentFailReason("Could not verify payment. Please contact support.");
+            setOrderStatus("failed");
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            if (redeemPoints > 0) refundLoyaltyForOrder(orderId, "Payment cancelled").catch(() => {});
+            setOrderStatus("idle");
+          },
+        },
+      });
+      checkout.on("payment.failed", (r: any) => {
+        if (redeemPoints > 0) refundLoyaltyForOrder(orderId, "Payment failed").catch(() => {});
+        toast.error(`Payment failed: ${r?.error?.description || "please try again"}`, { duration: 30000 });
+        setOrderStatus("idle");
+      });
+      checkout.open();
+    } catch (error: any) {
+      console.error("Razorpay payment error:", error);
+      const full = error?.message || error?.toString?.() || JSON.stringify(error);
+      toast.error(`Payment failed: ${full}`, { duration: 30000 });
+      setOrderStatus("idle");
+    }
+  };
+
+  // Route the online payment to the right provider (Razorpay for Flamin only).
+  const handleOnlinePayAndPlaceOrder = () =>
+    isFlamin ? handleRazorpayPayAndPlaceOrder() : handleCashfreePayAndPlaceOrder();
+
   useEffect(() => {
     const pendingStr =
       typeof window !== "undefined"
@@ -1672,7 +1850,7 @@ const PlaceOrderModalV2 = ({
     }
 
     if (paymentMethod === "online" && hasCashfree) {
-      handleCashfreePayAndPlaceOrder();
+      handleOnlinePayAndPlaceOrder();
       return;
     }
 
@@ -2053,7 +2231,7 @@ const PlaceOrderModalV2 = ({
                   setCashfreePaid(false);
                   setPaymentFailReason("");
                   verifyingCfOrderRef.current = null;
-                  handleCashfreePayAndPlaceOrder();
+                  handleOnlinePayAndPlaceOrder();
                 }}
                 className="flex-1 rounded-xl px-6 py-3 text-sm font-bold text-white"
                 style={{ backgroundColor: accent }}
