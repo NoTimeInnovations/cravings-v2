@@ -51,10 +51,13 @@ export async function createRazorpayOrderForPartner(
     // stores cashfree_order_id). We reuse the cashfree_order_id column as the
     // generic "provider order id" — flamin never uses Cashfree, and the
     // reconcile cron safely no-ops on it (no Cashfree merchant configured).
+    // Also overwrite payment_method to "razorpay" — the deferred pending-order
+    // mutation hardcodes "cashfree" (it was built for the platform Cashfree
+    // flow), which made flamin's draft orders show "cashfree" in admin-v2.
     try {
       await fetchFromHasura(
         `mutation SetRazorpayOrderId($id: uuid!, $rzp_order_id: String!) {
-          update_orders_by_pk(pk_columns: {id: $id}, _set: { cashfree_order_id: $rzp_order_id }) { id }
+          update_orders_by_pk(pk_columns: {id: $id}, _set: { cashfree_order_id: $rzp_order_id, payment_method: "razorpay" }) { id }
         }`,
         { id: orderId, rzp_order_id: order.id },
       );
@@ -95,6 +98,21 @@ export async function verifyRazorpayPayment(
   console.log("[razorpay-flamin] verify", "valid=", isValid, "payment=", rzpPaymentId);
 
   return { success: true, paid: isValid };
+}
+
+// Lightweight mark-paid for the "pay an already-placed order" flow
+// (/order/[id]), mirroring cashfree's markOrderAsPaid — it does NOT finalize /
+// push to Petpooja (the order is already visible in the system; we only record
+// the payment). Sets payment_method to razorpay so admin-v2 shows it correctly.
+export async function markRazorpayOrderPaidSimple(orderId: string, rzpPaymentId?: string) {
+  const set: Record<string, any> = { is_paid: true, payment_method: "razorpay" };
+  if (rzpPaymentId) set.cashfree_payment_id = rzpPaymentId;
+  await fetchFromHasura(
+    `mutation MarkRzpPaidSimple($id: uuid!, $set: orders_set_input!) {
+      update_orders_by_pk(pk_columns: {id: $id}, _set: $set) { id }
+    }`,
+    { id: orderId, set },
+  );
 }
 
 // Run the SAME finalization the Cashfree success path uses: claim the order

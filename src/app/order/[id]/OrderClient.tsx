@@ -23,8 +23,10 @@ import { useAuthStore } from "@/store/authStore";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { createCashfreeOrderForPartner, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
+import { createRazorpayOrderForPartner, verifyRazorpayPayment, markRazorpayOrderPaidSimple } from "@/app/actions/razorpayPartner";
 import { verifyCashfreePaymentSettled } from "@/lib/cashfreeVerify";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
+import { isCustomDomainHost } from "@/lib/domain-utils";
 import dynamic from "next/dynamic";
 
 const DeliveryMap = dynamic(() => import("./DeliveryMap"), { ssr: false });
@@ -522,6 +524,10 @@ ${itemsText}
     const whatsappLink = buildWhatsappLink();
     const hasUpiQr = partnerPaymentInfo?.show_payment_qr && !!partnerPaymentInfo?.upi_id;
     const hasCashfree = partnerPaymentInfo?.accept_payments_via_cashfree === true && !!partnerPaymentInfo?.cashfree_merchant_id;
+    // Flamin Hot Chicken pays via their own Razorpay, not the platform Cashfree.
+    const isFlamin =
+        !!process.env.NEXT_PUBLIC_FLAMIN_PARTNER_ID &&
+        order?.partnerId === process.env.NEXT_PUBLIC_FLAMIN_PARTNER_ID;
 
     const handleCashfreePayment = async () => {
         if (!order) return;
@@ -600,6 +606,81 @@ ${itemsText}
         }
     };
 
+    // Razorpay browser checkout has no npm package — load the hosted script once.
+    const loadRazorpayScript = () =>
+        new Promise<void>((resolve, reject) => {
+            if ((window as any).Razorpay) return resolve();
+            const s = document.createElement("script");
+            s.src = "https://checkout.razorpay.com/v1/checkout.js";
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error("Failed to load Razorpay checkout"));
+            document.body.appendChild(s);
+        });
+
+    // Flamin-only: pay an already-placed order through their own Razorpay.
+    const handleRazorpayPayment = async () => {
+        if (!order) return;
+        setCashfreeLoading(true);
+        try {
+            const rzpRes = await createRazorpayOrderForPartner(
+                order.partnerId,
+                orderId,
+                grandTotal,
+                {
+                    id: order.userId || "guest",
+                    name: order.user?.full_name || "Customer",
+                    phone: (order.user?.phone || order.phone || "9999999999").replace(/\D/g, "").slice(-10),
+                    email: order.user?.email,
+                },
+            );
+            if (!rzpRes.success) throw new Error(rzpRes.error);
+
+            await loadRazorpayScript();
+            setCashfreeLoading(false);
+
+            const checkout = new (window as any).Razorpay({
+                key: rzpRes.keyId,
+                order_id: rzpRes.rzpOrderId,
+                amount: Math.round(grandTotal * 100),
+                currency: "INR",
+                name: order.partner?.store_name || "Order",
+                prefill: {
+                    name: order.user?.full_name || "",
+                    contact: order.user?.phone || order.phone || "",
+                    email: order.user?.email || "",
+                },
+                theme: { color: "#f97316" },
+                handler: async (resp: any) => {
+                    setCashfreeVerifying(true);
+                    try {
+                        const v = await verifyRazorpayPayment(
+                            resp.razorpay_order_id,
+                            resp.razorpay_payment_id,
+                            resp.razorpay_signature,
+                        );
+                        if (v.paid) {
+                            await markRazorpayOrderPaidSimple(orderId, resp.razorpay_payment_id);
+                            setOrder((prev) => (prev ? ({ ...prev, is_paid: true } as any) : prev));
+                        }
+                    } catch (e) {
+                        console.error("Razorpay verify error:", e);
+                    } finally {
+                        setCashfreeVerifying(false);
+                    }
+                },
+                modal: { ondismiss: () => setCashfreeLoading(false) },
+            });
+            checkout.on("payment.failed", (r: any) => {
+                console.error("Razorpay payment failed:", r?.error);
+                setCashfreeLoading(false);
+            });
+            checkout.open();
+        } catch (error) {
+            console.error("Razorpay payment error:", error);
+            setCashfreeLoading(false);
+        }
+    };
+
     const router = useRouter();
 
     return (
@@ -622,8 +703,14 @@ ${itemsText}
             <div className="bg-white border-b sticky top-0 z-50 px-3 sm:px-4 py-3 flex items-center gap-3 shadow-sm">
                 <button
                     onClick={() => {
+                        // On a partner custom domain the storefront is served at the
+                        // root ("/"), NOT at "/{username}" — pushing the username path
+                        // there 404s ("page not found"). Route to root on custom
+                        // domains; use the username path on menuthere.com.
                         const username = (order?.partner as any)?.username;
-                        if (username) {
+                        if (isCustomDomainHost()) {
+                            router.push(`/?back=true`);
+                        } else if (username) {
                             router.push(`/${username}?back=true`);
                         } else {
                             router.back();
@@ -1341,12 +1428,12 @@ ${itemsText}
             )}
 
             {/* Sticky bottom action bar */}
-            {!loading && !isCompleted && !isPaid && (hasCashfree || hasUpiQr) && (
+            {!loading && !isCompleted && !isPaid && (hasCashfree || hasUpiQr || isFlamin) && (
                 <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-40 px-3 sm:px-4 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
                     <div className="container mx-auto max-w-3xl flex gap-2">
-                        {!isPaid && (hasCashfree || hasUpiQr) && (
+                        {!isPaid && (hasCashfree || hasUpiQr || isFlamin) && (
                             <button
-                                onClick={hasCashfree ? handleCashfreePayment : () => setShowUpiScreen(true)}
+                                onClick={isFlamin ? handleRazorpayPayment : hasCashfree ? handleCashfreePayment : () => setShowUpiScreen(true)}
                                 disabled={cashfreeLoading}
                                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-colors disabled:opacity-60"
                             >
