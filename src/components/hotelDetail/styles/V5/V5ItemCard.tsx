@@ -699,6 +699,12 @@ const V5ItemCard = ({
             </div>
           )}
 
+          {item.description && (
+            <p className="mt-1.5 text-xs leading-relaxed text-gray-400 line-clamp-2">
+              {item.description}
+            </p>
+          )}
+
         </div>
 
         {/* Right — fixed-size food image with the ADD control floating half over
