@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ArrowLeft, Search, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, Ban } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +26,47 @@ interface AdminV2AvailabilityManagerProps {
     onBack: () => void;
 }
 
+type ReactivateChoice = "nextday" | "2h" | "4h" | "6h" | "never";
+
+const REACTIVATE_OPTIONS: { value: ReactivateChoice; label: string }[] = [
+    { value: "nextday", label: "Next day" },
+    { value: "2h", label: "In 2 hours" },
+    { value: "4h", label: "In 4 hours" },
+    { value: "6h", label: "In 6 hours" },
+    { value: "never", label: "Never — keep off until I turn it on" },
+];
+
+const NEXT_DAY_TIME_KEY = "scheduledAvailability.nextDayTime";
+
+const parseStorefrontSettings = (sf: unknown): Record<string, any> => {
+    if (!sf) return {};
+    if (typeof sf === "string") {
+        try { return JSON.parse(sf); } catch { return {}; }
+    }
+    return sf as Record<string, any>;
+};
+
+// Resolve a reactivation choice to an absolute ISO timestamp (null = never).
+const computeReactivateAt = (choice: ReactivateChoice, nextDayTime: string): string | null => {
+    if (choice === "never") return null;
+    if (choice === "nextday") {
+        const [h, m] = nextDayTime.split(":").map(Number);
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        d.setHours(Number.isFinite(h) ? h : 9, Number.isFinite(m) ? m : 0, 0, 0);
+        return d.toISOString();
+    }
+    const hrs = choice === "2h" ? 2 : choice === "4h" ? 4 : 6;
+    return new Date(Date.now() + hrs * 60 * 60 * 1000).toISOString();
+};
+
+const formatReactivateLabel = (iso: string | null): string => {
+    if (!iso) return "";
+    try {
+        return new Date(iso).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
+    } catch { return ""; }
+};
+
 export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManagerProps) {
     const { categories, fetchCategories, updateCategory } = useCategoryStore();
     const { items, fetchMenu, updateItem, bulkSetAvailability } = useMenuStore();
@@ -40,6 +83,24 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [hideUnavailable, setHideUnavailable] = useState<boolean>(false);
     const [savingHideUnavailable, setSavingHideUnavailable] = useState(false);
+    // Scheduled availability (partner setting): when on, turning an item OFF asks
+    // when it should auto-turn back on. The default next-day time is per-device (localStorage).
+    const [scheduledAvailability, setScheduledAvailability] = useState<boolean>(false);
+    const [savingScheduled, setSavingScheduled] = useState(false);
+    const [pendingOffItem, setPendingOffItem] = useState<MenuItem | null>(null);
+    const [reactivateChoice, setReactivateChoice] = useState<ReactivateChoice>("nextday");
+    const [nextDayTime, setNextDayTime] = useState<string>("09:00");
+
+    useEffect(() => {
+        setScheduledAvailability(!!parseStorefrontSettings(partner?.storefront_settings)?.scheduledAvailability);
+    }, [partner?.storefront_settings]);
+
+    useEffect(() => {
+        try {
+            const t = localStorage.getItem(NEXT_DAY_TIME_KEY);
+            if (t) setNextDayTime(t);
+        } catch { /* ignore */ }
+    }, []);
 
     useEffect(() => {
         if (userData?.id) {
@@ -102,12 +163,61 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
             setShowUpgradeDialog(true);
             return;
         }
+        // Turning OFF with scheduled availability on → ask when it should turn back on.
+        if (item.is_available && scheduledAvailability) {
+            setReactivateChoice("nextday");
+            setPendingOffItem(item);
+            return;
+        }
         try {
-            await updateItem(item.id!, { is_available: !item.is_available });
+            // Turning ON also clears any pending auto-reactivation.
+            const patch: Partial<MenuItem> = item.is_available
+                ? { is_available: false }
+                : { is_available: true, reactivate_at: null };
+            await updateItem(item.id!, patch);
             toast.success(`Item ${!item.is_available ? 'available' : 'unavailable'}`);
         } catch (error) {
             console.error("Failed to update item:", error);
             toast.error("Failed to update item");
+        }
+    };
+
+    // Confirm turning an item OFF with a chosen auto-reactivation time.
+    const confirmTurnOff = async () => {
+        const item = pendingOffItem;
+        if (!item) return;
+        const reactivate_at = computeReactivateAt(reactivateChoice, nextDayTime);
+        if (reactivateChoice === "nextday") {
+            try { localStorage.setItem(NEXT_DAY_TIME_KEY, nextDayTime); } catch { /* ignore */ }
+        }
+        setPendingOffItem(null);
+        try {
+            await updateItem(item.id!, { is_available: false, reactivate_at });
+            const when = formatReactivateLabel(reactivate_at);
+            toast.success(when ? `"${item.name}" turned off — back on ${when}` : `"${item.name}" turned off`);
+        } catch (error) {
+            console.error("Failed to update item:", error);
+            toast.error("Failed to update item");
+        }
+    };
+
+    const handleScheduledAvailabilityChange = async (checked: boolean) => {
+        if (!userData?.id) return;
+        const prev = scheduledAvailability;
+        setScheduledAvailability(checked);
+        setSavingScheduled(true);
+        try {
+            const merged = { ...parseStorefrontSettings(partner?.storefront_settings), scheduledAvailability: checked };
+            await updatePartner(userData.id, { storefront_settings: merged });
+            revalidateTag(userData.id);
+            setState({ storefront_settings: merged } as any);
+            toast.success(`Scheduled availability ${checked ? "enabled" : "disabled"}`);
+        } catch (error) {
+            setScheduledAvailability(prev);
+            toast.error("Failed to update setting");
+            console.error("Error updating scheduled availability:", error);
+        } finally {
+            setSavingScheduled(false);
         }
     };
 
@@ -241,6 +351,21 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                     checked={hideUnavailable}
                     disabled={savingHideUnavailable}
                     onCheckedChange={handleHideUnavailableChange}
+                    className="flex-shrink-0"
+                />
+            </div>
+
+            <div className="flex items-start justify-between gap-4 rounded-lg border bg-card p-4">
+                <div className="space-y-0.5">
+                    <p className="font-semibold">Scheduled availability</p>
+                    <p className="text-sm text-muted-foreground">
+                        When on, turning an item off asks when it should automatically turn back on (next day, in a few hours, or never). Off by default.
+                    </p>
+                </div>
+                <Switch
+                    checked={scheduledAvailability}
+                    disabled={savingScheduled}
+                    onCheckedChange={handleScheduledAvailabilityChange}
                     className="flex-shrink-0"
                 />
             </div>
@@ -437,6 +562,47 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                     </Button>
                 </div>
             )}
+
+            <Dialog open={!!pendingOffItem} onOpenChange={(o) => { if (!o) setPendingOffItem(null); }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Turn off &ldquo;{pendingOffItem?.name}&rdquo;</DialogTitle>
+                        <DialogDescription>When should it automatically turn back on?</DialogDescription>
+                    </DialogHeader>
+                    <RadioGroup
+                        value={reactivateChoice}
+                        onValueChange={(v) => setReactivateChoice(v as ReactivateChoice)}
+                        className="space-y-2 py-1"
+                    >
+                        {REACTIVATE_OPTIONS.map((opt) => (
+                            <div key={opt.value}>
+                                <label
+                                    htmlFor={`reactivate-${opt.value}`}
+                                    className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                                >
+                                    <RadioGroupItem value={opt.value} id={`reactivate-${opt.value}`} />
+                                    <span className="text-sm font-medium">{opt.label}</span>
+                                </label>
+                                {opt.value === "nextday" && reactivateChoice === "nextday" && (
+                                    <div className="mt-2 ml-9 flex items-center gap-2">
+                                        <span className="text-sm text-muted-foreground">at</span>
+                                        <Input
+                                            type="time"
+                                            value={nextDayTime}
+                                            onChange={(e) => setNextDayTime(e.target.value)}
+                                            className="w-32"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </RadioGroup>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setPendingOffItem(null)}>Cancel</Button>
+                        <Button onClick={confirmTurnOff}>Turn off</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -67,6 +67,9 @@ export interface MenuItem {
   /** Manually-curated cross-sell list: ids of other menu items to recommend
    *  ("you will love pairing it with") when this item is added to the cart. */
   recommendations?: string[];
+  /** Scheduled-availability: when set, the item was turned OFF and should be
+   *  auto-turned-ON at this time (ISO timestamp). null = no auto-reactivation. */
+  reactivate_at?: string | null;
   /** True for an ad-hoc POS line item typed in at billing time (name + price)
    *  that does NOT exist in the menu. It rides through the cart/bill/history like
    *  a normal item but is saved with menu_id = null (never added to the menu). */
@@ -256,6 +259,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           show_on_delivery: mi.show_on_delivery,
           show_on_takeaway: mi.show_on_takeaway,
           recommendations: Array.isArray(mi.recommendations) ? mi.recommendations : [],
+          reactivate_at: mi.reactivate_at ?? null,
         };
 
         // Add optional fields if they exist

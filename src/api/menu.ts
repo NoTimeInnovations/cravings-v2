@@ -36,6 +36,7 @@ export const getMenu = `
             tax_inclusive
             visibility_config
             recommendations
+            reactivate_at
         }
     }
 `;
@@ -157,6 +158,7 @@ export const updateMenu = `
             tags
             variants
             recommendations
+            reactivate_at
             }
         }
     }
