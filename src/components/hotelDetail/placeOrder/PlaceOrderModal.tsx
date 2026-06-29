@@ -1741,6 +1741,21 @@ const PlaceOrderModal = ({
 
   const hasIncompatibleItems = incompatibleItems.length > 0;
 
+  // Stock-managed partners: cart items that have run out of stock, checked against
+  // the page-load menu snapshot (advisory, not concurrency-safe). Splits the cart
+  // id so variant lines map to the base menu item's stock row.
+  const stockFeatureOn = !!getFeatures(hotelData?.feature_flags || "")?.stockmanagement?.enabled;
+  const outOfStockItems = useMemo(() => {
+    if (!stockFeatureOn || !items?.length || !allMenus.length) return [];
+    return items.filter((cartItem) => {
+      const baseId = cartItem.id.split("|")[0];
+      const menuItem = allMenus.find((m: any) => m.id === baseId);
+      if (!menuItem) return false;
+      return (menuItem.stocks?.length ?? 0) > 0 && (menuItem.stocks?.[0]?.stock_quantity ?? 1) <= 0;
+    });
+  }, [stockFeatureOn, items, allMenus]);
+  const hasOutOfStockItems = outOfStockItems.length > 0;
+
   const [showLoginDrawer, setShowLoginDrawer] = useState(false);
   const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
   const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
@@ -2756,6 +2771,11 @@ const PlaceOrderModal = ({
       return;
     }
 
+    if (hasOutOfStockItems) {
+      toast.error("Some items are out of stock. Please remove them.");
+      return;
+    }
+
     if (showPicker && !prebookingArg) {
       toast.error(
         isDineIn
@@ -3049,6 +3069,11 @@ const PlaceOrderModal = ({
     // Run the same validations as handlePlaceOrder
     if (tableNumber === 0 && !orderType) {
       toast.error("Please select an order type");
+      return;
+    }
+
+    if (hasOutOfStockItems) {
+      toast.error("Some items are out of stock. Please remove them.");
       return;
     }
 
@@ -3657,6 +3682,25 @@ const PlaceOrderModal = ({
                     ))}
                   </div>
                 )}
+                {hasOutOfStockItems && (
+                  <div className="mb-3 p-3 rounded-lg bg-red-50 border border-red-200">
+                    <p className="text-xs font-semibold text-red-700 mb-1">
+                      Some items are out of stock
+                    </p>
+                    {outOfStockItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between py-1">
+                        <span className="text-xs text-red-600">{item.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <ItemsCard
                   items={items || []}
                   increaseQuantity={increaseQuantity}
@@ -4118,6 +4162,7 @@ const PlaceOrderModal = ({
                     disabled={
                       isPlaceOrderDisabled ||
                       hasIncompatibleItems ||
+                      hasOutOfStockItems ||
                       !user ||
                       items?.length === 0 ||
                       (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)

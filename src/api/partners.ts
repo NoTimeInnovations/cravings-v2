@@ -265,6 +265,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
         offer_price
       }
       stocks{
+        id
         stock_quantity
         stock_type
         show_stock

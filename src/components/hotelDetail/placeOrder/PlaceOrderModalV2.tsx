@@ -388,6 +388,20 @@ const PlaceOrderModalV2 = ({
     });
   }, [orderType, items, allMenus]);
 
+  // Stock-managed partners: cart items that have run out of stock. Checked against
+  // the page-load menu snapshot (hotelData, up to ~60s old) — advisory, not a hard
+  // concurrency guarantee; the server-side decrement at placement is the backstop.
+  const stockFeatureOn = !!getFeatures(hotelData?.feature_flags || "")?.stockmanagement?.enabled;
+  const outOfStockItems = useMemo(() => {
+    if (!stockFeatureOn || !items?.length || !allMenus.length) return [];
+    return items.filter((cartItem) => {
+      const baseId = cartItem.id.split("|")[0];
+      const menuItem = allMenus.find((m: any) => m.id === baseId);
+      if (!menuItem) return false;
+      return (menuItem.stocks?.length ?? 0) > 0 && (menuItem.stocks?.[0]?.stock_quantity ?? 1) <= 0;
+    });
+  }, [stockFeatureOn, items, allMenus]);
+
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
   const formatTime12h = (t: string) => {
@@ -1426,6 +1440,10 @@ const PlaceOrderModalV2 = ({
       toast.error(`Some items are not available for ${orderType}. Please remove them.`);
       return;
     }
+    if (outOfStockItems.length > 0) {
+      toast.error("Some items are out of stock. Please remove them.");
+      return;
+    }
     if (isBelowMinimum) {
       toast.error(`Minimum order of ${currency}${minimumOrderAmount} required for delivery.`);
       return;
@@ -1618,6 +1636,13 @@ const PlaceOrderModalV2 = ({
   const handleRazorpayPayAndPlaceOrder = async () => {
     if (!user) {
       toast.error("Please login first.");
+      return;
+    }
+    // Re-guard here too: the post-failure "Try Again" button calls this directly
+    // (via handleOnlinePayAndPlaceOrder), bypassing handlePay's stock check.
+    if (outOfStockItems.length > 0) {
+      toast.error("Some items are out of stock. Please remove them.");
+      setOrderStatus("idle");
       return;
     }
     setOrderStatus("loading");
@@ -1826,6 +1851,10 @@ const PlaceOrderModalV2 = ({
     }
     if (incompatibleItems.length > 0) {
       toast.error(`Some items are not available for ${orderType}. Please remove them.`);
+      return;
+    }
+    if (outOfStockItems.length > 0) {
+      toast.error("Some items are out of stock. Please remove them.");
       return;
     }
     if (isBelowMinimum) {
@@ -2514,6 +2543,24 @@ const PlaceOrderModalV2 = ({
               </div>
             )}
 
+            {outOfStockItems.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 shadow-sm">
+                <p className="text-sm font-semibold text-red-800 mb-2">Out of stock</p>
+                {outOfStockItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-red-700">{item.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.id)}
+                      className="text-xs font-bold text-red-800 bg-red-100 px-2.5 py-1 rounded-lg"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Minimum order warning */}
             {isBelowMinimum && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-2.5">
@@ -3006,7 +3053,7 @@ const PlaceOrderModalV2 = ({
           <button
             type="button"
             onClick={handlePay}
-            disabled={orderStatus !== "idle" || !items || items.length === 0 || (showPicker && !prebookingArg) || (orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || porterBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || isBelowMinimum}
+            disabled={orderStatus !== "idle" || !items || items.length === 0 || (showPicker && !prebookingArg) || (orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || porterBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || outOfStockItems.length > 0 || isBelowMinimum}
             className="shrink-0 rounded-xl px-5 py-3.5 font-semibold text-white disabled:opacity-60"
             style={{ backgroundColor: accent }}
           >

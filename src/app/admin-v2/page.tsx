@@ -74,6 +74,9 @@ const AdminV2WhatsApp = dynamic(() => import("@/components/admin-v2/AdminV2Whats
 const AdminV2Loyalty = dynamic(() => import("@/components/admin-v2/AdminV2Loyalty").then(mod => mod.AdminV2Loyalty), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
+const AdminV2StockManagement = dynamic(() => import("@/components/admin-v2/AdminV2StockManagement").then(mod => mod.AdminV2StockManagement), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
 const DeliveryPoolPanel = dynamic(() => import("@/components/admin-v2/DeliveryPoolPanel"), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
@@ -186,7 +189,7 @@ export default function AdminPage() {
 
                     {/* Main Content */}
                     <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-2" : "p-3 sm:p-4 md:p-6"}`}>
-                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "Delivery Boys" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && activeView !== "Customers" && activeView !== "Notices" && activeView !== "Reviews" && activeView !== "Website" && activeView !== "Notify" && activeView !== "Petpooja Integration" && activeView !== "Delivery Service Integration" && activeView !== "WhatsApp" && activeView !== "Loyalty" && (
+                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "Delivery Boys" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && activeView !== "Customers" && activeView !== "Notices" && activeView !== "Reviews" && activeView !== "Website" && activeView !== "Notify" && activeView !== "Petpooja Integration" && activeView !== "Delivery Service Integration" && activeView !== "WhatsApp" && activeView !== "Loyalty" && activeView !== "Stock Management" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
 
@@ -263,6 +266,11 @@ export default function AdminPage() {
                         {renderedViews.includes("Loyalty") && (
                             <div className={activeView === "Loyalty" ? "block" : "hidden"}>
                                 <AdminV2Loyalty />
+                            </div>
+                        )}
+                        {renderedViews.includes("Stock Management") && (
+                            <div className={activeView === "Stock Management" ? "block" : "hidden"}>
+                                <AdminV2StockManagement />
                             </div>
                         )}
                         {renderedViews.includes("Notices") && (

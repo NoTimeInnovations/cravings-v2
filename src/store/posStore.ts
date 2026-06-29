@@ -15,6 +15,9 @@ import {
 import { deleteBillMutation } from "@/api/pos";
 import { getNextOrderNumber, Order } from "./orderStore";
 import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
+import { getFeatures } from "@/lib/getFeatures";
+import { decrementStockForOrder } from "@/lib/stockDecrement";
+import { revalidateTag } from "@/app/actions/revalidate";
 import { v4 as uuidv4 } from "uuid";
 
 
@@ -930,6 +933,27 @@ export const usePOSStore = create<POSState>((set, get) => ({
           }
         });
         throw new Error(orderResponse.errors?.[0]?.message || "Failed to create order");
+      }
+
+      // Stock-managed partners: decrement stock for this POS sale at placement and
+      // auto-disable anything that hits 0 (mirrors the storefront path). Skipped for
+      // edits (would double-count) and custom/off-menu items (no stock row).
+      try {
+        const stockOn = getFeatures((partnerData as any)?.feature_flags || null)?.stockmanagement?.enabled;
+        if (stockOn && !get().editingOrderId) {
+          await decrementStockForOrder(
+            cartItems
+              .filter((it) => !(it as any).is_custom)
+              .map((it) => ({
+                menuId: (it.id || "").split("|")[0].split("_custom_")[0],
+                stockId: (it as any).stocks?.[0]?.id,
+                quantity: it.quantity,
+              })),
+          );
+          revalidateTag(partnerId);
+        }
+      } catch (e) {
+        console.error("POS stock decrement failed (order still placed):", e);
       }
 
       // Create order items

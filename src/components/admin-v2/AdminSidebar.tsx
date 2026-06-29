@@ -22,6 +22,7 @@ import {
   Bike,
   MessageSquare,
   Gift,
+  Boxes,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -43,6 +44,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Orders", icon: ShoppingBag, id: "orders" },
   { title: "Reviews", icon: Star, id: "reviews" },
   { title: "Menu", icon: UtensilsCrossed, id: "menu" },
+  { title: "Stock Management", icon: Boxes, id: "stock-management" },
   { title: "Offers", icon: Percent, id: "offers" },
   { title: "Notify", icon: Megaphone, id: "notify" },
   { title: "Purchase & Inventory", icon: ShoppingBag, id: "inventory" },
@@ -103,6 +105,10 @@ export function AdminSidebar({
     // Delivery Pool is flag-gated regardless of plan.
     if (item.id === "delivery-pool") {
       return features?.delivery_pool?.enabled ? "visible" : "hidden";
+    }
+    // Stock Management is flag-gated regardless of plan.
+    if (item.id === "stock-management") {
+      return features?.stockmanagement?.enabled ? "visible" : "hidden";
     }
     if (isOnFreePlan) {
       if (FREE_PLAN_LOCKED_IDS.includes(item.id)) {

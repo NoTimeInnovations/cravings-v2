@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { revalidateTag } from "@/app/actions/revalidate";
+import { decrementStockForOrder } from "@/lib/stockDecrement";
 import { usePOSStore } from "./posStore";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -674,29 +675,8 @@ const useOrderStore = create(
           if (response.errors) throw new Error(response.errors[0].message);
 
           if (newStatus === "completed") {
-            const order = orders.find((o) => o.id === orderId);
-            if (order) {
-              for (const item of order.items) {
-                if (item.stocks?.[0]?.id) {
-                  await fetchFromHasura(
-                    `mutation DecreaseStockQuantity($stockId: uuid!, $quantity: numeric!) {
-                        update_stocks_by_pk(
-                          pk_columns: {id: $stockId},
-                          _inc: {stock_quantity: $quantity}
-                        ) {
-                          id
-                          stock_quantity
-                        }
-                      }`,
-                    {
-                      stockId: item.stocks?.[0]?.id,
-                      quantity: -item.quantity,
-                    }
-                  );
-                }
-              }
-              revalidateTag(userData?.id as string);
-            }
+            // Stock is decremented at order PLACEMENT now (see placeOrder for
+            // cash/COD and finalizeCfOrder for online), not at completion.
 
             // Award loyalty points for the completed order. Server-side, idempotent,
             // re-reads the real order, and self-gates on the partner's loyalty flag —
@@ -1916,6 +1896,25 @@ const useOrderStore = create(
           // order so the modal can track its id.
           if (deferForPayment) {
             return newOrder;
+          }
+
+          // Stock-managed partners: decrement stock at PLACEMENT (cash/COD path)
+          // and auto-disable anything that hits 0. Online orders decrement later
+          // in finalizeCfOrder (after payment), so abandoned carts don't deplete.
+          try {
+            const stockOn = getFeatures(hotelData.feature_flags || null)?.stockmanagement?.enabled;
+            if (stockOn) {
+              await decrementStockForOrder(
+                currentOrder.items.map((it) => ({
+                  menuId: it.id.split("|")[0],
+                  stockId: it.stocks?.[0]?.id,
+                  quantity: it.quantity,
+                })),
+              );
+              revalidateTag(hotelData.id);
+            }
+          } catch (e) {
+            console.error("Stock decrement failed (order still placed):", e);
           }
 
           // Update state

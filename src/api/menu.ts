@@ -37,6 +37,12 @@ export const getMenu = `
             visibility_config
             recommendations
             reactivate_at
+            stocks {
+                id
+                stock_quantity
+                stock_type
+                show_stock
+            }
         }
     }
 `;

@@ -1,6 +1,24 @@
 "use server";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getFeatures } from "@/lib/getFeatures";
+import { decrementStockForOrder } from "@/lib/stockDecrement";
+import { revalidateTag } from "@/app/actions/revalidate";
+
+// Fetch an order's stock-relevant lines (+ partner feature flag) so we can
+// decrement stock once an online payment finalizes.
+const GET_ORDER_STOCK_LINES = `
+  query OrderStockLines($id: uuid!) {
+    orders_by_pk(id: $id) {
+      partner { feature_flags }
+      order_items {
+        quantity
+        item
+        menu { id stocks { id } }
+      }
+    }
+  }
+`;
 
 // Partner push-notification server (same one the client Notification helper
 // uses). We notify inline here instead of importing the client-only
@@ -189,6 +207,31 @@ export async function finalizeCfOrder(
     } catch (e) {
       console.error(`[finalizeCfOrder] partner notification failed (order still finalized) order=${orderId}:`, e);
     }
+  }
+
+  // Stock-managed partners: now that payment is confirmed, decrement stock and
+  // auto-disable anything that hit 0. Done at finalize (not at the pending-order
+  // insert) so abandoned/unpaid carts never deplete stock. Best-effort.
+  try {
+    const sres = await fetchFromHasura(GET_ORDER_STOCK_LINES, { id: orderId });
+    const o = sres?.orders_by_pk;
+    const stockOn = getFeatures(o?.partner?.feature_flags || null)?.stockmanagement?.enabled;
+    if (stockOn && Array.isArray(o?.order_items)) {
+      await decrementStockForOrder(
+        o.order_items
+          // Freebie give-aways don't consume stock — matches the cash/COD path,
+          // whose decrement runs over the paid cart only.
+          .filter((oi: any) => !oi?.item?.is_freebie)
+          .map((oi: any) => ({
+            menuId: oi?.menu?.id,
+            stockId: oi?.menu?.stocks?.[0]?.id,
+            quantity: oi?.quantity,
+          })),
+      );
+      if (order?.partner_id) revalidateTag(order.partner_id);
+    }
+  } catch (e) {
+    console.error(`[finalizeCfOrder] stock decrement failed (order still finalized) order=${orderId}:`, e);
   }
 
   return { ok: true, pushedToPetpooja };
