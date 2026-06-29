@@ -1395,8 +1395,12 @@ const PlaceOrderModalV2 = ({
       flagMissingName();
       return;
     }
-    if (isDineIn && !prebookingArg) {
-      toast.error("Please choose a date, time and number of guests for your table.");
+    if (showPicker && !prebookingArg) {
+      toast.error(
+        isDineIn
+          ? "Please choose a date, time and number of guests for your table."
+          : "Please select a date and time slot for your order.",
+      );
       return;
     }
     if (!isQrScan && orderType === "delivery" && !isDeliveryOpen) {
@@ -1793,8 +1797,12 @@ const PlaceOrderModalV2 = ({
       flagMissingName();
       return;
     }
-    if (isDineIn && !prebookingArg) {
-      toast.error("Please choose a date, time and number of guests for your table.");
+    if (showPicker && !prebookingArg) {
+      toast.error(
+        isDineIn
+          ? "Please choose a date, time and number of guests for your table."
+          : "Please select a date and time slot for your order.",
+      );
       return;
     }
     if (!isQrScan && orderType === "delivery" && !isDeliveryOpen) {
