@@ -1741,19 +1741,45 @@ const PlaceOrderModal = ({
 
   const hasIncompatibleItems = incompatibleItems.length > 0;
 
-  // Stock-managed partners: cart items that have run out of stock, checked against
-  // the page-load menu snapshot (advisory, not concurrency-safe). Splits the cart
-  // id so variant lines map to the base menu item's stock row.
+  // Stock-managed partners: the page menu snapshot can be ~60s stale, so re-fetch
+  // LIVE stock for the cart items when the checkout opens and flag anything at
+  // <= 0. Splits the cart id so variant lines map to the base menu item's stock.
   const stockFeatureOn = !!getFeatures(hotelData?.feature_flags || "")?.stockmanagement?.enabled;
+  const [liveStock, setLiveStock] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!open_place_order_modal || !stockFeatureOn || !items?.length) {
+      setLiveStock({});
+      return;
+    }
+    const ids = Array.from(new Set(items.map((it) => it.id.split("|")[0]))).filter(Boolean);
+    if (!ids.length) return;
+    let cancelled = false;
+    fetchFromHasura(
+      `query CheckoutStock($ids: [uuid!]!) { stocks(where: { menu_id: { _in: $ids } }) { menu_id stock_quantity } }`,
+      { ids },
+    )
+      .then((res: any) => {
+        if (cancelled) return;
+        const map: Record<string, number> = {};
+        (res?.stocks || []).forEach((s: any) => {
+          if (s?.menu_id != null) map[s.menu_id] = s.stock_quantity;
+        });
+        setLiveStock(map);
+      })
+      .catch(() => {
+        if (!cancelled) setLiveStock({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open_place_order_modal, stockFeatureOn, items]);
   const outOfStockItems = useMemo(() => {
-    if (!stockFeatureOn || !items?.length || !allMenus.length) return [];
+    if (!stockFeatureOn || !items?.length) return [];
     return items.filter((cartItem) => {
       const baseId = cartItem.id.split("|")[0];
-      const menuItem = allMenus.find((m: any) => m.id === baseId);
-      if (!menuItem) return false;
-      return (menuItem.stocks?.length ?? 0) > 0 && (menuItem.stocks?.[0]?.stock_quantity ?? 1) <= 0;
+      return baseId in liveStock && (liveStock[baseId] ?? 1) <= 0;
     });
-  }, [stockFeatureOn, items, allMenus]);
+  }, [stockFeatureOn, items, liveStock]);
   const hasOutOfStockItems = outOfStockItems.length > 0;
 
   const [showLoginDrawer, setShowLoginDrawer] = useState(false);
