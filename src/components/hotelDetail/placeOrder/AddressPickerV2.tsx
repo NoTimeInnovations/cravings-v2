@@ -395,21 +395,28 @@ const AddressPickerV2 = ({
     };
   }, [searchValue, isLoaded]);
 
+  // Serviceability is judged by ROAD distance (matches checkout). Clear the
+  // distance first → the UI shows "Checking…" until the road distance resolves,
+  // then we set THAT (falling back to straight-line only if Mapbox is
+  // unreachable). We never display the raw straight-line value as authoritative
+  // — a point can read "available" by straight-line yet be far longer (and out
+  // of range) by road. Extracted so picks that set the address directly (Place
+  // Details suggestion) still resolve the distance without a reverse-geocode.
+  const computePinDistance = useCallback(
+    (lat: number, lng: number) => {
+      if (!hotelCoords) return;
+      setPinDistanceKm(null);
+      roadDistanceKm(hotelCoords, { lat, lng }).then((km) => {
+        setPinDistanceKm(km ?? haversineKm(hotelCoords, { lat, lng }));
+      });
+    },
+    [hotelCoords],
+  );
+
   const reverseGeocode = useCallback(
     (lat: number, lng: number) => {
       if (!isLoaded) return;
-      // Serviceability is judged by ROAD distance (matches checkout). Clear the
-      // distance first → the UI shows "Checking…" until the road distance
-      // resolves, then we set THAT (falling back to straight-line only if Mapbox
-      // is unreachable). We never display the raw straight-line value as
-      // authoritative — a point can read "available" by straight-line yet be far
-      // longer (and out of range) by road.
-      if (hotelCoords) {
-        setPinDistanceKm(null);
-        roadDistanceKm(hotelCoords, { lat, lng }).then((km) => {
-          setPinDistanceKm(km ?? haversineKm(hotelCoords, { lat, lng }));
-        });
-      }
+      computePinDistance(lat, lng);
       setGeocoding(true);
       const geocoder = new google.maps.Geocoder();
       void trackMaps({ api: "geocode", partnerId: hotelData?.id, source: "checkout_v2_address" });
@@ -425,7 +432,7 @@ const AddressPickerV2 = ({
         }
       });
     },
-    [isLoaded, hotelCoords],
+    [isLoaded, computePinDistance],
   );
 
   // Qatar only: resolve the nearest blue-plate building from the settled pin,
@@ -502,6 +509,11 @@ const AddressPickerV2 = ({
                 place.formatted_address,
               ),
             );
+            // The address is set directly from Place Details (no reverse-geocode
+            // runs), so resolve the road distance here too — otherwise the
+            // delivery-availability check stays stuck on "Checking…" until the
+            // pin is moved.
+            computePinDistance(lat, lng);
           } else {
             setGeocodedInfo(null);
             setQarsHit(null);
