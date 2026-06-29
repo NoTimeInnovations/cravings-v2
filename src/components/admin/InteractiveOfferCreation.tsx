@@ -338,6 +338,14 @@ export function OfferDetails({ selected, onBack, onSubmit }: OfferDetailsProps) 
   const [startAt, setStartAt] = useState<string>("");
   const [endAt, setEndAt] = useState<string>("");
 
+  // Resolve the real base price of a variant. Some items keep the actual price
+  // in `delivery_price` with `price` left at 0, so fall back to the live menu
+  // variant's price/delivery_price.
+  const resolveVariantBasePrice = (item: any, variant: { name: string; price?: number }) => {
+    const full = item?.variants?.find((v: any) => v.name === variant.name);
+    return variant.price || full?.price || full?.delivery_price || 0;
+  };
+
   const isMultiItem = useMemo(() => {
     if (selected.length > 1) return true;
     if (selected.length === 1) {
@@ -391,7 +399,9 @@ export function OfferDetails({ selected, onBack, onSubmit }: OfferDetailsProps) 
         return;
       }
       const sel = selected[0];
-      const base = sel.variants && sel.variants.length > 0 ? sel.variants[0].price : sel.item.price;
+      const base = sel.variants && sel.variants.length > 0
+        ? resolveVariantBasePrice(sel.item, sel.variants[0])
+        : sel.item.price;
       if (base && num >= base) {
         toast.error("Offer price must be less than original price");
         return;
@@ -420,7 +430,9 @@ export function OfferDetails({ selected, onBack, onSubmit }: OfferDetailsProps) 
           const calcPrice = () => {
             if (sel.variants && sel.variants.length > 0) {
               // If multiple variants selected, show the lowest price as reference
-              const prices = sel.variants.map((v) => v.price).filter((n) => typeof n === 'number');
+              const prices = sel.variants
+                .map((v) => resolveVariantBasePrice(sel.item, v))
+                .filter((n) => typeof n === 'number');
               if (prices.length === 0) return undefined;
               return Math.min(...prices);
             }

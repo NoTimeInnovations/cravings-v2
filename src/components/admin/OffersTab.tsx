@@ -67,6 +67,14 @@ export function OffersTab() {
         body: "A new offer has been added",
       };
 
+      // Resolve the real base price of a variant. Some items keep the actual
+      // price in `delivery_price` with `price` left at 0, so fall back to the
+      // live menu variant's price/delivery_price.
+      const resolveVariantBasePrice = (item: any, variant: { name: string; price?: number }) => {
+        const full = item?.variants?.find((v: any) => v.name === variant.name);
+        return variant.price || full?.price || full?.delivery_price || 0;
+      };
+
       if (selected.length > 1) {
         // Group percentage across each selected item/variant -> create individual offers
         const percentage = details.percentage || 0;
@@ -80,7 +88,8 @@ export function OffersTab() {
           // If variants selected, create one offer per selected variant
           if (sel.variants && sel.variants.length > 0) {
             for (const variant of sel.variants) {
-              const offer_price = Math.round((variant.price || 0) * (1 - percentage / 100));
+              const basePrice = resolveVariantBasePrice(sel.item, variant);
+              const offer_price = Math.round(basePrice * (1 - percentage / 100));
               const offerPayload = {
                 menu_id: sel.item.id,
                 offer_price,
@@ -90,7 +99,7 @@ export function OffersTab() {
                 offer_type,
                 variant: {
                   name: variant.name,
-                  price: variant.price,
+                  price: basePrice,
                 },
               };
               console.log("[Offer Submit] Creating variant offer:", offerPayload);
@@ -122,7 +131,8 @@ export function OffersTab() {
           const percentage = details.percentage || 0;
           console.log("[Offer Submit] Single item with multiple variants. Percentage:", percentage);
           for (const variant of sel.variants) {
-            const offer_price = Math.round((variant.price || 0) * (1 - percentage / 100));
+            const basePrice = resolveVariantBasePrice(sel.item, variant);
+            const offer_price = Math.round(basePrice * (1 - percentage / 100));
             const offerPayload = {
               menu_id: sel.item.id,
               offer_price,
@@ -132,7 +142,7 @@ export function OffersTab() {
               offer_type,
               variant: {
                 name: variant.name,
-                price: variant.price,
+                price: basePrice,
               },
             };
             console.log("[Offer Submit] Creating variant offer (single item multi-variant):", offerPayload);
@@ -142,7 +152,8 @@ export function OffersTab() {
           // Single item with no variants or exactly one selected variant: fixed amount path
           let variantToUse = undefined as undefined | { name: string; price: number };
           if (sel.variants && sel.variants.length > 0) {
-            variantToUse = sel.variants[0];
+            const v = sel.variants[0];
+            variantToUse = { name: v.name, price: resolveVariantBasePrice(sel.item, v) };
           }
 
           const offerPayload = {
