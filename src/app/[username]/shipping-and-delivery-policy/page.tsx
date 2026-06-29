@@ -5,7 +5,7 @@ import { LegalPageLayout } from "@/components/legal/LegalPageLayout";
 import { ShippingContent } from "@/components/legal/policyContent";
 
 const SLUG = "shipping-and-delivery-policy";
-const LAST_UPDATED = "29 April 2026";
+const LAST_UPDATED = "29 June 2026";
 
 export async function generateMetadata({
   params,

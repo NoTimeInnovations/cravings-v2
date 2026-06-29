@@ -372,20 +372,31 @@ export function ShippingContent({ partner }: { partner: LegalPartnerInfo }) {
 
       <Section title="3. Delivery Time">
         <p>
-          Estimated preparation and delivery times are displayed at checkout
-          and may vary based on factors such as order volume, distance,
-          weather, and traffic conditions. While we make every effort to
-          deliver within the estimated window, delays may occur in
+          We prepare and dispatch orders as quickly as possible. Most delivery
+          orders are delivered within <strong>30 to 60 minutes</strong> of the
+          order being confirmed, depending on the preparation time of the items
+          you order and your distance from our location. The estimated time is
+          displayed at checkout and may vary based on factors such as order
+          volume, distance, weather, and traffic conditions. While we make every
+          effort to deliver within the estimated window, delays may occur in
           exceptional circumstances.
+        </p>
+        <p>
+          As all items are freshly prepared food, we strongly recommend that
+          your order be <strong>consumed within 2 hours of delivery</strong> for
+          the best taste, quality, and food safety. {entity} is not responsible
+          for the quality or safety of food consumed beyond this period.
         </p>
       </Section>
 
       <Section title="4. Delivery Charges">
         <p>
-          Applicable delivery charges (if any) are calculated based on
-          distance and order value, and are clearly displayed before you
-          confirm the order. All charges are inclusive of applicable taxes
-          unless stated otherwise.
+          Applicable delivery charges (if any) are calculated based on the
+          delivery distance from our location and, where applicable, the order
+          value. The exact delivery charge for your order is clearly displayed
+          at checkout before you make any payment, so you always know the total
+          amount before confirming. All charges are inclusive of applicable
+          taxes unless stated otherwise.
         </p>
       </Section>
 
