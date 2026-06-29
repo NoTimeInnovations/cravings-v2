@@ -10,6 +10,8 @@ import plansData from "@/data/plans.json";
 import {
     NEW_PARTNER_FEATURE_FLAGS,
     applyNewPartnerThemeDefaults,
+    NEW_PARTNER_DELIVERY_RATE,
+    resolveNewPartnerDeliveryRules,
 } from "@/lib/newPartnerDefaults";
 
 interface OnboardingData {
@@ -56,6 +58,11 @@ export const onBoardUserSignup = async (
             feature_flags: NEW_PARTNER_FEATURE_FLAGS,
             subscription_details: buildNewPartnerTrialSubscription(partner?.country),
             theme: applyNewPartnerThemeDefaults(partner?.theme),
+            // Default delivery pricing (first 4km ₹40, +₹10/km) and 10am–10pm
+            // delivery/takeaway windows for every new partner. Honours a caller
+            // that already provided canonical rules; otherwise uses the defaults.
+            delivery_rules: resolveNewPartnerDeliveryRules(partner?.delivery_rules),
+            delivery_rate: partner?.delivery_rate || NEW_PARTNER_DELIVERY_RATE,
             // referral_code is already in partner object from get-started
         };
 

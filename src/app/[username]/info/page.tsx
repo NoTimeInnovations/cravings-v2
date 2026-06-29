@@ -5,6 +5,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import DownloadAppButton from "./DownloadAppButton";
 import { brandColorToHex } from "@/lib/brandColor";
 import { getFeatures } from "@/lib/getFeatures";
+import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 
 const FALLBACK_BRAND = "#ff6a13";
 const FALLBACK_BG = "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=1200";
@@ -316,7 +317,8 @@ export default async function PartnerInfoPage({
   const socialResolved: { k: SocialKey; href: string }[] = [];
   if (info.socials?.whatsapp !== false && whatsappUrl) socialResolved.push({ k: "whatsapp", href: whatsappUrl });
   if (info.socials?.instagram !== false && s.instagram) socialResolved.push({ k: "instagram", href: s.instagram });
-  if (info.socials?.location !== false && partner.location) socialResolved.push({ k: "location", href: partner.location });
+  const mapsUrl = getPartnerMapsUrl(partner as any);
+  if (info.socials?.location !== false && mapsUrl) socialResolved.push({ k: "location", href: mapsUrl });
   if (info.socials?.phone !== false && phoneUrl) socialResolved.push({ k: "phone", href: phoneUrl });
   if (info.socials?.facebook !== false && s.facebook) socialResolved.push({ k: "facebook", href: s.facebook });
 

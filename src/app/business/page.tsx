@@ -1,5 +1,6 @@
 import { getAllPartnersQuery } from '@/api/partners'
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 
 import Link from 'next/link'
 
@@ -42,8 +43,8 @@ export default async function HotelsPage() {
               </p>
               
               <div className="mt-auto flex flex-row-reverse items-center justify-between">
-                <Link 
-                  href={partner?.location || "/"}
+                <Link
+                  href={getPartnerMapsUrl(partner) || "/"}
                   target="_blank"
                   className=" hover:text-orange-500  p-1 bg-orange-500 text-white text-sm md:text-sm font-medium py-1.5 px-2 rounded transition-colors duration-200 text-center"
                   aria-label="View location on map"

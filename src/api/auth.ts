@@ -46,6 +46,7 @@ export const partnerIdQuery = `
       description
       phone
       district
+      state
       theme
       is_shop_open
       currency
@@ -117,6 +118,7 @@ export const partnerLoginQuery = `
       description
       phone
       district
+      state
       theme
       is_shop_open
       currency

@@ -110,6 +110,7 @@ export interface Partner extends BaseUser {
   }[];
   phone: string;
   district: string;
+  state?: string;
   delivery_status: boolean;
   geo_location: GeoLocation;
   delivery_rate: number;

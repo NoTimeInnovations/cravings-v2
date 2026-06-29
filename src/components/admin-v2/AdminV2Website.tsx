@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,11 @@ import {
   GripVertical,
   Save,
   Loader2,
+  Search,
+  Sparkles,
+  MapPin,
+  Check,
+  X,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
@@ -30,6 +35,11 @@ import {
   DEFAULT_WEBSITE_CONFIG,
   mergeWebsiteConfig,
 } from "@/types/website";
+import {
+  placesAutocomplete,
+  type PlacePrediction,
+} from "@/app/actions/placesAutocomplete";
+import { fetchWebsiteDataFromGoogle } from "@/app/actions/fetchWebsiteDataFromGoogle";
 import { toast } from "sonner";
 
 function parseJson(raw: any): any {
@@ -150,6 +160,40 @@ export function AdminV2Website() {
     window.open(`/${username}/home`, "_blank");
   };
 
+  // "Get data from Google": pull the full website (photos, reviews, address,
+  // hours) from a picked Google Business listing and save it immediately —
+  // same pipeline the / signup flow uses.
+  const handleGoogleImport = useCallback(
+    async (placeId: string, sessionToken?: string) => {
+      if (!userData) return;
+      const id = (userData as any).id;
+      const result = await fetchWebsiteDataFromGoogle(placeId, sessionToken);
+      const merged = mergeWebsiteConfig(result.website_config);
+
+      const updates: any = { website_config: merged };
+      if (result.location) updates.location = result.location;
+      if (result.place_id) updates.place_id = result.place_id;
+      if (result.state) updates.state = result.state;
+      if (result.district) updates.district = result.district;
+      if (result.phone) {
+        updates.phone = result.phone;
+        // Only seed WhatsApp from the listing if the partner has none yet.
+        const existingWa = (userData as any)?.whatsapp_numbers;
+        if (!Array.isArray(existingWa) || existingWa.length === 0) {
+          updates.whatsapp_numbers = result.whatsapp_numbers;
+        }
+      }
+      if (result.geo_location) updates.geo_location = result.geo_location;
+
+      await updatePartner(id, updates);
+      revalidateTag(id);
+      setConfig(merged);
+      setState(updates);
+      setHasChanges(false);
+    },
+    [userData, setState, setHasChanges],
+  );
+
   // Build category list from menu
   const categories = useMemo(() => {
     const map: Record<string, { id: string; name: string; items: MenuItemRow[] }> = {};
@@ -189,6 +233,8 @@ export function AdminV2Website() {
           </Button>
         </div>
       </div>
+
+      <GoogleImportCard onImport={handleGoogleImport} />
 
       <Tabs defaultValue="hero" className="space-y-4">
         <TabsList className="flex w-full sm:w-auto overflow-x-auto justify-start">
@@ -263,6 +309,166 @@ export function AdminV2Website() {
 
       <WebsiteFloatingSave />
     </div>
+  );
+}
+
+function GoogleImportCard({
+  onImport,
+}: {
+  onImport: (placeId: string, sessionToken?: string) => Promise<void>;
+}) {
+  const [search, setSearch] = useState("");
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
+  const [selected, setSelected] = useState<PlacePrediction | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqIdRef = useRef(0);
+  // One Places session per search→select→details (shared with the server fetch).
+  const sessionTokenRef = useRef<string>("");
+  const ensureSessionToken = () => {
+    if (!sessionTokenRef.current) sessionTokenRef.current = crypto.randomUUID();
+    return sessionTokenRef.current;
+  };
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = search.trim();
+    if (q.length < 3 || selected) {
+      setPredictions([]);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      const myReq = ++reqIdRef.current;
+      try {
+        const results = await placesAutocomplete(q, ensureSessionToken());
+        if (myReq === reqIdRef.current) setPredictions(results);
+      } catch {
+        /* ignore */
+      }
+    }, 500);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [search, selected]);
+
+  const pick = (p: PlacePrediction) => {
+    setSelected(p);
+    setSearch(p.structured_formatting?.main_text || p.description);
+    setPredictions([]);
+  };
+
+  const clear = () => {
+    setSelected(null);
+    setSearch("");
+    setPredictions([]);
+    sessionTokenRef.current = "";
+  };
+
+  const runImport = async () => {
+    if (!selected) {
+      toast.error("Pick your business from the dropdown");
+      return;
+    }
+    setImporting(true);
+    const t = toast.loading("Fetching your business details from Google…");
+    try {
+      await onImport(selected.place_id, ensureSessionToken());
+      toast.success("Website filled from Google and saved", { id: t });
+      clear();
+    } catch (e) {
+      console.error("Google import failed", e);
+      toast.error("Couldn't import from Google. Please try again.", { id: t });
+    } finally {
+      setImporting(false);
+      sessionTokenRef.current = "";
+    }
+  };
+
+  return (
+    <Card className="border-orange-200 bg-orange-50/40">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Sparkles className="h-5 w-5 text-orange-600" />
+          Get data from Google
+        </CardTitle>
+        <CardDescription>
+          Search your business and we&apos;ll fill the whole website — photos,
+          reviews, address and hours — automatically. This saves immediately and
+          overwrites the current website content.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (selected) setSelected(null);
+              }}
+              placeholder="Search your business name…"
+              className="pl-9 pr-9"
+              disabled={importing}
+            />
+            {selected && (
+              <button
+                type="button"
+                onClick={clear}
+                className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            {predictions.length > 0 && (
+              <div className="absolute z-20 mt-1 w-full rounded-md border bg-background shadow-lg max-h-64 overflow-auto">
+                {predictions.map((p) => (
+                  <button
+                    key={p.place_id}
+                    type="button"
+                    onClick={() => pick(p)}
+                    className="w-full text-left px-3 py-2 hover:bg-muted flex items-start gap-2"
+                  >
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-orange-600" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium truncate">
+                        {p.structured_formatting?.main_text || p.description}
+                      </span>
+                      <span className="block text-xs text-muted-foreground truncate">
+                        {p.structured_formatting?.secondary_text || ""}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <Button
+            onClick={runImport}
+            disabled={!selected || importing}
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            {importing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            Get data from Google
+          </Button>
+        </div>
+        {selected && (
+          <p className="text-xs text-green-700 flex items-center gap-1">
+            <Check className="h-3 w-3" />
+            {selected.structured_formatting?.main_text || selected.description}
+            {selected.structured_formatting?.secondary_text
+              ? ` · ${selected.structured_formatting.secondary_text}`
+              : ""}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

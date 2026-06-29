@@ -32,6 +32,41 @@ export const NEW_PARTNER_FEATURE_FLAGS =
 // Stringified theme for the partners.theme column (used by paths that store a JSON string).
 export const NEW_PARTNER_THEME_STRING = JSON.stringify(NEW_PARTNER_THEME);
 
+// Default delivery pricing + service windows for every new partner.
+// "first 4 km ₹40, then ₹10 per additional km" → first_km_range {km:4, rate:40}
+// plus the separate partners.delivery_rate column (= per-additional-km rate).
+// Delivery & takeaway both run 10:00–22:00 by default. The partner can change
+// all of this in Settings → Delivery.
+export const NEW_PARTNER_DELIVERY_RATE = 10;
+
+export const NEW_PARTNER_DELIVERY_RULES = {
+  delivery_radius: 5,
+  delivery_mode: "basic" as const,
+  first_km_range: { km: 4, rate: 40 },
+  delivery_ranges: [] as { from_km: number; to_km: number; rate: number }[],
+  is_fixed_rate: false,
+  minimum_order_amount: 0,
+  delivery_time_allowed: { from: "10:00", to: "22:00" },
+  takeaway_time_allowed: { from: "10:00", to: "22:00" },
+  isDeliveryActive: true,
+  needDeliveryLocation: true,
+};
+
+// Returns the delivery_rules to persist for a new partner: keeps the caller's
+// rules only if they're already in the canonical shape (a real pricing tier or
+// service window), otherwise falls back to the defaults above. Current signup
+// paths pass a non-canonical `{ rules: [] }`, so they get the defaults.
+export const resolveNewPartnerDeliveryRules = (incoming?: any) => {
+  const hasCanonical =
+    incoming &&
+    (incoming.first_km_range ||
+      (Array.isArray(incoming.delivery_ranges) &&
+        incoming.delivery_ranges.length > 0) ||
+      incoming.delivery_time_allowed ||
+      incoming.takeaway_time_allowed);
+  return hasCanonical ? incoming : NEW_PARTNER_DELIVERY_RULES;
+};
+
 // Force the new-partner menuStyle/checkoutStyle while preserving any colours/font
 // the caller already chose (e.g. the get-started wizard or a Google-signup brand
 // colour). Accepts the caller's theme as a JSON string or object; returns a JSON

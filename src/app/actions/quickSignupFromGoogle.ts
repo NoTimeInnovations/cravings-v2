@@ -291,18 +291,25 @@ export async function quickSignupFromGoogle(
     password: finalPassword,
     email,
     store_name: data.name,
+    // Phone is already sanitized to digits-only (no +, country code or spaces)
+    // in extractGoogleBusinessDataByPlaceId.
     phone: data.phone || "",
     country: countryName,
-    location: `https://www.google.com/maps/place/?q=place_id:${data.placeId}`,
+    // Store the human-readable address (not a Maps URL) so it shows correctly in
+    // Settings → Location and on the storefront. "Open in Maps" links are built
+    // from place_id via getPartnerMapsUrl, so they don't need a URL here.
+    location: data.formattedAddress || "",
     // Persist the Google place_id so the V3 storefront links to the business
     // listing (name/reviews/hours) instead of a bare lat,lng pin.
     place_id: data.placeId,
     status: "active",
     upi_id: "",
-    whatsapp_numbers: [],
+    // Default the WhatsApp number to the (sanitized) phone so WhatsApp ordering
+    // works out of the box; the partner can change it in Settings.
+    whatsapp_numbers: data.phone ? [{ number: data.phone, area: "" }] : [],
     district: data.district || "",
     state: data.state || "",
-    delivery_status: false,
+    delivery_status: true,
     geo_location:
       data.lat != null && data.lng != null
         ? { type: "Point", coordinates: [data.lng, data.lat] }

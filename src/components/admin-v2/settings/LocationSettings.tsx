@@ -26,6 +26,7 @@ export function LocationSettings() {
 
     const [location, setLocation] = useState("");
     const [locationDetails, setLocationDetails] = useState("");
+    const [stateName, setStateName] = useState("");
     const [placeId, setPlaceId] = useState("");
     const [geoLocation, setGeoLocation] = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
 
@@ -54,6 +55,7 @@ export function LocationSettings() {
         if (userData?.role === "partner") {
             setLocation(userData.location || "");
             setLocationDetails(userData.location_details || "");
+            setStateName((userData as any).state || "");
             setPlaceId(userData.place_id || "");
             setGeoLocation({
                 latitude: userData.geo_location?.coordinates?.[1] || 0,
@@ -136,6 +138,7 @@ export function LocationSettings() {
             const updates: any = {
                 location,
                 location_details: locationDetails,
+                state: stateName,
                 place_id: placeId,
             };
 
@@ -165,7 +168,7 @@ export function LocationSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, location, locationDetails, placeId, selectedLocation, setState]);
+    }, [userData, location, locationDetails, stateName, placeId, selectedLocation, setState]);
     
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -176,17 +179,20 @@ export function LocationSettings() {
 
         const initialLocation = data.location || "";
         const initialDetails = data.location_details || "";
+        const initialState = data.state || "";
         const initialPlaceId = data.place_id || "";
 
         setHasChanges(
             location !== initialLocation ||
             locationDetails !== initialDetails ||
+            stateName !== initialState ||
             placeId !== initialPlaceId ||
             selectedLocation !== null
         );
     }, [
         location,
         locationDetails,
+        stateName,
         placeId,
         selectedLocation,
         userData,
@@ -286,6 +292,18 @@ export function LocationSettings() {
                     </div>
 
                     <div className="space-y-2">
+                        <Label>State</Label>
+                        <Input
+                            value={stateName}
+                            onChange={(e) => setStateName(e.target.value)}
+                            placeholder="e.g. Kerala"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Used for invoices and reports. Auto-filled from Google when your website was created.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
                         <Label>Location Details</Label>
                         <Textarea
                             value={locationDetails}
@@ -293,6 +311,23 @@ export function LocationSettings() {
                             placeholder="Landmarks, floor number, etc."
                         />
                     </div>
+
+                    {(location || stateName || (userData as any)?.district) && (
+                        <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+                            <div className="flex items-center gap-2 font-medium text-foreground">
+                                <MapPin className="h-4 w-4 text-orange-600" />
+                                {(userData as any)?.store_name || "Your store"}
+                            </div>
+                            {location && (
+                                <p className="text-muted-foreground">{location}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                                {[ (userData as any)?.district, stateName, (userData as any)?.country ]
+                                    .filter(Boolean)
+                                    .join(", ")}
+                            </p>
+                        </div>
+                    )}
 
                     {isQatar && (
                         <div className="space-y-2 rounded-md border p-3 bg-muted/30">
