@@ -394,9 +394,14 @@ const PlaceOrderModalV2 = ({
   // anything at <= 0. (An item only flags if it actually has a stock row.)
   const stockFeatureOn = !!getFeatures(hotelData?.feature_flags || "")?.stockmanagement?.enabled;
   const [liveStock, setLiveStock] = useState<Record<string, number>>({});
+  // True only after a successful live-stock fetch for the current cart. Placement
+  // is blocked while false for stock-managed partners (fail-closed) so a failed or
+  // pending fetch can't silently let an over-quantity order through.
+  const [stockVerified, setStockVerified] = useState(false);
   useEffect(() => {
     if (!open_place_order_modal || !stockFeatureOn || !items?.length) {
       setLiveStock({});
+      setStockVerified(false);
       return;
     }
     const ids = Array.from(new Set(items.map((it) => it.id.split("|")[0]))).filter(Boolean);
@@ -416,21 +421,50 @@ const PlaceOrderModalV2 = ({
         // Publish to the shared store so the storefront menu cards reflect the
         // fetched stock too (their own menu data is an SSR snapshot).
         useLiveStock.getState().setMany(map);
+        setStockVerified(true);
       })
       .catch(() => {
-        if (!cancelled) setLiveStock({});
+        // Keep any prior liveStock; just mark unverified so placement is blocked.
+        if (!cancelled) setStockVerified(false);
       });
     return () => {
       cancelled = true;
     };
   }, [open_place_order_modal, stockFeatureOn, items]);
+  // Total cart quantity per base menu id (variants share one stock row).
+  const cartQtyByBase = useMemo(() => {
+    const m: Record<string, number> = {};
+    (items || []).forEach((it) => {
+      const baseId = it.id.split("|")[0];
+      m[baseId] = (m[baseId] || 0) + (it.quantity || 0);
+    });
+    return m;
+  }, [items]);
+  // Items that can't be ordered as-is: the base item is out of stock, OR the
+  // quantity wanted (summed across variants) exceeds what's left. Each carries
+  // `available` so the warning can say "only N left".
   const outOfStockItems = useMemo(() => {
     if (!stockFeatureOn || !items?.length) return [];
-    return items.filter((cartItem) => {
-      const baseId = cartItem.id.split("|")[0];
-      return baseId in liveStock && (liveStock[baseId] ?? 1) <= 0;
-    });
-  }, [stockFeatureOn, items, liveStock]);
+    return items
+      .filter((cartItem) => {
+        const baseId = cartItem.id.split("|")[0];
+        if (!(baseId in liveStock)) return false;
+        const available = liveStock[baseId] ?? 0;
+        const wanted = cartQtyByBase[baseId] ?? (cartItem.quantity || 0);
+        return available <= 0 || wanted > available;
+      })
+      .map((cartItem) => ({
+        ...cartItem,
+        available: liveStock[cartItem.id.split("|")[0]] ?? 0,
+      }));
+  }, [stockFeatureOn, items, liveStock, cartQtyByBase]);
+  // Placement is blocked when stock is unverified (fail-closed) or something is
+  // out of stock / over-ordered.
+  const stockBlocked =
+    stockFeatureOn && (!stockVerified || outOfStockItems.length > 0);
+  const stockBlockMessage = !stockVerified
+    ? "Couldn't verify stock availability. Please try again."
+    : "Some items are out of stock or exceed the available quantity. Please adjust your cart.";
 
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
@@ -1470,8 +1504,8 @@ const PlaceOrderModalV2 = ({
       toast.error(`Some items are not available for ${orderType}. Please remove them.`);
       return;
     }
-    if (outOfStockItems.length > 0) {
-      toast.error("Some items are out of stock. Please remove them.");
+    if (stockBlocked) {
+      toast.error(stockBlockMessage);
       return;
     }
     if (isBelowMinimum) {
@@ -1670,8 +1704,8 @@ const PlaceOrderModalV2 = ({
     }
     // Re-guard here too: the post-failure "Try Again" button calls this directly
     // (via handleOnlinePayAndPlaceOrder), bypassing handlePay's stock check.
-    if (outOfStockItems.length > 0) {
-      toast.error("Some items are out of stock. Please remove them.");
+    if (stockBlocked) {
+      toast.error(stockBlockMessage);
       setOrderStatus("idle");
       return;
     }
@@ -1883,8 +1917,8 @@ const PlaceOrderModalV2 = ({
       toast.error(`Some items are not available for ${orderType}. Please remove them.`);
       return;
     }
-    if (outOfStockItems.length > 0) {
-      toast.error("Some items are out of stock. Please remove them.");
+    if (stockBlocked) {
+      toast.error(stockBlockMessage);
       return;
     }
     if (isBelowMinimum) {
@@ -2575,10 +2609,17 @@ const PlaceOrderModalV2 = ({
 
             {outOfStockItems.length > 0 && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 shadow-sm">
-                <p className="text-sm font-semibold text-red-800 mb-2">Out of stock</p>
+                <p className="text-sm font-semibold text-red-800 mb-2">Adjust your order</p>
                 {outOfStockItems.map((item) => (
                   <div key={item.id} className="flex items-center justify-between py-1.5">
-                    <span className="text-sm text-red-700">{item.name}</span>
+                    <span className="text-sm text-red-700">
+                      {item.name}
+                      <span className="ml-1 text-xs text-red-500">
+                        {(item.available ?? 0) <= 0
+                          ? "(out of stock)"
+                          : `(only ${item.available} left)`}
+                      </span>
+                    </span>
                     <button
                       type="button"
                       onClick={() => removeItem(item.id)}
@@ -2588,6 +2629,12 @@ const PlaceOrderModalV2 = ({
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {stockFeatureOn && !stockVerified && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+                <p className="text-sm text-amber-700">Checking stock availability…</p>
               </div>
             )}
 
@@ -3083,7 +3130,7 @@ const PlaceOrderModalV2 = ({
           <button
             type="button"
             onClick={handlePay}
-            disabled={orderStatus !== "idle" || !items || items.length === 0 || (showPicker && !prebookingArg) || (orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || porterBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || outOfStockItems.length > 0 || isBelowMinimum}
+            disabled={orderStatus !== "idle" || !items || items.length === 0 || (showPicker && !prebookingArg) || (orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || porterBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || stockBlocked || isBelowMinimum}
             className="shrink-0 rounded-xl px-5 py-3.5 font-semibold text-white disabled:opacity-60"
             style={{ backgroundColor: accent }}
           >

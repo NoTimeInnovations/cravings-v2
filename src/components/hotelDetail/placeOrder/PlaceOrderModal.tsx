@@ -1747,9 +1747,13 @@ const PlaceOrderModal = ({
   // <= 0. Splits the cart id so variant lines map to the base menu item's stock.
   const stockFeatureOn = !!getFeatures(hotelData?.feature_flags || "")?.stockmanagement?.enabled;
   const [liveStock, setLiveStock] = useState<Record<string, number>>({});
+  // True only after a successful live-stock fetch for the current cart. Placement
+  // is blocked while false for stock-managed partners (fail-closed).
+  const [stockVerified, setStockVerified] = useState(false);
   useEffect(() => {
     if (!open_place_order_modal || !stockFeatureOn || !items?.length) {
       setLiveStock({});
+      setStockVerified(false);
       return;
     }
     const ids = Array.from(new Set(items.map((it) => it.id.split("|")[0]))).filter(Boolean);
@@ -1768,22 +1772,50 @@ const PlaceOrderModal = ({
         setLiveStock(map);
         // Publish to the shared store so the storefront menu cards reflect it too.
         useLiveStock.getState().setMany(map);
+        setStockVerified(true);
       })
       .catch(() => {
-        if (!cancelled) setLiveStock({});
+        // Keep any prior liveStock; just mark unverified so placement is blocked.
+        if (!cancelled) setStockVerified(false);
       });
     return () => {
       cancelled = true;
     };
   }, [open_place_order_modal, stockFeatureOn, items]);
+  // Total cart quantity per base menu id (variants share one stock row).
+  const cartQtyByBase = useMemo(() => {
+    const m: Record<string, number> = {};
+    (items || []).forEach((it) => {
+      const baseId = it.id.split("|")[0];
+      m[baseId] = (m[baseId] || 0) + (it.quantity || 0);
+    });
+    return m;
+  }, [items]);
+  // Items that can't be ordered as-is: the base item is out of stock, OR the
+  // quantity wanted (summed across variants) exceeds what's left. Each carries
+  // `available` so the warning can say "only N left".
   const outOfStockItems = useMemo(() => {
     if (!stockFeatureOn || !items?.length) return [];
-    return items.filter((cartItem) => {
-      const baseId = cartItem.id.split("|")[0];
-      return baseId in liveStock && (liveStock[baseId] ?? 1) <= 0;
-    });
-  }, [stockFeatureOn, items, liveStock]);
+    return items
+      .filter((cartItem) => {
+        const baseId = cartItem.id.split("|")[0];
+        if (!(baseId in liveStock)) return false;
+        const available = liveStock[baseId] ?? 0;
+        const wanted = cartQtyByBase[baseId] ?? (cartItem.quantity || 0);
+        return available <= 0 || wanted > available;
+      })
+      .map((cartItem) => ({
+        ...cartItem,
+        available: liveStock[cartItem.id.split("|")[0]] ?? 0,
+      }));
+  }, [stockFeatureOn, items, liveStock, cartQtyByBase]);
   const hasOutOfStockItems = outOfStockItems.length > 0;
+  // Placement is blocked when stock is unverified (fail-closed) or something is
+  // out of stock / over-ordered.
+  const stockBlocked = stockFeatureOn && (!stockVerified || hasOutOfStockItems);
+  const stockBlockMessage = !stockVerified
+    ? "Couldn't verify stock availability. Please try again."
+    : "Some items are out of stock or exceed the available quantity. Please adjust your cart.";
 
   const [showLoginDrawer, setShowLoginDrawer] = useState(false);
   const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
@@ -2800,8 +2832,8 @@ const PlaceOrderModal = ({
       return;
     }
 
-    if (hasOutOfStockItems) {
-      toast.error("Some items are out of stock. Please remove them.");
+    if (stockBlocked) {
+      toast.error(stockBlockMessage);
       return;
     }
 
@@ -3101,8 +3133,8 @@ const PlaceOrderModal = ({
       return;
     }
 
-    if (hasOutOfStockItems) {
-      toast.error("Some items are out of stock. Please remove them.");
+    if (stockBlocked) {
+      toast.error(stockBlockMessage);
       return;
     }
 
@@ -3714,11 +3746,18 @@ const PlaceOrderModal = ({
                 {hasOutOfStockItems && (
                   <div className="mb-3 p-3 rounded-lg bg-red-50 border border-red-200">
                     <p className="text-xs font-semibold text-red-700 mb-1">
-                      Some items are out of stock
+                      Adjust your order
                     </p>
                     {outOfStockItems.map((item) => (
                       <div key={item.id} className="flex items-center justify-between py-1">
-                        <span className="text-xs text-red-600">{item.name}</span>
+                        <span className="text-xs text-red-600">
+                          {item.name}
+                          <span className="ml-1 text-[10px] text-red-400">
+                            {(item.available ?? 0) <= 0
+                              ? "(out of stock)"
+                              : `(only ${item.available} left)`}
+                          </span>
+                        </span>
                         <button
                           type="button"
                           onClick={() => removeItem(item.id)}
@@ -3728,6 +3767,11 @@ const PlaceOrderModal = ({
                         </button>
                       </div>
                     ))}
+                  </div>
+                )}
+                {stockFeatureOn && !stockVerified && (
+                  <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                    <p className="text-xs text-amber-700">Checking stock availability…</p>
                   </div>
                 )}
                 <ItemsCard
@@ -4191,7 +4235,7 @@ const PlaceOrderModal = ({
                     disabled={
                       isPlaceOrderDisabled ||
                       hasIncompatibleItems ||
-                      hasOutOfStockItems ||
+                      stockBlocked ||
                       !user ||
                       items?.length === 0 ||
                       (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)
