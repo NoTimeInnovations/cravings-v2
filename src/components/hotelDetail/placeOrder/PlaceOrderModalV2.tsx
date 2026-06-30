@@ -465,6 +465,17 @@ const PlaceOrderModalV2 = ({
   const stockBlockMessage = !stockVerified
     ? "Couldn't verify stock availability. Please try again."
     : "Some items are out of stock or exceed the available quantity. Please adjust your cart.";
+  // Trim an over-ordered line down to the available stock (remove only the extra
+  // units); fully remove it when nothing is available.
+  const trimToAvailable = (item: { id: string; quantity?: number; available?: number }) => {
+    const avail = Math.max(0, item.available ?? 0);
+    if (avail <= 0) {
+      removeItem(item.id);
+      return;
+    }
+    const extra = (item.quantity ?? 0) - avail;
+    for (let i = 0; i < extra; i++) decreaseQuantity(item.id);
+  };
 
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
@@ -2622,10 +2633,10 @@ const PlaceOrderModalV2 = ({
                     </span>
                     <button
                       type="button"
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => trimToAvailable(item)}
                       className="text-xs font-bold text-red-800 bg-red-100 px-2.5 py-1 rounded-lg"
                     >
-                      Remove
+                      {(item.available ?? 0) <= 0 ? "Remove" : "Remove extra"}
                     </button>
                   </div>
                 ))}
