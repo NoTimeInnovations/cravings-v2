@@ -13,6 +13,8 @@ import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
 import { X } from "lucide-react";
 
 import { getTagColor } from "@/data/foodTags";
+import { computeOutOfStock } from "@/lib/stockStatus";
+import { useLiveStock } from "@/store/liveStockStore";
 
 // Bottom sheet footer button with total calculation
 const BottomSheetAddButton = ({
@@ -96,6 +98,7 @@ const ItemCard = ({
 
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const router = useRouter();
+  const liveStockQty = useLiveStock((s) => s.qty);
 
   const isWithinDeliveryTime = () => {
     if (!hoteldata?.delivery_rules?.delivery_time_allowed) return true;
@@ -129,10 +132,7 @@ const ItemCard = ({
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement
     ?.enabled;
-  const isOutOfStock =
-    hasStockFeature &&
-    (item.stocks?.length ?? 0) > 0 &&
-    (item.stocks?.[0]?.stock_quantity ?? 1) <= 0;
+  const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
   const showStock = hasStockFeature && (item.stocks?.[0]?.show_stock ?? false);
   const stockQuantity = item.stocks?.[0]?.stock_quantity;
 

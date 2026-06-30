@@ -12,6 +12,8 @@ import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/constants";
 import { readableTextColor } from "@/lib/brandColor";
 import { getItemDisplayState } from "@/lib/visibility";
+import { computeOutOfStock } from "@/lib/stockStatus";
+import { useLiveStock } from "@/store/liveStockStore";
 import { X, Plus, Minus } from "lucide-react";
 
 // V5 ("Zomato") list row — a large food image on the right with the ADD button
@@ -180,6 +182,7 @@ function V5RecCard({
   hasStockFeature: boolean;
 }) {
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+  const liveStockQty = useLiveStock((s) => s.qty);
 
   const hasVariants = (recItem.variants?.length ?? 0) > 0;
   const cheapestVariant = useMemo(
@@ -199,10 +202,7 @@ function V5RecCard({
     return base + variantQty;
   }, [items, recItem.id]);
 
-  const isOutOfStock =
-    hasStockFeature &&
-    (recItem.stocks?.length ?? 0) > 0 &&
-    (recItem.stocks?.[0]?.stock_quantity ?? 1) <= 0;
+  const isOutOfStock = computeOutOfStock(recItem, hasStockFeature, liveStockQty);
   const isOrderable = recItem.is_available !== false && !isOutOfStock;
   const shouldShowPrice = hoteldata?.currency !== "🚫";
   const priceToShow = hasVariants ? cheapestVariant?.price ?? 0 : recItem.price;
@@ -337,6 +337,7 @@ const V5ItemCard = ({
   const [showItemSheet, setShowItemSheet] = useState(false);
 
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+  const liveStockQty = useLiveStock((s) => s.qty);
   const router = useRouter();
 
   const features = getFeatures(feature_flags || "");
@@ -351,10 +352,7 @@ const V5ItemCard = ({
   const isPartnersRole = auth?.role === "partner";
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement?.enabled;
-  const isOutOfStock =
-    hasStockFeature &&
-    (item.stocks?.length ?? 0) > 0 &&
-    (item.stocks?.[0]?.stock_quantity ?? 1) <= 0;
+  const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
   const [itemQuantity, setItemQuantity] = useState<number>(0);

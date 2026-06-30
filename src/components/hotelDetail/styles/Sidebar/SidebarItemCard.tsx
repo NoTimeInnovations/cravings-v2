@@ -10,6 +10,8 @@ import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice } from "@/lib/constants";
 import { Minus, Plus, Star, UtensilsCrossed } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { computeOutOfStock } from "@/lib/stockStatus";
+import { useLiveStock } from "@/store/liveStockStore";
 
 /** Blend a foreground hex onto a background hex at a given opacity (0-1). Returns a solid opaque hex. */
 function blendHex(fg: string, bg: string, opacity: number): string {
@@ -72,6 +74,7 @@ const SidebarItemCard = ({
   const [variantQuantities, setVariantQuantities] = useState<
     Record<string, number>
   >({});
+  const liveStockQty = useLiveStock((s) => s.qty);
 
   const isWithinDeliveryTime = () => {
     if (!hotelData?.delivery_rules?.delivery_time_allowed) return true;
@@ -104,10 +107,7 @@ const SidebarItemCard = ({
 
   const hasStockFeature =
     getFeatures(feature_flags || "")?.stockmanagement?.enabled;
-  const isOutOfStock =
-    hasStockFeature &&
-    (item.stocks?.length ?? 0) > 0 &&
-    (item.stocks?.[0]?.stock_quantity ?? 1) <= 0;
+  const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
   const isPriceAsPerSize = item.is_price_as_per_size;

@@ -9,6 +9,8 @@ import { HotelDataMenus } from "@/app/hotels/[...id]/page";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
 import { FeatureFlags } from "@/lib/getFeatures";
+import { computeOutOfStock } from "@/lib/stockStatus";
+import { useLiveStock } from "@/store/liveStockStore";
 
 const OfferList = ({
   offers,
@@ -23,6 +25,7 @@ const OfferList = ({
 }) => {
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const { userData } = useAuthStore();
+  const liveStockQty = useLiveStock((s) => s.qty);
 
   return (
     <div className="flex flex-col gap-6 my-5">
@@ -46,7 +49,7 @@ const OfferList = ({
           // Stock management logic
           const hasStockFeature = features?.stockmanagement?.enabled;
           const stockInfo = item.stocks?.[0];
-          const isOutOfStock = ((stockInfo?.stock_quantity ?? 0) <= 0) && hasStockFeature;
+          const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
           const isItemAvailable = item.is_available && !isOutOfStock;
           const itemInCart = items?.find((i) => i.id === item.id);
           const quantity = itemInCart?.quantity || 0;

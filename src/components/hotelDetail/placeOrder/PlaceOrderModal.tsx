@@ -32,6 +32,7 @@ import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { useLiveStock } from "@/store/liveStockStore";
 import { updateUserAddressesMutation, updateUserFullNameMutation, updateUserPhoneMutation } from "@/api/auth";
 import {
   validatePhoneNumber,
@@ -1765,6 +1766,8 @@ const PlaceOrderModal = ({
           if (s?.menu_id != null) map[s.menu_id] = s.stock_quantity;
         });
         setLiveStock(map);
+        // Publish to the shared store so the storefront menu cards reflect it too.
+        useLiveStock.getState().setMany(map);
       })
       .catch(() => {
         if (!cancelled) setLiveStock({});

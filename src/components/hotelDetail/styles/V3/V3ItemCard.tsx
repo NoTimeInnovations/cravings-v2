@@ -11,6 +11,8 @@ import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/constants";
 import { X, Plus, Minus } from "lucide-react";
+import { computeOutOfStock } from "@/lib/stockStatus";
+import { useLiveStock } from "@/store/liveStockStore";
 
 function useInView() {
   const ref = useRef<HTMLDivElement>(null);
@@ -164,6 +166,7 @@ const V3ItemCard = ({
 
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const router = useRouter();
+  const liveStockQty = useLiveStock((s) => s.qty);
 
   const features = getFeatures(feature_flags || "");
   const deliveryRules = hoteldata?.delivery_rules;
@@ -177,10 +180,7 @@ const V3ItemCard = ({
   const isPartnersRole = auth?.role === "partner";
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement?.enabled;
-  const isOutOfStock =
-    hasStockFeature &&
-    (item.stocks?.length ?? 0) > 0 &&
-    (item.stocks?.[0]?.stock_quantity ?? 1) <= 0;
+  const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
   const [itemQuantity, setItemQuantity] = useState<number>(0);

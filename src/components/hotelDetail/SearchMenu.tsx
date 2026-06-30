@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import ItemDetailsModal from "./styles/Default/ItemDetailsModal";
 import { getFeatures } from "@/lib/getFeatures";
 import { formatPrice } from "@/lib/constants";
+import { computeOutOfStock } from "@/lib/stockStatus";
+import { useLiveStock } from "@/store/liveStockStore";
 
 const SearchMenu = ({
   hotelData,
@@ -67,6 +69,7 @@ const SearchMenu = ({
     open_place_order_modal,
   } = useOrderStore();
   const { setOpenPlaceOrderModal } = useOrderStore();
+  const liveStockQty = useLiveStock((s) => s.qty);
 
   // Close search when place order modal opens (e.g. from OrderDrawer's "View Order")
   useEffect(() => {
@@ -320,10 +323,11 @@ const SearchMenu = ({
                     (hotelData?.delivery_rules?.isDeliveryActive ?? true) &&
                     isWithinDeliveryTime();
                   const hasStockFeature = features?.stockmanagement?.enabled;
-                  const isOutOfStock =
-                    hasStockFeature &&
-                    ((item as any).stocks?.length ?? 0) > 0 &&
-                    ((item as any).stocks?.[0]?.stock_quantity ?? 1) <= 0;
+                  const isOutOfStock = computeOutOfStock(
+                    item,
+                    hasStockFeature,
+                    liveStockQty,
+                  );
                   const isPartner = auth?.id === hotelData?.id;
                   const isOrderable = item.is_available && !isOutOfStock;
                   const showAddButton =

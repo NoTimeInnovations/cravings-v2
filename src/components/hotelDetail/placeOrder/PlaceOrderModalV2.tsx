@@ -51,6 +51,7 @@ import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { getTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { useLiveStock } from "@/store/liveStockStore";
 
 const DELIVERY_AGENT_PRICE_MARKUP = 10;
 import {
@@ -412,6 +413,9 @@ const PlaceOrderModalV2 = ({
           if (s?.menu_id != null) map[s.menu_id] = s.stock_quantity;
         });
         setLiveStock(map);
+        // Publish to the shared store so the storefront menu cards reflect the
+        // fetched stock too (their own menu data is an SSR snapshot).
+        useLiveStock.getState().setMany(map);
       })
       .catch(() => {
         if (!cancelled) setLiveStock({});

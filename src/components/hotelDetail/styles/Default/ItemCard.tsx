@@ -11,6 +11,8 @@ import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
+import { computeOutOfStock } from "@/lib/stockStatus";
+import { useLiveStock } from "@/store/liveStockStore";
 
 import { getTagColor } from "@/data/foodTags";
 
@@ -56,6 +58,7 @@ const ItemCard = ({
 
   const [showVariants, setShowVariants] = useState(false);
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+  const liveStockQty = useLiveStock((s) => s.qty);
   const variantsRef = useRef<HTMLDivElement>(null);
   const [variantsHeight, setVariantsHeight] = useState(0);
   const [itemQuantity, setItemQuantity] = useState<number>(0);
@@ -104,10 +107,7 @@ const ItemCard = ({
   const hasStockFeature =
     getFeatures(feature_flags || "")?.stockmanagement?.enabled
 
-  const isOutOfStock =
-    hasStockFeature &&
-    (item.stocks?.length ?? 0) > 0 &&
-    (item.stocks?.[0]?.stock_quantity ?? 1) <= 0;
+  const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
 
   const showStock = hasStockFeature && (item.stocks?.[0]?.show_stock ?? false);
   const stockQuantity = item.stocks?.[0]?.stock_quantity;
