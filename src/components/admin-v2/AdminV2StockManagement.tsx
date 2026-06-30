@@ -530,8 +530,7 @@ export function AdminV2StockManagement() {
           <h2 className="text-xl font-bold sm:text-2xl">Stock Management</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          Set stock counts per item. When an item runs out it&apos;s turned off
-          automatically; stock resets to 9999 each day.
+          Set stock counts per item.
         </p>
       </div>
 
