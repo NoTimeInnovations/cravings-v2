@@ -34,6 +34,8 @@ export function SlotBookingSettings() {
     const [cfg, setCfg] = useState<PrebookingConfig>(DEFAULT_PREBOOKING_SETTINGS);
     const [enabled, setEnabled] = useState(true);
     const [todayOnly, setTodayOnly] = useState(false);
+    const [startDate, setStartDate] = useState<string>("");
+    const [endDate, setEndDate] = useState<string>("");
     const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
     const [ranges, setRanges] = useState<PrebookingRange[]>([{ from: "10:00", to: "22:00" }]);
     const [initialLoaded, setInitialLoaded] = useState(false);
@@ -44,6 +46,8 @@ export function SlotBookingSettings() {
         setCfg(merged);
         setEnabled(merged.slot_booking_enabled);
         setTodayOnly(merged.dine_in_today_only ?? false);
+        setStartDate(merged.dine_in_start_date ?? "");
+        setEndDate(merged.dine_in_end_date ?? "");
         setDays(new Set(merged.dine_in_windows.filter((w) => w.enabled).map((w) => w.day)));
         const fe =
             merged.dine_in_windows.find((w) => w.enabled && w.ranges?.length) ||
@@ -60,7 +64,7 @@ export function SlotBookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, dine_in_today_only: todayOnly, dine_in_windows });
+            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, dine_in_today_only: todayOnly, dine_in_start_date: startDate || undefined, dine_in_end_date: endDate || undefined, dine_in_windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -70,7 +74,7 @@ export function SlotBookingSettings() {
             console.error("Error saving slot booking settings:", e);
             toast.error("Failed to save slot booking settings");
         }
-    }, [cfg, enabled, todayOnly, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, todayOnly, startDate, endDate, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -80,7 +84,7 @@ export function SlotBookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, todayOnly, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, todayOnly, startDate, endDate, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -92,6 +96,9 @@ export function SlotBookingSettings() {
         setRanges((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
     const addRange = () => setRanges((prev) => [...prev, { from: "10:00", to: "22:00" }]);
     const removeRange = (idx: number) => setRanges((prev) => prev.filter((_, i) => i !== idx));
+
+    const _now = new Date();
+    const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
 
     return (
         <div className="space-y-4">
@@ -129,6 +136,51 @@ export function SlotBookingSettings() {
                                 </div>
                                 <Switch checked={todayOnly} onCheckedChange={setTodayOnly} />
                             </div>
+
+                            {!todayOnly && (
+                                <div className="space-y-2">
+                                    <Label>Booking date range (optional)</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Limit which dates customers can book a table. Leave empty to allow the next 30 days.
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">From</span>
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            min={todayStr}
+                                            max={endDate || undefined}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="h-9 rounded-md border bg-white px-3 text-sm"
+                                        />
+                                        <span className="text-xs text-muted-foreground">To</span>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            min={startDate || todayStr}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="h-9 rounded-md border bg-white px-3 text-sm"
+                                        />
+                                        {(startDate || endDate) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setStartDate("");
+                                                    setEndDate("");
+                                                }}
+                                                className="text-xs text-muted-foreground hover:text-red-600"
+                                            >
+                                                Clear
+                                            </button>
+                                        )}
+                                    </div>
+                                    {endDate && endDate < todayStr && (
+                                        <p className="text-xs font-medium text-red-600">
+                                            Your end date is in the past — customers can&apos;t book a table until you update or clear it.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label>Open days</Label>

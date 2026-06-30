@@ -119,7 +119,24 @@ export function PrebookingPicker({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allowed, date, time, persons, reservation]);
 
-    if (!allowed || dates.length === 0) return null;
+    // Prebooking doesn't apply to this order type → no picker, order proceeds.
+    if (!allowed) return null;
+    // Allowed, but the partner's configured window (e.g. a date range that has
+    // lapsed, or all slots past the lead time) leaves no selectable date. Show an
+    // explicit closed-state instead of rendering nothing, so the customer isn't
+    // left with a silently-disabled checkout and no explanation.
+    if (dates.length === 0) {
+        return (
+            <div className={className}>
+                <div className="flex items-start gap-2 rounded-xl border-2 border-amber-100 bg-amber-50 p-3">
+                    <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <p className="text-xs font-medium text-amber-800">
+                        No booking dates are currently available. Please contact the restaurant.
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     const dateLabel = dates.find((d) => d.value === date)?.label;
     const selectedRange = ranges.find((r) => r.from === time);

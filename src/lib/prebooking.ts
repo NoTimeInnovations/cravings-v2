@@ -66,6 +66,16 @@ function ymd(d: Date): string {
     ).padStart(2, "0")}`;
 }
 
+/** Whole-day offset from `now`'s local date to a YYYY-MM-DD date (DST-safe via
+ *  local-midnight diff). Returns null for a malformed date string. */
+function dayOffsetFrom(now: Date, dateStr: string): number | null {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((dateStr || "").trim());
+    if (!m) return null;
+    const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const targetMid = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+    return Math.round((targetMid - todayMid) / 86_400_000);
+}
+
 /**
  * Explicit slot times for a window, normalized + sorted. Uses `win.slots` when
  * present; otherwise back-fills a legacy `{from,to}` window into 30-min times.
@@ -143,8 +153,29 @@ export function getPrebookingDates(
     const defaultMax = opts.dineIn
         ? (settings.dine_in_max_advance_days ?? settings.max_advance_days ?? 0)
         : (settings.max_advance_days ?? 0);
-    const from = todayOnly ? 0 : Math.max(0, opts.fromOffset ?? 0);
-    const through = todayOnly ? 0 : Math.max(from, opts.throughDay ?? defaultMax);
+    const startDate = opts.dineIn ? settings.dine_in_start_date : settings.start_date;
+    const endDate = opts.dineIn ? settings.dine_in_end_date : settings.end_date;
+    const startOff = startDate ? dayOffsetFrom(now, startDate) : null;
+    const endOff = endDate ? dayOffsetFrom(now, endDate) : null;
+
+    let from: number;
+    let through: number;
+    if (todayOnly) {
+        from = 0;
+        through = 0;
+    } else if (startOff != null || endOff != null) {
+        // An absolute calendar window from settings overrides the relative range.
+        // No final Math.max(from, through): an end before the start (or already in
+        // the past) intentionally yields zero selectable dates.
+        from = startOff != null ? Math.max(0, startOff) : Math.max(0, opts.fromOffset ?? 0);
+        // With no end_date, keep an open-ended window anchored at the start (a
+        // fixed span from `from`) rather than max(from, throughDay), which would
+        // collapse to a single day when the start is beyond the default horizon.
+        through = endOff != null ? endOff : from + (opts.throughDay ?? defaultMax);
+    } else {
+        from = Math.max(0, opts.fromOffset ?? 0);
+        through = Math.max(from, opts.throughDay ?? defaultMax);
+    }
     for (let i = from; i <= through; i++) {
         const d = new Date(now);
         d.setDate(now.getDate() + i);
@@ -253,6 +284,8 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         min_lead_time_minutes: num(parsed.min_lead_time_minutes, base.min_lead_time_minutes),
         max_advance_days: num(parsed.max_advance_days, base.max_advance_days),
         today_only: parsed.today_only === true,
+        start_date: typeof parsed.start_date === "string" ? parsed.start_date : undefined,
+        end_date: typeof parsed.end_date === "string" ? parsed.end_date : undefined,
         windows: normalizeWindows(parsed.windows, base.windows),
         allowed_order_types: parsed.allowed_order_types?.length
             ? parsed.allowed_order_types
@@ -266,6 +299,8 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
             num(parsed.max_advance_days, base.dine_in_max_advance_days)
         ),
         dine_in_today_only: parsed.dine_in_today_only === true,
+        dine_in_start_date: typeof parsed.dine_in_start_date === "string" ? parsed.dine_in_start_date : undefined,
+        dine_in_end_date: typeof parsed.dine_in_end_date === "string" ? parsed.dine_in_end_date : undefined,
         dine_in_windows: normalizeWindows(parsed.dine_in_windows ?? parsed.windows, base.dine_in_windows),
     };
 }

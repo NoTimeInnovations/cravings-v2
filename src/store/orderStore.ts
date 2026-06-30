@@ -180,6 +180,10 @@ export interface PrebookingSettings {
   max_advance_days: number;
   /** When true, only today is selectable (overrides max_advance_days). */
   today_only?: boolean;
+  /** Optional absolute booking window (YYYY-MM-DD). When set, the date picker only
+   *  offers dates within [start_date, end_date]; overrides max_advance_days. */
+  start_date?: string;
+  end_date?: string;
   /** Explicit "schedule for later" slot times per weekday (delivery/takeaway). */
   windows: PrebookingWindow[];
   /** Order types for which "schedule for later" is offered (delivery/takeaway). */
@@ -192,6 +196,9 @@ export interface PrebookingSettings {
   dine_in_max_advance_days: number;
   /** When true, only today is selectable for dine-in (overrides dine_in_max_advance_days). */
   dine_in_today_only?: boolean;
+  /** Optional absolute booking window for dine-in (YYYY-MM-DD). */
+  dine_in_start_date?: string;
+  dine_in_end_date?: string;
   /** Explicit dine-in table slot times per weekday. */
   dine_in_windows: PrebookingWindow[];
 }
