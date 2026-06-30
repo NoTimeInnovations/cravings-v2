@@ -27,6 +27,8 @@ export function LocationSettings() {
     const [location, setLocation] = useState("");
     const [locationDetails, setLocationDetails] = useState("");
     const [stateName, setStateName] = useState("");
+    const [districtName, setDistrictName] = useState("");
+    const [countryName, setCountryName] = useState("");
     const [placeId, setPlaceId] = useState("");
     const [geoLocation, setGeoLocation] = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
 
@@ -56,6 +58,8 @@ export function LocationSettings() {
             setLocation(userData.location || "");
             setLocationDetails(userData.location_details || "");
             setStateName((userData as any).state || "");
+            setDistrictName(userData.district || "");
+            setCountryName((userData as any).country || "");
             setPlaceId(userData.place_id || "");
             setGeoLocation({
                 latitude: userData.geo_location?.coordinates?.[1] || 0,
@@ -68,6 +72,25 @@ export function LocationSettings() {
         mapRef.current = map;
     }, []);
 
+    // Pull state / district / country out of a Google address-components array so
+    // the summary card and the saved row reflect the NEW place — not just the
+    // formatted address string. Without this, moving the pin to another
+    // city/state left the "<district>, <state>, <country>" line stale.
+    const applyAddressParts = useCallback(
+        (components?: google.maps.GeocoderAddressComponent[]) => {
+            if (!components || components.length === 0) return;
+            const get = (type: string) =>
+                components.find((c) => c.types.includes(type))?.long_name || "";
+            const st = get("administrative_area_level_1");
+            const dist = get("administrative_area_level_2") || get("locality");
+            const ctry = get("country");
+            if (st) setStateName(st);
+            if (dist) setDistrictName(dist);
+            if (ctry) setCountryName(ctry);
+        },
+        []
+    );
+
     const reverseGeocode = useCallback(
         (lat: number, lng: number) => {
             if (!isLoaded) return;
@@ -79,10 +102,11 @@ export function LocationSettings() {
                     const formatted = results[0].formatted_address || "";
                     if (formatted) setLocation(formatted);
                     if (results[0].place_id) setPlaceId(results[0].place_id);
+                    applyAddressParts(results[0].address_components);
                 }
             });
         },
-        [isLoaded]
+        [isLoaded, applyAddressParts]
     );
 
     const handleMapClick = useCallback(
@@ -121,6 +145,7 @@ export function LocationSettings() {
                 // Update address/place_id/location from google results if needed
                 if(place.place_id) setPlaceId(place.place_id);
                 if(place.formatted_address) setLocation(place.formatted_address);
+                applyAddressParts(place.address_components);
 
                 // Pan map to new location
                 if (mapRef.current) {
@@ -129,7 +154,7 @@ export function LocationSettings() {
                 }
             }
         }
-    }, []);
+    }, [applyAddressParts]);
 
     const handleSaveLocation = useCallback(async () => {
         if (!userData) return;
@@ -139,6 +164,8 @@ export function LocationSettings() {
                 location,
                 location_details: locationDetails,
                 state: stateName,
+                district: districtName,
+                country: countryName,
                 place_id: placeId,
             };
 
@@ -153,7 +180,11 @@ export function LocationSettings() {
 
             await updatePartner(userData.id, updates);
 
-            revalidateTag(userData.id);
+            // Await both tags so the partner row AND the cached storefront
+            // ("hotel-data") are refreshed before we report success — otherwise
+            // the public site keeps serving the old location.
+            await revalidateTag(userData.id);
+            await revalidateTag("hotel-data");
             setState(updates);
 
             if (selectedLocation) {
@@ -168,7 +199,7 @@ export function LocationSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, location, locationDetails, stateName, placeId, selectedLocation, setState]);
+    }, [userData, location, locationDetails, stateName, districtName, countryName, placeId, selectedLocation, setState]);
     
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -180,12 +211,16 @@ export function LocationSettings() {
         const initialLocation = data.location || "";
         const initialDetails = data.location_details || "";
         const initialState = data.state || "";
+        const initialDistrict = data.district || "";
+        const initialCountry = data.country || "";
         const initialPlaceId = data.place_id || "";
 
         setHasChanges(
             location !== initialLocation ||
             locationDetails !== initialDetails ||
             stateName !== initialState ||
+            districtName !== initialDistrict ||
+            countryName !== initialCountry ||
             placeId !== initialPlaceId ||
             selectedLocation !== null
         );
@@ -193,6 +228,8 @@ export function LocationSettings() {
         location,
         locationDetails,
         stateName,
+        districtName,
+        countryName,
         placeId,
         selectedLocation,
         userData,
@@ -312,7 +349,7 @@ export function LocationSettings() {
                         />
                     </div>
 
-                    {(location || stateName || (userData as any)?.district) && (
+                    {(location || stateName || districtName) && (
                         <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
                             <div className="flex items-center gap-2 font-medium text-foreground">
                                 <MapPin className="h-4 w-4 text-orange-600" />
@@ -322,7 +359,7 @@ export function LocationSettings() {
                                 <p className="text-muted-foreground">{location}</p>
                             )}
                             <p className="text-xs text-muted-foreground">
-                                {[ (userData as any)?.district, stateName, (userData as any)?.country ]
+                                {[districtName, stateName, countryName]
                                     .filter(Boolean)
                                     .join(", ")}
                             </p>
@@ -378,10 +415,14 @@ export function LocationSettings() {
                         <Label>Map Location</Label>
                         <div className="h-48 w-full rounded-md overflow-hidden relative border bg-muted">
                             {geoLocation.latitude && geoLocation.longitude ? (
-                                <img
-                                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${geoLocation.latitude},${geoLocation.longitude}&zoom=16&size=600x300&markers=color:red%7C${geoLocation.latitude},${geoLocation.longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
-                                    alt="Map preview"
-                                    className="h-full w-full object-cover"
+                                <iframe
+                                    title="Map preview"
+                                    // Keyless Google Maps embed — no Static Maps API needed, so it
+                                    // always renders, and re-points whenever the coordinates change.
+                                    src={`https://www.google.com/maps?q=${geoLocation.latitude},${geoLocation.longitude}&z=16&output=embed`}
+                                    className="h-full w-full border-0"
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer-when-downgrade"
                                 />
                             ) : (
                                 <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -424,6 +465,7 @@ export function LocationSettings() {
                                 <Autocomplete
                                     onLoad={(autocomplete) => { autocompleteRef.current = autocomplete; }}
                                     onPlaceChanged={onPlaceChanged}
+                                    fields={["address_components", "geometry", "formatted_address", "place_id", "name"]}
                                 >
                                     <Input 
                                         type="text"
