@@ -82,6 +82,8 @@ export const partnerIdQuery = `
       accept_cod
       payment_modes
       storefront_settings
+      prebooking_settings
+      order_types_enabled
       website_config
       qr_codes(limit: 1) {
         id
@@ -154,6 +156,8 @@ export const partnerLoginQuery = `
       accept_cod
       payment_modes
       storefront_settings
+      prebooking_settings
+      order_types_enabled
       website_config
       qr_codes(limit: 1) {
         id
