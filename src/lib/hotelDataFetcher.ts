@@ -15,7 +15,6 @@ import { HotelData, HotelDataMenus, SocialLinks } from "@/app/hotels/[...id]/pag
 export type HotelPageStatus =
   | { status: "ok" }
   | { status: "scan_limit_reached" }
-  | { status: "subscription_expired" }
   | { status: "inactive" }
   | { status: "not_found" };
 
@@ -381,13 +380,9 @@ export async function processHotelPage(
     }
   }
 
-  // Check for Subscription Expiry
-  const expiryDateStr = sub?.expiryDate || freshSubscription?.expiry_date;
-  const isExpired = expiryDateStr && new Date(expiryDateStr) < new Date();
-
-  if (isExpired) {
-    return { pageStatus: { status: "subscription_expired" }, partnerContact };
-  }
+  // Subscription expiry no longer blocks the storefront — expired partners are
+  // surfaced in the superadmin Subscription Management screen instead. The manual,
+  // admin-controlled "inactive" gate below still applies.
 
   if (hoteldata?.status === "inactive") {
     return { pageStatus: { status: "inactive" }, partnerContact };

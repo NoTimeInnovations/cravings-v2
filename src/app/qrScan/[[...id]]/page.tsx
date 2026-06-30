@@ -4,7 +4,6 @@ import {
 } from "@/api/partners";
 import {
   ScanLimitReachedCard,
-  SubscriptionExpiredCard,
   SubscriptionInactiveCard
 } from "@/components/SubscriptionStatusCards";
 import { GET_QR_TABLE } from "@/api/qrcodes";
@@ -370,19 +369,9 @@ const page = async ({
       }
     }
 
-    // Check for Subscription Expiry
-    // We prioritize the JSONB expiryDate as managed by SubscriptionManagementV2
-    const expiryDateStr = sub?.expiryDate || freshSubscription?.expiry_date;
-    const isExpired = expiryDateStr && new Date(expiryDateStr) < new Date();
-
-    if (isExpired) {
-      return (
-        <SubscriptionExpiredCard
-          partnerPhone={hoteldata?.phone ?? null}
-          partnerName={hoteldata?.store_name ?? null}
-        />
-      );
-    }
+    // Subscription expiry no longer blocks the storefront — expired partners are
+    // surfaced in the superadmin Subscription Management screen instead. The manual
+    // "inactive" gate below still applies.
 
     if (hoteldata?.status === "inactive") {
       return (

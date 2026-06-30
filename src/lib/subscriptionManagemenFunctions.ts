@@ -99,8 +99,9 @@ export const usePartnerManagement = () => {
           ? `
           query Partners($limit: Int!, $offset: Int!, $search: String!) {
             partners(
-              limit: $limit, 
+              limit: $limit,
               offset: $offset,
+              order_by: {partner_subscriptions_aggregate: {max: {expiry_date: asc_nulls_last}}},
               where: {_or: [
                 {store_name: {_ilike: $search}},
                 {phone: {_ilike: $search}}
@@ -115,7 +116,7 @@ export const usePartnerManagement = () => {
         `
           : `
           query Partners($limit: Int!, $offset: Int!) {
-            partners(limit: $limit, offset: $offset ,order_by: {partner_subscriptions_aggregate: {max: {expiry_date: desc_nulls_last}}}) {
+            partners(limit: $limit, offset: $offset ,order_by: {partner_subscriptions_aggregate: {max: {expiry_date: asc_nulls_last}}}) {
               id
               phone
               status
@@ -159,10 +160,9 @@ export const usePartnerManagement = () => {
     try {
       const data = await fetchFromHasura(
         `
-        query AllPartnerSubscriptions($partnerIds: [uuid!]!, $limit: Int!) {
+        query AllPartnerSubscriptions($partnerIds: [uuid!]!) {
           partner_subscriptions(
-            where: {partner_id: {_in: $partnerIds}}, 
-            limit: $limit,
+            where: {partner_id: {_in: $partnerIds}},
             order_by: {created_at: desc}
           ) {
             expiry_date
@@ -174,7 +174,7 @@ export const usePartnerManagement = () => {
           }
         }
       `,
-        { partnerIds, limit: LIMIT }
+        { partnerIds }
       );
 
       // Group subscriptions by partner_id

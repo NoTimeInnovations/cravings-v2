@@ -14,7 +14,6 @@ import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import {
   ScanLimitReachedCard,
-  SubscriptionExpiredCard,
   SubscriptionInactiveCard,
 } from "@/components/SubscriptionStatusCards";
 import { ExpiredOrderLinkCard } from "@/components/ExpiredOrderLinkCard";
@@ -213,9 +212,6 @@ const UsernamePage = async ({
 
   if (pageStatus.status === "scan_limit_reached") {
     return <ScanLimitReachedCard partnerPhone={partnerPhone} partnerName={partnerName} />;
-  }
-  if (pageStatus.status === "subscription_expired") {
-    return <SubscriptionExpiredCard partnerPhone={partnerPhone} partnerName={partnerName} />;
   }
   if (pageStatus.status === "inactive") {
     return <SubscriptionInactiveCard partnerPhone={partnerPhone} partnerName={partnerName} />;
