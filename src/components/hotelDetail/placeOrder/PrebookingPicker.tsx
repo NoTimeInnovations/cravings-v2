@@ -77,11 +77,12 @@ export function PrebookingPicker({
     const persons = 1;
     const [sheet, setSheet] = useState<null | "date" | "slot">(null);
 
-    // Dates: tomorrow … +30 days that have at least one slot.
+    // Dates: today … +30 days that have at least one slot (today is dropped
+    // automatically if all its slots are past / under the min lead time).
     const dates = useMemo(
         () =>
             allowed
-                ? getPrebookingDates(settings, new Date(), { dineIn: reservation, fromOffset: 1, throughDay: 30 })
+                ? getPrebookingDates(settings, new Date(), { dineIn: reservation, fromOffset: 0, throughDay: 30 })
                 : [],
         [allowed, settings, reservation],
     );
