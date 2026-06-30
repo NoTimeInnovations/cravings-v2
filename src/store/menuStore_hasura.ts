@@ -171,6 +171,7 @@ interface MenuState {
    *  adding B to A also adds A to B; removing B from A also removes A from B. */
   setRecommendations: (itemId: string, recommendationIds: string[]) => Promise<void>;
   bulkSetAvailability: (ids: string[], is_available: boolean) => Promise<void>;
+  patchAvailabilityLocal: (ids: string[], is_available: boolean) => void;
   deleteItem: (id: string) => Promise<void>;
   fetchCategorieImages: (category: string) => Promise<CategoryImages[]>;
   groupItems: () => void;
@@ -567,6 +568,21 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       toast.error("Failed to update items");
       throw error;
     }
+  },
+
+  // Local-only sync (no DB write, no toast): keep the shared store in step when
+  // another screen (e.g. Stock Management) has already persisted an availability
+  // change directly, so consumers like the Availability manager don't show stale
+  // state until a reload.
+  patchAvailabilityLocal: (ids, is_available) => {
+    const idSet = new Set(ids.filter(Boolean));
+    if (idSet.size === 0) return;
+    set({
+      items: get().items.map((item) =>
+        item.id && idSet.has(item.id) ? { ...item, is_available } : item
+      ),
+    });
+    get().groupItems();
   },
 
   deleteItem: async (id) => {
