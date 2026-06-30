@@ -305,8 +305,12 @@ export async function quickSignupFromGoogle(
     status: "active",
     upi_id: "",
     // Default the WhatsApp number to the (sanitized) phone so WhatsApp ordering
-    // works out of the box; the partner can change it in Settings.
-    whatsapp_numbers: data.phone ? [{ number: data.phone, area: "" }] : [],
+    // works out of the box; the partner can change it in Settings. Area is
+    // labelled "default" (the primary-number convention used in Settings) — an
+    // empty area fails the "specify an area for each number" save validation.
+    whatsapp_numbers: data.phone
+      ? [{ number: data.phone, area: "default" }]
+      : [],
     district: data.district || "",
     state: data.state || "",
     delivery_status: true,

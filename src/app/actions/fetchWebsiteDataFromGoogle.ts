@@ -129,6 +129,8 @@ export async function fetchWebsiteDataFromGoogle(
       data.lat != null && data.lng != null
         ? { type: "Point", coordinates: [data.lng, data.lat] }
         : null,
-    whatsapp_numbers: data.phone ? [{ number: data.phone, area: "" }] : [],
+    whatsapp_numbers: data.phone
+      ? [{ number: data.phone, area: "default" }]
+      : [],
   };
 }

@@ -345,10 +345,15 @@ export function DeliverySettings() {
                 delivery_provider_groups: userData.delivery_rules?.delivery_provider_groups || {},
             });
 
-            // Initialize WhatsApp numbers
+            // Initialize WhatsApp numbers. Coalesce a missing/blank area to
+            // "default" so numbers seeded at signup (which have no area label)
+            // don't trip the "specify an area for each number" save validation.
             setWhatsappNumbers(
                 userData.whatsapp_numbers?.length > 0
-                    ? userData.whatsapp_numbers
+                    ? userData.whatsapp_numbers.map((w) => ({
+                        number: w.number,
+                        area: w.area || "default",
+                    }))
                     : [{ number: userData.phone || "", area: "default" }]
             );
 

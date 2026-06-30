@@ -268,7 +268,10 @@ export default function ProfilePage() {
       setPhone(userData.phone || userData.whatsapp_numbers[0]?.number || "");
       setWhatsappNumbers(
         userData.whatsapp_numbers?.length > 0
-          ? userData.whatsapp_numbers
+          ? userData.whatsapp_numbers.map((w) => ({
+              number: w.number,
+              area: w.area || "default",
+            }))
           : [{ number: userData.phone || "", area: "default" }]
       );
       setFootNote(userData.footnote || "");
