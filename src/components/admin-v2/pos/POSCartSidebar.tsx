@@ -872,23 +872,38 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     }
                                 </p>
                             </div>
-                            <Select
-                                value={activeOrderData.status}
-                                disabled={userData?.role === 'captain' && activeOrderData.status === 'completed'}
-                                onValueChange={(val) => handleStatusUpdate(activeOrderData.id, val)}
-                            >
-                                <SelectTrigger className={`w-[110px] h-7 text-xs border-none ml-auto ${getStatusColor(activeOrderData.status)}`}>
-                                    <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="accepted">Accepted</SelectItem>
-                                    <SelectItem value="food_ready">Food Ready</SelectItem>
-                                    <SelectItem value="dispatched">Dispatched</SelectItem>
-                                    <SelectItem value="completed">Completed</SelectItem>
-                                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="ml-auto flex items-center gap-2">
+                                {(userData?.role !== 'captain' || activeOrderData.status !== 'completed') && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                                        onClick={() => {
+                                            loadOrderIntoCart(activeOrderData);
+                                            setViewMode("current");
+                                        }}
+                                    >
+                                        <span>✏️</span> Edit
+                                    </Button>
+                                )}
+                                <Select
+                                    value={activeOrderData.status}
+                                    disabled={userData?.role === 'captain' && activeOrderData.status === 'completed'}
+                                    onValueChange={(val) => handleStatusUpdate(activeOrderData.id, val)}
+                                >
+                                    <SelectTrigger className={`w-[110px] h-7 text-xs border-none ${getStatusColor(activeOrderData.status)}`}>
+                                        <SelectValue placeholder="Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="accepted">Accepted</SelectItem>
+                                        <SelectItem value="food_ready">Food Ready</SelectItem>
+                                        <SelectItem value="dispatched">Dispatched</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         <ScrollArea className="flex-1 p-4">
