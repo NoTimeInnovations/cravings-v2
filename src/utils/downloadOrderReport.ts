@@ -243,7 +243,7 @@ export const downloadOrderReport = async (
             const items = order.order_items
                 .map(
                     (item: any) =>
-                        `${item.quantity} x ${item.menu.name} (${currencySymbol}${item.menu.price})`
+                        `${item.quantity} x ${item.menu?.name ?? "Custom item"} (${currencySymbol}${item.menu?.price ?? 0})`
                 )
                 .join(", ");
 

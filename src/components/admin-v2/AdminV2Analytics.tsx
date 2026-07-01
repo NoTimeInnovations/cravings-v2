@@ -381,8 +381,10 @@ export function AdminV2Analytics() {
   const prepareChartData = () => {
     if (!reportData?.daily_sales?.nodes) return [];
     const grouped = reportData.daily_sales.nodes.reduce((acc: any, order: any) => {
-      const date = format(new Date(order.created_at), "MMM dd");
-      acc[date] = (acc[date] || 0) + order.total_price;
+      const d = new Date(order.created_at);
+      if (isNaN(d.getTime())) return acc; // skip rows with a missing/invalid date
+      const date = format(d, "MMM dd");
+      acc[date] = (acc[date] || 0) + (order.total_price || 0);
       return acc;
     }, {});
     return Object.entries(grouped).map(([date, sales]) => ({ date, sales }));
@@ -391,7 +393,9 @@ export function AdminV2Analytics() {
   const prepareScanChartData = () => {
     if (!scanData?.scans_list) return [];
     const grouped = scanData.scans_list.reduce((acc: any, scan: any) => {
-      const date = format(new Date(scan.created_at), activeTab === 'today' ? "HH:00" : "MMM dd");
+      const d = new Date(scan.created_at);
+      if (isNaN(d.getTime())) return acc; // skip scans with a missing/invalid date
+      const date = format(d, activeTab === 'today' ? "HH:00" : "MMM dd");
       acc[date] = (acc[date] || 0) + 1;
       return acc;
     }, {});
@@ -405,13 +409,15 @@ export function AdminV2Analytics() {
     if (!reportData?.top_items) return [];
     const itemMap = new Map<string, { quantity: number; category: string; revenue: number }>();
     reportData.top_items.forEach((item: any) => {
-      const itemName = item.menu.name;
-      const categoryName = item.menu.category.name;
+      if (!item?.menu) return; // skip order items whose menu item was deleted
+      const itemName = item.menu.name ?? "Unknown item";
+      const categoryName = item.menu.category?.name ?? "Uncategorized";
+      const qty = item.quantity || 0;
       const existing = itemMap.get(itemName) || { quantity: 0, category: categoryName, revenue: 0 };
       itemMap.set(itemName, {
         ...existing,
-        quantity: existing.quantity + item.quantity,
-        revenue: existing.revenue + item.menu.price * item.quantity,
+        quantity: existing.quantity + qty,
+        revenue: existing.revenue + (item.menu.price || 0) * qty,
       });
     });
     return Array.from(itemMap.entries())
@@ -424,11 +430,13 @@ export function AdminV2Analytics() {
     if (!reportData?.category_stats) return [];
     const categoryMap = new Map<string, { quantity: number; revenue: number }>();
     reportData.category_stats.forEach((item: any) => {
-      const categoryName = item.menu.category.name;
+      if (!item?.menu) return; // skip order items whose menu item was deleted
+      const categoryName = item.menu.category?.name ?? "Uncategorized";
+      const qty = item.quantity || 0;
       const existing = categoryMap.get(categoryName) || { quantity: 0, revenue: 0 };
       categoryMap.set(categoryName, {
-        quantity: existing.quantity + item.quantity,
-        revenue: existing.revenue + item.menu.price * item.quantity,
+        quantity: existing.quantity + qty,
+        revenue: existing.revenue + (item.menu.price || 0) * qty,
       });
     });
     return Array.from(categoryMap.entries()).map(([name, stats]) => ({
