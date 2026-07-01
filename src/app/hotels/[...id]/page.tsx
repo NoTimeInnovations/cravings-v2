@@ -500,8 +500,14 @@ const HotelPage = async ({
   }
 
   // Subscription expiry no longer blocks the storefront — expired partners are
-  // surfaced in the superadmin Subscription Management screen instead. The manual
-  // "inactive" gate below still applies.
+  // surfaced in the superadmin Subscription Management screen instead, and logged
+  // here for traceability. The manual "inactive" gate below still applies.
+  const expiryDateStr = sub?.expiryDate || freshSubscription?.expiry_date;
+  if (expiryDateStr && new Date(expiryDateStr) < new Date()) {
+    console.warn(
+      `[storefront] Subscription expired for partner ${hoteldata?.store_name ?? hoteldata?.id} (expired ${expiryDateStr})`,
+    );
+  }
 
   if (hoteldata?.status === "inactive") {
     return (
