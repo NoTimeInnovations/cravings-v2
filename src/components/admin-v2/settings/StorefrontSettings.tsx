@@ -335,18 +335,6 @@ export function StorefrontSettings() {
                             <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
                         </Button>
                     </div>
-                    <div className="mt-3 flex items-center gap-3 rounded-xl border bg-secondary/40 p-3.5">
-                        <Switch
-                            checked={!!storefront.languageSwitcher}
-                            onCheckedChange={(v) => updateStorefront({ languageSwitcher: v })}
-                        />
-                        <div className="flex-1">
-                            <p className="text-sm font-bold">Language switcher</p>
-                            <p className="text-[11px] text-muted-foreground">
-                                Show a language button on your menu (any layout) so customers can auto-translate it.
-                            </p>
-                        </div>
-                    </div>
                 </CardContent>
             </Card>
 

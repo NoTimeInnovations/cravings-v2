@@ -31,6 +31,7 @@ export function GeneralSettings() {
     const [facebookLink, setFacebookLink] = useState("");
     const [isShopOpen, setIsShopOpen] = useState(true);
     const [timezone, setTimezone] = useState("Asia/Kolkata");
+    const [languageSwitcher, setLanguageSwitcher] = useState(false);
 
     // Official Settings (used for legal pages — Cashfree KYC etc.)
     const [officialName, setOfficialName] = useState("");
@@ -56,6 +57,13 @@ export function GeneralSettings() {
             setFootNote(userData.footnote || "");
             setIsShopOpen(userData.is_shop_open);
             setTimezone((userData as any).timezone || "Asia/Kolkata");
+            try {
+                const sfRaw = (userData as any).storefront_settings;
+                const sf = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
+                setLanguageSwitcher(!!sf?.languageSwitcher);
+            } catch {
+                setLanguageSwitcher(false);
+            }
 
             setOfficialName((userData as any).official_name || "");
             setAboutUs((userData as any).about_us || "");
@@ -97,8 +105,20 @@ export function GeneralSettings() {
                 );
             }
 
+            // Read-modify-write storefront_settings so we preserve keys owned by
+            // other sections (only the language-switcher toggle is edited here).
+            let sfObj: any = {};
+            try {
+                const sfRaw = (userData as any).storefront_settings;
+                sfObj = (typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw) || {};
+            } catch {
+                sfObj = {};
+            }
+            const nextStorefrontSettings = JSON.stringify({ ...sfObj, languageSwitcher });
+
             const updates: any = {
                 store_name: storeName,
+                storefront_settings: nextStorefrontSettings,
                 store_tagline: storeTagline || null,
                 description,
                 phone,
@@ -128,7 +148,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
+    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, languageSwitcher, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -149,6 +169,14 @@ export function GeneralSettings() {
         if (!userData) return;
         const data = userData as any;
         const socialLinks = getSocialLinks(userData as HotelData);
+        let sfLang = false;
+        try {
+            const sfRaw = data.storefront_settings;
+            const sf = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
+            sfLang = !!sf?.languageSwitcher;
+        } catch {
+            sfLang = false;
+        }
         const hasChanges =
             storeName !== (data.store_name || "") ||
             storeTagline !== (data.store_tagline || "") ||
@@ -163,7 +191,8 @@ export function GeneralSettings() {
             aboutUs !== (data.about_us || "") ||
             operatingAddress !== (data.operating_address || "") ||
             officialEmailId !== (data.official_email_id || "") ||
-            officialPhoneNumber !== (data.official_phone_number || "");
+            officialPhoneNumber !== (data.official_phone_number || "") ||
+            languageSwitcher !== sfLang;
         setHasChanges(hasChanges);
     }, [
         storeName,
@@ -180,6 +209,7 @@ export function GeneralSettings() {
         operatingAddress,
         officialEmailId,
         officialPhoneNumber,
+        languageSwitcher,
         userData,
         setHasChanges,
     ]);
@@ -277,6 +307,15 @@ export function GeneralSettings() {
                                     <option value="UTC" />
                                 </datalist>
                                 <p className="text-xs text-muted-foreground">Used for scheduled menu visibility.</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 rounded-xl border bg-secondary/40 p-3.5">
+                            <Switch checked={languageSwitcher} onCheckedChange={setLanguageSwitcher} />
+                            <div className="flex-1">
+                                <p className="text-sm font-medium">Language switcher</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Show a language button on your menu (any layout) so customers can auto-translate it.
+                                </p>
                             </div>
                         </div>
                     </CardContent>
