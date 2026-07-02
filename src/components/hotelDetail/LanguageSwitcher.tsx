@@ -159,12 +159,15 @@ export function LanguageSwitcher({
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
-                    aria-label="Change language"
+                    aria-label={`Change language (current: ${currentLabel})`}
                     title={currentLabel}
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-black/5 transition active:scale-95"
+                    className="flex h-12 w-12 flex-col items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-black/5 transition active:scale-95"
                     style={{ color: accent }}
                 >
-                    <Globe className="h-5 w-5" />
+                    <Globe className="h-4 w-4" />
+                    <span className="mt-0.5 text-[10px] font-bold uppercase leading-none">
+                        {current}
+                    </span>
                 </button>
                 {open && (
                     <>
