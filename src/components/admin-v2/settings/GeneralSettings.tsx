@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
+import { MENU_LANGUAGES } from "@/lib/menuLanguages";
 import CustomDomainSettings from "@/components/admin/CustomDomainSettings";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save, Power, LogOut, Eye, EyeOff, KeyRound } from "lucide-react";
@@ -32,6 +33,7 @@ export function GeneralSettings() {
     const [isShopOpen, setIsShopOpen] = useState(true);
     const [timezone, setTimezone] = useState("Asia/Kolkata");
     const [languageSwitcher, setLanguageSwitcher] = useState(false);
+    const [menuLanguages, setMenuLanguages] = useState<string[]>([]);
 
     // Official Settings (used for legal pages — Cashfree KYC etc.)
     const [officialName, setOfficialName] = useState("");
@@ -61,8 +63,10 @@ export function GeneralSettings() {
                 const sfRaw = (userData as any).storefront_settings;
                 const sf = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
                 setLanguageSwitcher(!!sf?.languageSwitcher);
+                setMenuLanguages(Array.isArray(sf?.menuLanguages) ? sf.menuLanguages : []);
             } catch {
                 setLanguageSwitcher(false);
+                setMenuLanguages([]);
             }
 
             setOfficialName((userData as any).official_name || "");
@@ -114,7 +118,7 @@ export function GeneralSettings() {
             } catch {
                 sfObj = {};
             }
-            const nextStorefrontSettings = JSON.stringify({ ...sfObj, languageSwitcher });
+            const nextStorefrontSettings = JSON.stringify({ ...sfObj, languageSwitcher, menuLanguages });
 
             const updates: any = {
                 store_name: storeName,
@@ -148,7 +152,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, languageSwitcher, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
+    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, languageSwitcher, menuLanguages, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -170,12 +174,15 @@ export function GeneralSettings() {
         const data = userData as any;
         const socialLinks = getSocialLinks(userData as HotelData);
         let sfLang = false;
+        let sfLangs: string[] = [];
         try {
             const sfRaw = data.storefront_settings;
             const sf = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
             sfLang = !!sf?.languageSwitcher;
+            sfLangs = Array.isArray(sf?.menuLanguages) ? sf.menuLanguages : [];
         } catch {
             sfLang = false;
+            sfLangs = [];
         }
         const hasChanges =
             storeName !== (data.store_name || "") ||
@@ -192,7 +199,8 @@ export function GeneralSettings() {
             operatingAddress !== (data.operating_address || "") ||
             officialEmailId !== (data.official_email_id || "") ||
             officialPhoneNumber !== (data.official_phone_number || "") ||
-            languageSwitcher !== sfLang;
+            languageSwitcher !== sfLang ||
+            JSON.stringify([...menuLanguages].sort()) !== JSON.stringify([...sfLangs].sort());
         setHasChanges(hasChanges);
     }, [
         storeName,
@@ -210,6 +218,7 @@ export function GeneralSettings() {
         officialEmailId,
         officialPhoneNumber,
         languageSwitcher,
+        menuLanguages,
         userData,
         setHasChanges,
     ]);
@@ -318,6 +327,39 @@ export function GeneralSettings() {
                                 </p>
                             </div>
                         </div>
+                        {languageSwitcher && (
+                            <div className="space-y-2 rounded-xl border p-3.5">
+                                <p className="text-sm font-medium">Languages to offer</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {MENU_LANGUAGES.filter((l) => l.code !== "en").map((l) => {
+                                        const on = menuLanguages.includes(l.code);
+                                        return (
+                                            <button
+                                                key={l.code}
+                                                type="button"
+                                                onClick={() =>
+                                                    setMenuLanguages((prev) =>
+                                                        prev.includes(l.code)
+                                                            ? prev.filter((c) => c !== l.code)
+                                                            : [...prev, l.code],
+                                                    )
+                                                }
+                                                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                                                    on
+                                                        ? "border-orange-500 bg-orange-500 text-white"
+                                                        : "border-gray-200 bg-white text-gray-600"
+                                                }`}
+                                            >
+                                                {l.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">
+                                    English is always available. Leave all off to offer every language.
+                                </p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

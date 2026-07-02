@@ -186,6 +186,15 @@ const HotelMenuPage = ({
       return false;
     }
   }, [(hoteldata as any)?.storefront_settings]);
+  const languageSwitcherLangs = useMemo(() => {
+    try {
+      const raw = (hoteldata as any)?.storefront_settings;
+      const sf = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return Array.isArray(sf?.menuLanguages) ? (sf.menuLanguages as string[]) : [];
+    } catch {
+      return [];
+    }
+  }, [(hoteldata as any)?.storefront_settings]);
   // Always mount the onboarding overlay when needed; it dismisses itself once the
   // user picks an order type and re-mounts on every reload so the order type screen
   // shows again (value persists only in sessionStorage).
@@ -595,7 +604,11 @@ const HotelMenuPage = ({
               />
             )}
           {renderPage()}
-          <LanguageSwitcher enabled={languageSwitcherEnabled} accent={styles?.accent} />
+          <LanguageSwitcher
+            enabled={languageSwitcherEnabled}
+            languages={languageSwitcherLangs}
+            accent={styles?.accent}
+          />
           {isHotelOnFreePlan && (
             <div className="w-full py-3 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
               Powered by{" "}

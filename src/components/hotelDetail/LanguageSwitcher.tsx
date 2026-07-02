@@ -1,23 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
-
-// Curated set offered in the switcher. Google Translate can do far more, but a
-// short list keeps the menu usable. `code` is the Google Translate language code.
-const LANGS: { code: string; label: string }[] = [
-    { code: "en", label: "English" },
-    { code: "hi", label: "हिन्दी" },
-    { code: "ml", label: "മലയാളം" },
-    { code: "ta", label: "தமிழ்" },
-    { code: "te", label: "తెలుగు" },
-    { code: "kn", label: "ಕನ್ನಡ" },
-    { code: "ar", label: "العربية" },
-    { code: "bn", label: "বাংলা" },
-    { code: "mr", label: "मराठी" },
-    { code: "gu", label: "ગુજરાતી" },
-];
-const INCLUDED = LANGS.map((l) => l.code).join(",");
+import { MENU_LANGUAGES } from "@/lib/menuLanguages";
 
 declare global {
     interface Window {
@@ -43,14 +28,26 @@ function currentLangFromCookie(): string {
  */
 export function LanguageSwitcher({
     enabled,
+    languages,
     accent = "#ea580c",
 }: {
     enabled: boolean;
+    languages?: string[]; // configured codes; empty/undefined = offer all
     accent?: string;
 }) {
     const [open, setOpen] = useState(false);
     const [current, setCurrent] = useState("en");
     const initedRef = useRef(false);
+
+    // Dropdown = the partner's chosen languages, always including English (the
+    // base / reset). Empty config → offer the full list.
+    const offered = useMemo(() => {
+        const codes = new Set(
+            languages && languages.length ? languages : MENU_LANGUAGES.map((l) => l.code),
+        );
+        codes.add("en");
+        return MENU_LANGUAGES.filter((l) => codes.has(l.code));
+    }, [languages]);
 
     useEffect(() => {
         if (!enabled || initedRef.current || typeof window === "undefined") return;
@@ -74,10 +71,11 @@ export function LanguageSwitcher({
             } as any;
         }
 
+        const included = offered.map((l) => l.code).join(",");
         window.googleTranslateElementInit = () => {
             try {
                 new window.google.translate.TranslateElement(
-                    { pageLanguage: "en", includedLanguages: INCLUDED, autoDisplay: false },
+                    { pageLanguage: "en", includedLanguages: included, autoDisplay: false },
                     "google_translate_element",
                 );
             } catch {
@@ -113,6 +111,17 @@ export function LanguageSwitcher({
     const setLang = (code: string) => {
         setOpen(false);
         setCurrent(code);
+        // Mark the URL so the storefront splash won't reappear if the switch (or a
+        // later reload) re-mounts the page.
+        try {
+            const url = new URL(window.location.href);
+            if (url.searchParams.get("back") !== "true") {
+                url.searchParams.set("back", "true");
+                window.history.replaceState({}, "", url.toString());
+            }
+        } catch {
+            /* ignore */
+        }
         if (code === "en") {
             // Reset to the original: clear Google's cookie and reload.
             const host = window.location.hostname;
@@ -141,12 +150,12 @@ export function LanguageSwitcher({
         }
     };
 
-    const currentLabel = LANGS.find((l) => l.code === current)?.label ?? "English";
+    const currentLabel = MENU_LANGUAGES.find((l) => l.code === current)?.label ?? "English";
 
     return (
         <>
             <div id="google_translate_element" className="hidden" aria-hidden="true" />
-            <div className="notranslate fixed right-3 top-3 z-[9998]" translate="no">
+            <div className="notranslate fixed right-3 top-24 z-[9998]" translate="no">
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
@@ -161,7 +170,7 @@ export function LanguageSwitcher({
                     <>
                         <div className="fixed inset-0 -z-10" onClick={() => setOpen(false)} />
                         <div className="absolute right-0 mt-2 max-h-[60vh] w-44 overflow-y-auto rounded-xl border bg-white p-1 shadow-lg">
-                            {LANGS.map((l) => (
+                            {offered.map((l) => (
                                 <button
                                     key={l.code}
                                     type="button"
