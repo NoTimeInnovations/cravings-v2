@@ -155,7 +155,7 @@ export function LanguageSwitcher({
     return (
         <>
             <div id="google_translate_element" className="hidden" aria-hidden="true" />
-            <div className="notranslate fixed bottom-20 right-4 z-[9998]" translate="no">
+            <div className="notranslate fixed right-4 top-4 z-[9998]" translate="no">
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
@@ -169,7 +169,7 @@ export function LanguageSwitcher({
                 {open && (
                     <>
                         <div className="fixed inset-0 -z-10" onClick={() => setOpen(false)} />
-                        <div className="absolute bottom-full right-0 mb-2 max-h-[60vh] w-44 overflow-y-auto rounded-xl border bg-white p-1 shadow-lg">
+                        <div className="absolute right-0 mt-2 max-h-[60vh] w-44 overflow-y-auto rounded-xl border bg-white p-1 shadow-lg">
                             {offered.map((l) => (
                                 <button
                                     key={l.code}
