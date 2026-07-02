@@ -337,7 +337,7 @@ const V3ItemCard = ({
           {item.name_secondary && (
             <p
               dir={item.name_secondary_rtl ? "rtl" : "ltr"}
-              className="mt-0.5 text-left text-xs font-medium leading-snug text-gray-500"
+              className="v3-name-secondary mt-0.5 text-left text-xs font-medium leading-snug text-gray-500"
             >
               {item.name_secondary}
             </p>
@@ -519,7 +519,7 @@ const V3ItemCard = ({
             {item.name_secondary && (
               <p
                 dir={item.name_secondary_rtl ? "rtl" : "ltr"}
-                className="mt-0.5 text-left text-sm font-medium leading-snug text-gray-500"
+                className="v3-name-secondary mt-0.5 text-left text-sm font-medium leading-snug text-gray-500"
               >
                 {item.name_secondary}
               </p>
@@ -608,7 +608,7 @@ const V3ItemCard = ({
               {item.name_secondary && (
                 <p
                   dir={item.name_secondary_rtl ? "rtl" : "ltr"}
-                  className="text-left text-sm font-medium leading-snug text-gray-500"
+                  className="v3-name-secondary text-left text-sm font-medium leading-snug text-gray-500"
                 >
                   {item.name_secondary}
                 </p>

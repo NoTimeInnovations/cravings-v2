@@ -101,6 +101,9 @@ export function LanguageSwitcher({
                 #goog-gt-tt, .goog-te-balloon-frame { display: none !important; }
                 .goog-text-highlight { background: none !important; box-shadow: none !important; }
                 font { background: none !important; box-shadow: none !important; }
+                /* When a translation is active, hide V3's manual secondary-language title. */
+                html.translated-ltr .v3-name-secondary,
+                html.translated-rtl .v3-name-secondary { display: none !important; }
             `;
             document.head.appendChild(st);
         }
