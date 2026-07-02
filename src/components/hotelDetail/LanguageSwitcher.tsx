@@ -155,21 +155,21 @@ export function LanguageSwitcher({
     return (
         <>
             <div id="google_translate_element" className="hidden" aria-hidden="true" />
-            <div className="notranslate fixed right-3 top-24 z-[9998]" translate="no">
+            <div className="notranslate fixed bottom-20 right-4 z-[9998]" translate="no">
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
                     aria-label="Change language"
-                    className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-2 text-sm font-semibold shadow-md ring-1 ring-black/5 backdrop-blur transition active:scale-95"
+                    title={currentLabel}
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-black/5 transition active:scale-95"
                     style={{ color: accent }}
                 >
-                    <Globe className="h-4 w-4" />
-                    <span className="max-w-[92px] truncate">{currentLabel}</span>
+                    <Globe className="h-5 w-5" />
                 </button>
                 {open && (
                     <>
                         <div className="fixed inset-0 -z-10" onClick={() => setOpen(false)} />
-                        <div className="absolute right-0 mt-2 max-h-[60vh] w-44 overflow-y-auto rounded-xl border bg-white p-1 shadow-lg">
+                        <div className="absolute bottom-full right-0 mb-2 max-h-[60vh] w-44 overflow-y-auto rounded-xl border bg-white p-1 shadow-lg">
                             {offered.map((l) => (
                                 <button
                                     key={l.code}
