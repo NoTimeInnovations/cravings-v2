@@ -167,6 +167,14 @@ export interface PrebookingWindow {
  * `partners.prebooking_settings`. Gated by the `prebooking` feature flag.
  * Times are restaurant-local; no timezone conversion is applied.
  */
+/** Which selectors the checkout scheduling picker shows. When one is hidden the
+ *  other is auto-selected to its first available option. */
+export type PrebookingPickerMode = "both" | "date_only" | "time_only";
+
+/** How slots are generated: fixed weekday time ranges, or a rolling list of
+ *  times relative to "now" (now + interval, N slots) that refreshes each minute. */
+export type PrebookingSlotMode = "windows" | "rolling";
+
 export interface PrebookingSettings {
   /** Master toggle for scheduled delivery/takeaway prebooking. */
   prebooking_enabled: boolean;
@@ -184,6 +192,14 @@ export interface PrebookingSettings {
    *  offers dates within [start_date, end_date]; overrides max_advance_days. */
   start_date?: string;
   end_date?: string;
+  /** Which selectors the checkout picker shows: both, date only, or time only. */
+  picker_mode?: PrebookingPickerMode;
+  /** Slot generation: fixed weekday ranges (windows) or rolling from now. */
+  slot_mode?: PrebookingSlotMode;
+  /** Rolling mode: spacing between slots, in minutes (e.g. 15). */
+  rolling_interval_minutes?: number;
+  /** Rolling mode: how many slots to offer (e.g. 2 -> now+interval, now+2*interval). */
+  rolling_slot_count?: number;
   /** Explicit "schedule for later" slot times per weekday (delivery/takeaway). */
   windows: PrebookingWindow[];
   /** Order types for which "schedule for later" is offered (delivery/takeaway). */
@@ -199,6 +215,12 @@ export interface PrebookingSettings {
   /** Optional absolute booking window for dine-in (YYYY-MM-DD). */
   dine_in_start_date?: string;
   dine_in_end_date?: string;
+  /** Which selectors the dine-in slot picker shows: both, date only, or time only. */
+  dine_in_picker_mode?: PrebookingPickerMode;
+  /** Dine-in slot generation: fixed weekday ranges or rolling from now. */
+  dine_in_slot_mode?: PrebookingSlotMode;
+  dine_in_rolling_interval_minutes?: number;
+  dine_in_rolling_slot_count?: number;
   /** Explicit dine-in table slot times per weekday. */
   dine_in_windows: PrebookingWindow[];
 }

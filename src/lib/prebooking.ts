@@ -136,6 +136,37 @@ export function getPrebookingSlots(
     );
 }
 
+/** Rolling config for the given order kind (defaults: 15 min, 2 slots). */
+function rollingConfig(settings: PrebookingSettings, dineIn?: boolean) {
+    const mode = dineIn ? settings.dine_in_slot_mode : settings.slot_mode;
+    const interval =
+        (dineIn ? settings.dine_in_rolling_interval_minutes : settings.rolling_interval_minutes) ?? 15;
+    const count =
+        (dineIn ? settings.dine_in_rolling_slot_count : settings.rolling_slot_count) ?? 2;
+    return { rolling: mode === "rolling", interval: Math.max(1, interval), count: Math.max(1, count) };
+}
+
+/**
+ * Rolling slots: discrete pickup times at `now + interval`, `now + 2*interval`, …
+ * up to `count`, within today. Each is a point-in-time slot (from === to). These
+ * roll forward with the clock, so the checkout re-computes them periodically.
+ */
+export function getRollingSlots(
+    intervalMin: number,
+    count: number,
+    now: Date = new Date()
+): { from: string; to: string }[] {
+    const base = now.getHours() * 60 + now.getMinutes();
+    const out: { from: string; to: string }[] = [];
+    for (let i = 1; i <= count; i++) {
+        const m = base + intervalMin * i;
+        if (m >= 24 * 60) break; // stay within today
+        const t = fmt(m);
+        out.push({ from: t, to: t });
+    }
+    return out;
+}
+
 /**
  * Selectable dates that have at least one valid slot. By default spans
  * today … max_advance_days, but `fromOffset` / `throughDay` let callers (e.g. the
@@ -146,6 +177,13 @@ export function getPrebookingDates(
     now: Date = new Date(),
     opts: { dineIn?: boolean; fromOffset?: number; throughDay?: number } = {}
 ): { value: string; label: string }[] {
+    const rollingCfg = rollingConfig(settings, opts.dineIn);
+    if (rollingCfg.rolling) {
+        // Rolling slots are now-relative → offer only today (when it has slots).
+        return getRollingSlots(rollingCfg.interval, rollingCfg.count, now).length > 0
+            ? [{ value: ymd(now), label: "Today" }]
+            : [];
+    }
     const out: { value: string; label: string }[] = [];
     const todayOnly = opts.dineIn
         ? (settings.dine_in_today_only ?? false)
@@ -205,21 +243,43 @@ export function getPrebookingDates(
 export function getPrebookingRanges(
     settings: PrebookingSettings,
     dateStr: string,
-    opts: { dineIn?: boolean } = {}
+    opts: { dineIn?: boolean; now?: Date } = {}
 ): { from: string; to: string }[] {
+    const rollingCfg = rollingConfig(settings, opts.dineIn);
+    if (rollingCfg.rolling) {
+        // Rolling slots are now-relative → only today has them.
+        const rnow = opts.now ?? new Date();
+        if (dateStr !== ymd(rnow)) return [];
+        return getRollingSlots(rollingCfg.interval, rollingCfg.count, rnow);
+    }
     const date = new Date(`${dateStr}T00:00:00`);
     if (isNaN(date.getTime())) return [];
     const weekday = date.getDay();
     const windows = opts.dineIn ? (settings.dine_in_windows ?? settings.windows) : settings.windows;
     const win = (windows ?? []).find((w) => w.day === weekday);
     if (!win || !win.enabled) return [];
+    let ranges: { from: string; to: string }[];
     if (win.ranges && win.ranges.length) {
-        return win.ranges.map((r) => ({ from: fmt(toMinutes(r.from)), to: fmt(toMinutes(r.to)) }));
+        ranges = win.ranges.map((r) => ({ from: fmt(toMinutes(r.from)), to: fmt(toMinutes(r.to)) }));
+    } else if (win.from && win.to) {
+        ranges = [{ from: fmt(toMinutes(win.from)), to: fmt(toMinutes(win.to)) }];
+    } else {
+        const times = windowSlotTimes(win); // legacy discrete slots → one collapsed range
+        ranges = times.length ? [{ from: times[0], to: times[times.length - 1] }] : [];
     }
-    if (win.from && win.to) return [{ from: fmt(toMinutes(win.from)), to: fmt(toMinutes(win.to)) }];
-    const times = windowSlotTimes(win); // legacy discrete slots → one collapsed range
-    if (times.length) return [{ from: times[0], to: times[times.length - 1] }];
-    return [];
+    // For today, drop past ranges and clamp an in-progress range's start to the
+    // earliest valid time (now + lead) so we never offer / auto-default a past slot.
+    const now = opts.now ?? new Date();
+    if (dateStr === ymd(now)) {
+        const leadMin = opts.dineIn
+            ? (settings.dine_in_min_lead_time_minutes ?? settings.min_lead_time_minutes ?? 0)
+            : (settings.min_lead_time_minutes ?? 0);
+        const earliest = now.getHours() * 60 + now.getMinutes() + leadMin;
+        ranges = ranges
+            .filter((r) => toMinutes(r.to) > earliest)
+            .map((r) => (toMinutes(r.from) < earliest ? { from: fmt(earliest), to: r.to } : r));
+    }
+    return ranges;
 }
 
 /** "14:30" -> "2:30 PM" for display. */
@@ -286,6 +346,13 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         today_only: parsed.today_only === true,
         start_date: typeof parsed.start_date === "string" ? parsed.start_date : undefined,
         end_date: typeof parsed.end_date === "string" ? parsed.end_date : undefined,
+        picker_mode:
+            parsed.picker_mode === "date_only" || parsed.picker_mode === "time_only"
+                ? parsed.picker_mode
+                : "both",
+        slot_mode: parsed.slot_mode === "rolling" ? "rolling" : "windows",
+        rolling_interval_minutes: num(parsed.rolling_interval_minutes, 15),
+        rolling_slot_count: num(parsed.rolling_slot_count, 2),
         windows: normalizeWindows(parsed.windows, base.windows),
         allowed_order_types: parsed.allowed_order_types?.length
             ? parsed.allowed_order_types
@@ -301,6 +368,13 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         dine_in_today_only: parsed.dine_in_today_only === true,
         dine_in_start_date: typeof parsed.dine_in_start_date === "string" ? parsed.dine_in_start_date : undefined,
         dine_in_end_date: typeof parsed.dine_in_end_date === "string" ? parsed.dine_in_end_date : undefined,
+        dine_in_picker_mode:
+            parsed.dine_in_picker_mode === "date_only" || parsed.dine_in_picker_mode === "time_only"
+                ? parsed.dine_in_picker_mode
+                : "both",
+        dine_in_slot_mode: parsed.dine_in_slot_mode === "rolling" ? "rolling" : "windows",
+        dine_in_rolling_interval_minutes: num(parsed.dine_in_rolling_interval_minutes, 15),
+        dine_in_rolling_slot_count: num(parsed.dine_in_rolling_slot_count, 2),
         dine_in_windows: normalizeWindows(parsed.dine_in_windows ?? parsed.windows, base.dine_in_windows),
     };
 }

@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
@@ -36,6 +43,10 @@ export function PrebookingSettings() {
     const [todayOnly, setTodayOnly] = useState(false);
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
+    const [pickerMode, setPickerMode] = useState<"both" | "date_only" | "time_only">("both");
+    const [slotMode, setSlotMode] = useState<"windows" | "rolling">("windows");
+    const [rollingInterval, setRollingInterval] = useState<number>(15);
+    const [rollingCount, setRollingCount] = useState<number>(2);
     const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
     const [ranges, setRanges] = useState<PrebookingRange[]>([{ from: "10:00", to: "22:00" }]);
     const [initialLoaded, setInitialLoaded] = useState(false);
@@ -48,6 +59,10 @@ export function PrebookingSettings() {
         setTodayOnly(merged.today_only ?? false);
         setStartDate(merged.start_date ?? "");
         setEndDate(merged.end_date ?? "");
+        setPickerMode(merged.picker_mode ?? "both");
+        setSlotMode(merged.slot_mode ?? "windows");
+        setRollingInterval(merged.rolling_interval_minutes ?? 15);
+        setRollingCount(merged.rolling_slot_count ?? 2);
         setDays(new Set(merged.windows.filter((w) => w.enabled).map((w) => w.day)));
         const fe =
             merged.windows.find((w) => w.enabled && w.ranges?.length) ||
@@ -64,7 +79,7 @@ export function PrebookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, today_only: todayOnly, start_date: startDate || undefined, end_date: endDate || undefined, windows });
+            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, today_only: todayOnly, start_date: startDate || undefined, end_date: endDate || undefined, picker_mode: pickerMode, slot_mode: slotMode, rolling_interval_minutes: rollingInterval, rolling_slot_count: rollingCount, windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -74,7 +89,7 @@ export function PrebookingSettings() {
             console.error("Error saving prebooking settings:", e);
             toast.error("Failed to save prebooking settings");
         }
-    }, [cfg, enabled, todayOnly, startDate, endDate, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -84,7 +99,7 @@ export function PrebookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, todayOnly, startDate, endDate, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -182,6 +197,69 @@ export function PrebookingSettings() {
                             )}
 
                             <div className="space-y-2">
+                                <Label>What customers pick</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Show a date, a time slot, or both at checkout. The hidden one is auto-set to its first available option.
+                                </p>
+                                <Select value={pickerMode} onValueChange={(v) => setPickerMode(v as "both" | "date_only" | "time_only")}>
+                                    <SelectTrigger className="w-full bg-white sm:w-[220px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="both">Date &amp; time</SelectItem>
+                                        <SelectItem value="date_only">Date only</SelectItem>
+                                        <SelectItem value="time_only">Time only</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Slot type</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Fixed weekday time ranges, or rolling slots relative to the current time (now + interval).
+                                </p>
+                                <Select value={slotMode} onValueChange={(v) => setSlotMode(v as "windows" | "rolling")}>
+                                    <SelectTrigger className="w-full bg-white sm:w-[220px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="windows">Fixed time ranges</SelectItem>
+                                        <SelectItem value="rolling">Rolling from now</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {slotMode === "rolling" && (
+                                <div className="space-y-2">
+                                    <Label>Rolling slots</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Offer the next times from now, spaced by the interval (e.g. 15 min × 2 → now+15, now+30). The list refreshes every minute at checkout.
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">Every</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={rollingInterval}
+                                            onChange={(e) => setRollingInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                                            className="h-9 w-20 rounded-md border bg-white px-3 text-sm"
+                                        />
+                                        <span className="text-xs text-muted-foreground">min</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={rollingCount}
+                                            onChange={(e) => setRollingCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                            className="h-9 w-20 rounded-md border bg-white px-3 text-sm"
+                                        />
+                                        <span className="text-xs text-muted-foreground">slots</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {slotMode === "windows" && (
+                                <>
+                            <div className="space-y-2">
                                 <Label>Open days</Label>
                                 <div className="flex flex-wrap gap-2">
                                     {DAY_LABELS.map((label, day) => {
@@ -233,6 +311,8 @@ export function PrebookingSettings() {
                                     <Plus className="h-4 w-4" /> Add slot
                                 </Button>
                             </div>
+                                </>
+                            )}
                         </>
                     )}
                 </CardContent>
