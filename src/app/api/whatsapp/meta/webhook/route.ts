@@ -648,6 +648,34 @@ export async function POST(req: NextRequest) {
         const messages = value.messages || [];
         const contactName = value.contacts?.[0]?.profile?.name || null;
 
+        // Expo Lead Scanner inbox: mirror events on the shared Menuthere number
+        // to the standalone Convex inbox. The shared number has no partner row,
+        // so nothing below persists these — this forward is the only capture
+        // path (Meta allows a single webhook callback per app). No-op unless
+        // EXPO_INBOX_INGEST_URL is configured. Awaited with a short timeout so
+        // a slow/down inbox can never stall webhook handling; failures only log.
+        if (
+          process.env.EXPO_INBOX_INGEST_URL &&
+          phoneNumberId ===
+            (process.env.EXPO_INBOX_PHONE_NUMBER_ID ||
+              process.env.WHATSAPP_PHONE_NUMBER_ID) &&
+          (messages.length > 0 || (value.statuses || []).length > 0)
+        ) {
+          try {
+            await fetch(process.env.EXPO_INBOX_INGEST_URL, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "x-ingest-secret": process.env.EXPO_INBOX_INGEST_SECRET || "",
+              },
+              body: JSON.stringify({ kind: "meta", value }),
+              signal: AbortSignal.timeout(3000),
+            });
+          } catch (e) {
+            console.error("Expo inbox forward failed:", e);
+          }
+        }
+
         // Resolve the partner once for this batch. The Menuthere shared
         // WABA won't be in whatsapp_business_integrations, so absence is
         // normal — those messages just don't go to a partner inbox.
