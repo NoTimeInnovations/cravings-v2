@@ -60,6 +60,8 @@ interface StorefrontData {
     brandName: string;
     brandColor?: string;
     sections: StorefrontSection[];
+    /** Show a Google-Translate language button on the customer menu (any layout). */
+    languageSwitcher?: boolean;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -134,6 +136,7 @@ const DEFAULT_STOREFRONT: StorefrontData = {
     logoEmoji: "🍽️",
     logoImage: "",
     brandName: "",
+    languageSwitcher: false,
     sections: [
         { id: uid(), type: "hero", enabled: true, content: { ...DEFAULT_CONTENT.hero } },
         { id: uid(), type: "imageText", enabled: true, content: { ...DEFAULT_CONTENT.imageText } },
@@ -331,6 +334,18 @@ export function StorefrontSettings() {
                         >
                             <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
                         </Button>
+                    </div>
+                    <div className="mt-3 flex items-center gap-3 rounded-xl border bg-secondary/40 p-3.5">
+                        <Switch
+                            checked={!!storefront.languageSwitcher}
+                            onCheckedChange={(v) => updateStorefront({ languageSwitcher: v })}
+                        />
+                        <div className="flex-1">
+                            <p className="text-sm font-bold">Language switcher</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                Show a language button on your menu (any layout) so customers can auto-translate it.
+                            </p>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

@@ -23,6 +23,7 @@ import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import V3 from "@/components/hotelDetail/styles/V3/V3";
 import V4 from "@/components/hotelDetail/styles/V4/V4";
 import V5 from "@/components/hotelDetail/styles/V5/V5";
+import { LanguageSwitcher } from "@/components/hotelDetail/LanguageSwitcher";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { applyVisibilityState } from "@/lib/visibility";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
@@ -175,6 +176,16 @@ const HotelMenuPage = ({
       return !!sf?.enabled;
     } catch { return false; }
   }, [features.storefront.enabled, tableNumber, (hoteldata as any)?.storefront_settings]);
+  // Language switcher toggle (store settings → storefront_settings.languageSwitcher).
+  const languageSwitcherEnabled = useMemo(() => {
+    try {
+      const raw = (hoteldata as any)?.storefront_settings;
+      const sf = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return !!sf?.languageSwitcher;
+    } catch {
+      return false;
+    }
+  }, [(hoteldata as any)?.storefront_settings]);
   // Always mount the onboarding overlay when needed; it dismisses itself once the
   // user picks an order type and re-mounts on every reload so the order type screen
   // shows again (value persists only in sessionStorage).
@@ -584,6 +595,7 @@ const HotelMenuPage = ({
               />
             )}
           {renderPage()}
+          <LanguageSwitcher enabled={languageSwitcherEnabled} accent={styles?.accent} />
           {isHotelOnFreePlan && (
             <div className="w-full py-3 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
               Powered by{" "}
