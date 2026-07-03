@@ -349,6 +349,7 @@ const HotelMenuPage = ({
       .filter((item: any) => {
         if (orderType === "delivery" && item.show_on_delivery === false) return false;
         if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
+        if (orderType === "dine_in" && item.show_on_dine_in === false) return false;
         if (lockedCategory && item.category?.name !== lockedCategory) return false;
         if (hiddenCategoryNames && hiddenCategoryNames.has(item.category?.name)) return false;
         return true;
@@ -440,6 +441,7 @@ const HotelMenuPage = ({
         if (item.is_top !== true) return false;
         if (orderType === "delivery" && item.show_on_delivery === false) return false;
         if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
+        if (orderType === "dine_in" && item.show_on_dine_in === false) return false;
         if (lockedCategory && item.category?.name !== lockedCategory) return false;
         if (hiddenCategoryNames && hiddenCategoryNames.has(item.category?.name)) return false;
         return true;

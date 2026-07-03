@@ -33,6 +33,7 @@ export const getMenu = `
             delivery_price
             show_on_delivery
             show_on_takeaway
+            show_on_dine_in
             tax_inclusive
             visibility_config
             recommendations
@@ -156,6 +157,7 @@ export const updateMenu = `
             delivery_price
             show_on_delivery
             show_on_takeaway
+            show_on_dine_in
             tax_inclusive
             description
             is_top

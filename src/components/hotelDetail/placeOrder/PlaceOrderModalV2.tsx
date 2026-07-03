@@ -385,6 +385,7 @@ const PlaceOrderModalV2 = ({
       if (!menuItem) return false;
       if (orderType === "delivery" && menuItem.show_on_delivery === false) return true;
       if (orderType === "takeaway" && menuItem.show_on_takeaway === false) return true;
+      if (orderType === "dine_in" && menuItem.show_on_dine_in === false) return true;
       return false;
     });
   }, [orderType, items, allMenus]);

@@ -62,6 +62,7 @@ export interface MenuItem {
   delivery_price?: number;
   show_on_delivery?: boolean;
   show_on_takeaway?: boolean;
+  show_on_dine_in?: boolean;
   tax_inclusive?: boolean;
   visibility_config?: any;
   /** Manually-curated cross-sell list: ids of other menu items to recommend
@@ -259,6 +260,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           delivery_price: mi.delivery_price ?? undefined,
           show_on_delivery: mi.show_on_delivery,
           show_on_takeaway: mi.show_on_takeaway,
+          show_on_dine_in: mi.show_on_dine_in,
           recommendations: Array.isArray(mi.recommendations) ? mi.recommendations : [],
           reactivate_at: mi.reactivate_at ?? null,
         };

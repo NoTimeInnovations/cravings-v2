@@ -274,6 +274,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       delivery_price
       show_on_delivery
       show_on_takeaway
+      show_on_dine_in
       tax_inclusive
     }
     offers(where: {_and: [{ offer_type : { _in : $offer_types } } ,{end_time: {_gt: "now()"}}, {deletion_status: {_eq: 0}}]}) {
