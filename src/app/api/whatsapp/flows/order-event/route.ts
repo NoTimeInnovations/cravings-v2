@@ -73,11 +73,24 @@ export async function POST(req: NextRequest) {
     const oldRow = ev?.data?.old;
     if (!newRow?.id) return NextResponse.json({ ok: true });
 
-    // "placed" fires on a new order; otherwise fire on the new status value.
+    // "placed" fires when the order is really placed; otherwise fire on the new
+    // status value. Draft / unpaid online orders (status "pending_payment") must
+    // NOT fire "placed" on insert — they fire it later when payment completes and
+    // they move off pending_payment. Cash/COD/table orders insert with a real
+    // status, so they fire "placed" immediately.
     let fireStatus: string | null = null;
-    if (op === "INSERT") fireStatus = "placed";
-    else if (op === "UPDATE" && newRow.status && newRow.status !== oldRow?.status) {
-      fireStatus = newRow.status;
+    if (op === "INSERT") {
+      if (newRow.status !== "pending_payment") fireStatus = "placed";
+    } else if (op === "UPDATE" && newRow.status && newRow.status !== oldRow?.status) {
+      const wasDraft = oldRow?.status === "pending_payment";
+      const nowFailed = newRow.status === "expired" || newRow.status === "cancelled";
+      if (wasDraft) {
+        // Payment just completed → this is the online order's real "placed" moment.
+        // (A draft that expired / was cancelled unpaid fires nothing.)
+        if (!nowFailed) fireStatus = "placed";
+      } else {
+        fireStatus = newRow.status;
+      }
     }
     if (!fireStatus) return NextResponse.json({ ok: true });
 
