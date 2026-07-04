@@ -461,7 +461,7 @@ export default function OnboardingFlow({
             initialTakeawayOpen={initialTakeawayOpen}
             hotelTimezone={hotelTimezone}
             accent={accent}
-            locationText={hotelData?.location_details || hotelData?.district || hotelData?.country || ""}
+            locationText={hotelData?.location_details || (hotelData as any)?.location || hotelData?.district || hotelData?.country || ""}
             socialLinks={socialLinks}
             mapHref={getPartnerMapsUrl(hotelData)}
           />
