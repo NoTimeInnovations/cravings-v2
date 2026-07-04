@@ -1,4 +1,5 @@
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { restockOrderStock } from "@/app/actions/restockOrder";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -18,6 +19,9 @@ export async function POST(
     );
 
     if (response.errors) throw new Error(response.errors[0].message);
+
+    // Add the cancelled order's stock back (idempotent via RELEASE gate).
+    await restockOrderStock(id);
 
     return NextResponse.json({
       message: "Order cancelled",

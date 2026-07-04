@@ -39,6 +39,17 @@ function maybeRefundLoyalty(orderId: string, reason: string): void {
     .catch((e) => console.warn("[loyalty] cancel refund threw:", e));
 }
 
+/**
+ * Add the cancelled order's stock back. Fire-and-forget and idempotent (an
+ * atomic RELEASE inside restockOrderStock ensures it restocks at most once, even
+ * if cancel and expire race). A cancel never fails over a restock hiccup.
+ */
+function maybeRestock(orderId: string): void {
+  import("@/app/actions/restockOrder")
+    .then(({ restockOrderStock }) => restockOrderStock(orderId))
+    .catch((e) => console.warn("[restock] cancel restock threw:", e));
+}
+
 type CancelResult =
   | { success: true }
   | { success: false; message: string };
@@ -109,6 +120,7 @@ export async function cancelOrderAction(
       }
       maybeCancelPorter(orderId, reason);
       maybeRefundLoyalty(orderId, "Order cancelled");
+      maybeRestock(orderId);
       return { success: true };
     } catch (err: any) {
       return { success: false, message: err?.message || "Failed to cancel order" };
@@ -142,6 +154,7 @@ export async function cancelOrderAction(
 
     maybeCancelPorter(orderId, reason);
     maybeRefundLoyalty(orderId, "Order cancelled");
+    maybeRestock(orderId);
     return { success: true };
   } catch (err: any) {
     return { success: false, message: err?.message || "Network error" };

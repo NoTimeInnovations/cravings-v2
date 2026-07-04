@@ -31,7 +31,8 @@ import { toast } from "sonner";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { decrementStockForOrder } from "@/lib/stockDecrement";
+import { decrementStockForOrder, claimOrderStock } from "@/lib/stockDecrement";
+import { restockOrderStock } from "@/app/actions/restockOrder";
 import { ymd } from "@/lib/prebooking";
 import { usePOSStore } from "./posStore";
 import { v4 as uuidv4 } from "uuid";
@@ -704,9 +705,18 @@ const useOrderStore = create(
 
           if (response.errors) throw new Error(response.errors[0].message);
 
+          if (newStatus === "cancelled") {
+            // Stock is decremented at PLACEMENT (for every order type, including
+            // pending online), so a cancel must add it back. Idempotent via the
+            // RELEASE gate inside restockOrderStock. Fire-and-forget.
+            restockOrderStock(orderId).catch((e) =>
+              console.warn("[restock] cancel restock threw:", e),
+            );
+          }
+
           if (newStatus === "completed") {
-            // Stock is decremented at order PLACEMENT now (see placeOrder for
-            // cash/COD and finalizeCfOrder for online), not at completion.
+            // Stock is decremented at order PLACEMENT now (placeOrder, for every
+            // order type including pending online), not at completion.
 
             // Award loyalty points for the completed order. Server-side, idempotent,
             // re-reads the real order, and self-gates on the partner's loyalty flag —
@@ -1330,6 +1340,11 @@ const useOrderStore = create(
 
       deleteOrder: async (orderId: string) => {
         try {
+          // Add stock back BEFORE the hard delete destroys the order_items
+          // (restockOrderStock reads them). Idempotent: if the order was already
+          // cancelled/expired-and-restocked, the RELEASE gate makes this a no-op.
+          await restockOrderStock(orderId);
+
           const deleteItemsResponse = await fetchFromHasura(
             `mutation DeleteOrderItems($orderId: uuid!) {
               delete_order_items(where: {order_id: {_eq: $orderId}}) {
@@ -1920,35 +1935,38 @@ const useOrderStore = create(
             discounts: discounts ? [discounts] as any : [],
           };
 
+          // Stock-managed partners: decrement stock at PLACEMENT for EVERY order
+          // — including online orders that are still pending_payment (the slot
+          // locks the moment the order is placed, not when payment completes).
+          // CLAIM_STOCK makes this exactly-once; the same order is restocked on
+          // cancel/expire/delete via restockOrderStock. Best-effort.
+          try {
+            const stockOn = getFeatures(hotelData.feature_flags || null)?.stockmanagement?.enabled;
+            if (stockOn) {
+              // Scheduled order -> that date's stock; immediate -> today.
+              const stockDate = scheduled_date || ymd(new Date());
+              const claimed = await claimOrderStock(orderId, stockDate);
+              if (claimed) {
+                await decrementStockForOrder(
+                  currentOrder.items.map((it) => ({
+                    menuId: it.id.split("|")[0],
+                    quantity: it.quantity,
+                  })),
+                  { stockDate },
+                );
+                revalidateTag(hotelData.id);
+              }
+            }
+          } catch (e) {
+            console.error("Stock decrement failed (order still placed):", e);
+          }
+
           // Deferred (online-payment) order: it's only pending_payment, so do
           // NOT clear the cart or notify the partner yet. finalizeCfOrder does
           // the Petpooja push / notification once payment confirms. Return the
           // order so the modal can track its id.
           if (deferForPayment) {
             return newOrder;
-          }
-
-          // Stock-managed partners: decrement stock at PLACEMENT (cash/COD path)
-          // and auto-disable anything that hits 0. Online orders decrement later
-          // in finalizeCfOrder (after payment), so abandoned carts don't deplete.
-          try {
-            const stockOn = getFeatures(hotelData.feature_flags || null)?.stockmanagement?.enabled;
-            if (stockOn) {
-              // Scheduled order -> decrement that date's stock; immediate -> today.
-              const stockDate = scheduled_date || ymd(new Date());
-              await decrementStockForOrder(
-                currentOrder.items.map((it) => ({
-                  menuId: it.id.split("|")[0],
-                  stockId: it.stocks?.[0]?.id,
-                  quantity: it.quantity,
-                  dailyDefault: it.stocks?.[0]?.daily_default ?? null,
-                })),
-                { stockDate },
-              );
-              revalidateTag(hotelData.id);
-            }
-          } catch (e) {
-            console.error("Stock decrement failed (order still placed):", e);
           }
 
           // Update state

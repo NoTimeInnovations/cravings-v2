@@ -1,0 +1,1 @@
+-- No-op: additive columns are never dropped (never-delete-data rule).

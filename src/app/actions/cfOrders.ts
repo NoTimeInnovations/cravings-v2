@@ -1,36 +1,7 @@
 "use server";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { getFeatures } from "@/lib/getFeatures";
-import { decrementStockForOrder } from "@/lib/stockDecrement";
-import { revalidateTag } from "@/app/actions/revalidate";
-
-// Fetch an order's stock-relevant lines (+ partner feature flag) so we can
-// decrement stock once an online payment finalizes.
-const GET_ORDER_STOCK_LINES = `
-  query OrderStockLines($id: uuid!) {
-    orders_by_pk(id: $id) {
-      scheduled_date
-      created_at
-      partner { feature_flags }
-      order_items {
-        quantity
-        item
-        menu { id stocks { id daily_default } }
-      }
-    }
-  }
-`;
-
-// Restaurant-local "YYYY-MM-DD" for an immediate online order that has no
-// scheduled_date. The order row has no device clock, so derive the date from
-// created_at in the app timezone (the business operates in India).
-const APP_TIME_ZONE = "Asia/Kolkata";
-function tzToday(createdAt: string | null | undefined): string {
-  const d = createdAt ? new Date(createdAt) : new Date();
-  // en-CA formats as YYYY-MM-DD.
-  return new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIME_ZONE }).format(d);
-}
+import { restockOrderStock } from "@/app/actions/restockOrder";
 
 // Partner push-notification server (same one the client Notification helper
 // uses). We notify inline here instead of importing the client-only
@@ -221,34 +192,10 @@ export async function finalizeCfOrder(
     }
   }
 
-  // Stock-managed partners: now that payment is confirmed, decrement stock and
-  // auto-disable anything that hit 0. Done at finalize (not at the pending-order
-  // insert) so abandoned/unpaid carts never deplete stock. Best-effort.
-  try {
-    const sres = await fetchFromHasura(GET_ORDER_STOCK_LINES, { id: orderId });
-    const o = sres?.orders_by_pk;
-    const stockOn = getFeatures(o?.partner?.feature_flags || null)?.stockmanagement?.enabled;
-    if (stockOn && Array.isArray(o?.order_items)) {
-      // Scheduled order -> that date's stock; immediate -> app-local today.
-      const stockDate = o?.scheduled_date || tzToday(o?.created_at);
-      await decrementStockForOrder(
-        o.order_items
-          // Freebie give-aways don't consume stock — matches the cash/COD path,
-          // whose decrement runs over the paid cart only.
-          .filter((oi: any) => !oi?.item?.is_freebie)
-          .map((oi: any) => ({
-            menuId: oi?.menu?.id,
-            stockId: oi?.menu?.stocks?.[0]?.id,
-            quantity: oi?.quantity,
-            dailyDefault: oi?.menu?.stocks?.[0]?.daily_default ?? null,
-          })),
-        { stockDate },
-      );
-      if (order?.partner_id) revalidateTag(order.partner_id);
-    }
-  } catch (e) {
-    console.error(`[finalizeCfOrder] stock decrement failed (order still finalized) order=${orderId}:`, e);
-  }
+  // NOTE: stock is decremented at PLACEMENT now (orderStore.placeOrder, even for
+  // pending_payment online orders), not here — so a placed online order locks
+  // its slot immediately. Cancel/expire restock via restockOrderStock. Finalize
+  // therefore intentionally does NOT touch stock.
 
   return { ok: true, pushedToPetpooja };
 }
@@ -283,10 +230,10 @@ export async function getStalePendingCfOrders(beforeISO: string) {
 }
 
 const EXPIRE_PENDING = `
-  mutation ExpireCfOrder($id: uuid!) {
+  mutation ExpireCfOrder($id: uuid!, $now: timestamptz!) {
     update_orders(
       where: { id: { _eq: $id }, status: { _eq: "pending_payment" } },
-      _set: { status: "expired", payment_status: "failed" }
+      _set: { status: "expired", payment_status: "failed", cf_finalized_at: $now }
     ) {
       affected_rows
     }
@@ -294,10 +241,20 @@ const EXPIRE_PENDING = `
 `;
 
 export async function expireCfOrder(orderId: string) {
-  const res = await fetchFromHasura(EXPIRE_PENDING, { id: orderId });
+  // Stamp cf_finalized_at so a late PAYMENT_SUCCESS webhook can't resurrect
+  // (re-finalize) this now-expired order — critical since finalize no longer
+  // decrements stock and the expiry below restocks it.
+  const now = new Date().toISOString();
+  const res = await fetchFromHasura(EXPIRE_PENDING, { id: orderId, now });
   const affected = res?.update_orders?.affected_rows ?? 0;
-  // Abandoned/unpaid online order — return any loyalty points it had redeemed.
+  // Abandoned/unpaid online order — return any loyalty points it had redeemed,
+  // and add its stock back (it was decremented at placement).
   if (affected > 0) {
+    try {
+      await restockOrderStock(orderId);
+    } catch (e) {
+      console.warn("[restock] expire restock failed", orderId, e);
+    }
     try {
       const { refundLoyaltyForOrder } = await import("@/app/actions/loyalty");
       await refundLoyaltyForOrder(orderId, "Order expired (unpaid)");

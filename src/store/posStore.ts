@@ -16,7 +16,8 @@ import { deleteBillMutation } from "@/api/pos";
 import { getNextOrderNumber, Order } from "./orderStore";
 import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 import { getFeatures } from "@/lib/getFeatures";
-import { decrementStockForOrder } from "@/lib/stockDecrement";
+import { decrementStockForOrder, claimOrderStock } from "@/lib/stockDecrement";
+import { restockOrderStock } from "@/app/actions/restockOrder";
 import { ymd } from "@/lib/prebooking";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { v4 as uuidv4 } from "uuid";
@@ -943,19 +944,22 @@ export const usePOSStore = create<POSState>((set, get) => ({
         const stockOn = getFeatures((partnerData as any)?.feature_flags || null)?.stockmanagement?.enabled;
         if (stockOn && !get().editingOrderId) {
           // POS sales are immediate -> today's date-capped stock (if any).
+          // CLAIM_STOCK gates decrement so it's exactly-once and can be restocked
+          // on cancel via restockOrderStock.
           const stockDate = ymd(new Date());
-          await decrementStockForOrder(
-            cartItems
-              .filter((it) => !(it as any).is_custom)
-              .map((it) => ({
-                menuId: (it.id || "").split("|")[0].split("_custom_")[0],
-                stockId: (it as any).stocks?.[0]?.id,
-                quantity: it.quantity,
-                dailyDefault: (it as any).stocks?.[0]?.daily_default ?? null,
-              })),
-            { stockDate },
-          );
-          revalidateTag(partnerId);
+          const claimed = await claimOrderStock(orderId, stockDate);
+          if (claimed) {
+            await decrementStockForOrder(
+              cartItems
+                .filter((it) => !(it as any).is_custom)
+                .map((it) => ({
+                  menuId: (it.id || "").split("|")[0].split("_custom_")[0],
+                  quantity: it.quantity,
+                })),
+              { stockDate },
+            );
+            revalidateTag(partnerId);
+          }
         }
       } catch (e) {
         console.error("POS stock decrement failed (order still placed):", e);
@@ -1242,6 +1246,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
             }
           })
           .catch((e) => console.warn("[loyalty] award failed", e));
+      }
+
+      // Stock was decremented at placement — add it back on cancel (idempotent).
+      if (status === "cancelled") {
+        restockOrderStock(orderId).catch((e) =>
+          console.warn("[restock] POS cancel restock threw:", e),
+        );
       }
 
       // Update local state
