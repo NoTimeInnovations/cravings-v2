@@ -43,8 +43,20 @@ if (!endpoint || !secret) {
   process.exit(1);
 }
 
-const raw = crypto.randomBytes(24).toString("base64url");
-const key = `ck_live_${raw}`;
+const ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+function randomAlnum(len) {
+  let out = "";
+  while (out.length < len) {
+    const bytes = crypto.randomBytes(len);
+    for (let i = 0; i < bytes.length && out.length < len; i++) {
+      const b = bytes[i];
+      if (b < 248) out += ALPHABET[b % 62]; // unbiased (248 = 62*4)
+    }
+  }
+  return out;
+}
+const key = `ck_live_${randomAlnum(32)}`;
 const prefix = key.slice(0, 12);
 const hash = crypto.createHash("sha256").update(key).digest("hex");
 
