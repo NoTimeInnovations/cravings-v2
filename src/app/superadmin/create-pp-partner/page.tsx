@@ -37,6 +37,7 @@ import {
 } from "@/api/partners";
 import { placesAutocomplete, type PlacePrediction } from "@/app/actions/placesAutocomplete";
 import { quickSignupFromGoogle } from "@/app/actions/quickSignupFromGoogle";
+import { createPetpoojaPartnerNoWebsite } from "@/app/actions/createPetpoojaPartnerNoWebsite";
 import { sendPetpoojaOnboardingEmailAction } from "@/app/actions/sendPetpoojaOnboardingEmail";
 
 const DEFAULT_TO_EMAILS = [
@@ -331,10 +332,12 @@ const CreatePartnerPage = () => {
       return;
     }
 
-    // --- New customer: build the full website like the "/" route does.
-    if (!selectedPlace) return alert("Search and pick the customer's place from the dropdown.");
+    // --- New customer. The Google place is OPTIONAL: pick one to build the full
+    // website, or leave it blank to just create the partner (no website) + email.
     if (!email) return alert("Please enter a valid email.");
     if (!restaurantId) return alert("Please enter a valid Petpooja Restaurant ID.");
+    if (!selectedPlace && !name.trim())
+      return alert("Search & pick a place, or enter the restaurant name.");
 
     setIsSubmitting(true);
     try {
@@ -350,36 +353,44 @@ const CreatePartnerPage = () => {
         }
       }
 
-      // 2. Create the partner + website. skipAuthCookie keeps the admin logged
-      // in as themselves — no auto-login / redirect to the new partner.
-      const result = await quickSignupFromGoogle({
-        placeId: selectedPlace.placeId,
-        sessionToken: ensureSessionToken(),
-        email,
-        password: finalPassword,
-        skipAuthCookie: true,
-      });
-
-      // 3. Attach the Petpooja mapping id to the freshly created partner.
-      if (restaurantId) {
-        try {
-          await updatePartner(result.partnerId, {
-            petpooja_restaurant_id: restaurantId,
-          });
-        } catch (err) {
-          console.error("Failed to set petpooja id on new partner", err);
+      // 2. Create the partner. With a place → full Google website; without →
+      // a partner with no website (storefront menu still works).
+      let username: string;
+      if (selectedPlace) {
+        const result = await quickSignupFromGoogle({
+          placeId: selectedPlace.placeId,
+          sessionToken: ensureSessionToken(),
+          email,
+          password: finalPassword,
+          skipAuthCookie: true,
+        });
+        if (restaurantId) {
+          try {
+            await updatePartner(result.partnerId, { petpooja_restaurant_id: restaurantId });
+          } catch (err) {
+            console.error("Failed to set petpooja id on new partner", err);
+          }
         }
+        username = result.username;
+      } else {
+        const result = await createPetpoojaPartnerNoWebsite({
+          name: name.trim(),
+          email,
+          password: finalPassword,
+          restaurantId,
+        });
+        username = result.username;
       }
 
       setCreatedInfo({
-        username: result.username,
+        username,
         email,
         password: finalPassword,
-        menuLink: `${SITE_BASE}/${result.username}`,
+        menuLink: `${SITE_BASE}/${username}`,
       });
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : "Failed to create the customer website.");
+      alert(err instanceof Error ? err.message : "Failed to create the partner.");
     } finally {
       setIsSubmitting(false);
     }
@@ -569,9 +580,9 @@ const CreatePartnerPage = () => {
                     )}
                   </div>
                 ) : (
-                  /* New-customer Google Places search */
+                  /* New-customer Google Places search (optional) */
                   <div className="space-y-2">
-                    <Label className="text-orange-900">Search the place (Google)</Label>
+                    <Label className="text-orange-900">Search the place (Google) — optional</Label>
                     {selectedPlace ? (
                       <div className="flex items-center gap-2 rounded-md border border-orange-200 bg-white px-3 py-2">
                         <MapPin className="h-4 w-4 text-orange-600 shrink-0" />
@@ -630,6 +641,9 @@ const CreatePartnerPage = () => {
                         )}
                       </div>
                     )}
+                    <p className="text-xs text-gray-500">
+                      Optional — leave blank to create the partner without a website. The storefront menu still works.
+                    </p>
                   </div>
                 )}
 
