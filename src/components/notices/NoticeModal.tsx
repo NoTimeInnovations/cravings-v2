@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getActiveNoticesQuery } from "@/api/notices";
@@ -61,8 +62,8 @@ export function NoticeModal({ partnerId, ready = true }: { partnerId?: string; r
 
   const boxClass =
     item.kind === "custom"
-      ? "relative w-[min(88vw,106vh)] aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
-      : "relative w-[80vw] h-[60vh] max-w-[1100px] rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200";
+      ? "relative w-[min(90vw,106vh)] aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+      : "relative w-[90vw] h-[80vh] max-w-[1200px] rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200";
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" role="dialog" aria-modal="true">
@@ -81,11 +82,17 @@ export function NoticeModal({ partnerId, ready = true }: { partnerId?: string; r
           <button
             type="button"
             onClick={() => openLink(item.link)}
-            className="block w-full h-full"
+            className="relative block w-full h-full"
             style={{ cursor: item.link ? "pointer" : "default" }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+            <Image
+              src={item.imageUrl}
+              alt=""
+              fill
+              sizes="90vw"
+              priority
+              className="object-cover"
+            />
           </button>
         ) : item.kind === "custom" ? (
           <NoticeCanvas config={item.config} onElementClick={(el) => openLink(el.link)} />
