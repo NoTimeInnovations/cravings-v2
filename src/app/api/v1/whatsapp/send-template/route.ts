@@ -53,14 +53,15 @@ export async function POST(req: NextRequest) {
 
   const to = String(body?.to ?? "").trim();
   const templateName = String(body?.template_name ?? "").trim();
-  const language = String(body?.language ?? "").trim();
+  const language = String(body?.language ?? "").trim(); // optional — resolved from DB if empty
+  // Idempotency reference: `id` (preferred), or `idempotency_key` / header (aliases).
   const idemKey = String(
-    body?.idempotency_key ?? req.headers.get("idempotency-key") ?? "",
+    body?.id ?? body?.idempotency_key ?? req.headers.get("idempotency-key") ?? "",
   ).trim();
 
-  if (!to || !templateName || !language) {
+  if (!to || !templateName) {
     logRequest({ keyId: auth.keyId, partnerId: auth.partnerId, method: "POST", path: PATH, status: 400, ip, ref: idemKey });
-    return apiError(400, "missing_fields", "'to', 'template_name', and 'language' are required.");
+    return apiError(400, "missing_fields", "'to' and 'template_name' are required.");
   }
 
   // Idempotency: atomically RESERVE the key before sending. Winner proceeds;

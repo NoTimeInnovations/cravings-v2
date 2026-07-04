@@ -38,12 +38,35 @@ export interface SendTemplateInput {
   partnerId: string;
   to: string;
   templateName: string;
-  language: string;
+  /** Optional — resolved from the approved template in our DB when omitted. */
+  language?: string;
   bodyParams?: string[];
   headerParams?: string[];
   headerMediaUrl?: string | null;
   headerMediaType?: MediaType | null;
   buttonParams?: string[];
+}
+
+// Resolve a template's language from our local mirror when the caller doesn't
+// pass one. Prefers a row on the default number's WABA. Returns null if there's
+// no approved template of that name.
+async function resolveTemplateLanguage(
+  partnerId: string,
+  templateName: string,
+  wabaId: string | null,
+): Promise<string | null> {
+  const data = await fetchFromHasuraServer(
+    `query TplLang($p: uuid!, $n: String!) {
+      whatsapp_message_templates(
+        where: { partner_id: { _eq: $p }, name: { _eq: $n }, status: { _eq: "APPROVED" } }
+        order_by: { language: asc }
+      ) { language waba_id }
+    }`,
+    { p: partnerId, n: templateName },
+  );
+  const rows = (data?.whatsapp_message_templates || []) as Array<any>;
+  const scoped = wabaId ? rows.filter((r) => !r.waba_id || r.waba_id === wabaId) : rows;
+  return (scoped[0] || rows[0])?.language || null;
 }
 
 export type SendOutcome =
@@ -91,8 +114,8 @@ export async function sendTemplateForPartner(
   if (to.length < 8) {
     return { ok: false, status: 400, error: "invalid_number", detail: "Recipient phone number looks invalid." };
   }
-  if (!input.templateName || !input.language) {
-    return { ok: false, status: 400, error: "missing_fields", detail: "template_name and language are required." };
+  if (!input.templateName) {
+    return { ok: false, status: 400, error: "missing_fields", detail: "template_name is required." };
   }
 
   // Default sender = the partner's primary connected number.
@@ -106,6 +129,20 @@ export async function sendTemplateForPartner(
     };
   }
   const phoneNumberId = integration.phone_number_id;
+
+  // Language is optional — look it up from the approved template when omitted.
+  let language = (input.language || "").trim();
+  if (!language) {
+    language = (await resolveTemplateLanguage(input.partnerId, input.templateName, integration.waba_id || null)) || "";
+    if (!language) {
+      return {
+        ok: false,
+        status: 404,
+        error: "template_not_found",
+        detail: `No approved template named '${input.templateName}' on your default number. Check the name (see GET /templates) or pass 'language'.`,
+      };
+    }
+  }
 
   // Never message a customer who opted out (replied STOP). getPartnerOptOuts is
   // best-effort (returns an empty set on read failure); WhatsApp/Meta also
@@ -155,7 +192,7 @@ export async function sendTemplateForPartner(
     type: "template",
     template: {
       name: input.templateName,
-      language: { code: input.language },
+      language: { code: language },
       ...(components.length ? { components } : {}),
     },
   };

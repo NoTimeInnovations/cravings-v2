@@ -43,7 +43,7 @@ Authorization: Bearer ck_live_xxxxxxxxxxxxxxxxxxxxxxxx
 Each key is limited to **120 requests/minute** by default (tell us if you need more). Over the limit → `429 rate_limited`. Sending is additionally bounded by your WhatsApp number's Meta daily messaging tier → `429 daily_limit_reached` when exhausted.
 
 ### Idempotency
-For sends, pass a unique `idempotency_key` (in the body, or an `Idempotency-Key` header). Retrying with the same key returns the original result (`"duplicate": true`) instead of sending again — safe for network retries.
+For sends, pass a unique `id` (your message/order reference). Retrying with the same `id` returns the original result (`"duplicate": true`) instead of sending again — safe for network retries.
 
 ---
 
@@ -61,13 +61,13 @@ Sends one **approved** WhatsApp template to one customer.
 |---|---|---|---|
 | `to` | string | ✔ | Customer phone (with/without country code). |
 | `template_name` | string | ✔ | Exact approved template name (see endpoint 2). |
-| `language` | string | ✔ | Template language code, e.g. `en`, `en_US`. |
+| `language` | string |  | Template language code (e.g. `en`, `en_US`). **Optional** — auto-detected from your approved template when omitted. |
 | `body_params` | string[] |  | Fills `{{1}}, {{2}}, …` in the template BODY, in order. |
 | `header_params` | string[] |  | Fills a `{{1}}` in a TEXT header. |
 | `header_media_url` | string |  | Public URL for an IMAGE/VIDEO/DOCUMENT header. |
 | `header_media_type` | string |  | `image` \| `video` \| `document` (with `header_media_url`). |
 | `button_params` | string[] |  | Values for a dynamic URL button. |
-| `idempotency_key` | string |  | De-dupes retries. |
+| `id` | string |  | Your unique reference for this message; de-dupes retries (idempotency). |
 
 **Example**
 ```bash
@@ -77,9 +77,8 @@ curl -X POST https://menuthere.com/api/v1/whatsapp/send-template \
   -d '{
     "to": "919876543210",
     "template_name": "order_update",
-    "language": "en",
     "body_params": ["Asha", "#1234"],
-    "idempotency_key": "order-1234-confirmed"
+    "id": "order-1234-confirmed"
   }'
 ```
 
@@ -92,10 +91,12 @@ curl -X POST https://menuthere.com/api/v1/whatsapp/send-template \
 
 | HTTP | `error` | Meaning |
 |---|---|---|
-| 400 | `missing_fields` | `to` / `template_name` / `language` missing. |
+| 400 | `missing_fields` | `to` or `template_name` missing. |
 | 400 | `invalid_number` | Phone couldn't be parsed. |
 | 400 | `invalid_json` | Body wasn't valid JSON. |
+| 404 | `template_not_found` | No approved template of that name on your default number (when `language` was omitted). |
 | 400 | `template_error` | Meta rejected the template (name/language/params mismatch, not approved). `detail` has Meta's reason. |
+| 409 | `in_progress` | A request with the same `id` is still processing. |
 | 409 | `recipient_opted_out` | Customer replied STOP; we won't message them. |
 | 412 | `no_whatsapp_number` | No default WhatsApp number connected on your account. |
 | 429 | `rate_limited` | Per-key request rate exceeded. |
