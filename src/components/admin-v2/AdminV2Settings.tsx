@@ -175,7 +175,12 @@ export function AdminV2Settings() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const didInitRef = useRef(false);
+    // Signature of the last sg/ss pair we applied from the URL. Lets us re-apply
+    // whenever those params CHANGE (initial deep-link, later external navigations
+    // like the dashboard's "Set up"/"Connect" CTAs, browser back/forward) instead
+    // of only once — while staying inert for internal navigation, which writes a
+    // matching sg/ss via writeUrl (same signature ⇒ no-op, no loop).
+    const lastAppliedRef = useRef<string>("");
 
     // Persist the open group/section in the URL (sg = settings group, ss = settings
     // section) so a reload restores the exact settings screen instead of the home grid.
@@ -187,18 +192,25 @@ export function AdminV2Settings() {
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
 
-    // Restore from the URL once the feature-gated groups are available (features load
-    // asynchronously, so we wait until groups is populated before validating keys).
+    // Apply the URL's group/section into local state whenever sg/ss change (and
+    // once the feature-gated groups have loaded — features arrive asynchronously,
+    // so we wait until groups is populated before validating keys). Keyed only on
+    // the URL params (not on active*Key) so it never races internal writes: it
+    // acts once per distinct sg/ss signature. A missing sg leaves the current
+    // in-session group untouched (so closing to the home grid isn't re-opened).
     useEffect(() => {
-        if (didInitRef.current || groups.length === 0) return;
-        didInitRef.current = true;
-        const sg = searchParams.get("sg");
+        if (groups.length === 0) return;
+        const sg = searchParams.get("sg") || "";
+        const ss = searchParams.get("ss") || "";
+        const sig = `${sg}|${ss}`;
+        if (sig === lastAppliedRef.current) return;
+        lastAppliedRef.current = sig;
+        if (!sg) return;
         const grp = groups.find((g) => g.key === sg);
         if (!grp) return;
         setActiveGroupKey(grp.key);
-        const ss = searchParams.get("ss");
         const valid = grp.sections.some((s) => s.key === ss);
-        setActiveSectionKey(valid ? (ss as string) : grp.sections[0]?.key ?? "");
+        setActiveSectionKey(valid ? ss : grp.sections[0]?.key ?? "");
     }, [groups, searchParams]);
 
     const activeGroup = groups.find((g) => g.key === activeGroupKey) ?? null;

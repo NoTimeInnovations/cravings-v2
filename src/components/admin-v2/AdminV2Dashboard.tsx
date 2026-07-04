@@ -41,6 +41,7 @@ import { DashboardTour } from "./tour/DashboardTour";
 import { DESKTOP_TOUR_STEPS, MOBILE_TOUR_STEPS } from "./tour/tourSteps";
 import { DashboardLiveOrders } from "./DashboardLiveOrders";
 import WhatsAppDashboardCard from "./WhatsAppDashboardCard";
+import DashboardGetStarted from "./DashboardGetStarted";
 
 const tutorialVideos = [
   {
@@ -221,6 +222,15 @@ export function AdminV2Dashboard() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
+  // Deep-link into Settings → Ordering → Delivery (radius / timings / pricing).
+  const openOrdering = () => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", "Settings");
+    params.set("sg", "ordering");
+    params.set("ss", "delivery");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const viewMenuHref = partner?.username
     ? `/${partner.username}`
     : qrId
@@ -346,6 +356,15 @@ export function AdminV2Dashboard() {
 
       {/* WhatsApp Business — connect CTA / verification reminder */}
       <WhatsAppDashboardCard partnerId={partner?.id} onOpen={openIntegrations} />
+
+      {/* Get started — onboarding checklist to start receiving orders */}
+      {partner?.id && (
+        <DashboardGetStarted
+          partner={partner}
+          onConnectWhatsApp={openIntegrations}
+          onOrderingDetails={openOrdering}
+        />
+      )}
 
       {/* Quick Actions */}
       <div>
