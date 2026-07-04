@@ -143,6 +143,14 @@ interface ParsedRecipient {
   name: string;
 }
 
+// A connected WhatsApp number the partner can broadcast from.
+interface WaNumber {
+  id: string;
+  phone_number_id: string;
+  display_phone: string | null;
+  is_primary: boolean;
+}
+
 // "Send now" creates a broadcast with status="scheduled" + scheduled_at=now; the
 // per-minute cron then dispatches it. Show such due broadcasts as "queued" (not
 // "scheduled", which is reserved for ones genuinely set for a future time).
@@ -237,6 +245,7 @@ export function AdminV2WhatsAppBroadcast() {
   const partnerId = (userData as any)?.id as string | undefined;
 
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [numbers, setNumbers] = useState<WaNumber[]>([]);
   const [broadcasts, setBroadcasts] = useState<BroadcastRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
@@ -251,8 +260,10 @@ export function AdminV2WhatsAppBroadcast() {
       const res = await fetch(`/api/whatsapp/meta/status?partnerId=${partnerId}`);
       const data = await res.json();
       setConnected(!!data.connected);
+      setNumbers(Array.isArray(data.integrations) ? data.integrations : []);
     } catch {
       setConnected(false);
+      setNumbers([]);
     }
   };
 
@@ -520,6 +531,7 @@ export function AdminV2WhatsAppBroadcast() {
         onOpenChange={setCreatorOpen}
         partnerId={partnerId}
         templates={templates}
+        numbers={numbers}
         onCreated={() => {
           setCreatorOpen(false);
           loadBroadcasts();
@@ -753,15 +765,19 @@ function BroadcastCreatorDialog({
   onOpenChange,
   partnerId,
   templates,
+  numbers,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   partnerId: string | undefined;
   templates: TemplateRow[];
+  numbers: WaNumber[];
   onCreated: () => void;
 }) {
   const [templateId, setTemplateId] = useState<string>("");
+  // Which connected number sends this broadcast (only shown when >1 connected).
+  const [sendFromPhoneNumberId, setSendFromPhoneNumberId] = useState<string>("");
   const [varMap, setVarMap] = useState<VarMapItem[]>([]);
   const [headerValue, setHeaderValue] = useState("");
   const [manualText, setManualText] = useState("");
@@ -826,6 +842,7 @@ function BroadcastCreatorDialog({
 
   const reset = () => {
     setTemplateId("");
+    setSendFromPhoneNumberId("");
     setVarMap([]);
     setHeaderValue("");
     setManualText("");
@@ -890,12 +907,24 @@ function BroadcastCreatorDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, partnerId]);
 
+  // Default the "send from" number to the partner's primary when the dialog opens.
+  useEffect(() => {
+    if (!open || sendFromPhoneNumberId || numbers.length === 0) return;
+    const primary = numbers.find((n) => n.is_primary) || numbers[0];
+    if (primary) setSendFromPhoneNumberId(primary.phone_number_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, numbers]);
+
   // On open, read the partner's live daily cap (Meta tier) + today's usage so we
   // can hard-limit how many recipients can be queued.
   useEffect(() => {
     if (!open || !partnerId) return;
     setLimitInfo(null);
-    fetch(`/api/whatsapp/meta/phone-quality?partnerId=${partnerId}`)
+    // Cap tracks the SELECTED sending number's tier (Meta's limit is per-number).
+    const q = sendFromPhoneNumberId
+      ? `?partnerId=${partnerId}&phoneNumberId=${encodeURIComponent(sendFromPhoneNumberId)}`
+      : `?partnerId=${partnerId}`;
+    fetch(`/api/whatsapp/meta/phone-quality${q}`)
       .then((r) => r.json())
       .then((d) => {
         const u = d?.usage;
@@ -911,7 +940,7 @@ function BroadcastCreatorDialog({
         /* fall back to the default cap below */
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, partnerId]);
+  }, [open, partnerId, sendFromPhoneNumberId]);
 
   // Effective cap: a scheduled-for-later send gets the full daily tier (it runs
   // on a future day); a send-now is bounded by what's left today.
@@ -1089,6 +1118,7 @@ function BroadcastCreatorDialog({
           headerParams: hasHeaderVar ? [headerValue.trim()] : null,
           headerMediaUrl: mediaHeaderType ? headerMediaUrl : null,
           recipients: recipientsToSend,
+          sendFromPhoneNumberId: sendFromPhoneNumberId || null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1126,6 +1156,33 @@ function BroadcastCreatorDialog({
         </DialogHeader>
 
         <div className="space-y-5">
+          {/* Send-from number — only when the partner has more than one connected */}
+          {numbers.length > 1 && (
+            <div className="space-y-1.5">
+              <Label>Send from</Label>
+              <Select
+                value={sendFromPhoneNumberId}
+                onValueChange={setSendFromPhoneNumberId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose which number sends this broadcast" />
+                </SelectTrigger>
+                <SelectContent>
+                  {numbers.map((n) => (
+                    <SelectItem key={n.phone_number_id} value={n.phone_number_id}>
+                      {n.display_phone || n.phone_number_id}
+                      {n.is_primary ? " · default" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Recipients see this number as the sender. Its own daily limit
+                applies.
+              </p>
+            </div>
+          )}
+
           {/* Template */}
           <div className="space-y-1.5">
             <Label>Template</Label>

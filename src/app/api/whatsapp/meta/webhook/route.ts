@@ -200,6 +200,7 @@ async function persistIncoming(
   partnerId: string,
   msg: any,
   contactName: string | null,
+  phoneNumberId: string | null,
 ): Promise<void> {
   const { type, body, mediaUrl } = extractIncomingBody(msg);
   try {
@@ -214,6 +215,9 @@ async function persistIncoming(
         media_url: mediaUrl,
         wa_message_id: msg.id,
         status: "received",
+        // Which of the partner's numbers received this — so an inbox reply goes
+        // back out from the SAME number (multi-number correctness).
+        phone_number_id: phoneNumberId,
       },
     });
   } catch (e) {
@@ -702,7 +706,7 @@ export async function POST(req: NextRequest) {
             // Log the inbound to the inbox, but DON'T block the flow reply on it —
             // overlap it with the flow run. Still awaited before we return so a
             // serverless freeze can't drop the write.
-            const persistP = persistIncoming(partner.partner_id, msg, contactName);
+            const persistP = persistIncoming(partner.partner_id, msg, contactName, phoneNumberId);
 
             const flowInput = normalizeFlowInput(msg);
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   getPartnerWabaIntegration,
+  getPartnerByWabaId,
   partnerWabaToken,
   deleteMetaTemplate,
   editMetaTemplate,
@@ -19,9 +20,30 @@ const GET_LOCAL = `
       category
       meta_template_id
       status
+      waba_id
     }
   }
 `;
+
+// Resolve the WABA + token to operate on for a template row. Multi-number: a
+// template belongs to a SPECIFIC WABA (row.waba_id), so template edits/deletes
+// must hit THAT WABA at Meta — not the partner's primary, which may be a
+// different WABA. Falls back to the primary for legacy rows with no waba_id.
+async function resolveTemplateWaba(
+  partnerId: string,
+  wabaId: string | null,
+): Promise<{ waba_id: string; access_token: string } | null> {
+  if (wabaId) {
+    const byWaba = await getPartnerByWabaId(wabaId);
+    if (byWaba?.access_token) {
+      return { waba_id: wabaId, access_token: byWaba.access_token };
+    }
+  }
+  const primary = await getPartnerWabaIntegration(partnerId);
+  return primary
+    ? { waba_id: primary.waba_id, access_token: primary.access_token }
+    : null;
+}
 
 const UPDATE_LOCAL = `
   mutation UpdateLocalTemplate(
@@ -83,7 +105,7 @@ export async function DELETE(
     // Only call Meta if the template was actually submitted there. DRAFT
     // rows that never reached Meta don't need a remote delete.
     if (row.status !== "DRAFT" && row.meta_template_id) {
-      const integration = await getPartnerWabaIntegration(partnerId);
+      const integration = await resolveTemplateWaba(partnerId, row.waba_id);
       if (integration?.waba_id && integration.access_token) {
         try {
           await deleteMetaTemplate(
@@ -184,7 +206,7 @@ export async function PATCH(
       );
     }
 
-    const integration = await getPartnerWabaIntegration(partnerId);
+    const integration = await resolveTemplateWaba(partnerId, row.waba_id);
     if (!integration?.access_token) {
       return NextResponse.json(
         { error: "WhatsApp Business Account is not connected." },

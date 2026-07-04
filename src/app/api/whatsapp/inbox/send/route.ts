@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { getPartnerWabaIntegration, partnerWabaToken } from "@/lib/whatsapp-meta";
+import {
+  getPartnerWabaIntegration,
+  getIntegrationByPhoneNumberId,
+  partnerWabaToken,
+} from "@/lib/whatsapp-meta";
 import { isWhatsappEnabled } from "@/lib/whatsapp-features";
 
 const INSERT_OUTBOX = `
@@ -60,7 +64,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { partnerId, to, text, template } = body || {};
+  const { partnerId, to, text, template, sendFromPhoneNumberId } = body || {};
   if (!partnerId || !to) {
     return NextResponse.json(
       { error: "Missing partnerId or to" },
@@ -92,7 +96,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const integration = await getPartnerWabaIntegration(partnerId);
+  // Reply from the SAME number the customer messaged (keeps the reply in their
+  // existing thread AND inside that number's 24h session window). Fall back to
+  // the partner's primary only when the receiving number is unknown (legacy
+  // threads with no recorded phone_number_id).
+  let integration = null;
+  if (sendFromPhoneNumberId) {
+    const byNum = await getIntegrationByPhoneNumberId(sendFromPhoneNumberId);
+    if (byNum && byNum.partner_id === partnerId) integration = byNum;
+  }
+  if (!integration) integration = await getPartnerWabaIntegration(partnerId);
   if (!integration?.phone_number_id || !integration.access_token) {
     return NextResponse.json(
       { error: "Connect your WhatsApp Business Account before sending." },
@@ -122,6 +135,7 @@ export async function POST(req: NextRequest) {
         type: rowType,
         body: rowBody,
         status: "queued",
+        phone_number_id: integration.phone_number_id,
       },
     });
     row = inserted?.insert_whatsapp_messages_one;

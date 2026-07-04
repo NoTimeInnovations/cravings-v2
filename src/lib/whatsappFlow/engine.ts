@@ -639,11 +639,28 @@ function buildPayload(to: string, o: Outbound): { payload: Record<string, unknow
 // they must authenticate with the partner's per-customer Embedded Signup token
 // (the only token with a role on their WABA). Falls back to our system-user
 // token for WABAs inside our own business (demo/test).
-async function getPartnerSendToken(partnerId: string): Promise<string> {
+async function getPartnerSendToken(
+  partnerId: string,
+  phoneNumberId?: string,
+): Promise<string> {
   try {
+    // Prefer the token bound to the EXACT number we're sending from — a partner
+    // may have several numbers, and each number's Coexistence token is the only
+    // one with a role on that number's WABA. Falls back to the partner's primary
+    // number, then our system-user token.
+    if (phoneNumberId) {
+      const byNumber = await fetchFromHasura(
+        `query WaSendTokenByPnid($pn: String!) {
+          whatsapp_business_integrations(where: { phone_number_id: { _eq: $pn } }, limit: 1) { access_token }
+        }`,
+        { pn: phoneNumberId },
+      );
+      const tok = byNumber?.whatsapp_business_integrations?.[0]?.access_token;
+      if (tok) return tok;
+    }
     const res = await fetchFromHasura(
       `query WaSendToken($p: uuid!) {
-        whatsapp_business_integrations(where: { partner_id: { _eq: $p } }, limit: 1) { access_token }
+        whatsapp_business_integrations(where: { partner_id: { _eq: $p } }, order_by: {is_primary: desc, updated_at: asc}, limit: 1) { access_token }
       }`,
       { p: partnerId },
     );
@@ -664,7 +681,8 @@ async function dispatch(
   prefetchedToken?: string,
 ): Promise<void> {
   if (!outbound.length) return;
-  const token = prefetchedToken || (await getPartnerSendToken(partnerId));
+  const token =
+    prefetchedToken || (await getPartnerSendToken(partnerId, phoneNumberId));
   for (const o of outbound) {
     const { payload, type, body } = buildPayload(to, o);
     const sent = await graphSend(phoneNumberId, payload, token);

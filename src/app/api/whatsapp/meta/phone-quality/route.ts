@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getPartnerWabaIntegration,
+  getIntegrationByPhoneNumberId,
   partnerWabaToken,
 } from "@/lib/whatsapp-meta";
 import { countSentToday, tierToDailyLimit } from "@/lib/whatsapp-broadcast";
@@ -8,26 +9,37 @@ import { getBusinessCurrency } from "@/lib/whatsapp-cost";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
-// GET /api/whatsapp/meta/phone-quality?partnerId=<uuid>
-// Reports the partner WABA number's quality rating + messaging limit tier, the
-// daily broadcast cap and today's usage, the business display currency, and a
+// GET /api/whatsapp/meta/phone-quality?partnerId=<uuid>[&phoneNumberId=<id>]
+// Reports a WABA number's quality rating + messaging limit tier, the daily
+// broadcast cap and today's usage, the business display currency, and a
 // best-effort Meta-confirmed spend for the current month (pricing_analytics).
+// phoneNumberId selects a SPECIFIC connected number (quality/tier/usage are
+// per-number); omitted falls back to the partner's primary number.
 export async function GET(req: NextRequest) {
   const partnerId = req.nextUrl.searchParams.get("partnerId");
+  const phoneNumberId = req.nextUrl.searchParams.get("phoneNumberId");
   if (!partnerId) {
     return NextResponse.json({ error: "Missing partnerId" }, { status: 400 });
   }
 
-  const integration = await getPartnerWabaIntegration(partnerId);
+  // Resolve the requested number when given (and owned by this partner), else
+  // the partner's primary.
+  let integration = null;
+  if (phoneNumberId) {
+    const byNum = await getIntegrationByPhoneNumberId(phoneNumberId);
+    if (byNum && byNum.partner_id === partnerId) integration = byNum;
+  }
+  if (!integration) integration = await getPartnerWabaIntegration(partnerId);
   if (!integration?.phone_number_id) {
     return NextResponse.json({ connected: false });
   }
   const token = partnerWabaToken(integration);
 
   // Run number-node + usage + currency together; pricing_analytics is best-effort.
+  // Usage is scoped to THIS number so "remaining today" matches its own cap.
   const [phoneRes, sentToday, currency, actualSpend] = await Promise.all([
     fetchPhoneNode(integration.phone_number_id, token),
-    countSentToday(partnerId).catch(() => 0),
+    countSentToday(partnerId, integration.phone_number_id).catch(() => 0),
     getBusinessCurrency(partnerId).catch(() => "INR"),
     fetchMonthSpend(integration.waba_id, token).catch(() => null),
   ]);

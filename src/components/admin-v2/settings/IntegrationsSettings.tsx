@@ -45,6 +45,10 @@ export function IntegrationsSettings() {
     const [whatsappMode, setWhatsappMode] = useState<"menuthere" | "own" | null>(null);
     const [wabaConnected, setWabaConnected] = useState(false);
     const [wabaPhoneNumber, setWabaPhoneNumber] = useState<string | null>(null);
+    // Every connected number (a partner can link several). Primary first.
+    const [wabaNumbers, setWabaNumbers] = useState<
+        Array<{ id: string; phone_number_id: string; display_phone: string | null; is_primary: boolean }>
+    >([]);
     const [isWabaLoading, setIsWabaLoading] = useState(false);
     // Where login OTPs are sent FROM. Defaults to "menuthere"; "own" sends from
     // the partner's connected number. Only shown when their WhatsApp is connected.
@@ -317,15 +321,20 @@ export function IntegrationsSettings() {
             const data = await res.json();
             if (res.ok && data.connected) {
                 setWabaConnected(true);
+                setWabaNumbers(Array.isArray(data.integrations) ? data.integrations : []);
+                // display_phone is the PRIMARY number (default sender).
                 setWabaPhoneNumber(data.display_phone || null);
                 setWhatsappMode("own");
             } else {
                 setWabaConnected(false);
+                setWabaNumbers([]);
+                setWabaPhoneNumber(null);
                 // Default to menuthere if no preference saved
                 setWhatsappMode((userData as any)?.whatsapp_integration_mode || "menuthere");
             }
         } catch {
             setWabaConnected(false);
+            setWabaNumbers([]);
             setWhatsappMode("menuthere");
         } finally {
             setIsWabaLoading(false);
@@ -407,27 +416,59 @@ export function IntegrationsSettings() {
         );
     };
 
-    const handleDisconnectWhatsApp = async () => {
+    // Disconnect one number (phoneNumberId given) or all (omitted). After either,
+    // re-read the status so the list + primary reflect what's left.
+    const handleDisconnectWhatsApp = async (phoneNumberId?: string) => {
         if (!userData) return;
-        if (!confirm("Disconnect your WhatsApp Business Account? You can reconnect anytime.")) return;
+        const single = !!phoneNumberId && wabaNumbers.length > 1;
+        const msg = single
+            ? "Disconnect this number? Your other numbers stay connected."
+            : "Disconnect your WhatsApp Business Account? You can reconnect anytime.";
+        if (!confirm(msg)) return;
 
         setIsWabaLoading(true);
         try {
             const res = await fetch("/api/whatsapp/meta/disconnect", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ partnerId: userData.id }),
+                body: JSON.stringify({
+                    partnerId: userData.id,
+                    ...(phoneNumberId ? { phoneNumberId } : {}),
+                }),
             });
             if (res.ok) {
-                setWabaConnected(false);
-                setWabaPhoneNumber(null);
-                setWhatsappMode("menuthere");
                 toast.success("WhatsApp disconnected");
+                await checkWhatsAppConnection(userData.id);
             } else {
                 toast.error("Failed to disconnect");
             }
         } catch {
             toast.error("Failed to disconnect");
+        } finally {
+            setIsWabaLoading(false);
+        }
+    };
+
+    // Make a number the default sender (order/loyalty notifications, OTP, the
+    // storefront "message us" link, and the broadcast default all use it).
+    const handleSetPrimaryWhatsApp = async (phoneNumberId: string) => {
+        if (!userData) return;
+        setIsWabaLoading(true);
+        try {
+            const res = await fetch("/api/whatsapp/meta/set-primary", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ partnerId: userData.id, phoneNumberId }),
+            });
+            if (res.ok) {
+                toast.success("Default sender updated");
+                await checkWhatsAppConnection(userData.id);
+            } else {
+                const d = await res.json().catch(() => ({}));
+                toast.error(d?.error || "Failed to update default sender");
+            }
+        } catch {
+            toast.error("Failed to update default sender");
         } finally {
             setIsWabaLoading(false);
         }
@@ -740,35 +781,76 @@ export function IntegrationsSettings() {
                                 {/* Show connect/status based on selected mode */}
                                 {whatsappMode === "own" && (
                                     <div className="mt-2">
-                                        {wabaConnected ? (
+                                        {wabaConnected && wabaNumbers.length > 0 ? (
                                             <div className="space-y-3">
-                                                <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
-                                                    <div className="rounded-full bg-green-100 p-2">
-                                                        <MessageCircle className="h-5 w-5 text-green-600" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <p className="font-semibold text-green-800">WhatsApp Connected</p>
-                                                        <p className="text-sm text-green-700">
-                                                            {wabaPhoneNumber
-                                                                ? `Sending from ${wabaPhoneNumber}`
-                                                                : "Your WhatsApp Business Account is active"}
-                                                        </p>
-                                                    </div>
+                                                {/* One row per connected number */}
+                                                <div className="space-y-2">
+                                                    {wabaNumbers.map((n) => (
+                                                        <div
+                                                            key={n.id}
+                                                            className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3"
+                                                        >
+                                                            <div className="rounded-full bg-green-100 p-2">
+                                                                <MessageCircle className="h-5 w-5 text-green-600" />
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <p className="font-semibold text-green-800 truncate">
+                                                                        {n.display_phone || n.phone_number_id}
+                                                                    </p>
+                                                                    {n.is_primary && (
+                                                                        <span className="text-[11px] font-medium px-1.5 py-0.5 rounded border border-green-300 bg-green-100 text-green-800">
+                                                                            Default sender
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {!n.is_primary && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleSetPrimaryWhatsApp(n.phone_number_id)}
+                                                                        disabled={isWabaLoading}
+                                                                        className="text-xs text-blue-700 hover:underline mt-0.5 disabled:opacity-50"
+                                                                    >
+                                                                        Make default sender
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleDisconnectWhatsApp(n.phone_number_id)}
+                                                                disabled={isWabaLoading}
+                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
+                                                                title="Disconnect this number"
+                                                            >
+                                                                <Unplug className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
                                                 </div>
+
+                                                {wabaNumbers.length > 1 && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Customers who message any of these numbers get replies from that
+                                                        same number. The <b>default sender</b> is used for order &amp;
+                                                        loyalty notifications, OTP, and the storefront link.
+                                                    </p>
+                                                )}
+
                                                 <WhatsAppHealthStatus partnerId={userData?.id} />
+
                                                 <Button
+                                                    onClick={handleConnectWhatsApp}
+                                                    disabled={isWabaLoading}
                                                     variant="outline"
                                                     size="sm"
-                                                    onClick={handleDisconnectWhatsApp}
-                                                    disabled={isWabaLoading}
-                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                                 >
                                                     {isWabaLoading ? (
                                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                                     ) : (
-                                                        <Unplug className="mr-2 h-4 w-4" />
+                                                        <MessageCircle className="mr-2 h-4 w-4" />
                                                     )}
-                                                    Disconnect
+                                                    Connect another number
                                                 </Button>
                                             </div>
                                         ) : (

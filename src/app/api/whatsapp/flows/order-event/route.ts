@@ -23,9 +23,16 @@ const Q_ORDER = `
     }
   }
 `;
+// System-initiated order notifications send from the partner's PRIMARY number
+// (the customer didn't message a specific number here). A partner may have
+// several connected; primary-first, oldest as fallback.
 const Q_PHONE_NUMBER_ID = `
   query Pnid($p: uuid!) {
-    whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, limit: 1) { phone_number_id }
+    whatsapp_business_integrations(
+      where: {partner_id: {_eq: $p}}
+      order_by: {is_primary: desc, updated_at: asc}
+      limit: 1
+    ) { phone_number_id }
   }
 `;
 

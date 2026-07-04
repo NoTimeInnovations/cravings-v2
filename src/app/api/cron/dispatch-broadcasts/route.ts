@@ -55,6 +55,7 @@ const DUE_QUERY = `
       daily_limit
       sent_count
       failed_count
+      send_from_phone_number_id
     }
   }
 `;
@@ -122,6 +123,7 @@ interface DueBroadcast {
   daily_limit: number;
   sent_count: number;
   failed_count: number;
+  send_from_phone_number_id: string | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -180,8 +182,12 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Daily cap for this partner.
-      const sentToday = await countSentToday(b.partner_id);
+      // Daily cap for the SENDING number (Meta's limit is per-number). Legacy
+      // broadcasts with no send-from number fall back to the partner-wide count.
+      const sentToday = await countSentToday(
+        b.partner_id,
+        b.send_from_phone_number_id,
+      );
       const dailyLimit = b.daily_limit || 250;
       const remainingQuota = Math.max(0, dailyLimit - sentToday);
 
@@ -224,7 +230,10 @@ export async function GET(req: NextRequest) {
         phone: string;
       }[];
 
-      const partnerWa = await getPartnerWhatsApp(b.partner_id);
+      const partnerWa = await getPartnerWhatsApp(
+        b.partner_id,
+        b.send_from_phone_number_id,
+      );
       // Send-time blocklist gate: never message a customer who has opted out —
       // even if they replied STOP AFTER this broadcast was created/queued.
       const optedOut = await getPartnerOptOuts(b.partner_id);

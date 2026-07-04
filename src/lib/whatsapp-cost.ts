@@ -150,7 +150,7 @@ export async function getBusinessCurrency(partnerId: string): Promise<string> {
   try {
     const query = `
       query BizCur($pid: uuid!) {
-        whatsapp_business_integrations(where: { partner_id: { _eq: $pid } }, limit: 1) {
+        whatsapp_business_integrations(where: { partner_id: { _eq: $pid } }, order_by: {is_primary: desc, updated_at: asc}, limit: 1) {
           display_phone
         }
         partners(where: { id: { _eq: $pid } }, limit: 1) {

@@ -51,6 +51,7 @@ interface Message {
   error_reason: string | null;
   is_read: boolean;
   created_at: string;
+  phone_number_id: string | null;
 }
 
 interface Conversation {
@@ -60,6 +61,8 @@ interface Conversation {
   last_direction: "in" | "out";
   last_at: string;
   unread: number;
+  // The number the customer LAST messaged — replies must go back out from it.
+  inbound_phone_number_id: string | null;
 }
 
 // Hasura subscription — every message for this partner, newest first. We
@@ -85,6 +88,7 @@ const SUB_ALL_MESSAGES = `
       error_reason
       is_read
       created_at
+      phone_number_id
     }
   }
 `;
@@ -103,12 +107,19 @@ function buildConversations(messages: Message[]): Conversation[] {
         last_direction: m.direction,
         last_at: m.created_at,
         unread: m.direction === "in" && !m.is_read ? 1 : 0,
+        // First inbound we encounter (desc order) is the latest inbound → the
+        // number the customer last messaged, which the reply must use.
+        inbound_phone_number_id:
+          m.direction === "in" ? m.phone_number_id ?? null : null,
       });
     } else {
       if (!existing.contact_name && m.contact_name) {
         existing.contact_name = m.contact_name;
       }
       if (m.direction === "in" && !m.is_read) existing.unread += 1;
+      if (!existing.inbound_phone_number_id && m.direction === "in" && m.phone_number_id) {
+        existing.inbound_phone_number_id = m.phone_number_id;
+      }
     }
   }
   return [...byPhone.values()];
@@ -248,7 +259,12 @@ export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
       const res = await fetch("/api/whatsapp/inbox/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partnerId, to: selected, text: optimistic }),
+        body: JSON.stringify({
+          partnerId,
+          to: selected,
+          text: optimistic,
+          sendFromPhoneNumberId: selectedConv?.inbound_phone_number_id || null,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -317,6 +333,7 @@ export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
           partnerId,
           to: selected,
           template: payload,
+          sendFromPhoneNumberId: selectedConv?.inbound_phone_number_id || null,
         }),
       });
       const data = await res.json().catch(() => ({}));

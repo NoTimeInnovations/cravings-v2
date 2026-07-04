@@ -21,7 +21,7 @@ async function notifyOrderLinkOpened(partnerId: string, localPhone: string): Pro
         partners_by_pk(id: $p) {
           store_name username custom_domain country_code storefront_settings
         }
-        whatsapp_business_integrations(where: { partner_id: { _eq: $p } }, limit: 1) {
+        whatsapp_business_integrations(where: { partner_id: { _eq: $p } }, order_by: {is_primary: desc, updated_at: asc}, limit: 1) {
           phone_number_id access_token
         }
       }`,

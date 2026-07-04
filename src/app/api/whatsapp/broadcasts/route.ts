@@ -133,8 +133,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { partnerId, templateId, scheduledAt, variableMap, headerParams, headerMediaUrl, recipients } =
-    body || {};
+  const {
+    partnerId,
+    templateId,
+    scheduledAt,
+    variableMap,
+    headerParams,
+    headerMediaUrl,
+    recipients,
+    sendFromPhoneNumberId,
+  } = body || {};
 
   if (!partnerId || !templateId || !Array.isArray(recipients)) {
     return NextResponse.json(
@@ -155,6 +163,33 @@ export async function POST(req: NextRequest) {
   const sched = normalizeScheduledAt(scheduledAt);
   if (sched.error) {
     return NextResponse.json({ error: sched.error }, { status: 400 });
+  }
+
+  // Which connected number sends this broadcast. Optional — omitted means the
+  // partner's primary number (resolved at send time). When provided it must be
+  // one of the partner's own connected numbers.
+  let sendFrom: string | null = null;
+  if (sendFromPhoneNumberId) {
+    try {
+      const numRes = await fetchFromHasura(
+        `query ValidateSendFrom($partner_id: uuid!, $pnid: String!) {
+          whatsapp_business_integrations(where: {partner_id: {_eq: $partner_id}, phone_number_id: {_eq: $pnid}}, limit: 1) { id }
+        }`,
+        { partner_id: partnerId, pnid: sendFromPhoneNumberId },
+      );
+      if (!numRes?.whatsapp_business_integrations?.[0]) {
+        return NextResponse.json(
+          { error: "The selected sending number isn't connected to this account." },
+          { status: 400 },
+        );
+      }
+      sendFrom = String(sendFromPhoneNumberId);
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: e?.message || "Failed to validate sending number" },
+        { status: 500 },
+      );
+    }
   }
 
   // Validate the template belongs to the partner and is approved.
@@ -254,7 +289,7 @@ export async function POST(req: NextRequest) {
   // limit (TIER_1K → 1000, etc.) instead of a hardcoded 250. Best-effort: falls
   // back to DEFAULT_DAILY_LIMIT (250) when the number isn't connected / Graph is
   // unreachable.
-  const dailyLimit = await getPartnerDailyLimit(partnerId);
+  const dailyLimit = await getPartnerDailyLimit(partnerId, sendFrom);
 
   // Insert the broadcast. scheduled_at = chosen time, or now for send-asap.
   let broadcastId: string;
@@ -275,6 +310,7 @@ export async function POST(req: NextRequest) {
         scheduled_at: scheduledAt || new Date().toISOString(),
         daily_limit: dailyLimit,
         total_recipients: cleanRecipients.length,
+        send_from_phone_number_id: sendFrom,
       },
     });
     broadcastId = inserted?.insert_whatsapp_broadcasts_one?.id;

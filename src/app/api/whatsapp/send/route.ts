@@ -83,7 +83,11 @@ export async function POST(request: NextRequest) {
       try {
         const query = `
           query GetPartnerWhatsApp($partner_id: uuid!) {
-            whatsapp_business_integrations(where: {partner_id: {_eq: $partner_id}}) {
+            whatsapp_business_integrations(
+              where: {partner_id: {_eq: $partner_id}}
+              order_by: {is_primary: desc, updated_at: asc}
+              limit: 1
+            ) {
               phone_number_id
               access_token
             }

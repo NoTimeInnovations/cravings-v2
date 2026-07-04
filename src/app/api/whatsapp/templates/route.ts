@@ -23,6 +23,7 @@ const LIST_LOCAL = `
       status
       meta_template_id
       rejection_reason
+      waba_id
       created_at
       updated_at
     }
@@ -43,6 +44,7 @@ const UPDATE_LOCAL_STATUS = `
     $status: String!
     $meta_template_id: String
     $rejection_reason: String
+    $waba_id: String
   ) {
     update_whatsapp_message_templates_by_pk(
       pk_columns: { id: $id }
@@ -50,6 +52,7 @@ const UPDATE_LOCAL_STATUS = `
         status: $status
         meta_template_id: $meta_template_id
         rejection_reason: $rejection_reason
+        waba_id: $waba_id
       }
     ) {
       id
@@ -67,13 +70,16 @@ const DELETE_STALE_LOCAL = `
 
 // Existing rows with the same name + language for this partner. Used to block
 // genuine duplicates and to clean up leftover failed attempts before retrying.
+// Scoped to a single WABA — a template name is unique per WABA at Meta, so a
+// partner with two WABAs can legitimately have the same-named template on each.
 const FIND_BY_NAME = `
-  query FindTemplateByName($partner_id: uuid!, $name: String!, $language: String!) {
+  query FindTemplateByName($partner_id: uuid!, $name: String!, $language: String!, $waba_id: String) {
     whatsapp_message_templates(
       where: {
         partner_id: { _eq: $partner_id }
         name: { _eq: $name }
         language: { _eq: $language }
+        waba_id: { _eq: $waba_id }
       }
     ) {
       id
@@ -106,7 +112,7 @@ export async function GET(req: NextRequest) {
             integration.waba_id,
             partnerWabaToken(integration),
           );
-          await reconcileWithMeta(partnerId, metaTemplates);
+          await reconcileWithMeta(partnerId, integration.waba_id, metaTemplates);
         } catch (e: any) {
           // Sync is best-effort — never block the list view.
           console.warn("Template sync failed:", e?.message || e);
@@ -176,6 +182,7 @@ export async function POST(req: NextRequest) {
       partner_id: partnerId,
       name,
       language,
+      waba_id: integration.waba_id,
     });
     const existing = (existingRes?.whatsapp_message_templates || []) as Array<{
       id: string;
@@ -239,6 +246,7 @@ export async function POST(req: NextRequest) {
         components,
         status: metaRes?.status || "PENDING",
         meta_template_id: metaRes?.id || null,
+        waba_id: integration.waba_id,
       },
     });
     return NextResponse.json({
@@ -268,27 +276,37 @@ function normalizeRejectedReason(raw: unknown): string | null {
   return trimmed;
 }
 
-// Reconcile local templates with whatever Meta currently has. Local rows
-// matched by (name + language) get their status/meta_template_id/rejection
-// updated. Templates that exist on Meta but not locally are inserted so the
-// partner sees everything tied to their WABA.
+// Reconcile local templates with whatever Meta currently has for ONE WABA.
+// Local rows matched by (name + language) get their status/meta_template_id/
+// rejection updated. Templates that exist on Meta but not locally are inserted.
+//
+// Multi-number: a partner can have several WABAs, each with its OWN template
+// library. The sync (and especially the destructive prune) is scoped to the
+// wabaId being synced — rows belonging to the partner's OTHER WABAs are left
+// untouched, so syncing one number never deletes another number's templates.
+// Legacy rows with a NULL waba_id predate multi-number and are treated as
+// belonging to the synced WABA (and get stamped with it on update).
 async function reconcileWithMeta(
   partnerId: string,
+  wabaId: string,
   metaTemplates: Awaited<ReturnType<typeof listMetaTemplates>>,
 ) {
   const data = await fetchFromHasura(LIST_LOCAL, { partner_id: partnerId });
-  const local = (data?.whatsapp_message_templates || []) as Array<{
+  const allLocal = (data?.whatsapp_message_templates || []) as Array<{
     id: string;
     name: string;
     language: string;
     status: string;
     meta_template_id: string | null;
+    waba_id: string | null;
   }>;
+  // Only the rows that belong to the WABA we just listed (or legacy null rows).
+  const local = allLocal.filter((l) => !l.waba_id || l.waba_id === wabaId);
   const localByKey = new Map(
     local.map((l) => [`${l.name}::${l.language}`, l]),
   );
 
-  // Upsert the templates that currently live on the partner's WABA.
+  // Upsert the templates that currently live on this WABA.
   for (const t of metaTemplates) {
     const key = `${t.name}::${t.language}`;
     const match = localByKey.get(key);
@@ -299,6 +317,7 @@ async function reconcileWithMeta(
         status: t.status || "PENDING",
         meta_template_id: t.id || null,
         rejection_reason: reason,
+        waba_id: wabaId,
       }).catch(() => {});
     } else {
       await fetchFromHasura(INSERT_LOCAL, {
@@ -311,33 +330,42 @@ async function reconcileWithMeta(
           status: t.status || "PENDING",
           meta_template_id: t.id || null,
           rejection_reason: reason,
+          waba_id: wabaId,
         },
       }).catch(() => {});
     }
   }
 
-  // Prune local rows that were previously synced from Meta (they carry a
-  // meta_template_id) but no longer exist on the partner's CURRENT WABA — e.g.
-  // templates left over from a different WhatsApp account the partner was
-  // connected to before. Rows without a meta_template_id are unsubmitted local
-  // drafts, so we keep those. Safe: only runs after a successful
-  // listMetaTemplates against the current WABA (an empty list prunes them all).
+  // Prune rows for THIS WABA that were previously synced from Meta (they carry a
+  // meta_template_id) but no longer exist on it — e.g. a template the partner
+  // deleted at Meta. Rows without a meta_template_id are unsubmitted local
+  // drafts, so we keep those. Scoped to `local` (this WABA only), so another
+  // WABA's templates are never touched.
   const currentKeys = new Set(
     metaTemplates.map((t) => `${t.name}::${t.language}`),
   );
+  // Only delete rows that POSITIVELY belong to the synced WABA. Legacy
+  // null-waba_id rows are eligible for match/stamp above (they get adopted into
+  // this WABA only when a Meta template matches by name+language), but must
+  // NEVER be pruned by an unrelated WABA's sync — otherwise syncing WABA-B could
+  // delete a legacy row that really belongs to WABA-A.
   const staleIds = local
     .filter(
-      (l) => l.meta_template_id && !currentKeys.has(`${l.name}::${l.language}`),
+      (l) =>
+        l.waba_id === wabaId &&
+        l.meta_template_id &&
+        !currentKeys.has(`${l.name}::${l.language}`),
     )
     .map((l) => l.id);
 
   // Also prune ORPHAN rows: REJECTED/DRAFT rows with no meta_template_id that
   // aren't on Meta either. These can only come from a failed submission (the old
   // create flow left a REJECTED draft behind); the current flow never creates
-  // them. Safe to remove so the list reflects only real templates.
+  // them. Scoped to this WABA so a legacy null row is never dropped here.
   const orphanIds = local
     .filter(
       (l) =>
+        l.waba_id === wabaId &&
         !l.meta_template_id &&
         ["REJECTED", "DRAFT"].includes(String(l.status).toUpperCase()) &&
         !currentKeys.has(`${l.name}::${l.language}`),

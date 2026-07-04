@@ -9,7 +9,7 @@
  */
 
 import { fetchFromHasuraServer } from "@/lib/hasuraServerClient";
-import { getPartnerWabaIntegration, partnerWabaToken } from "@/lib/whatsapp-meta";
+import { partnerWabaToken } from "@/lib/whatsapp-meta";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
@@ -39,18 +39,20 @@ export function tierToDailyLimit(tier: string | null | undefined): number {
   }
 }
 
-// Read the partner WABA number's current messaging_limit_tier from Meta. Returns
-// null (caller falls back to DEFAULT_DAILY_LIMIT) if the number isn't connected
-// or the Graph read fails — never throws.
+// Read a number's current messaging_limit_tier from Meta (the cap is PER-NUMBER).
+// When phoneNumberId is given, reads THAT number's tier; otherwise the partner's
+// primary number. Returns null (caller falls back to DEFAULT_DAILY_LIMIT) if the
+// number isn't connected or the Graph read fails — never throws.
 export async function fetchPartnerMessagingTier(
   partnerId: string,
+  phoneNumberId?: string | null,
 ): Promise<string | null> {
   try {
-    const integration = await getPartnerWabaIntegration(partnerId);
-    if (!integration?.phone_number_id) return null;
-    const token = partnerWabaToken(integration);
+    const wa = await getPartnerWhatsApp(partnerId, phoneNumberId);
+    if (!wa.partnerPhoneNumberId) return null;
+    const token = partnerWabaToken({ access_token: wa.partnerToken });
     const res = await fetch(
-      `https://graph.facebook.com/${API_VERSION}/${integration.phone_number_id}?` +
+      `https://graph.facebook.com/${API_VERSION}/${wa.partnerPhoneNumberId}?` +
         new URLSearchParams({
           fields: "messaging_limit_tier",
           access_token: token,
@@ -65,9 +67,15 @@ export async function fetchPartnerMessagingTier(
   }
 }
 
-// Resolve the partner's effective daily broadcast cap from their live Meta tier.
-export async function getPartnerDailyLimit(partnerId: string): Promise<number> {
-  return tierToDailyLimit(await fetchPartnerMessagingTier(partnerId));
+// Resolve the effective daily broadcast cap from the sending number's live Meta
+// tier (per-number). phoneNumberId defaults to the partner's primary number.
+export async function getPartnerDailyLimit(
+  partnerId: string,
+  phoneNumberId?: string | null,
+): Promise<number> {
+  return tierToDailyLimit(
+    await fetchPartnerMessagingTier(partnerId, phoneNumberId),
+  );
 }
 
 // Per-recipient mapping for each body {{n}} placeholder.
@@ -103,19 +111,41 @@ interface PartnerWhatsApp {
 }
 
 // Resolve once per broadcast tick so we don't re-query Hasura per recipient.
+// A partner may have several connected numbers: when phoneNumberId is given we
+// send from THAT number (validated to belong to the partner); otherwise we use
+// the partner's primary number.
 export async function getPartnerWhatsApp(
   partnerId: string,
+  phoneNumberId?: string | null,
 ): Promise<PartnerWhatsApp> {
   try {
-    const query = `
+    const query = phoneNumberId
+      ? `
+      query GetPartnerWhatsAppByNumber($partner_id: uuid!, $phone_number_id: String!) {
+        whatsapp_business_integrations(
+          where: {partner_id: {_eq: $partner_id}, phone_number_id: {_eq: $phone_number_id}}
+          limit: 1
+        ) {
+          phone_number_id
+          access_token
+        }
+      }
+    `
+      : `
       query GetPartnerWhatsApp($partner_id: uuid!) {
-        whatsapp_business_integrations(where: {partner_id: {_eq: $partner_id}}, limit: 1) {
+        whatsapp_business_integrations(
+          where: {partner_id: {_eq: $partner_id}}
+          order_by: {is_primary: desc, updated_at: asc}
+          limit: 1
+        ) {
           phone_number_id
           access_token
         }
       }
     `;
-    const data = await fetchFromHasuraServer(query, { partner_id: partnerId });
+    const vars: Record<string, unknown> = { partner_id: partnerId };
+    if (phoneNumberId) vars.phone_number_id = phoneNumberId;
+    const data = await fetchFromHasuraServer(query, vars);
     const integration = data?.whatsapp_business_integrations?.[0];
     if (integration?.phone_number_id) {
       return {
@@ -297,20 +327,25 @@ export async function sendBroadcastTemplate(
 }
 
 /**
- * How many broadcast messages this partner has already sent today (UTC).
- * Used to enforce the per-partner daily cap (default 250). Counts recipient
- * rows flipped to "sent" since UTC midnight across all of the partner's
- * broadcasts.
+ * How many broadcast messages have been sent today (UTC). Meta's messaging
+ * limit is PER phone number, so when a sending number is given we count only
+ * that number's sends (matched on recipients.sent_from_phone_number_id) — this
+ * keeps one number's broadcasts from eating another number's daily quota. When
+ * omitted (legacy single-number broadcasts) it counts the partner-wide total.
  */
-export async function countSentToday(partnerId: string): Promise<number> {
+export async function countSentToday(
+  partnerId: string,
+  phoneNumberId?: string | null,
+): Promise<number> {
   const midnight = new Date();
   midnight.setUTCHours(0, 0, 0, 0);
   const query = `
-    query CountSentToday($partner_id: uuid!, $since: timestamptz!) {
+    query CountSentToday($partner_id: uuid!, $since: timestamptz!${phoneNumberId ? ", $pnid: String!" : ""}) {
       whatsapp_broadcast_recipients_aggregate(
         where: {
           status: { _eq: "sent" }
           sent_at: { _gte: $since }
+          ${phoneNumberId ? "sent_from_phone_number_id: { _eq: $pnid }" : ""}
           broadcast: { partner_id: { _eq: $partner_id } }
         }
       ) {
@@ -318,10 +353,12 @@ export async function countSentToday(partnerId: string): Promise<number> {
       }
     }
   `;
-  const data = await fetchFromHasuraServer(query, {
+  const vars: Record<string, unknown> = {
     partner_id: partnerId,
     since: midnight.toISOString(),
-  });
+  };
+  if (phoneNumberId) vars.pnid = phoneNumberId;
+  const data = await fetchFromHasuraServer(query, vars);
   return data?.whatsapp_broadcast_recipients_aggregate?.aggregate?.count || 0;
 }
 

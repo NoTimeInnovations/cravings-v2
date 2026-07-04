@@ -186,7 +186,7 @@ const UsernamePage = async ({
   if (oltBlocked) {
     const info = await fetchFromHasura(
       `query OrderLinkInfo($p: uuid!) {
-        whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, limit: 1) { display_phone }
+        whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, order_by: {is_primary: desc, updated_at: asc}, limit: 1) { display_phone }
         partners_by_pk(id: $p) { store_name }
       }`,
       { p: partnerId },

@@ -285,6 +285,10 @@ export async function subscribeWabaWebhooks(
 }
 
 // ─── Save/Update integration in Hasura ───────────────────────────
+// Multi-number aware: a partner can connect MANY WhatsApp numbers. The row is
+// keyed on phone_number_id — re-connecting the SAME number updates that row in
+// place (token refresh), a NEW number INSERTs an additional row. The partner's
+// FIRST number becomes the primary (default sender for system-initiated sends).
 export async function saveWhatsAppIntegration(data: {
   partner_id: string;
   waba_id: string;
@@ -292,10 +296,16 @@ export async function saveWhatsAppIntegration(data: {
   access_token: string;
   meta_user_id?: string | null;
 }) {
-  // Check if integration already exists for this partner
+  // Look up any existing row for THIS number (re-connect / token refresh) and
+  // count the partner's existing numbers to decide whether this becomes primary.
   const checkQuery = `
-    query CheckWhatsAppIntegration($partner_id: uuid!) {
-      whatsapp_business_integrations(where: {partner_id: {_eq: $partner_id}}) {
+    query CheckWhatsAppIntegration($partner_id: uuid!, $phone_number_id: String!) {
+      byPhone: whatsapp_business_integrations(where: {phone_number_id: {_eq: $phone_number_id}}) {
+        id
+        partner_id
+        is_primary
+      }
+      partnerRows: whatsapp_business_integrations(where: {partner_id: {_eq: $partner_id}}) {
         id
       }
     }
@@ -303,10 +313,13 @@ export async function saveWhatsAppIntegration(data: {
 
   const checkRes = await fetchFromHasura(checkQuery, {
     partner_id: data.partner_id,
+    phone_number_id: data.phone_number_id,
   });
 
-  const existingId =
-    checkRes?.whatsapp_business_integrations?.[0]?.id;
+  const existing = checkRes?.byPhone?.[0] as
+    | { id: string; partner_id: string; is_primary: boolean }
+    | undefined;
+  const partnerRowCount = checkRes?.partnerRows?.length || 0;
 
   // Best-effort: resolve the connected number's display phone (the number
   // customers actually message) so the storefront "Send Hi" button points at the
@@ -327,8 +340,12 @@ export async function saveWhatsAppIntegration(data: {
     /* ignore — leave null */
   }
 
-  if (existingId) {
-    // Update existing
+  if (existing) {
+    // This number already has a row. Update its credentials in place. If it was
+    // previously connected by a DIFFERENT partner, reassign it (a phone number
+    // lives in exactly one place) and make it primary when the new owner has no
+    // other numbers. Same-partner re-connect preserves the existing primary flag.
+    const reassigned = existing.partner_id !== data.partner_id;
     const mutation = `
       mutation UpdateWhatsAppIntegration($id: uuid!, $changes: whatsapp_business_integrations_set_input!) {
         update_whatsapp_business_integrations_by_pk(pk_columns: {id: $id}, _set: $changes) {
@@ -337,18 +354,42 @@ export async function saveWhatsAppIntegration(data: {
       }
     `;
     await fetchFromHasura(mutation, {
-      id: existingId,
+      id: existing.id,
       changes: {
+        partner_id: data.partner_id,
         waba_id: data.waba_id,
         phone_number_id: data.phone_number_id,
         access_token: data.access_token,
         meta_user_id: data.meta_user_id ?? null,
         ...(displayPhone ? { display_phone: displayPhone } : {}),
+        ...(reassigned ? { is_primary: partnerRowCount === 0 } : {}),
         updated_at: new Date().toISOString(),
       },
     });
+
+    // If we took a number AWAY from its previous owner and it was that owner's
+    // primary, promote their oldest surviving number so they keep a default
+    // sender (mirrors the disconnect route's promotion). Otherwise the original
+    // partner would be left with zero primaries.
+    if (reassigned && existing.is_primary) {
+      const remaining = await fetchFromHasura(
+        `query RemainingAfterReassign($p: uuid!) {
+          whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, order_by: {updated_at: asc}, limit: 1) { id }
+        }`,
+        { p: existing.partner_id },
+      );
+      const next = remaining?.whatsapp_business_integrations?.[0];
+      if (next?.id) {
+        await fetchFromHasura(
+          `mutation PromoteAfterReassign($id: uuid!) {
+            update_whatsapp_business_integrations_by_pk(pk_columns: {id: $id}, _set: {is_primary: true}) { id }
+          }`,
+          { id: next.id },
+        );
+      }
+    }
   } else {
-    // Insert new
+    // A brand-new number for this partner. First number connected → primary.
     const mutation = `
       mutation InsertWhatsAppIntegration($object: whatsapp_business_integrations_insert_input!) {
         insert_whatsapp_business_integrations_one(object: $object) {
@@ -363,6 +404,7 @@ export async function saveWhatsAppIntegration(data: {
         phone_number_id: data.phone_number_id,
         access_token: data.access_token,
         meta_user_id: data.meta_user_id ?? null,
+        is_primary: partnerRowCount === 0,
         ...(displayPhone ? { display_phone: displayPhone } : {}),
         updated_at: new Date().toISOString(),
       },
@@ -444,7 +486,11 @@ export async function getPartnerByPhoneNumberIdCached(
   return value;
 }
 
-// ─── Fetch the partner's integration row (waba_id + access_token) ─
+// ─── Fetch the partner's PRIMARY integration row (waba_id + access_token) ─
+// A partner may have several connected numbers; this returns the one marked
+// primary (the default sender for system-initiated messages), falling back to
+// the oldest when no primary is set. Callers that must target a SPECIFIC number
+// (inbox reply, broadcast) should resolve by phone_number_id instead.
 export async function getPartnerWabaIntegration(partnerId: string): Promise<{
   id: string;
   partner_id: string;
@@ -454,7 +500,11 @@ export async function getPartnerWabaIntegration(partnerId: string): Promise<{
 } | null> {
   const query = `
     query GetPartnerWabaIntegration($partner_id: uuid!) {
-      whatsapp_business_integrations(where: {partner_id: {_eq: $partner_id}}, limit: 1) {
+      whatsapp_business_integrations(
+        where: {partner_id: {_eq: $partner_id}}
+        order_by: {is_primary: desc, updated_at: asc}
+        limit: 1
+      ) {
         id
         partner_id
         waba_id
@@ -464,6 +514,66 @@ export async function getPartnerWabaIntegration(partnerId: string): Promise<{
     }
   `;
   const res = await fetchFromHasura(query, { partner_id: partnerId });
+  return res?.whatsapp_business_integrations?.[0] || null;
+}
+
+// ─── Fetch ALL of a partner's connected numbers (primary first) ──
+export async function getPartnerWabaIntegrations(partnerId: string): Promise<
+  Array<{
+    id: string;
+    partner_id: string;
+    waba_id: string;
+    phone_number_id: string;
+    access_token: string;
+    display_phone: string | null;
+    is_primary: boolean;
+  }>
+> {
+  const query = `
+    query GetPartnerWabaIntegrations($partner_id: uuid!) {
+      whatsapp_business_integrations(
+        where: {partner_id: {_eq: $partner_id}}
+        order_by: {is_primary: desc, updated_at: asc}
+      ) {
+        id
+        partner_id
+        waba_id
+        phone_number_id
+        access_token
+        display_phone
+        is_primary
+      }
+    }
+  `;
+  const res = await fetchFromHasura(query, { partner_id: partnerId });
+  return res?.whatsapp_business_integrations || [];
+}
+
+// ─── Resolve the send token for a SPECIFIC number ────────────────
+// Flows reply from the exact number the customer messaged, so the token must be
+// the one attached to THAT phone_number_id's row (not an arbitrary partner row).
+// Returns null if the number isn't connected — caller falls back as it sees fit.
+export async function getIntegrationByPhoneNumberId(
+  phoneNumberId: string,
+): Promise<{
+  id: string;
+  partner_id: string;
+  waba_id: string;
+  phone_number_id: string;
+  access_token: string;
+} | null> {
+  const query = `
+    query GetIntegrationByPnid($phone_number_id: String!) {
+      whatsapp_business_integrations(where: {phone_number_id: {_eq: $phone_number_id}}, limit: 1) {
+        id
+        partner_id
+        waba_id
+        phone_number_id
+        access_token
+      }
+    }
+  `;
+  const res = await fetchFromHasura(query, { phone_number_id: phoneNumberId });
   return res?.whatsapp_business_integrations?.[0] || null;
 }
 

@@ -26,7 +26,7 @@ const Q_CTX = `
     partners_by_pk(id: $pid) { store_name currency feature_flags loyalty_settings }
     users_by_pk(id: $uid) { full_name phone }
     loyalty_accounts_by_pk(id: $aid) { lifetime_earned }
-    whatsapp_business_integrations(where: { partner_id: { _eq: $pid } }, limit: 1) { phone_number_id }
+    whatsapp_business_integrations(where: { partner_id: { _eq: $pid } }, order_by: {is_primary: desc, updated_at: asc}, limit: 1) { phone_number_id }
   }
 `;
 const Q_ORDER_DISPLAY = `
