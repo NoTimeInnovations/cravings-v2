@@ -15,6 +15,7 @@ export const getNoticesQuery = `
       starts_at
       expires_at
       priority
+      config
       created_at
     }
   }
@@ -37,7 +38,7 @@ export const getActiveNoticesQuery = `
           ]}
         ]
       }
-      order_by: { priority: asc_nulls_last }
+      order_by: [{ priority: asc_nulls_last }, { created_at: desc }]
     ) {
       id
       image_url
@@ -46,6 +47,8 @@ export const getActiveNoticesQuery = `
       button_text
       button_link
       priority
+      config
+      created_at
     }
   }
 `;

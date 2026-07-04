@@ -29,6 +29,7 @@ import { applyVisibilityState } from "@/lib/visibility";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
+import { NoticeModal } from "@/components/notices/NoticeModal";
 import NoticesOverlay from "@/components/NoticesOverlay";
 import ReorderHandler from "@/components/hotelDetail/ReorderHandler";
 import type { BranchContext } from "@/api/branches";
@@ -666,7 +667,11 @@ const HotelMenuPage = ({
           onDismiss={() => { setOnboardingDismissed(true); setForceStorefront(false); }}
         />
       )}
-      {/* Notices now shown in splash/storefront screen only */}
+      {/* Storefront announcement / notice modal — shows on every open when the
+          partner has an active, in-schedule notice. */}
+      {hoteldata?.id && (
+        <NoticeModal partnerId={hoteldata.id} ready={!showOnboarding || onboardingDismissed} />
+      )}
     </>
   );
 };
