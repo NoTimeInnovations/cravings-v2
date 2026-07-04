@@ -342,7 +342,7 @@ export function GeneralSettings() {
                                 <div className="flex-1">
                                     <p className="text-sm font-medium">Auto-progress orders (demo)</p>
                                     <p className="text-xs text-muted-foreground">
-                                        Automatically move new orders through Accepted → Food ready → Dispatched → Completed (about one step per minute). Test account only.
+                                        Automatically move new orders through Accepted → Food ready → Dispatched → Completed (about one step every 20 seconds). Test account only.
                                     </p>
                                 </div>
                             </div>
