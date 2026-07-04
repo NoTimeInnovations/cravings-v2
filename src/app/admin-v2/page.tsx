@@ -100,7 +100,14 @@ export default function AdminPage() {
     // (e.g. the settings sg/ss keys) are preserved by reading the live URL.
     const syncViewToUrl = (view: string) => {
         const params = new URLSearchParams(window.location.search);
-        if (params.get("view") === view) return;
+        const viewChanged = params.get("view") !== view;
+        // ?waScreen is scoped to the WhatsApp view (it selects a sub-screen).
+        // Strip it when navigating elsewhere so it can't linger in the URL, leak
+        // into other views' shareable links, or hijack the next fresh WhatsApp
+        // visit into a sub-screen instead of the hub.
+        const stripWa = view !== "WhatsApp" && params.has("waScreen");
+        if (!viewChanged && !stripWa) return;
+        if (stripWa) params.delete("waScreen");
         params.set("view", view);
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };

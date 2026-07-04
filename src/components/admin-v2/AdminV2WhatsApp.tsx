@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Inbox, MessageSquare, Workflow, Megaphone, ChevronLeft, MousePointerClick, Activity } from "lucide-react";
 import { AdminV2WhatsAppInbox } from "@/components/admin-v2/AdminV2WhatsAppInbox";
@@ -29,6 +30,8 @@ const SCREENS: {
   { id: "ApiUsage", title: "API usage", desc: "Calls & messages sent through your public API.", icon: Activity, accent: "text-emerald-600" },
 ];
 
+const SCREEN_IDS = SCREENS.map((s) => s.id);
+
 // The merged WhatsApp view: a hub of buttons that open Inbox / Templates / Flows.
 // Each panel lazy-mounts on first open and stays mounted (block/hidden) so its
 // state and fetches survive going back to the hub and reopening.
@@ -41,10 +44,44 @@ export function AdminV2WhatsApp() {
   const [screen, setScreen] = useState<Screen | null>(null);
   const [mounted, setMounted] = useState<Screen[]>([]);
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Reflect the open sub-screen in the URL (?waScreen=) so a reload restores it
+  // and the address bar is a shareable link. We write it when opening a screen
+  // and read it back in the effect below — keeping state and URL in sync both
+  // ways (including external deep-links and browser back/forward).
+  const writeScreenUrl = (s: Screen | null) => {
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    if (s) params.set("waScreen", s);
+    else params.delete("waScreen");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const open = (s: Screen) => {
     setScreen(s);
     setMounted((m) => (m.includes(s) ? m : [...m, s]));
+    writeScreenUrl(s);
   };
+
+  const goHub = () => {
+    setScreen(null);
+    writeScreenUrl(null);
+  };
+
+  // Apply ?waScreen= into local state whenever it changes. Keyed on the param via
+  // a signature ref so it acts once per distinct value and never loops with our
+  // own writeScreenUrl. An absent/invalid value leaves the hub (screen=null).
+  const lastWaRef = useRef<string>("");
+  useEffect(() => {
+    const raw = searchParams.get("waScreen") || "";
+    if (raw === lastWaRef.current) return;
+    lastWaRef.current = raw;
+    if (!raw || !SCREEN_IDS.includes(raw as Screen)) return;
+    setScreen(raw as Screen);
+    setMounted((m) => (m.includes(raw as Screen) ? m : [...m, raw as Screen]));
+  }, [searchParams]);
 
   return (
     <div className="space-y-4">
@@ -81,7 +118,7 @@ export function AdminV2WhatsApp() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setScreen(null)}
+          onClick={goHub}
           className="-ml-2 text-muted-foreground"
         >
           <ChevronLeft className="mr-1 h-4 w-4" /> WhatsApp
@@ -90,7 +127,7 @@ export function AdminV2WhatsApp() {
 
       {mounted.includes("Inbox") && (
         <div className={screen === "Inbox" ? "block" : "hidden"}>
-          <AdminV2WhatsAppInbox onBack={() => setScreen(null)} />
+          <AdminV2WhatsAppInbox onBack={goHub} />
         </div>
       )}
       {mounted.includes("Templates") && (

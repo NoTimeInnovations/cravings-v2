@@ -12,6 +12,7 @@ import { FlowBuilder } from "@/components/admin-v2/whatsapp-flow/FlowBuilder";
 import { provisionDefaultFlows } from "@/app/actions/provisionDefaultFlows";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
+import { patchFlowEnabled } from "@/lib/whatsappFlowsBulk";
 
 type FlowListItem = Pick<
   Flow,
@@ -83,6 +84,7 @@ export function AdminV2WhatsAppFlows() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"list" | "builder">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!partnerId) return;
@@ -151,6 +153,36 @@ export function AdminV2WhatsAppFlows() {
     }
   };
 
+  // Bulk on/off for every flow. Optimistic; PATCHes are independent + non-atomic,
+  // so on ANY failure we re-sync from the server (load) rather than blind-reverting
+  // to the pre-click snapshot — otherwise flows that DID flip server-side would be
+  // shown with the wrong state until a manual reload.
+  const allOn = flows.length > 0 && flows.every((f) => f.enabled);
+  const toggleAll = async () => {
+    if (!partnerId || flows.length === 0 || bulkBusy) return;
+    const target = !allOn;
+    const changed = flows.filter((f) => !!f.enabled !== target);
+    setFlows((xs) => xs.map((x) => ({ ...x, enabled: target }))); // optimistic
+    setBulkBusy(true);
+    try {
+      const results = await Promise.allSettled(
+        changed.map((f) => patchFlowEnabled(partnerId, f.id, target)),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        toast.error(`Couldn't update ${failed} flow${failed === 1 ? "" : "s"}`);
+        await load(); // reconcile to true server state
+      } else {
+        toast.success(target ? "All flows turned on" : "All flows turned off");
+      }
+    } catch {
+      toast.error("Couldn't update all flows");
+      await load(); // reconcile to true server state
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   if (mode === "builder") {
     return (
       <FlowBuilder
@@ -175,9 +207,24 @@ export function AdminV2WhatsAppFlows() {
             Automated conversations that run on your own WhatsApp number.
           </p>
         </div>
-        <Button onClick={openNew} className="bg-green-600 hover:bg-green-700 text-white">
-          <Plus className="mr-2 h-4 w-4" /> New Flow
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={toggleAll}
+            disabled={flows.length === 0 || bulkBusy || loading}
+            title={allOn ? "Turn every flow off" : "Turn every flow on"}
+          >
+            {bulkBusy ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Power className="mr-2 h-4 w-4" />
+            )}
+            {allOn ? "Turn all off" : "Turn all on"}
+          </Button>
+          <Button onClick={openNew} className="bg-green-600 hover:bg-green-700 text-white">
+            <Plus className="mr-2 h-4 w-4" /> New Flow
+          </Button>
+        </div>
       </div>
 
       {/* Welcome-flow read receipt + typing animation toggle */}
