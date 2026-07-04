@@ -338,7 +338,7 @@ function NoticeEditor({
           {/* Right panel */}
           <div className="space-y-4">
             {/* Background gradient */}
-            <div className="rounded-xl border p-3 space-y-3">
+            <div className="rounded-xl border bg-white dark:bg-neutral-900 p-3 space-y-3">
               <p className="text-sm font-semibold">Background</p>
               <div className="h-8 rounded-md border" style={{ background: gradientCss(d.config.gradient) }} />
               <div className="flex items-center gap-2">
@@ -355,7 +355,7 @@ function NoticeEditor({
 
             {/* Selected element */}
             {sel ? (
-              <div className="rounded-xl border p-3 space-y-3">
+              <div className="rounded-xl border bg-white dark:bg-neutral-900 p-3 space-y-3">
                 <p className="text-sm font-semibold capitalize">{sel.kind} settings</p>
                 <div>
                   <Label className="text-xs">Text</Label>
@@ -388,7 +388,7 @@ function NoticeEditor({
                 )}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground text-center">
+              <div className="rounded-xl border border-dashed bg-white dark:bg-neutral-900 p-3 text-xs text-muted-foreground text-center">
                 Tap an element on the canvas to edit it.
               </div>
             )}
@@ -397,7 +397,7 @@ function NoticeEditor({
       )}
 
       {/* Schedule + status (both types) */}
-      <div className="rounded-xl border p-4 grid gap-4 sm:grid-cols-3 items-end">
+      <div className="rounded-xl border bg-white dark:bg-neutral-900 p-4 grid gap-4 sm:grid-cols-3 items-end">
         <div className="flex items-center gap-2">
           <Switch checked={d.isActive} onCheckedChange={(v) => patch({ isActive: v })} />
           <span className="text-sm">{d.isActive ? "Live" : "Off"}</span>
