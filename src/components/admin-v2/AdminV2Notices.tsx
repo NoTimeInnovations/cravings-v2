@@ -10,7 +10,7 @@ import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Loader2, ArrowLeft, Image as ImageIcon, Sparkles, Type,
-  MousePointerClick, Bold, AlignLeft, AlignCenter, AlignRight, Pencil, FileText,
+  MousePointerClick, Bold, AlignLeft, AlignCenter, AlignRight, Pencil, FileText, X,
 } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
@@ -32,6 +32,7 @@ interface Draft {
   posterLink: string;
   config: NoticeCustomConfig;
   isActive: boolean;
+  scheduled: boolean;
   startsAt: string; // datetime-local value
   expiresAt: string;
 }
@@ -54,6 +55,7 @@ function emptyDraft(): Draft {
     posterLink: "",
     config: defaultCustomConfig(),
     isActive: true,
+    scheduled: false,
     startsAt: "",
     expiresAt: "",
   };
@@ -68,6 +70,7 @@ function rowToDraft(n: NoticeRow): Draft {
     posterLink: n.button_link || "",
     config: n.config?.elements ? n.config : defaultCustomConfig(),
     isActive: n.is_active,
+    scheduled: !!(n.starts_at || n.expires_at),
     startsAt: toLocalInput(n.starts_at),
     expiresAt: toLocalInput(n.expires_at),
   };
@@ -251,8 +254,8 @@ function NoticeEditor({
         type: d.type,
         is_active: d.isActive,
         show_always: true,
-        starts_at: fromLocalInput(d.startsAt),
-        expires_at: fromLocalInput(d.expiresAt),
+        starts_at: d.scheduled ? fromLocalInput(d.startsAt) : null,
+        expires_at: d.scheduled ? fromLocalInput(d.expiresAt) : null,
         image_url: d.type === "poster" ? d.posterImage : "",
         button_link: d.type === "poster" ? d.posterLink.trim() || null : null,
         config: d.type === "custom" ? d.config : null,
@@ -300,11 +303,22 @@ function NoticeEditor({
       </div>
 
       {d.type === "poster" ? (
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2 rounded-xl border bg-white dark:bg-neutral-900 p-4">
           <div className="space-y-2">
             <Label>Poster image</Label>
-            <ImageUpload value={d.posterImage} onChange={(url) => patch({ posterImage: url })} label="" folder="notices" />
-            <p className="text-xs text-muted-foreground">Shown at 80% × 60% of the screen. A 4:3 image looks best.</p>
+            {d.posterImage ? (
+              <div className="relative rounded-xl border bg-neutral-50 dark:bg-neutral-800 p-2 flex items-center justify-center min-h-[160px]">
+                {/* Natural aspect ratio — not cropped. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={d.posterImage} alt="Poster preview" className="max-h-[60vh] w-auto max-w-full rounded-lg" />
+                <Button size="sm" variant="destructive" type="button" onClick={() => patch({ posterImage: "" })} className="absolute top-3 right-3">
+                  <X className="h-3.5 w-3.5 mr-1" /> Remove
+                </Button>
+              </div>
+            ) : (
+              <ImageUpload value="" onChange={(url) => patch({ posterImage: url })} label="" folder="notices" />
+            )}
+            <p className="text-xs text-muted-foreground">Shown at 90% × 80% of the screen. A 4:3 image looks best.</p>
           </div>
           <div className="space-y-2">
             <Label>Link when tapped (optional)</Label>
@@ -396,20 +410,35 @@ function NoticeEditor({
         </div>
       )}
 
-      {/* Schedule + status (both types) */}
-      <div className="rounded-xl border bg-white dark:bg-neutral-900 p-4 grid gap-4 sm:grid-cols-3 items-end">
-        <div className="flex items-center gap-2">
-          <Switch checked={d.isActive} onCheckedChange={(v) => patch({ isActive: v })} />
-          <span className="text-sm">{d.isActive ? "Live" : "Off"}</span>
+      {/* Status + schedule (both types) */}
+      <div className="rounded-xl border bg-white dark:bg-neutral-900 p-4 space-y-4">
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+          <div className="flex items-center gap-2">
+            <Switch checked={d.isActive} onCheckedChange={(v) => patch({ isActive: v })} />
+            <span className="text-sm font-medium">{d.isActive ? "Live" : "Off"}</span>
+          </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={d.scheduled}
+              onChange={(e) => patch({ scheduled: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 accent-orange-600 cursor-pointer"
+            />
+            Schedule (show only between dates)
+          </label>
         </div>
-        <div>
-          <Label className="text-xs">Starts (optional)</Label>
-          <Input type="datetime-local" value={d.startsAt} onChange={(e) => patch({ startsAt: e.target.value })} />
-        </div>
-        <div>
-          <Label className="text-xs">Ends (optional)</Label>
-          <Input type="datetime-local" value={d.expiresAt} onChange={(e) => patch({ expiresAt: e.target.value })} />
-        </div>
+        {d.scheduled && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label className="text-xs">Starts</Label>
+              <Input type="datetime-local" value={d.startsAt} onChange={(e) => patch({ startsAt: e.target.value })} />
+            </div>
+            <div>
+              <Label className="text-xs">Ends</Label>
+              <Input type="datetime-local" value={d.expiresAt} onChange={(e) => patch({ expiresAt: e.target.value })} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
