@@ -9,6 +9,8 @@ import { AdminV2WhatsAppFlows } from "@/components/admin-v2/AdminV2WhatsAppFlows
 import { AdminV2WhatsAppBroadcast } from "@/components/admin-v2/AdminV2WhatsAppBroadcast";
 import { AdminV2WhatsAppLinkClicks } from "@/components/admin-v2/AdminV2WhatsAppLinkClicks";
 import { AdminV2WhatsAppApiUsage } from "@/components/admin-v2/AdminV2WhatsAppApiUsage";
+import { useAuthStore } from "@/store/authStore";
+import { canSeeApiUsage } from "@/lib/demoPartner";
 
 type Screen = "Inbox" | "Templates" | "Flows" | "Broadcast" | "LinkClicks" | "ApiUsage";
 
@@ -31,6 +33,11 @@ const SCREENS: {
 // Each panel lazy-mounts on first open and stays mounted (block/hidden) so its
 // state and fetches survive going back to the hub and reopening.
 export function AdminV2WhatsApp() {
+  const { userData } = useAuthStore();
+  const showApiUsage = canSeeApiUsage((userData as any)?.id);
+  // API usage is only for partners on the public API (allow-listed).
+  const screens = showApiUsage ? SCREENS : SCREENS.filter((s) => s.id !== "ApiUsage");
+
   const [screen, setScreen] = useState<Screen | null>(null);
   const [mounted, setMounted] = useState<Screen[]>([]);
 
@@ -50,7 +57,7 @@ export function AdminV2WhatsApp() {
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SCREENS.map((s) => (
+            {screens.map((s) => (
             <button
               key={s.id}
               type="button"
@@ -106,7 +113,7 @@ export function AdminV2WhatsApp() {
           <AdminV2WhatsAppLinkClicks />
         </div>
       )}
-      {mounted.includes("ApiUsage") && (
+      {showApiUsage && mounted.includes("ApiUsage") && (
         <div className={screen === "ApiUsage" ? "block" : "hidden"}>
           <AdminV2WhatsAppApiUsage />
         </div>
