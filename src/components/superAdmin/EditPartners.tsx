@@ -44,7 +44,7 @@ import { useLocationStore } from "@/store/locationStore";
 import BranchesPanel from "./BranchesPanel";
 import { FeatureFlags, getFeatures, revertFeatureToString } from "@/lib/getFeatures";
 import { provisionDefaultFlows, provisionLoyaltyFlows } from "@/app/actions/provisionDefaultFlows";
-import { Trash2, ArrowLeft } from "lucide-react";
+import { Trash2, ArrowLeft, Copy } from "lucide-react";
 
 interface PartnerWithDetails extends Partner {
   place_id?: string;
@@ -216,6 +216,61 @@ const EditPartners = () => {
   const handleEdit = (partner: PartnerWithDetails) => {
     selectPartner(partner);
     setPartnerIdInUrl(partner.id);
+  };
+
+  // Build the ready-to-send "MenuThere Setup Details" onboarding message for a
+  // partner and copy it to the clipboard.
+  const buildSetupMessage = (p: PartnerWithDetails): string => {
+    const username = p.username || "";
+    const menuLink = username ? `https://menuthere.com/${username}` : "(set a username first)";
+    return `MenuThere Setup Details 🎉
+
+Hi ${p.store_name || "there"} team,
+
+Your MenuThere online menu setup is ready!
+
+🔗 Your Menu Link:
+${menuLink}
+
+📧 Login Email:
+${p.email || ""}
+
+🔑 Password:
+${p.password || ""}
+
+🌐 Login through Website:
+https://menuthere.com/login
+
+You can manage your menu, update items, and check details through the MenuThere admin panel.
+
+📱 Partner App Login
+
+You can also use the MenuThere Partner App to manage your menu easily.
+
+Android App:
+https://play.google.com/store/apps/details?id=com.notime.cravings
+
+iOS App:
+https://apps.apple.com/in/app/menuthere/id6746559335
+
+After installing the app, please login using the same email and password mentioned above.
+
+🎥 Admin Panel Tutorial Video:
+https://youtu.be/6gRFZIJQbuo?si=N5_6aLLRxmvd4l5o
+
+This video explains how to use the admin panel, manage menu items, update prices, and understand the complete working process.
+
+For any support or clarification, please contact us anytime.`;
+  };
+
+  const copySetupDetails = async () => {
+    if (!selectedPartner) return;
+    try {
+      await navigator.clipboard.writeText(buildSetupMessage(selectedPartner));
+      toast.success("Setup details copied — paste into WhatsApp/email");
+    } catch {
+      toast.error("Couldn't copy to clipboard");
+    }
   };
 
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
@@ -454,9 +509,14 @@ const EditPartners = () => {
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back to list
             </Button>
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold mb-2">Edit Partner Details</h2>
-              <p className="text-gray-600">Make changes to the partners information here.</p>
+            <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Edit Partner Details</h2>
+                <p className="text-gray-600">Make changes to the partners information here.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={copySetupDetails} className="shrink-0">
+                <Copy className="h-4 w-4 mr-2" /> Copy setup details
+              </Button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
