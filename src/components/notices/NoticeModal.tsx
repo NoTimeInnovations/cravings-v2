@@ -16,6 +16,9 @@ export function NoticeModal({ partnerId, ready = true }: { partnerId?: string; r
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [idx, setIdx] = useState(0);
+  // Poster box follows the image's real aspect ratio (no cropping). Default 4:3
+  // until the image loads and reports its natural dimensions.
+  const [posterAspect, setPosterAspect] = useState(4 / 3);
 
   useEffect(() => {
     if (!partnerId) return;
@@ -60,16 +63,22 @@ export function NoticeModal({ partnerId, ready = true }: { partnerId?: string; r
     else if (l.startsWith("/") && !/^\/[\\/]/.test(l)) window.location.href = l;
   };
 
-  const boxClass =
-    item.kind === "custom"
+  const isPoster = item.kind === "poster";
+  const boxClass = isPoster
+    ? "relative rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+    : item.kind === "custom"
       ? "relative w-[min(90vw,106vh)] aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
       : "relative w-[90vw] h-[80vh] max-w-[1200px] rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200";
+  // Poster: size the box to the image's ratio, contained within 90vw x 80vh.
+  const boxStyle = isPoster
+    ? { aspectRatio: String(posterAspect), width: `min(90vw, calc(80vh * ${posterAspect}))` }
+    : undefined;
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={close} />
 
-      <div className={boxClass}>
+      <div className={boxClass} style={boxStyle}>
         <button
           onClick={close}
           aria-label="Close"
@@ -82,7 +91,7 @@ export function NoticeModal({ partnerId, ready = true }: { partnerId?: string; r
           <button
             type="button"
             onClick={() => openLink(item.link)}
-            className="relative block w-full h-full"
+            className="relative block w-full h-full transition-transform duration-150 ease-out active:scale-[0.97]"
             style={{ cursor: item.link ? "pointer" : "default" }}
           >
             <Image
@@ -92,6 +101,12 @@ export function NoticeModal({ partnerId, ready = true }: { partnerId?: string; r
               sizes="90vw"
               priority
               className="object-cover"
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                if (img.naturalWidth && img.naturalHeight) {
+                  setPosterAspect(img.naturalWidth / img.naturalHeight);
+                }
+              }}
             />
           </button>
         ) : item.kind === "custom" ? (
