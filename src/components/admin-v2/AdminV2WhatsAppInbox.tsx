@@ -12,6 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   MessageSquare,
@@ -170,6 +177,11 @@ export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  // Connected numbers + which one's inbox we're viewing ("all" = every number).
+  const [numbers, setNumbers] = useState<
+    Array<{ id: string; phone_number_id: string; display_phone: string | null; is_primary: boolean }>
+  >([]);
+  const [accountFilter, setAccountFilter] = useState<string>("all");
 
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -179,7 +191,10 @@ export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
     if (!partnerId) return;
     fetch(`/api/whatsapp/meta/status?partnerId=${partnerId}`)
       .then((r) => r.json())
-      .then((d) => setConnected(!!d.connected))
+      .then((d) => {
+        setConnected(!!d.connected);
+        setNumbers(Array.isArray(d.integrations) ? d.integrations : []);
+      })
       .catch(() => setConnected(false));
   }, [partnerId]);
 
@@ -208,7 +223,21 @@ export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
     };
   }, [partnerId]);
 
-  const conversations = useMemo(() => buildConversations(messages), [messages]);
+  // Scope the whole inbox to the selected account (connected number). "all"
+  // shows every number's messages; a specific number filters to what came
+  // in/out on it. Legacy rows with no phone_number_id only show under "all".
+  const accountMessages = useMemo(
+    () =>
+      accountFilter === "all"
+        ? messages
+        : messages.filter((m) => m.phone_number_id === accountFilter),
+    [messages, accountFilter],
+  );
+
+  const conversations = useMemo(
+    () => buildConversations(accountMessages),
+    [accountMessages],
+  );
 
   const filteredConversations = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -219,34 +248,40 @@ export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
     });
   }, [conversations, search]);
 
-  // Thread = messages for the selected contact, oldest first so the
-  // composer at the bottom always shows the latest reply.
+  // Thread = messages for the selected contact (within the active account),
+  // oldest first so the composer at the bottom always shows the latest reply.
   const thread = useMemo(() => {
     if (!selected) return [];
-    return messages
+    return accountMessages
       .filter((m) => m.contact_phone === selected)
       .slice()
       .reverse();
-  }, [messages, selected]);
+  }, [accountMessages, selected]);
 
   // Auto-scroll thread to bottom on new message + when switching threads.
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thread.length, selected]);
 
-  // Mark inbound messages as read whenever the partner opens a thread.
+  // Mark inbound messages as read whenever the partner opens a thread. Scoped to
+  // the active account so opening the thread under one number doesn't clear the
+  // same customer's unread badge on another number.
   useEffect(() => {
     if (!partnerId || !selected) return;
-    const hasUnread = messages.some(
+    const hasUnread = accountMessages.some(
       (m) => m.contact_phone === selected && m.direction === "in" && !m.is_read,
     );
     if (!hasUnread) return;
     fetch("/api/whatsapp/inbox/read", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ partnerId, contactPhone: selected }),
+      body: JSON.stringify({
+        partnerId,
+        contactPhone: selected,
+        phoneNumberId: accountFilter !== "all" ? accountFilter : null,
+      }),
     }).catch(() => {});
-  }, [partnerId, selected, messages]);
+  }, [partnerId, selected, accountFilter, accountMessages]);
 
   const handleSend = async () => {
     if (!partnerId || !selected) return;
@@ -263,7 +298,11 @@ export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
           partnerId,
           to: selected,
           text: optimistic,
-          sendFromPhoneNumberId: selectedConv?.inbound_phone_number_id || null,
+          // When viewing a specific account, reply from it; else the number the
+          // customer last messaged.
+          sendFromPhoneNumberId:
+            (accountFilter !== "all" ? accountFilter : selectedConv?.inbound_phone_number_id) ||
+            null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -333,7 +372,9 @@ export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
           partnerId,
           to: selected,
           template: payload,
-          sendFromPhoneNumberId: selectedConv?.inbound_phone_number_id || null,
+          sendFromPhoneNumberId:
+            (accountFilter !== "all" ? accountFilter : selectedConv?.inbound_phone_number_id) ||
+            null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -407,7 +448,29 @@ export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
             selected ? "hidden sm:flex" : "flex",
           )}
         >
-          <div className="p-2 border-b">
+          <div className="p-2 border-b space-y-2">
+            {numbers.length > 1 && (
+              <Select
+                value={accountFilter}
+                onValueChange={(v) => {
+                  setAccountFilter(v);
+                  setSelected(null); // the open thread may not exist under the new account
+                }}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All numbers</SelectItem>
+                  {numbers.map((n) => (
+                    <SelectItem key={n.phone_number_id} value={n.phone_number_id}>
+                      {n.display_phone || n.phone_number_id}
+                      {n.is_primary ? " · default" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input

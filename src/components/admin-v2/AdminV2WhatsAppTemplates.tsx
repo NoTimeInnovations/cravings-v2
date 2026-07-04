@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -150,26 +150,48 @@ export function AdminV2WhatsAppTemplates() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [addingOtp, setAddingOtp] = useState(false);
+  // Templates are per-WABA. When a partner has several numbers, they pick which
+  // number's WABA to manage; "" until resolved / when they have one number.
+  const [numbers, setNumbers] = useState<
+    Array<{ id: string; phone_number_id: string; display_phone: string | null; is_primary: boolean }>
+  >([]);
+  const [selectedPhoneNumberId, setSelectedPhoneNumberId] = useState<string>("");
+  // Only the latest load commits (guards against the mount double-load race where
+  // an unscoped "all WABAs" response could land after the scoped one).
+  const reqId = useRef(0);
+  // Numbers whose WABA we've already synced from Meta this session — so the FIRST
+  // time you view a number we pull its (per-WABA) templates, but switching back
+  // and forth doesn't re-hit Meta every time.
+  const syncedNumbers = useRef<Set<string>>(new Set());
 
   // The OTP template is the same for everyone; show a one-click "add" until the
   // partner has it (in any status — submitted/approved).
   const hasOtpTemplate = templates.some((t) => t.name === OTP_TEMPLATE_NAME);
 
-  const load = async (withSync = false) => {
+  const load = async (
+    opts: { sync?: boolean; phoneNumberId?: string; useSyncSpinner?: boolean } = {},
+  ) => {
     if (!partnerId) return;
-    if (withSync) setSyncing(true);
+    const phoneNumberId = opts.phoneNumberId ?? selectedPhoneNumberId;
+    const myId = ++reqId.current;
+    if (opts.useSyncSpinner) setSyncing(true);
     else setLoading(true);
     try {
-      const url = `/api/whatsapp/templates?partnerId=${partnerId}${withSync ? "&sync=1" : ""}`;
-      const res = await fetch(url);
+      const params = new URLSearchParams({ partnerId });
+      if (opts.sync) params.set("sync", "1");
+      if (phoneNumberId) params.set("phoneNumberId", phoneNumberId);
+      const res = await fetch(`/api/whatsapp/templates?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load");
-      setTemplates(data.templates || []);
+      // Drop stale responses so a late unscoped list can't overwrite a scoped one.
+      if (myId === reqId.current) setTemplates(data.templates || []);
     } catch (e: any) {
-      toast.error(e?.message || "Failed to load templates");
+      if (myId === reqId.current) toast.error(e?.message || "Failed to load templates");
     } finally {
-      setLoading(false);
-      setSyncing(false);
+      if (myId === reqId.current) {
+        setLoading(false);
+        setSyncing(false);
+      }
     }
   };
 
@@ -179,6 +201,15 @@ export function AdminV2WhatsAppTemplates() {
       const res = await fetch(`/api/whatsapp/meta/status?partnerId=${partnerId}`);
       const data = await res.json();
       setConnected(!!data.connected);
+      const list = Array.isArray(data.integrations) ? data.integrations : [];
+      setNumbers(list);
+      setSelectedPhoneNumberId(
+        (prev) =>
+          prev ||
+          list.find((n: any) => n.is_primary)?.phone_number_id ||
+          list[0]?.phone_number_id ||
+          "",
+      );
     } catch {
       setConnected(false);
     }
@@ -187,9 +218,22 @@ export function AdminV2WhatsAppTemplates() {
   useEffect(() => {
     if (!partnerId) return;
     loadStatus();
-    load(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partnerId]);
+
+  // Load the list whenever the partner or the selected number's WABA changes.
+  // For a multi-number partner, wait until the primary is resolved so we don't
+  // flash the unscoped "all WABAs" list. The FIRST time a number is viewed we
+  // sync its WABA from Meta (its per-WABA templates may not be mirrored yet).
+  useEffect(() => {
+    if (!partnerId) return;
+    if (numbers.length > 1 && !selectedPhoneNumberId) return;
+    const firstView =
+      !!selectedPhoneNumberId && !syncedNumbers.current.has(selectedPhoneNumberId);
+    if (firstView) syncedNumbers.current.add(selectedPhoneNumberId);
+    load({ sync: firstView, phoneNumberId: selectedPhoneNumberId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partnerId, selectedPhoneNumberId, numbers.length]);
 
   const handleDelete = async (row: TemplateRow) => {
     if (!partnerId) return;
@@ -219,12 +263,16 @@ export function AdminV2WhatsAppTemplates() {
       const res = await fetch("/api/whatsapp/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partnerId, ...OTP_TEMPLATE_PAYLOAD }),
+        body: JSON.stringify({
+          partnerId,
+          ...OTP_TEMPLATE_PAYLOAD,
+          phoneNumberId: selectedPhoneNumberId || undefined,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Meta rejected the template");
       toast.success("OTP template submitted — Meta will review within ~24h");
-      load(false);
+      load({});
     } catch (e: any) {
       toast.error(e?.message || "Failed to submit OTP template");
     } finally {
@@ -239,10 +287,11 @@ export function AdminV2WhatsAppTemplates() {
         mode={editor.mode}
         initial={editor.mode === "edit" ? editor.template : null}
         partnerId={partnerId}
+        phoneNumberId={selectedPhoneNumberId}
         onClose={() => setEditor(null)}
         onSaved={() => {
           setEditor(null);
-          load(false);
+          load({});
         }}
       />
     );
@@ -261,10 +310,28 @@ export function AdminV2WhatsAppTemplates() {
             be sent to your customers through the WhatsApp Business API.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
+          {numbers.length > 1 && (
+            <Select value={selectedPhoneNumberId} onValueChange={setSelectedPhoneNumberId}>
+              <SelectTrigger className="w-[200px]" title="Templates are per number — pick which one to manage">
+                <SelectValue placeholder="Choose number" />
+              </SelectTrigger>
+              <SelectContent>
+                {numbers.map((n) => (
+                  <SelectItem key={n.phone_number_id} value={n.phone_number_id}>
+                    {n.display_phone || n.phone_number_id}
+                    {n.is_primary ? " · default" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button
             variant="outline"
-            onClick={() => load(true)}
+            onClick={() => {
+              if (selectedPhoneNumberId) syncedNumbers.current.add(selectedPhoneNumberId);
+              load({ sync: true, useSyncSpinner: true });
+            }}
             disabled={syncing || !connected}
             title={!connected ? "Connect your WABA in Settings first" : "Sync statuses from Meta"}
           >
@@ -420,12 +487,14 @@ export function AdminV2WhatsAppTemplates() {
 
 function TemplateEditorView({
   partnerId,
+  phoneNumberId,
   mode,
   initial,
   onClose,
   onSaved,
 }: {
   partnerId: string | undefined;
+  phoneNumberId?: string;
   mode: "create" | "edit";
   initial?: TemplateRow | null;
   onClose: () => void;
@@ -750,6 +819,7 @@ function TemplateEditorView({
             language,
             category,
             components: buildComponents(),
+            phoneNumberId: phoneNumberId || undefined,
           }),
         });
       }

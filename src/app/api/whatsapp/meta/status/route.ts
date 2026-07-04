@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
           phone_number_id
           display_phone
           is_primary
+          flow_enabled
           updated_at
         }
       }
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
       phone_number_id: string;
       display_phone: string | null;
       is_primary: boolean;
+      flow_enabled: boolean;
       updated_at: string;
     }>;
 

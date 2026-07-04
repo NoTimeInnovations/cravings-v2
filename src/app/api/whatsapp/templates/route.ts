@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   getPartnerWabaIntegration,
+  getIntegrationByPhoneNumberId,
   partnerWabaToken,
   listMetaTemplates,
   createMetaTemplate,
@@ -13,6 +14,29 @@ const LIST_LOCAL = `
   query ListLocalTemplates($partner_id: uuid!) {
     whatsapp_message_templates(
       where: { partner_id: { _eq: $partner_id } }
+      order_by: { created_at: desc }
+    ) {
+      id
+      name
+      language
+      category
+      components
+      status
+      meta_template_id
+      rejection_reason
+      waba_id
+      created_at
+      updated_at
+    }
+  }
+`;
+
+// Same as LIST_LOCAL but scoped to a single WABA — used when the partner picks a
+// specific connected number in the templates UI (multi-number).
+const LIST_LOCAL_BY_WABA = `
+  query ListLocalTemplatesByWaba($partner_id: uuid!, $waba_id: String!) {
+    whatsapp_message_templates(
+      where: { partner_id: { _eq: $partner_id }, waba_id: { _eq: $waba_id } }
       order_by: { created_at: desc }
     ) {
       id
@@ -99,28 +123,44 @@ export const maxDuration = 30;
 export async function GET(req: NextRequest) {
   const partnerId = req.nextUrl.searchParams.get("partnerId");
   const sync = req.nextUrl.searchParams.get("sync") === "1";
+  // Optional: a specific connected number → operate on THAT number's WABA
+  // (templates are per-WABA). Omitted = the partner's primary WABA + all rows.
+  const phoneNumberId = req.nextUrl.searchParams.get("phoneNumberId");
   if (!partnerId) {
     return NextResponse.json({ error: "Missing partnerId" }, { status: 400 });
   }
 
   try {
-    if (sync) {
-      const integration = await getPartnerWabaIntegration(partnerId);
-      if (integration?.waba_id && integration.access_token) {
-        try {
-          const metaTemplates = await listMetaTemplates(
-            integration.waba_id,
-            partnerWabaToken(integration),
-          );
-          await reconcileWithMeta(partnerId, integration.waba_id, metaTemplates);
-        } catch (e: any) {
-          // Sync is best-effort — never block the list view.
-          console.warn("Template sync failed:", e?.message || e);
-        }
+    // Resolve the WABA to view/sync. A requested number (owned by this partner)
+    // wins; otherwise the primary.
+    let integration = null;
+    if (phoneNumberId) {
+      const byNum = await getIntegrationByPhoneNumberId(phoneNumberId);
+      if (byNum && byNum.partner_id === partnerId) integration = byNum;
+    }
+    const syncIntegration =
+      integration || (sync ? await getPartnerWabaIntegration(partnerId) : null);
+
+    if (sync && syncIntegration?.waba_id && syncIntegration.access_token) {
+      try {
+        const metaTemplates = await listMetaTemplates(
+          syncIntegration.waba_id,
+          partnerWabaToken(syncIntegration),
+        );
+        await reconcileWithMeta(partnerId, syncIntegration.waba_id, metaTemplates);
+      } catch (e: any) {
+        // Sync is best-effort — never block the list view.
+        console.warn("Template sync failed:", e?.message || e);
       }
     }
 
-    const data = await fetchFromHasura(LIST_LOCAL, { partner_id: partnerId });
+    // List: scoped to the selected number's WABA, else every WABA the partner has.
+    const data = integration?.waba_id
+      ? await fetchFromHasura(LIST_LOCAL_BY_WABA, {
+          partner_id: partnerId,
+          waba_id: integration.waba_id,
+        })
+      : await fetchFromHasura(LIST_LOCAL, { partner_id: partnerId });
     return NextResponse.json({
       templates: data?.whatsapp_message_templates || [],
     });
@@ -149,7 +189,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { partnerId, name, language, category, components } = body || {};
+  const { partnerId, name, language, category, components, phoneNumberId } = body || {};
   if (!partnerId || !name || !language || !category || !Array.isArray(components)) {
     return NextResponse.json(
       { error: "Missing partnerId, name, language, category, or components" },
@@ -166,7 +206,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid category" }, { status: 400 });
   }
 
-  const integration = await getPartnerWabaIntegration(partnerId);
+  // Create on the requested number's WABA (owned by this partner), else primary.
+  let integration = null;
+  if (phoneNumberId) {
+    const byNum = await getIntegrationByPhoneNumberId(phoneNumberId);
+    if (byNum && byNum.partner_id === partnerId) integration = byNum;
+  }
+  if (!integration) integration = await getPartnerWabaIntegration(partnerId);
   if (!integration?.waba_id || !integration.access_token) {
     return NextResponse.json(
       { error: "Connect your WhatsApp Business Account before creating templates." },

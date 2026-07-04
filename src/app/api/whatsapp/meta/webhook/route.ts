@@ -692,7 +692,10 @@ export async function POST(req: NextRequest) {
         // already folded into the cached lookup — zero extra round-trips.
         const waEnabled =
           !!partner?.partner_id &&
-          whatsappEnabledFromFlags(partner.feature_flags);
+          whatsappEnabledFromFlags(partner.feature_flags) &&
+          // Per-number flow switch: a partner can turn OFF automated flows for a
+          // specific number (inbound is still recorded to the inbox below).
+          partner.flow_enabled !== false;
         // Welcome-flow read receipt + typing toggle (only meaningful when WA on).
         const flowTyping =
           waEnabled && flowTypingEnabledFromFlags(partner!.feature_flags);

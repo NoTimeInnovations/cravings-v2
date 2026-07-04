@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
@@ -47,7 +48,7 @@ export function IntegrationsSettings() {
     const [wabaPhoneNumber, setWabaPhoneNumber] = useState<string | null>(null);
     // Every connected number (a partner can link several). Primary first.
     const [wabaNumbers, setWabaNumbers] = useState<
-        Array<{ id: string; phone_number_id: string; display_phone: string | null; is_primary: boolean }>
+        Array<{ id: string; phone_number_id: string; display_phone: string | null; is_primary: boolean; flow_enabled: boolean }>
     >([]);
     const [isWabaLoading, setIsWabaLoading] = useState(false);
     // Where login OTPs are sent FROM. Defaults to "menuthere"; "own" sends from
@@ -449,6 +450,35 @@ export function IntegrationsSettings() {
         }
     };
 
+    // Turn automated flows (auto-replies) ON/OFF for a specific number. Inbound
+    // messages are still recorded to the inbox when off — only auto-replies stop.
+    const handleToggleFlow = async (phoneNumberId: string, enabled: boolean) => {
+        if (!userData) return;
+        // Optimistic flip so the switch feels instant.
+        setWabaNumbers((prev) =>
+            prev.map((n) =>
+                n.phone_number_id === phoneNumberId ? { ...n, flow_enabled: enabled } : n,
+            ),
+        );
+        try {
+            const res = await fetch("/api/whatsapp/meta/set-flow", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ partnerId: userData.id, phoneNumberId, enabled }),
+            });
+            if (!res.ok) throw new Error();
+            toast.success(enabled ? "Flows turned on for this number" : "Flows turned off for this number");
+        } catch {
+            // Roll back on failure.
+            setWabaNumbers((prev) =>
+                prev.map((n) =>
+                    n.phone_number_id === phoneNumberId ? { ...n, flow_enabled: !enabled } : n,
+                ),
+            );
+            toast.error("Failed to update flow setting");
+        }
+    };
+
     // Make a number the default sender (order/loyalty notifications, OTP, the
     // storefront "message us" link, and the broadcast default all use it).
     const handleSetPrimaryWhatsApp = async (phoneNumberId: string) => {
@@ -814,6 +844,14 @@ export function IntegrationsSettings() {
                                                                         Make default sender
                                                                     </button>
                                                                 )}
+                                                            </div>
+                                                            <div className="flex flex-col items-center gap-0.5 shrink-0">
+                                                                <span className="text-[10px] font-medium text-muted-foreground">Flows</span>
+                                                                <Switch
+                                                                    checked={n.flow_enabled !== false}
+                                                                    onCheckedChange={(v) => handleToggleFlow(n.phone_number_id, v)}
+                                                                    title={n.flow_enabled !== false ? "Auto-replies are ON for this number" : "Auto-replies are OFF for this number"}
+                                                                />
                                                             </div>
                                                             <Button
                                                                 variant="ghost"

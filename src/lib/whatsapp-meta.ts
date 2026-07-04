@@ -438,6 +438,7 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
         partner_id
         phone_number_id
         access_token
+        flow_enabled
         partner { feature_flags }
       }
     }
@@ -464,6 +465,7 @@ type PhoneNumberPartner = {
   partner_id: string;
   phone_number_id: string;
   access_token: string;
+  flow_enabled: boolean;
   feature_flags: string | null;
 } | null;
 
