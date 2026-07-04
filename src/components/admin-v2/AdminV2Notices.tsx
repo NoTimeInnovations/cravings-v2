@@ -275,6 +275,38 @@ function NoticeEditor({
     }
   };
 
+  const statusSchedule = (
+    <div className="rounded-xl border bg-white dark:bg-neutral-900 p-4 space-y-3">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="flex items-center gap-2">
+          <Switch checked={d.isActive} onCheckedChange={(v) => patch({ isActive: v })} />
+          <span className="text-sm font-medium">{d.isActive ? "Live" : "Off"}</span>
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={d.scheduled}
+            onChange={(e) => patch({ scheduled: e.target.checked })}
+            className="h-4 w-4 rounded border-gray-300 accent-orange-600 cursor-pointer"
+          />
+          Schedule
+        </label>
+      </div>
+      {d.scheduled && (
+        <div className="grid gap-3">
+          <div>
+            <Label className="text-xs">Starts</Label>
+            <Input type="datetime-local" value={d.startsAt} onChange={(e) => patch({ startsAt: e.target.value })} />
+          </div>
+          <div>
+            <Label className="text-xs">Ends</Label>
+            <Input type="datetime-local" value={d.expiresAt} onChange={(e) => patch({ expiresAt: e.target.value })} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -324,6 +356,7 @@ function NoticeEditor({
             <Label>Link when tapped (optional)</Label>
             <Input value={d.posterLink} onChange={(e) => patch({ posterLink: e.target.value })} placeholder="https://… or /offers" />
             <p className="text-xs text-muted-foreground">Tapping the poster opens this. External links open in a new tab; a path like <code>/offers</code> stays on your storefront.</p>
+            <div className="pt-2">{statusSchedule}</div>
           </div>
         </div>
       ) : (
@@ -406,40 +439,10 @@ function NoticeEditor({
                 Tap an element on the canvas to edit it.
               </div>
             )}
+            {statusSchedule}
           </div>
         </div>
       )}
-
-      {/* Status + schedule (both types) */}
-      <div className="rounded-xl border bg-white dark:bg-neutral-900 p-4 space-y-4">
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-          <div className="flex items-center gap-2">
-            <Switch checked={d.isActive} onCheckedChange={(v) => patch({ isActive: v })} />
-            <span className="text-sm font-medium">{d.isActive ? "Live" : "Off"}</span>
-          </div>
-          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={d.scheduled}
-              onChange={(e) => patch({ scheduled: e.target.checked })}
-              className="h-4 w-4 rounded border-gray-300 accent-orange-600 cursor-pointer"
-            />
-            Schedule (show only between dates)
-          </label>
-        </div>
-        {d.scheduled && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label className="text-xs">Starts</Label>
-              <Input type="datetime-local" value={d.startsAt} onChange={(e) => patch({ startsAt: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs">Ends</Label>
-              <Input type="datetime-local" value={d.expiresAt} onChange={(e) => patch({ expiresAt: e.target.value })} />
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
