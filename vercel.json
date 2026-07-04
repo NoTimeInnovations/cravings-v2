@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/reset-stock",
       "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/cron/auto-progress-orders",
+      "schedule": "* * * * *"
     }
   ]
 }

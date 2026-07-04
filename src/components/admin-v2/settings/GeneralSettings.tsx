@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
+import { isAutoProgressPartner } from "@/lib/demoPartner";
 import { MENU_LANGUAGES } from "@/lib/menuLanguages";
 import CustomDomainSettings from "@/components/admin/CustomDomainSettings";
 import { revalidateTag } from "@/app/actions/revalidate";
@@ -33,6 +34,7 @@ export function GeneralSettings() {
     const [isShopOpen, setIsShopOpen] = useState(true);
     const [timezone, setTimezone] = useState("Asia/Kolkata");
     const [languageSwitcher, setLanguageSwitcher] = useState(false);
+    const [autoProgressOrders, setAutoProgressOrders] = useState(false);
     const [menuLanguages, setMenuLanguages] = useState<string[]>([]);
 
     // Official Settings (used for legal pages — Cashfree KYC etc.)
@@ -63,9 +65,11 @@ export function GeneralSettings() {
                 const sfRaw = (userData as any).storefront_settings;
                 const sf = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
                 setLanguageSwitcher(!!sf?.languageSwitcher);
+                setAutoProgressOrders(!!sf?.autoProgressOrders);
                 setMenuLanguages(Array.isArray(sf?.menuLanguages) ? sf.menuLanguages : []);
             } catch {
                 setLanguageSwitcher(false);
+                setAutoProgressOrders(false);
                 setMenuLanguages([]);
             }
 
@@ -118,7 +122,7 @@ export function GeneralSettings() {
             } catch {
                 sfObj = {};
             }
-            const nextStorefrontSettings = JSON.stringify({ ...sfObj, languageSwitcher, menuLanguages });
+            const nextStorefrontSettings = JSON.stringify({ ...sfObj, languageSwitcher, menuLanguages, autoProgressOrders });
 
             const updates: any = {
                 store_name: storeName,
@@ -152,7 +156,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, languageSwitcher, menuLanguages, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
+    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, languageSwitcher, autoProgressOrders, menuLanguages, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -175,14 +179,17 @@ export function GeneralSettings() {
         const socialLinks = getSocialLinks(userData as HotelData);
         let sfLang = false;
         let sfLangs: string[] = [];
+        let sfAutoProgress = false;
         try {
             const sfRaw = data.storefront_settings;
             const sf = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
             sfLang = !!sf?.languageSwitcher;
             sfLangs = Array.isArray(sf?.menuLanguages) ? sf.menuLanguages : [];
+            sfAutoProgress = !!sf?.autoProgressOrders;
         } catch {
             sfLang = false;
             sfLangs = [];
+            sfAutoProgress = false;
         }
         const hasChanges =
             storeName !== (data.store_name || "") ||
@@ -200,6 +207,7 @@ export function GeneralSettings() {
             officialEmailId !== (data.official_email_id || "") ||
             officialPhoneNumber !== (data.official_phone_number || "") ||
             languageSwitcher !== sfLang ||
+            autoProgressOrders !== sfAutoProgress ||
             JSON.stringify([...menuLanguages].sort()) !== JSON.stringify([...sfLangs].sort());
         setHasChanges(hasChanges);
     }, [
@@ -218,6 +226,7 @@ export function GeneralSettings() {
         officialEmailId,
         officialPhoneNumber,
         languageSwitcher,
+        autoProgressOrders,
         menuLanguages,
         userData,
         setHasChanges,
@@ -327,6 +336,17 @@ export function GeneralSettings() {
                                 </p>
                             </div>
                         </div>
+                        {isAutoProgressPartner(userData?.id) && (
+                            <div className="flex items-center gap-3 rounded-xl border bg-secondary/40 p-3.5">
+                                <Switch checked={autoProgressOrders} onCheckedChange={setAutoProgressOrders} />
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium">Auto-progress orders (demo)</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Automatically move new orders through Accepted → Food ready → Dispatched → Completed (about one step per minute). Test account only.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                         {languageSwitcher && (
                             <div className="space-y-2 rounded-xl border p-3.5">
                                 <p className="text-sm font-medium">Languages to offer</p>
