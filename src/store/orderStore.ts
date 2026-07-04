@@ -32,6 +32,7 @@ import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { decrementStockForOrder } from "@/lib/stockDecrement";
+import { ymd } from "@/lib/prebooking";
 import { usePOSStore } from "./posStore";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -1933,12 +1934,16 @@ const useOrderStore = create(
           try {
             const stockOn = getFeatures(hotelData.feature_flags || null)?.stockmanagement?.enabled;
             if (stockOn) {
+              // Scheduled order -> decrement that date's stock; immediate -> today.
+              const stockDate = scheduled_date || ymd(new Date());
               await decrementStockForOrder(
                 currentOrder.items.map((it) => ({
                   menuId: it.id.split("|")[0],
                   stockId: it.stocks?.[0]?.id,
                   quantity: it.quantity,
+                  dailyDefault: it.stocks?.[0]?.daily_default ?? null,
                 })),
+                { stockDate },
               );
               revalidateTag(hotelData.id);
             }

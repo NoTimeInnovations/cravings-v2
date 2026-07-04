@@ -43,6 +43,7 @@ export const getMenu = `
                 stock_quantity
                 stock_type
                 show_stock
+                daily_default
             }
         }
     }

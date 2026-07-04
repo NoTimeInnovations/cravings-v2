@@ -17,7 +17,7 @@ const REENABLE_DEPLETED = `
       where: {
         is_available: { _eq: false },
         deletion_status: { _eq: 0 },
-        stocks: { stock_quantity: { _lte: 0 } },
+        stocks: { stock_quantity: { _lte: 0 }, stock_type: { _neq: "DATE" } },
         partner: { feature_flags: { _ilike: "%stockmanagement-true%" } },
         reactivate_at: { _is_null: true }
       },
@@ -28,10 +28,16 @@ const REENABLE_DEPLETED = `
   }
 `;
 
+// Date-capped items (stock_type 'DATE') are excluded: their stock is tracked
+// per date in menu_date_stocks and each future date is already independent, so
+// there is nothing to reset each morning and their global counter is inert.
 const RESET_STOCK = `
   mutation ResetStockToDefault {
     update_stocks(
-      where: { menu: { partner: { feature_flags: { _ilike: "%stockmanagement-true%" } } } },
+      where: {
+        stock_type: { _neq: "DATE" },
+        menu: { partner: { feature_flags: { _ilike: "%stockmanagement-true%" } } }
+      },
       _set: { stock_quantity: 9999 }
     ) {
       affected_rows

@@ -43,7 +43,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
-import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType } from "@/lib/prebooking";
+import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd } from "@/lib/prebooking";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
@@ -390,18 +390,32 @@ const PlaceOrderModalV2 = ({
     });
   }, [orderType, items, allMenus]);
 
+  // Prebooking selection (scheduled date/time). Declared here — before the stock
+  // effect — so the live-stock guard can re-fetch whenever the customer changes
+  // the chosen date.
+  const [prebooking, setPrebooking] = useState<PrebookingSelection | null>(null);
+
   // Stock-managed partners: the page menu snapshot can be up to ~60s stale, so
-  // re-fetch LIVE stock for the cart items when the checkout opens and flag
-  // anything at <= 0. (An item only flags if it actually has a stock row.)
+  // re-fetch LIVE stock for the cart items when the checkout opens (and whenever
+  // the selected date changes) and flag anything at <= 0.
   const stockFeatureOn = !!getFeatures(hotelData?.feature_flags || "")?.stockmanagement?.enabled;
+  // The date whose stock applies: the chosen prebooking date, else today.
+  const selectedStockDate = prebooking?.date || ymd(new Date());
+  // Non-capped (legacy global) stock counter, keyed by base menu id.
   const [liveStock, setLiveStock] = useState<Record<string, number>>({});
   // True only after a successful live-stock fetch for the current cart. Placement
   // is blocked while false for stock-managed partners (fail-closed) so a failed or
   // pending fetch can't silently let an over-quantity order through.
   const [stockVerified, setStockVerified] = useState(false);
+  // Per-item daily cap (null => not date-capped). Presence marks a DATE item.
+  const [dateCaps, setDateCaps] = useState<Record<string, number | null>>({});
+  // Remaining for the SELECTED date (only rows that already exist).
+  const [dateStock, setDateStock] = useState<Record<string, number>>({});
   useEffect(() => {
     if (!open_place_order_modal || !stockFeatureOn || !items?.length) {
       setLiveStock({});
+      setDateCaps({});
+      setDateStock({});
       setStockVerified(false);
       return;
     }
@@ -409,29 +423,42 @@ const PlaceOrderModalV2 = ({
     if (!ids.length) return;
     let cancelled = false;
     fetchFromHasura(
-      `query CheckoutStock($ids: [uuid!]!) { stocks(where: { menu_id: { _in: $ids } }) { menu_id stock_quantity } }`,
-      { ids },
+      `query CheckoutStock($ids: [uuid!]!, $date: date!) {
+        stocks(where: { menu_id: { _in: $ids } }) { menu_id stock_quantity daily_default }
+        menu_date_stocks(where: { menu_id: { _in: $ids }, date: { _eq: $date } }) { menu_id stock_quantity }
+      }`,
+      { ids, date: selectedStockDate },
     )
       .then((res: any) => {
         if (cancelled) return;
-        const map: Record<string, number> = {};
+        const globalMap: Record<string, number> = {};
+        const capMap: Record<string, number | null> = {};
         (res?.stocks || []).forEach((s: any) => {
-          if (s?.menu_id != null) map[s.menu_id] = s.stock_quantity;
+          if (s?.menu_id == null) return;
+          capMap[s.menu_id] = s.daily_default ?? null;
+          // Only non-capped items have a meaningful global count.
+          if (s.daily_default == null) globalMap[s.menu_id] = s.stock_quantity;
         });
-        setLiveStock(map);
-        // Publish to the shared store so the storefront menu cards reflect the
-        // fetched stock too (their own menu data is an SSR snapshot).
-        useLiveStock.getState().setMany(map);
+        const dateMap: Record<string, number> = {};
+        (res?.menu_date_stocks || []).forEach((d: any) => {
+          if (d?.menu_id != null) dateMap[d.menu_id] = d.stock_quantity;
+        });
+        setLiveStock(globalMap);
+        setDateCaps(capMap);
+        setDateStock(dateMap);
+        // Publish ONLY non-capped globals to the storefront overlay — date-capped
+        // quantities are specific to the chosen date and would mislead menu cards.
+        useLiveStock.getState().setMany(globalMap);
         setStockVerified(true);
       })
       .catch(() => {
-        // Keep any prior liveStock; just mark unverified so placement is blocked.
+        // Keep any prior maps; just mark unverified so placement is blocked.
         if (!cancelled) setStockVerified(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [open_place_order_modal, stockFeatureOn, items]);
+  }, [open_place_order_modal, stockFeatureOn, items, selectedStockDate]);
   // Total cart quantity per base menu id (variants share one stock row).
   const cartQtyByBase = useMemo(() => {
     const m: Record<string, number> = {};
@@ -441,24 +468,35 @@ const PlaceOrderModalV2 = ({
     });
     return m;
   }, [items]);
-  // Items that can't be ordered as-is: the base item is out of stock, OR the
-  // quantity wanted (summed across variants) exceeds what's left. Each carries
-  // `available` so the warning can say "only N left".
+  // Units available for a base item on the selected date. Date-capped items use
+  // the chosen date's remaining (its row, else the daily default when not seeded
+  // yet); non-capped items use the global counter. null => untracked (unlimited).
+  const availableFor = (baseId: string): number | null => {
+    if (baseId in dateCaps && dateCaps[baseId] != null) {
+      return baseId in dateStock ? dateStock[baseId] : (dateCaps[baseId] as number);
+    }
+    if (!(baseId in liveStock)) return null;
+    return liveStock[baseId] ?? 0;
+  };
+  // Items that can't be ordered as-is: out of stock, OR the quantity wanted
+  // (summed across variants) exceeds what's left. Each carries `available` so the
+  // warning can say "only N left".
   const outOfStockItems = useMemo(() => {
     if (!stockFeatureOn || !items?.length) return [];
     return items
       .filter((cartItem) => {
         const baseId = cartItem.id.split("|")[0];
-        if (!(baseId in liveStock)) return false;
-        const available = liveStock[baseId] ?? 0;
+        const available = availableFor(baseId);
+        if (available == null) return false;
         const wanted = cartQtyByBase[baseId] ?? (cartItem.quantity || 0);
         return available <= 0 || wanted > available;
       })
       .map((cartItem) => ({
         ...cartItem,
-        available: liveStock[cartItem.id.split("|")[0]] ?? 0,
+        available: availableFor(cartItem.id.split("|")[0]) ?? 0,
       }));
-  }, [stockFeatureOn, items, liveStock, cartQtyByBase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockFeatureOn, items, liveStock, dateCaps, dateStock, cartQtyByBase]);
   // Placement is blocked when stock is unverified (fail-closed) or something is
   // out of stock / over-ordered.
   const stockBlocked =
@@ -511,7 +549,8 @@ const PlaceOrderModalV2 = ({
   );
 
   // ---------------- Prebooking (scheduled orders) ----------------
-  const [prebooking, setPrebooking] = useState<PrebookingSelection | null>(null);
+  // `prebooking` state is declared earlier (above the stock effect) so the
+  // live-stock guard can react to date changes.
   const prebookingSettings = useMemo(
     () => parsePrebookingSettings((hotelData as any)?.prebooking_settings),
     [(hotelData as any)?.prebooking_settings],

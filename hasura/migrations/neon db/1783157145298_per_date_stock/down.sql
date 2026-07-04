@@ -1,0 +1,3 @@
+-- Intentionally a no-op: this migration is additive only and we never drop
+-- columns/tables or delete data. Rolling back leaves stocks.daily_default and
+-- menu_date_stocks in place (harmless when unused).

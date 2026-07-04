@@ -133,7 +133,12 @@ const ItemCard = ({
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement
     ?.enabled;
   const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
-  const showStock = hasStockFeature && (item.stocks?.[0]?.show_stock ?? false);
+  // Date-capped items track stock per date; their global count is inert, so
+  // never surface it on the card (availability is enforced at checkout).
+  const showStock =
+    hasStockFeature &&
+    item.stocks?.[0]?.daily_default == null &&
+    (item.stocks?.[0]?.show_stock ?? false);
   const stockQuantity = item.stocks?.[0]?.stock_quantity;
 
   const hasVariants = (item.variants?.length ?? 0) > 0;

@@ -27,7 +27,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
-import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType } from "@/lib/prebooking";
+import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd } from "@/lib/prebooking";
 import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1747,13 +1747,21 @@ const PlaceOrderModal = ({
   // LIVE stock for the cart items when the checkout opens and flag anything at
   // <= 0. Splits the cart id so variant lines map to the base menu item's stock.
   const stockFeatureOn = !!getFeatures(hotelData?.feature_flags || "")?.stockmanagement?.enabled;
+  // Prebooking selection declared here so the stock guard can react to date changes.
+  const [prebooking, setPrebooking] = useState<PrebookingSelection | null>(null);
+  // The date whose stock applies: the chosen prebooking date, else today.
+  const selectedStockDate = prebooking?.date || ymd(new Date());
   const [liveStock, setLiveStock] = useState<Record<string, number>>({});
   // True only after a successful live-stock fetch for the current cart. Placement
   // is blocked while false for stock-managed partners (fail-closed).
   const [stockVerified, setStockVerified] = useState(false);
+  const [dateCaps, setDateCaps] = useState<Record<string, number | null>>({});
+  const [dateStock, setDateStock] = useState<Record<string, number>>({});
   useEffect(() => {
     if (!open_place_order_modal || !stockFeatureOn || !items?.length) {
       setLiveStock({});
+      setDateCaps({});
+      setDateStock({});
       setStockVerified(false);
       return;
     }
@@ -1761,28 +1769,40 @@ const PlaceOrderModal = ({
     if (!ids.length) return;
     let cancelled = false;
     fetchFromHasura(
-      `query CheckoutStock($ids: [uuid!]!) { stocks(where: { menu_id: { _in: $ids } }) { menu_id stock_quantity } }`,
-      { ids },
+      `query CheckoutStock($ids: [uuid!]!, $date: date!) {
+        stocks(where: { menu_id: { _in: $ids } }) { menu_id stock_quantity daily_default }
+        menu_date_stocks(where: { menu_id: { _in: $ids }, date: { _eq: $date } }) { menu_id stock_quantity }
+      }`,
+      { ids, date: selectedStockDate },
     )
       .then((res: any) => {
         if (cancelled) return;
-        const map: Record<string, number> = {};
+        const globalMap: Record<string, number> = {};
+        const capMap: Record<string, number | null> = {};
         (res?.stocks || []).forEach((s: any) => {
-          if (s?.menu_id != null) map[s.menu_id] = s.stock_quantity;
+          if (s?.menu_id == null) return;
+          capMap[s.menu_id] = s.daily_default ?? null;
+          if (s.daily_default == null) globalMap[s.menu_id] = s.stock_quantity;
         });
-        setLiveStock(map);
-        // Publish to the shared store so the storefront menu cards reflect it too.
-        useLiveStock.getState().setMany(map);
+        const dateMap: Record<string, number> = {};
+        (res?.menu_date_stocks || []).forEach((d: any) => {
+          if (d?.menu_id != null) dateMap[d.menu_id] = d.stock_quantity;
+        });
+        setLiveStock(globalMap);
+        setDateCaps(capMap);
+        setDateStock(dateMap);
+        // Publish ONLY non-capped globals — date-capped counts are date-specific.
+        useLiveStock.getState().setMany(globalMap);
         setStockVerified(true);
       })
       .catch(() => {
-        // Keep any prior liveStock; just mark unverified so placement is blocked.
+        // Keep any prior maps; just mark unverified so placement is blocked.
         if (!cancelled) setStockVerified(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [open_place_order_modal, stockFeatureOn, items]);
+  }, [open_place_order_modal, stockFeatureOn, items, selectedStockDate]);
   // Total cart quantity per base menu id (variants share one stock row).
   const cartQtyByBase = useMemo(() => {
     const m: Record<string, number> = {};
@@ -1792,24 +1812,35 @@ const PlaceOrderModal = ({
     });
     return m;
   }, [items]);
-  // Items that can't be ordered as-is: the base item is out of stock, OR the
-  // quantity wanted (summed across variants) exceeds what's left. Each carries
-  // `available` so the warning can say "only N left".
+  // Units available for a base item on the selected date. Date-capped items use
+  // the chosen date's remaining (its row, else the daily default when not seeded
+  // yet); non-capped items use the global counter. null => untracked (unlimited).
+  const availableFor = (baseId: string): number | null => {
+    if (baseId in dateCaps && dateCaps[baseId] != null) {
+      return baseId in dateStock ? dateStock[baseId] : (dateCaps[baseId] as number);
+    }
+    if (!(baseId in liveStock)) return null;
+    return liveStock[baseId] ?? 0;
+  };
+  // Items that can't be ordered as-is: out of stock, OR the quantity wanted
+  // (summed across variants) exceeds what's left. Each carries `available` so the
+  // warning can say "only N left".
   const outOfStockItems = useMemo(() => {
     if (!stockFeatureOn || !items?.length) return [];
     return items
       .filter((cartItem) => {
         const baseId = cartItem.id.split("|")[0];
-        if (!(baseId in liveStock)) return false;
-        const available = liveStock[baseId] ?? 0;
+        const available = availableFor(baseId);
+        if (available == null) return false;
         const wanted = cartQtyByBase[baseId] ?? (cartItem.quantity || 0);
         return available <= 0 || wanted > available;
       })
       .map((cartItem) => ({
         ...cartItem,
-        available: liveStock[cartItem.id.split("|")[0]] ?? 0,
+        available: availableFor(cartItem.id.split("|")[0]) ?? 0,
       }));
-  }, [stockFeatureOn, items, liveStock, cartQtyByBase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockFeatureOn, items, liveStock, dateCaps, dateStock, cartQtyByBase]);
   const hasOutOfStockItems = outOfStockItems.length > 0;
   // Placement is blocked when stock is unverified (fail-closed) or something is
   // out of stock / over-ordered.
@@ -1974,7 +2005,8 @@ const PlaceOrderModal = ({
     (isQrScan ? hotelFeatures?.ordering?.enabled : hotelFeatures?.delivery?.enabled);
 
   // ---------------- Prebooking (scheduled orders) ----------------
-  const [prebooking, setPrebooking] = useState<PrebookingSelection | null>(null);
+  // `prebooking` state is declared earlier (above the stock effect) so the
+  // live-stock guard reacts to date changes.
   const prebookingSettings = useMemo(
     () => parsePrebookingSettings((hotelData as any)?.prebooking_settings),
     [(hotelData as any)?.prebooking_settings]

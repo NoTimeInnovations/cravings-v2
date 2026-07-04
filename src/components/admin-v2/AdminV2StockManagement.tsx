@@ -37,6 +37,7 @@ import { Badge } from "@/components/ui/badge";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { useAdminStore } from "@/store/adminStore";
 import { useMenuStore } from "@/store/menuStore_hasura";
+import { AdminV2DateStock } from "./AdminV2DateStock";
 
 type StockMenuItem = {
   name: string;
@@ -45,8 +46,9 @@ type StockMenuItem = {
   stocks: {
     id: string;
     stock_quantity: number;
-    stock_type: "STATIC" | "AUTO";
+    stock_type: string;
     show_stock: boolean;
+    daily_default?: number | null;
   }[];
 };
 
@@ -71,6 +73,8 @@ export function AdminV2StockManagement() {
   const [bulkAction, setBulkAction] = useState<
     "AVAILABLE" | "UNAVAILABLE" | "STATIC" | "AUTO" | "SHOW_STOCK" | "HIDE_STOCK"
   >("AVAILABLE");
+  // "byItem" = single global count per item; "byDate" = per-date stock grid.
+  const [mode, setMode] = useState<"byItem" | "byDate">("byItem");
 
   const activeView = useAdminStore((s) => s.activeView);
   const hasLoadedRef = useRef(false);
@@ -105,6 +109,7 @@ export function AdminV2StockManagement() {
               stock_quantity
               stock_type
               show_stock
+              daily_default
             }
           }
         }`,
@@ -437,6 +442,15 @@ export function AdminV2StockManagement() {
   ) => {
     const isEditing = editingItem?.id === stock.id;
     const isOutOfStock = stock.stock_quantity <= 0;
+    // Date-capped items track stock per date (managed in the "By date" tab), so
+    // their global count is inert — don't offer to edit it here.
+    if (stock.daily_default != null) {
+      return (
+        <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
+          Per date · {stock.daily_default}/day
+        </Badge>
+      );
+    }
     return (
       <div className="flex items-center gap-1.5">
         <Input
@@ -523,16 +537,47 @@ export function AdminV2StockManagement() {
     <div className="animate-in fade-in slide-in-from-right-4 space-y-5 pb-40 duration-300">
       {/* Header */}
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Boxes className="h-5 w-5" />
-          </span>
-          <h2 className="text-xl font-bold sm:text-2xl">Stock Management</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Boxes className="h-5 w-5" />
+            </span>
+            <h2 className="text-xl font-bold sm:text-2xl">Stock Management</h2>
+          </div>
+          {/* Mode toggle: single count per item vs per-date stock */}
+          <div className="inline-flex rounded-lg border bg-white p-0.5 text-sm">
+            <button
+              type="button"
+              onClick={() => setMode("byItem")}
+              className={`rounded-md px-3 py-1.5 font-medium transition ${
+                mode === "byItem" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              }`}
+            >
+              By item
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("byDate")}
+              className={`rounded-md px-3 py-1.5 font-medium transition ${
+                mode === "byDate" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              }`}
+            >
+              By date
+            </button>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          Set stock counts per item.
+          {mode === "byDate"
+            ? "Set stock per item for each upcoming date."
+            : "Set stock counts per item."}
         </p>
       </div>
+
+      {mode === "byDate" && <AdminV2DateStock partnerId={userData?.id as string} />}
+
+      {mode === "byItem" && (
+      <>
+      {/* Summary stats */}
 
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
@@ -804,6 +849,8 @@ export function AdminV2StockManagement() {
             })}
           </div>
         </>
+      )}
+      </>
       )}
     </div>
   );

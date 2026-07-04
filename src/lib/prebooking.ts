@@ -60,7 +60,8 @@ function fmt(mins: number): string {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-function ymd(d: Date): string {
+/** Local "YYYY-MM-DD" for a Date (device timezone). */
+export function ymd(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
         d.getDate()
     ).padStart(2, "0")}`;

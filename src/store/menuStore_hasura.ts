@@ -49,6 +49,9 @@ export interface MenuItem {
     stock_type: string;
     show_stock: boolean;
     id?: string;
+    // Per-date stock: when set, the item is "date-capped" (stock tracked per
+    // date in menu_date_stocks) and the global stock_quantity is inert.
+    daily_default?: number | null;
   }[];
   variants?: {
     name: string;

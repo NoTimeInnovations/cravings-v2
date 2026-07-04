@@ -7,6 +7,7 @@
 - "!include public_loyalty_accounts.yaml"
 - "!include public_loyalty_transactions.yaml"
 - "!include public_menu.yaml"
+- "!include public_menu_date_stocks.yaml"
 - "!include public_offers.yaml"
 - "!include public_offers_claimed.yaml"
 - "!include public_order_items.yaml"

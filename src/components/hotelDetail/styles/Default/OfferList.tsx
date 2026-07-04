@@ -118,7 +118,7 @@ const OfferList = ({
               )}
 
               {/* Stock information display */}
-              {stockInfo?.show_stock && hasStockFeature && (
+              {stockInfo?.show_stock && stockInfo?.daily_default == null && hasStockFeature && (
                 <div className="px-3 pb-2 text-xs text-center">
                   {isOutOfStock ? (
                     <span className="text-red-500 font-semibold">Out of Stock</span>
