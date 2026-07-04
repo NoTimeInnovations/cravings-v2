@@ -670,7 +670,11 @@ const HotelMenuPage = ({
       {/* Storefront announcement / notice modal — shows on every open when the
           partner has an active, in-schedule notice. */}
       {hoteldata?.id && (
-        <NoticeModal partnerId={hoteldata.id} ready={!showOnboarding || onboardingDismissed} />
+        <NoticeModal
+          partnerId={hoteldata.id}
+          notices={(hoteldata as any)?.notices}
+          ready={!showOnboarding || onboardingDismissed}
+        />
       )}
     </>
   );

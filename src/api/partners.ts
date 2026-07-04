@@ -295,7 +295,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       start_time
       variant
     }
-    notices(where: {is_active: {_eq: true}, _or: [{expires_at: {_is_null: true}}, {expires_at: {_gt: "now()"}}]}, order_by: {priority: asc_nulls_last}) {
+    notices(where: {is_active: {_eq: true}, _and: [{_or: [{expires_at: {_is_null: true}}, {expires_at: {_gt: "now()"}}]}, {_or: [{starts_at: {_is_null: true}}, {starts_at: {_lte: "now()"}}]}]}, order_by: [{priority: asc_nulls_last}, {created_at: desc}]) {
       id
       image_url
       type
@@ -303,6 +303,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       button_text
       button_link
       priority
+      config
     }
   }
 }

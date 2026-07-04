@@ -11,30 +11,52 @@ import { NoticeCanvas } from "@/components/notices/NoticeCanvas";
 // Storefront announcement modal. Shows on EVERY storefront open (no dismissal
 // memory) when the partner has an active, in-schedule notice. 80vw x 60vh,
 // rounded, with a close button. Renders poster / custom-canvas / legacy notices.
-export function NoticeModal({ partnerId, ready = true }: { partnerId?: string; ready?: boolean }) {
-  const [items, setItems] = useState<RenderableNotice[]>([]);
+export function NoticeModal({
+  partnerId,
+  ready = true,
+  notices: noticesProp,
+}: {
+  partnerId?: string;
+  ready?: boolean;
+  notices?: NoticeRow[];
+}) {
+  // Prefer server-rendered notices (from hoteldata) — no client round-trip, and
+  // the poster image is in the initial HTML so it can preload immediately.
+  const [items, setItems] = useState<RenderableNotice[]>(() =>
+    noticesProp ? (noticesProp.map(toRenderable).filter(Boolean) as RenderableNotice[]) : [],
+  );
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [idx, setIdx] = useState(0);
   // Poster box follows the image's real aspect ratio (no cropping). Default 4:3
   // until the image loads and reports its natural dimensions.
   const [posterAspect, setPosterAspect] = useState(4 / 3);
+  const [posterLoaded, setPosterLoaded] = useState(false);
 
   useEffect(() => {
+    if (noticesProp) {
+      setItems(noticesProp.map(toRenderable).filter(Boolean) as RenderableNotice[]);
+      return;
+    }
+    // Fallback: fetch client-side only when SSR notices weren't provided.
     if (!partnerId) return;
     let cancelled = false;
     fetchFromHasura(getActiveNoticesQuery, { partner_id: partnerId })
       .then((res: any) => {
         if (cancelled) return;
         const rows = (res?.notices || []) as NoticeRow[];
-        const renderable = rows.map(toRenderable).filter(Boolean) as RenderableNotice[];
-        if (renderable.length) setItems(renderable);
+        setItems(rows.map(toRenderable).filter(Boolean) as RenderableNotice[]);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [partnerId]);
+  }, [partnerId, noticesProp]);
+
+  // Reset the load state when switching notices in the carousel.
+  useEffect(() => {
+    setPosterLoaded(false);
+  }, [idx]);
 
   // Open once we have notices AND the storefront is ready (splash/onboarding
   // dismissed) — so the notice never sits invisibly behind the onboarding
@@ -94,18 +116,23 @@ export function NoticeModal({ partnerId, ready = true }: { partnerId?: string; r
             className="relative block w-full h-full transition-transform duration-150 ease-out active:scale-[0.97]"
             style={{ cursor: item.link ? "pointer" : "default" }}
           >
+            {!posterLoaded && (
+              <div className="absolute inset-0 bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
+            )}
             <Image
               src={item.imageUrl}
               alt=""
               fill
-              sizes="90vw"
+              sizes="(max-width: 768px) 92vw, 900px"
+              quality={72}
               priority
-              className="object-cover"
+              className={`object-cover transition-opacity duration-300 ${posterLoaded ? "opacity-100" : "opacity-0"}`}
               onLoad={(e) => {
                 const img = e.currentTarget;
                 if (img.naturalWidth && img.naturalHeight) {
                   setPosterAspect(img.naturalWidth / img.naturalHeight);
                 }
+                setPosterLoaded(true);
               }}
             />
           </button>
