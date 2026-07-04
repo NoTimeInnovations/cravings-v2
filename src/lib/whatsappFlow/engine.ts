@@ -20,6 +20,12 @@ import type {
 } from "@/lib/whatsappFlow/types";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
+// Meta dismisses the "typing…" indicator the instant a message is sent, so the
+// welcome path holds it on screen for a short, human-like beat before sending
+// the reply. Meta shows typing for up to 25s; this only affects the
+// once-per-customer welcome path, so it never delays normal replies.
+const WELCOME_TYPING_MS = 1500;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const MAX_STEPS = 50; // loop guard across a whole run
 const MAX_SENDS_PER_TURN = 10; // bound Graph sends per inbound message
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -970,13 +976,15 @@ function runStartRunWave(
 // Read receipt + typing indicator for the welcome flow. Meta's Cloud API couples
 // them into a single call (status:"read" carrying a typing_indicator), so this
 // both blue-ticks the welcome-triggering message and shows "typing…" until the
-// reply lands. Best-effort — never blocks or throws into the reply path.
+// reply lands. Best-effort — never throws into the reply path; returns whether
+// the call actually reached Meta so the caller can skip the typing pause when it
+// didn't. A short timeout keeps a slow/hung Meta call from stalling the reply.
 async function sendWelcomeReadTyping(
   phoneNumberId: string,
   messageId: string,
   token: string,
-): Promise<void> {
-  if (!phoneNumberId || !messageId || !token) return;
+): Promise<boolean> {
+  if (!phoneNumberId || !messageId || !token) return false;
   try {
     const res = await fetch(
       `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
@@ -992,6 +1000,7 @@ async function sendWelcomeReadTyping(
           message_id: messageId,
           typing_indicator: { type: "text" },
         }),
+        signal: AbortSignal.timeout(4000),
       },
     );
     if (!res.ok) {
@@ -999,9 +1008,12 @@ async function sendWelcomeReadTyping(
         "Welcome read/typing failed:",
         await res.text().catch(() => ""),
       );
+      return false;
     }
+    return true;
   } catch (e) {
     console.error("Welcome read/typing error:", e);
+    return false;
   }
 }
 
@@ -1059,11 +1071,17 @@ async function startNewRun(
   // Welcome-only read receipt + typing. We're here only because the welcome flow
   // passed every gate (enabled, not suppressed, not blocked by once-per-customer
   // /cooldown, and the trigger matched on first contact) — so firing it here
-  // inherits all those rules. Fire-and-forget so it overlaps building/sending the
-  // reply; the reply itself dismisses the typing animation. Meta couples read +
-  // typing into this one call, which is fine since it only runs for the welcome.
+  // inherits all those rules. Sent BEFORE the reply and AWAITED, on purpose:
+  //   • awaiting means a serverless freeze after the webhook responds can't drop
+  //     the call before it reaches Meta (the old fire-and-forget could vanish, so
+  //     no blue tick ever showed), and
+  //   • Meta dismisses the typing indicator the moment a message is sent, so
+  //     firing it concurrently with the reply made "typing…" invisible.
+  // We mark read + start typing, hold a short beat so the animation is actually
+  // seen, then fall through to send the reply (which clears the typing).
   if (flowTyping && matchedCand.t.matchType === "welcome" && sendToken) {
-    void sendWelcomeReadTyping(phoneNumberId, waMessageId, sendToken);
+    const shown = await sendWelcomeReadTyping(phoneNumberId, waMessageId, sendToken);
+    if (shown) await sleep(WELCOME_TYPING_MS);
   }
 
   const graph = matched.graph || { nodes: [], edges: [] };
