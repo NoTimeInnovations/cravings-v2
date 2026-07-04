@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Inbox, MessageSquare, Workflow, Megaphone, ChevronLeft, MousePointerClick } from "lucide-react";
+import { Inbox, MessageSquare, Workflow, Megaphone, ChevronLeft, MousePointerClick, Activity } from "lucide-react";
 import { AdminV2WhatsAppInbox } from "@/components/admin-v2/AdminV2WhatsAppInbox";
 import { AdminV2WhatsAppTemplates } from "@/components/admin-v2/AdminV2WhatsAppTemplates";
 import { AdminV2WhatsAppFlows } from "@/components/admin-v2/AdminV2WhatsAppFlows";
 import { AdminV2WhatsAppBroadcast } from "@/components/admin-v2/AdminV2WhatsAppBroadcast";
 import { AdminV2WhatsAppLinkClicks } from "@/components/admin-v2/AdminV2WhatsAppLinkClicks";
+import { AdminV2WhatsAppApiUsage } from "@/components/admin-v2/AdminV2WhatsAppApiUsage";
 
-type Screen = "Inbox" | "Templates" | "Flows" | "Broadcast" | "LinkClicks";
+type Screen = "Inbox" | "Templates" | "Flows" | "Broadcast" | "LinkClicks" | "ApiUsage";
 
 const SCREENS: {
   id: Screen;
@@ -23,6 +24,7 @@ const SCREENS: {
   { id: "Flows", title: "Flows", desc: "Build automated conversation flows.", icon: Workflow, accent: "text-purple-600" },
   { id: "Broadcast", title: "Broadcast", desc: "Send a template to many customers at once.", icon: Megaphone, accent: "text-orange-600" },
   { id: "LinkClicks", title: "Order link taps", desc: "See who tapped an “order now” link from your flows.", icon: MousePointerClick, accent: "text-pink-600" },
+  { id: "ApiUsage", title: "API usage", desc: "Calls & messages sent through your public API.", icon: Activity, accent: "text-emerald-600" },
 ];
 
 // The merged WhatsApp view: a hub of buttons that open Inbox / Templates / Flows.
@@ -102,6 +104,11 @@ export function AdminV2WhatsApp() {
       {mounted.includes("LinkClicks") && (
         <div className={screen === "LinkClicks" ? "block" : "hidden"}>
           <AdminV2WhatsAppLinkClicks />
+        </div>
+      )}
+      {mounted.includes("ApiUsage") && (
+        <div className={screen === "ApiUsage" ? "block" : "hidden"}>
+          <AdminV2WhatsAppApiUsage />
         </div>
       )}
     </div>
