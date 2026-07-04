@@ -78,6 +78,23 @@ export function NoticeModal({
     if (ready && items.length && !dismissed) setOpen(true);
   }, [ready, items, dismissed]);
 
+  // Auto-close after the current notice's timeout (0 → stays open until closed).
+  // With a carousel, advance to the next notice; close after the last.
+  useEffect(() => {
+    if (!open || !items.length) return;
+    const secs = items[Math.min(idx, items.length - 1)]?.autoCloseSeconds ?? 0;
+    if (!secs || secs <= 0) return;
+    const t = setTimeout(() => {
+      if (items.length > 1 && idx < items.length - 1) {
+        setIdx((i) => i + 1);
+      } else {
+        setDismissed(true);
+        setOpen(false);
+      }
+    }, secs * 1000);
+    return () => clearTimeout(t);
+  }, [open, idx, items]);
+
   const close = () => {
     setDismissed(true);
     setOpen(false);
@@ -114,6 +131,13 @@ export function NoticeModal({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={close} />
 
       <div className={boxClass} style={boxStyle}>
+        {item.autoCloseSeconds > 0 && (
+          <div
+            key={idx}
+            className="absolute top-0 left-0 h-1 bg-white/80 z-20"
+            style={{ animation: `notice-autoclose ${item.autoCloseSeconds}s linear forwards` }}
+          />
+        )}
         <button
           onClick={close}
           aria-label="Close"

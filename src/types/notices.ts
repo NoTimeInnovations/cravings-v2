@@ -53,8 +53,14 @@ export interface NoticeRow {
   expires_at?: string | null;
   priority?: number | null;
   config?: NoticeCustomConfig | null;
+  // Auto-close the modal after N seconds (0 / null → default 5; use 0 to keep it
+  // open until the customer closes it — see DEFAULT_AUTO_CLOSE).
+  auto_close_seconds?: number | null;
   created_at?: string;
 }
+
+// Default seconds before the notice auto-closes when unset.
+export const DEFAULT_AUTO_CLOSE = 5;
 
 // Reference canvas width (px) that fontSize values are authored against.
 export const NOTICE_REF_W = 800;
@@ -80,32 +86,37 @@ export function defaultCustomConfig(): NoticeCustomConfig {
 }
 
 // Normalize any notice row into what the modal should render.
+type RenderableBase = { id: string; link: string | null; autoCloseSeconds: number };
 export type RenderableNotice =
-  | { id: string; kind: "poster"; imageUrl: string; link: string | null }
-  | { id: string; kind: "custom"; config: NoticeCustomConfig; link: string | null }
-  | { id: string; kind: "legacy"; title: string; description: string; tag: string; link: string | null };
+  | (RenderableBase & { kind: "poster"; imageUrl: string })
+  | (RenderableBase & { kind: "custom"; config: NoticeCustomConfig })
+  | (RenderableBase & { kind: "legacy"; title: string; description: string; tag: string });
 
 export function toRenderable(n: NoticeRow): RenderableNotice | null {
   const link = n.button_link || null;
+  // Seconds until auto-close; a positive number set explicitly wins, else default.
+  const autoCloseSeconds =
+    typeof n.auto_close_seconds === "number" ? n.auto_close_seconds : DEFAULT_AUTO_CLOSE;
+  const base = { id: n.id, link, autoCloseSeconds };
   // A custom notice with no elements would render a blank box — treat as nothing.
   if (n.type === "custom" && n.config?.elements && n.config.elements.length > 0) {
-    return { id: n.id, kind: "custom", config: n.config, link };
+    return { ...base, kind: "custom", config: n.config };
   }
   if (n.type === "poster" && n.image_url && /^https?:\/\//.test(n.image_url)) {
-    return { id: n.id, kind: "poster", imageUrl: n.image_url, link };
+    return { ...base, kind: "poster", imageUrl: n.image_url };
   }
   // Legacy: image_url held `json:{title,description,tag}` text notices.
   if (n.image_url?.startsWith("json:")) {
     try {
       const d = JSON.parse(n.image_url.slice(5));
-      return { id: n.id, kind: "legacy", title: d.title || "", description: d.description || "", tag: d.tag || "", link };
+      return { ...base, kind: "legacy", title: d.title || "", description: d.description || "", tag: d.tag || "" };
     } catch {
       /* fall through */
     }
   }
   // A plain image URL with no type still renders as a poster.
   if (n.image_url && /^https?:\/\//.test(n.image_url)) {
-    return { id: n.id, kind: "poster", imageUrl: n.image_url, link };
+    return { ...base, kind: "poster", imageUrl: n.image_url };
   }
   return null;
 }

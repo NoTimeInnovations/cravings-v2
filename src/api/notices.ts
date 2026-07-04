@@ -16,6 +16,7 @@ export const getNoticesQuery = `
       expires_at
       priority
       config
+      auto_close_seconds
       created_at
     }
   }
@@ -48,6 +49,7 @@ export const getActiveNoticesQuery = `
       button_link
       priority
       config
+      auto_close_seconds
       created_at
     }
   }

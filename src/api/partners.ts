@@ -304,6 +304,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       button_link
       priority
       config
+      auto_close_seconds
     }
   }
 }

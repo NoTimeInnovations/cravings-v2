@@ -21,7 +21,7 @@ import { ImageUpload } from "@/components/storefront/ImageUpload";
 import { NoticeCanvas } from "@/components/notices/NoticeCanvas";
 import {
   NoticeRow, NoticeCustomConfig, NoticeElement, NoticeType,
-  defaultCustomConfig, toRenderable, gradientCss,
+  defaultCustomConfig, toRenderable, gradientCss, DEFAULT_AUTO_CLOSE,
 } from "@/types/notices";
 
 // A draft being edited (create or update).
@@ -35,6 +35,7 @@ interface Draft {
   scheduled: boolean;
   startsAt: string; // datetime-local value
   expiresAt: string;
+  autoCloseSeconds: number; // 0 → stays open until closed
 }
 
 const newId = () => `${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
@@ -58,6 +59,7 @@ function emptyDraft(): Draft {
     scheduled: false,
     startsAt: "",
     expiresAt: "",
+    autoCloseSeconds: DEFAULT_AUTO_CLOSE,
   };
 }
 
@@ -73,6 +75,7 @@ function rowToDraft(n: NoticeRow): Draft {
     scheduled: !!(n.starts_at || n.expires_at),
     startsAt: toLocalInput(n.starts_at),
     expiresAt: toLocalInput(n.expires_at),
+    autoCloseSeconds: typeof n.auto_close_seconds === "number" ? n.auto_close_seconds : DEFAULT_AUTO_CLOSE,
   };
 }
 
@@ -259,6 +262,7 @@ function NoticeEditor({
         image_url: d.type === "poster" ? d.posterImage : "",
         button_link: d.type === "poster" ? d.posterLink.trim() || null : null,
         config: d.type === "custom" ? d.config : null,
+        auto_close_seconds: Number.isFinite(d.autoCloseSeconds) ? Math.max(0, Math.round(d.autoCloseSeconds)) : DEFAULT_AUTO_CLOSE,
       };
       if (d.id) {
         await fetchFromHasura(updateNoticeMutation, { id: d.id, updates: base });
@@ -291,6 +295,17 @@ function NoticeEditor({
           />
           Schedule
         </label>
+      </div>
+      <div className="flex items-center gap-2">
+        <Label className="text-xs whitespace-nowrap">Auto-close after</Label>
+        <Input
+          type="number"
+          min={0}
+          value={d.autoCloseSeconds}
+          onChange={(e) => patch({ autoCloseSeconds: Math.max(0, Number(e.target.value) || 0) })}
+          className="w-20"
+        />
+        <span className="text-xs text-muted-foreground">seconds · 0 = stays open until closed</span>
       </div>
       {d.scheduled && (
         <div className="grid gap-3">
