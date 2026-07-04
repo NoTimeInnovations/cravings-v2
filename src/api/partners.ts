@@ -269,6 +269,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
         stock_quantity
         stock_type
         show_stock
+        daily_default
       }
       pp_id
       delivery_price
