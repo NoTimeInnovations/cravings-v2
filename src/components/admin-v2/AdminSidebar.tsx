@@ -23,6 +23,7 @@ import {
   MessageSquare,
   Gift,
   Boxes,
+  Bell,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -56,6 +57,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Customers", icon: Users, id: "customers" },
   { title: "Loyalty", icon: Gift, id: "loyalty" },
   { title: "Website", icon: Globe, id: "website" },
+  { title: "Notices", icon: Bell, id: "notices" },
   { title: "WhatsApp", icon: MessageSquare, id: "whatsapp" },
   { title: "Settings", icon: Settings, id: "settings" },
   { title: "Billing", icon: Receipt, id: "billing" },
