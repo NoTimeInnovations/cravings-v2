@@ -342,7 +342,13 @@ function NoticeEditor({
               <div className="relative rounded-xl border bg-neutral-50 dark:bg-neutral-800 p-2 flex items-center justify-center min-h-[160px]">
                 {/* Natural aspect ratio — not cropped. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={d.posterImage} alt="Poster preview" className="max-h-[60vh] w-auto max-w-full rounded-lg" />
+                <img
+                  src={d.posterImage}
+                  alt="Poster preview"
+                  draggable={false}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className="max-h-[60vh] w-auto max-w-full rounded-lg select-none [-webkit-touch-callout:none] [-webkit-user-drag:none]"
+                />
                 <Button size="sm" variant="destructive" type="button" onClick={() => patch({ posterImage: "" })} className="absolute top-3 right-3">
                   <X className="h-3.5 w-3.5 mr-1" /> Remove
                 </Button>

@@ -113,7 +113,8 @@ export function NoticeModal({
           <button
             type="button"
             onClick={() => openLink(item.link)}
-            className="relative block w-full h-full transition-transform duration-150 ease-out active:scale-[0.97]"
+            onContextMenu={(e) => e.preventDefault()}
+            className="relative block w-full h-full select-none [-webkit-touch-callout:none] transition-transform duration-150 ease-out active:scale-[0.97]"
             style={{ cursor: item.link ? "pointer" : "default" }}
           >
             {!posterLoaded && (
@@ -123,10 +124,11 @@ export function NoticeModal({
               src={item.imageUrl}
               alt=""
               fill
+              draggable={false}
               sizes="(max-width: 768px) 92vw, 900px"
               quality={72}
               priority
-              className={`object-cover transition-opacity duration-300 ${posterLoaded ? "opacity-100" : "opacity-0"}`}
+              className={`object-cover select-none [-webkit-user-drag:none] transition-opacity duration-300 ${posterLoaded ? "opacity-100" : "opacity-0"}`}
               onLoad={(e) => {
                 const img = e.currentTarget;
                 if (img.naturalWidth && img.naturalHeight) {
