@@ -335,7 +335,10 @@ const V4 = ({
       } else {
         pool = (hoteldata?.menus || []).filter((item) => item.category.id === category.id);
       }
-      const hideUnavForCat = category.id === "must-try" ? false : hideUnav;
+      // Bestsellers (Must Try) always drop unavailable items — even when the
+      // partner keeps unavailable items visible elsewhere (hide_unavailable off),
+      // an out-of-stock item shouldn't be showcased as a bestseller.
+      const hideUnavForCat = category.id === "must-try" ? true : hideUnav;
       const catItems = pool
         .map((item) => {
           const state = getItemDisplayState(item as any, tz, undefined, hideUnavForCat);
