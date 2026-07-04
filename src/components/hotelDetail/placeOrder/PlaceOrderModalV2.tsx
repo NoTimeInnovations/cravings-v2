@@ -219,7 +219,6 @@ const PlaceOrderModalV2 = ({
 
   const [view, setView] = useState<"main" | "discounts">("main");
   const [showOrderNoteInput, setShowOrderNoteInput] = useState(!!orderNote);
-  const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
     hasCashfree && !hasCod ? "online" : "cash",
   );
@@ -1931,7 +1930,10 @@ const PlaceOrderModalV2 = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handlePay = async () => {
+  const handlePay = async (methodOverride?: "online" | "cash") => {
+    // Each footer button names its own method (there's no selector anymore), so
+    // the tapped button decides the route; fall back to state if unspecified.
+    const method = methodOverride ?? paymentMethod;
     if (!items || items.length === 0) {
       toast.error("Your cart is empty.");
       return;
@@ -2012,7 +2014,7 @@ const PlaceOrderModalV2 = ({
       }
     }
 
-    if (paymentMethod === "online" && hasCashfree) {
+    if (method === "online" && hasCashfree) {
       handleOnlinePayAndPlaceOrder();
       return;
     }
@@ -2459,6 +2461,29 @@ const PlaceOrderModalV2 = ({
 
   const restaurantName = hotelData?.store_name || (hotelData as any)?.name || "";
   const restaurantSubtitle = hotelData?.district || (hotelData as any)?.address || "";
+
+  // Label for the cash / pay-later action, worded for the current order type.
+  const cashLabel = orderType === "delivery" ? "Pay on delivery" : "Pay at store";
+
+  // Every guard that must block placing an order. Shared by the footer's pay
+  // buttons so both the "Pay now" (online) and cash actions honour it.
+  const placementDisabled =
+    orderStatus !== "idle" ||
+    !items ||
+    items.length === 0 ||
+    (showPicker && !prebookingArg) ||
+    (orderType === "delivery" &&
+      !useAgentForCharge &&
+      !usePorterForCharge &&
+      deliveryInfo?.isOutOfRange) ||
+    agentBlocksOrder ||
+    porterBlocksOrder ||
+    (!isQrScan && !orderType) ||
+    (!isQrScan && orderType === "delivery" && !isDeliveryOpen) ||
+    (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) ||
+    incompatibleItems.length > 0 ||
+    stockBlocked ||
+    isBelowMinimum;
 
   return (
     <>
@@ -3161,84 +3186,54 @@ const PlaceOrderModalV2 = ({
               {currency}{payableTotal.toFixed(0)}
             </p>
           </div>
-          {/* Payment method selector card */}
-          <button
-            type="button"
-            onClick={() => {
-              if (hasCashfree && hasCod) setShowPaymentMethods(true);
-            }}
-            className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-xl border-2 px-2 py-1.5 text-center"
-            style={{ borderColor: `${accent}55`, cursor: hasCashfree && hasCod ? "pointer" : "default" }}
-          >
-            <span className="max-w-full truncate text-[13px] font-bold leading-tight" style={{ color: accent }}>
-              {paymentMethod === "online" ? "Pay online" : orderType === "delivery" ? "Pay on delivery" : "Pay at store"}
-            </span>
-            <span className="max-w-full truncate text-[11px] leading-tight text-gray-400">
-              {paymentMethod === "online" ? "UPI · Cards" : "Cash or UPI"}
-            </span>
-          </button>
-          {/* Pay now */}
-          <button
-            type="button"
-            onClick={handlePay}
-            disabled={orderStatus !== "idle" || !items || items.length === 0 || (showPicker && !prebookingArg) || (orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || porterBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || stockBlocked || isBelowMinimum}
-            className="shrink-0 rounded-xl px-5 py-3.5 font-semibold text-white disabled:opacity-60"
-            style={{ backgroundColor: accent }}
-          >
-            Pay now
-          </button>
+
+          {/* Cash / pay-later button — only when COD is offered AND online is too
+              (two-button layout). If COD is the only option it's promoted to the
+              primary "Place order" button on the right instead. */}
+          {hasCod && hasCashfree && (
+            <button
+              type="button"
+              onClick={() => handlePay("cash")}
+              disabled={placementDisabled}
+              className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-xl border-2 px-2 py-2.5 text-center disabled:opacity-60"
+              style={{ borderColor: `${accent}55` }}
+            >
+              <span className="max-w-full truncate text-[13px] font-bold leading-tight" style={{ color: accent }}>
+                {cashLabel}
+              </span>
+              <span className="max-w-full truncate text-[11px] leading-tight text-gray-400">
+                Cash or UPI
+              </span>
+            </button>
+          )}
+
+          {/* Primary (right) action. Online available → "Pay now" (grows to fill
+              when it's the only button). No online → "Place order" with the cash
+              method shown small beneath. */}
+          {hasCashfree ? (
+            <button
+              type="button"
+              onClick={() => handlePay("online")}
+              disabled={placementDisabled}
+              className={`shrink-0 rounded-xl px-5 py-3.5 font-semibold text-white disabled:opacity-60 ${hasCod ? "" : "flex-1"}`}
+              style={{ backgroundColor: accent }}
+            >
+              Pay now
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handlePay("cash")}
+              disabled={placementDisabled}
+              className="flex flex-1 flex-col items-center justify-center rounded-xl px-5 py-2.5 font-semibold text-white disabled:opacity-60"
+              style={{ backgroundColor: accent }}
+            >
+              <span className="text-[15px] leading-tight">Place order</span>
+              <span className="text-[11px] font-normal leading-tight text-white/80">{cashLabel}</span>
+            </button>
+          )}
          </div>
         </div>
-
-        {showPaymentMethods && (
-          <div
-            className="fixed inset-0 bg-black/30 z-[520] animate-fade-in flex items-end justify-center"
-            onClick={() => setShowPaymentMethods(false)}
-          >
-            <div
-              className="w-full md:max-w-2xl bg-white rounded-t-2xl p-4 space-y-2 animate-slide-up"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="text-sm font-semibold mb-2 text-gray-900">Choose Payment Method</div>
-              {(
-                [
-                  ...(hasCod
-                    ? [{
-                        id: "cash" as const,
-                        label: orderType === "delivery" ? "Pay on delivery" : "Pay at store",
-                        sub: "Cash or UPI",
-                      }]
-                    : []),
-                  ...(hasCashfree
-                    ? [{ id: "online" as const, label: "Pay online", sub: "UPI, Cards, Netbanking" }]
-                    : []),
-                ]
-              ).map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => {
-                    setPaymentMethod(opt.id);
-                    setShowPaymentMethods(false);
-                  }}
-                  className={`w-full flex items-center justify-between rounded-xl border p-3 text-sm ${
-                    paymentMethod === opt.id
-                      ? "border-gray-900 bg-gray-50"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <span className="flex flex-col items-start">
-                    <span className="font-semibold text-gray-900">{opt.label}</span>
-                    <span className="text-[11px] text-gray-400">{opt.sub}</span>
-                  </span>
-                  {paymentMethod === opt.id && (
-                    <Check className="h-4 w-4" style={{ color: accent }} />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </>
     )}
     </div>
