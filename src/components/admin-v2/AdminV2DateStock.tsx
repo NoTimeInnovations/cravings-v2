@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CalendarDays, RefreshCw, Search } from "lucide-react";
+import { CalendarDays, Loader2, RefreshCw, Save, Search } from "lucide-react";
 import { revalidateTag } from "@/app/actions/revalidate";
 import {
   getPrebookingDates,
@@ -28,6 +28,11 @@ import { toast } from "sonner";
 // A row is "capped" when its stock has a daily_default (also marked stock_type
 // 'DATE'); that default seeds every date and a cell can override a single date.
 // Uncapped items are always available (they ignore per-date stock entirely).
+//
+// Numeric edits (per-item default + per-date cells) are held as PENDING local
+// state and persisted only when the partner clicks Save — auto-save-on-blur was
+// invisible, so an explicit Save with clear feedback replaces it. The Cap
+// checkbox stays immediate (it's a structural toggle, not an easy-to-miss edit).
 
 type DateStockRow = { id: string; date: string; stock_quantity: number };
 type StockRow = {
@@ -53,15 +58,29 @@ const PARTNER_DAILY_CAP: Record<string, number> = {
   "90c8e165-6ad9-4b16-9821-c8a7620e0dcb": 60,
 };
 
+// Parse a raw input string to a non-negative integer quantity.
+const toQty = (raw: string): number => {
+  const n = Math.floor(Number(raw));
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+};
+
 export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<GridItem[]>([]);
   const [dates, setDates] = useState<{ value: string; label: string }[]>([]);
   const [horizon, setHorizon] = useState<number>(7);
   const [search, setSearch] = useState("");
-  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [busyCap, setBusyCap] = useState<string | null>(null);
+  // Unsaved edits. Cells keyed `${menuId}|${date}`, defaults keyed menuId.
+  const [pendingCells, setPendingCells] = useState<Record<string, string>>({});
+  const [pendingDefaults, setPendingDefaults] = useState<Record<string, string>>({});
   const hasLoadedRef = useRef(false);
+
+  const dirtyCount =
+    Object.keys(pendingCells).length + Object.keys(pendingDefaults).length;
+  const isDirty = dirtyCount > 0;
 
   // Compute the column dates from the partner's prebooking config (so they match
   // what customers can actually book); fall back to the next N calendar days.
@@ -155,6 +174,9 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
 
       setDates(cols);
       setItems(grid);
+      // A fresh load is the source of truth — clear any staged edits.
+      setPendingCells({});
+      setPendingDefaults({});
       hasLoadedRef.current = true;
     } catch (e) {
       console.error("[DateStock] fetch failed:", e);
@@ -175,6 +197,51 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
     return items.filter((i) => i.name.toLowerCase().includes(q));
   }, [items, search]);
 
+  // Discard-guard for actions that reload/replace the grid.
+  const confirmDiscard = () =>
+    !isDirty ||
+    window.confirm("You have unsaved changes. Discard them?");
+
+  // ---- pending edit setters (record locally; nothing hits the DB until Save) ----
+  const editCell = (item: GridItem, date: string, raw: string) => {
+    const key = `${item.id}|${date}`;
+    const persisted = date in item.dateQty ? String(item.dateQty[date]) : "";
+    setPendingCells((prev) => {
+      const next = { ...prev };
+      // Empty = "no change" (we don't delete rows); revert to persisted removes dirt.
+      if (raw.trim() === "" || raw === persisted) delete next[key];
+      else next[key] = raw;
+      return next;
+    });
+  };
+
+  const editDefault = (item: GridItem, raw: string) => {
+    const persisted = String(item.stock?.daily_default ?? 0);
+    setPendingDefaults((prev) => {
+      const next = { ...prev };
+      if (raw.trim() === "" || raw === persisted) delete next[item.id];
+      else next[item.id] = raw;
+      return next;
+    });
+  };
+
+  // Stage the item's default into every visible date's cell (persisted on Save).
+  const fillFromDefault = (item: GridItem) => {
+    const def = item.stock?.daily_default;
+    if (def == null) return;
+    setPendingCells((prev) => {
+      const next = { ...prev };
+      dates.forEach((d) => {
+        const key = `${item.id}|${d.value}`;
+        const persisted = d.value in item.dateQty ? String(item.dateQty[d.value]) : "";
+        if (String(def) === persisted) delete next[key];
+        else next[key] = String(def);
+      });
+      return next;
+    });
+    toast.message("Filled all dates — click Save to apply");
+  };
+
   // Ensure a stocks row exists for an item (create one if missing) and return
   // its id. New rows are date-capped from the start.
   const ensureStockRow = async (item: GridItem, dailyDefault: number): Promise<string | null> => {
@@ -191,23 +258,34 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
     return res?.insert_stocks_one?.id ?? null;
   };
 
-  // Toggle whether an item is date-capped. Capping seeds the default daily cap.
+  // Toggle whether an item is date-capped. Immediate (structural), and it updates
+  // local state in place so pending edits on OTHER rows aren't lost.
   const toggleCap = async (item: GridItem, capped: boolean) => {
-    setSavingKey(`cap:${item.id}`);
+    setBusyCap(item.id);
     try {
       if (capped) {
         const seed = PARTNER_DAILY_CAP[partnerId] ?? DEFAULT_DAILY_CAP;
         const def = item.stock?.daily_default ?? seed;
-        if (!item.stock?.id) {
-          await ensureStockRow(item, def);
+        let stockId = item.stock?.id ?? null;
+        if (!stockId) {
+          stockId = await ensureStockRow(item, def);
         } else {
           await fetchFromHasura(
             `mutation SetCap($id: uuid!, $def: numeric!) {
               update_stocks_by_pk(pk_columns: { id: $id }, _set: { daily_default: $def, stock_type: "DATE" }) { id }
             }`,
-            { id: item.stock.id, def },
+            { id: stockId, def },
           );
         }
+        if (!stockId) throw new Error("no stock row");
+        const sid = stockId;
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === item.id
+              ? { ...it, stock: { id: sid, daily_default: def, stock_type: "DATE" } }
+              : it,
+          ),
+        );
       } else if (item.stock?.id) {
         // Un-cap: item goes back to always-available. Existing date rows are
         // left in place (dormant) — never deleted.
@@ -217,109 +295,107 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
           }`,
           { id: item.stock.id },
         );
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === item.id && it.stock
+              ? { ...it, stock: { ...it.stock, daily_default: null, stock_type: "STATIC" } }
+              : it,
+          ),
+        );
+        // Drop any staged edits for the now-uncapped item.
+        setPendingDefaults((prev) => {
+          const next = { ...prev };
+          delete next[item.id];
+          return next;
+        });
+        setPendingCells((prev) => {
+          const next = { ...prev };
+          Object.keys(next).forEach((k) => {
+            if (k.startsWith(`${item.id}|`)) delete next[k];
+          });
+          return next;
+        });
       }
       revalidateTag(partnerId);
-      await fetchData();
     } catch (e) {
       console.error("[DateStock] toggle cap failed:", e);
       toast.error("Could not update");
     } finally {
-      setSavingKey(null);
+      setBusyCap(null);
     }
   };
 
-  // Set the per-item default daily cap.
-  const setDefault = async (item: GridItem, value: number) => {
-    const v = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-    setSavingKey(`def:${item.id}`);
+  // Persist all staged edits in one go.
+  const saveChanges = async () => {
+    if (!isDirty || saving) return;
+    setSaving(true);
     try {
-      const id = await ensureStockRow(item, v);
-      if (id && item.stock?.id) {
+      // 1. Per-item default caps (few — run sequentially, each on its stock row).
+      for (const [menuId, raw] of Object.entries(pendingDefaults)) {
+        const item = items.find((i) => i.id === menuId);
+        if (!item) continue;
+        const v = toQty(raw);
+        const stockId = await ensureStockRow(item, v);
+        if (stockId) {
+          await fetchFromHasura(
+            `mutation SetDefault($id: uuid!, $v: numeric!) {
+              update_stocks_by_pk(pk_columns: { id: $id }, _set: { daily_default: $v, stock_type: "DATE" }) { id }
+            }`,
+            { id: stockId, v },
+          );
+        }
+      }
+
+      // 2. Per-date cells — one batched upsert.
+      const cellObjects = Object.entries(pendingCells).map(([key, raw]) => {
+        const sep = key.indexOf("|");
+        return {
+          menu_id: key.slice(0, sep),
+          date: key.slice(sep + 1),
+          stock_quantity: toQty(raw),
+        };
+      });
+      if (cellObjects.length) {
         await fetchFromHasura(
-          `mutation SetDefault($id: uuid!, $v: numeric!) {
-            update_stocks_by_pk(pk_columns: { id: $id }, _set: { daily_default: $v, stock_type: "DATE" }) { id }
+          `mutation SaveCells($objects: [menu_date_stocks_insert_input!]!) {
+            insert_menu_date_stocks(
+              objects: $objects
+              on_conflict: { constraint: menu_date_stocks_menu_date_key, update_columns: [stock_quantity] }
+            ) { affected_rows }
           }`,
-          { id, v },
+          { objects: cellObjects },
         );
       }
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === item.id && it.stock
-            ? { ...it, stock: { ...it.stock, daily_default: v, stock_type: "DATE" } }
-            : it,
-        ),
-      );
-      revalidateTag(partnerId);
-    } catch (e) {
-      console.error("[DateStock] set default failed:", e);
-      toast.error("Could not save default");
-      await fetchData();
-    } finally {
-      setSavingKey(null);
-    }
-  };
 
-  // Upsert a single (item, date) cell.
-  const setCell = async (item: GridItem, date: string, value: number) => {
-    const v = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-    setSavingKey(`cell:${item.id}:${date}`);
-    try {
-      await fetchFromHasura(
-        `mutation UpsertCell($menu_id: uuid!, $date: date!, $q: numeric!) {
-          insert_menu_date_stocks_one(
-            object: { menu_id: $menu_id, date: $date, stock_quantity: $q }
-            on_conflict: { constraint: menu_date_stocks_menu_date_key, update_columns: [stock_quantity] }
-          ) { id date stock_quantity }
-        }`,
-        { menu_id: item.id, date, q: v },
-      );
+      // 3. Fold the saved values into local state, then clear pending.
       setItems((prev) =>
-        prev.map((it) =>
-          it.id === item.id ? { ...it, dateQty: { ...it.dateQty, [date]: v } } : it,
-        ),
+        prev.map((it) => {
+          let stock = it.stock;
+          if (it.id in pendingDefaults && stock) {
+            stock = { ...stock, daily_default: toQty(pendingDefaults[it.id]), stock_type: "DATE" };
+          }
+          let dateQty = it.dateQty;
+          const cells = Object.entries(pendingCells).filter(([k]) =>
+            k.startsWith(`${it.id}|`),
+          );
+          if (cells.length) {
+            dateQty = { ...dateQty };
+            cells.forEach(([k, raw]) => {
+              dateQty[k.slice(k.indexOf("|") + 1)] = toQty(raw);
+            });
+          }
+          return { ...it, stock, dateQty };
+        }),
       );
+      setPendingCells({});
+      setPendingDefaults({});
       revalidateTag(partnerId);
+      toast.success("Stock saved");
     } catch (e) {
-      console.error("[DateStock] set cell failed:", e);
-      toast.error("Could not save");
-      await fetchData();
+      console.error("[DateStock] save failed:", e);
+      toast.error("Couldn't save — please try again");
     } finally {
-      setSavingKey(null);
-    }
-  };
-
-  // Apply the item's default to every visible date (bulk seed/override).
-  const applyDefaultToAll = async (item: GridItem) => {
-    const def = item.stock?.daily_default;
-    if (def == null) return;
-    setSavingKey(`all:${item.id}`);
-    try {
-      await fetchFromHasura(
-        `mutation SeedAll($objects: [menu_date_stocks_insert_input!]!) {
-          insert_menu_date_stocks(
-            objects: $objects
-            on_conflict: { constraint: menu_date_stocks_menu_date_key, update_columns: [stock_quantity] }
-          ) { affected_rows }
-        }`,
-        {
-          objects: dates.map((d) => ({
-            menu_id: item.id,
-            date: d.value,
-            stock_quantity: def,
-          })),
-        },
-      );
-      const dq: Record<string, number> = { ...item.dateQty };
-      dates.forEach((d) => (dq[d.value] = def));
-      setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, dateQty: dq } : it)));
-      revalidateTag(partnerId);
-      toast.success("Applied to all dates");
-    } catch (e) {
-      console.error("[DateStock] apply-all failed:", e);
-      toast.error("Could not apply");
-      await fetchData();
-    } finally {
-      setSavingKey(null);
+      setSaving(false);
     }
   };
 
@@ -346,7 +422,13 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Select value={String(horizon)} onValueChange={(v) => setHorizon(Number(v))}>
+        <Select
+          value={String(horizon)}
+          onValueChange={(v) => {
+            if (!confirmDiscard()) return;
+            setHorizon(Number(v));
+          }}
+        >
           <SelectTrigger className="w-full bg-white sm:w-[150px]">
             <CalendarDays className="mr-1 h-4 w-4 text-muted-foreground" />
             <SelectValue />
@@ -362,17 +444,35 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
         <Button
           variant="outline"
           className="bg-white"
-          onClick={() => fetchData()}
-          disabled={refreshing}
+          onClick={() => {
+            if (confirmDiscard()) fetchData();
+          }}
+          disabled={refreshing || saving}
+          title="Refresh"
         >
           <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
         </Button>
+        <Button onClick={saveChanges} disabled={!isDirty || saving} className="min-w-[110px]">
+          {saving ? (
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-1 h-4 w-4" />
+          )}
+          {saving ? "Saving..." : isDirty ? `Save (${dirtyCount})` : "Saved"}
+        </Button>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Cap an item to track its stock per date. Each date sells out independently;
-        empty cells use the item&apos;s daily default. Uncapped items stay always available.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Cap an item to track its stock per date. Each date sells out independently;
+          empty cells use the item&apos;s daily default. Uncapped items stay always available.
+        </p>
+        {isDirty && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+            {dirtyCount} unsaved
+          </span>
+        )}
+      </div>
 
       {/* Grid */}
       <div className="overflow-x-auto rounded-xl border bg-white">
@@ -394,6 +494,10 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
           <tbody>
             {filtered.map((item) => {
               const capped = item.stock?.daily_default != null;
+              const defDirty = item.id in pendingDefaults;
+              const defValue = defDirty
+                ? pendingDefaults[item.id]
+                : String(item.stock?.daily_default ?? 0);
               return (
                 <tr key={item.id} className="border-b last:border-0">
                   <td className="sticky left-0 z-10 max-w-[180px] truncate bg-white px-3 py-2 font-medium">
@@ -402,7 +506,7 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
                   <td className="px-3 py-2 text-center">
                     <Checkbox
                       checked={capped}
-                      disabled={savingKey === `cap:${item.id}`}
+                      disabled={busyCap === item.id}
                       onCheckedChange={(c) => toggleCap(item, !!c)}
                     />
                   </td>
@@ -412,23 +516,15 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
                         <Input
                           type="number"
                           min={0}
-                          defaultValue={item.stock?.daily_default ?? 0}
-                          key={`def-${item.id}-${item.stock?.daily_default}`}
-                          className="h-8 w-16 text-center"
-                          onBlur={(e) => {
-                            const v = Number(e.target.value);
-                            if (v !== (item.stock?.daily_default ?? 0)) setDefault(item, v);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                          }}
+                          value={defValue}
+                          className={`h-8 w-16 text-center ${defDirty ? "border-amber-400 bg-amber-50" : ""}`}
+                          onChange={(e) => editDefault(item, e.target.value)}
                         />
                         <button
                           type="button"
-                          title="Apply default to all shown dates"
-                          className="text-xs text-primary underline-offset-2 hover:underline disabled:opacity-50"
-                          disabled={savingKey === `all:${item.id}`}
-                          onClick={() => applyDefaultToAll(item)}
+                          title="Fill every shown date with this default"
+                          className="text-xs text-primary underline-offset-2 hover:underline"
+                          onClick={() => fillFromDefault(item)}
                         >
                           fill
                         </button>
@@ -438,27 +534,30 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
                     )}
                   </td>
                   {dates.map((d) => {
+                    const key = `${item.id}|${d.value}`;
+                    const cellDirty = key in pendingCells;
                     const has = d.value in item.dateQty;
-                    const effective = has ? item.dateQty[d.value] : item.stock?.daily_default ?? null;
-                    const isOut = capped && effective != null && effective <= 0;
+                    const value = cellDirty
+                      ? pendingCells[key]
+                      : has
+                        ? String(item.dateQty[d.value])
+                        : "";
+                    const shown = cellDirty ? toQty(pendingCells[key]) : has ? item.dateQty[d.value] : null;
+                    const isOut = capped && shown != null && shown <= 0;
                     return (
                       <td key={d.value} className="px-2 py-2 text-center">
                         {capped ? (
                           <Input
                             type="number"
                             min={0}
-                            defaultValue={has ? item.dateQty[d.value] : ""}
+                            value={value}
                             placeholder={String(item.stock?.daily_default ?? 0)}
-                            key={`cell-${item.id}-${d.value}-${has ? item.dateQty[d.value] : "def"}`}
-                            className={`h-8 w-16 text-center ${isOut ? "border-red-300 text-red-600" : ""} ${!has ? "text-muted-foreground" : ""}`}
-                            onBlur={(e) => {
-                              if (e.target.value === "") return;
-                              const v = Number(e.target.value);
-                              if (!has || v !== item.dateQty[d.value]) setCell(item, d.value, v);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                            }}
+                            className={`h-8 w-16 text-center ${
+                              cellDirty ? "border-amber-400 bg-amber-50" : ""
+                            } ${isOut ? "border-red-300 text-red-600" : ""} ${
+                              !cellDirty && !has ? "text-muted-foreground" : ""
+                            }`}
+                            onChange={(e) => editCell(item, d.value, e.target.value)}
                           />
                         ) : (
                           <span className="text-muted-foreground">∞</span>
