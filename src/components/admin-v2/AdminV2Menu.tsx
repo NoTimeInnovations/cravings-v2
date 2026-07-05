@@ -58,6 +58,7 @@ import {
   useCategoryStore,
 } from "@/store/categoryStore_hasura";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { fillItemsFromGoogle } from "@/app/actions/googleImageFallback";
 import { isFreePlan as checkIsFreePlan } from "@/lib/getPlanLimits";
 
 export function AdminV2Menu() {
@@ -289,19 +290,64 @@ export function AdminV2Menu() {
 
       // 2. Build one update per matched item. The bank URL is already a public
       //    S3 asset, so we reference it directly (no re-download / re-upload).
-      const updates = itemsWithoutImages
-        .map((item) => {
-          const url = urlByName.get((item.name || "").trim().toLowerCase());
-          return url
-            ? { where: { id: { _eq: item.id } }, _set: { image_url: url } }
-            : null;
-        })
-        .filter(Boolean);
+      type MenuImageUpdate = {
+        where: { id: { _eq: string } };
+        _set: { image_url: string };
+      };
+      const updates: MenuImageUpdate[] = [];
+      const matchedIds = new Set<string>();
+      for (const item of itemsWithoutImages) {
+        const url = urlByName.get((item.name || "").trim().toLowerCase());
+        if (url && item.id) {
+          updates.push({ where: { id: { _eq: item.id } }, _set: { image_url: url } });
+          matchedIds.add(item.id);
+        }
+      }
+      const bankFound = updates.length;
+      setImagesFetchedCount(bankFound);
 
-      // 3. ONE batch mutation for every matched item.
+      // 3. Fallback: for items the image DB doesn't have, search Google (Apify),
+      //    re-upload the best result to S3, and record it back in the image DB.
+      const misses = itemsWithoutImages.filter(
+        (i) => i.id && !matchedIds.has(i.id),
+      );
+      let googleFound = 0;
+      if (misses.length > 0 && userData?.id) {
+        const partnerName =
+          (userData as Partner)?.name?.trim() ||
+          (userData as Partner)?.store_name?.trim() ||
+          "Partner";
+        const loadingId = toast.loading(
+          `Searching Google for ${misses.length} item${misses.length === 1 ? "" : "s"} not in the image bank…`,
+        );
+        try {
+          const fills = await fillItemsFromGoogle(
+            userData.id,
+            partnerName,
+            misses.map((i) => ({
+              id: i.id!,
+              name: i.name,
+              category_name: i.category?.name,
+            })),
+          );
+          for (const f of fills) {
+            if (f.id) {
+              updates.push({
+                where: { id: { _eq: f.id } },
+                _set: { image_url: f.image_url },
+              });
+            }
+          }
+          googleFound = fills.length;
+        } finally {
+          toast.dismiss(loadingId);
+        }
+      }
+
+      // 4. ONE batch mutation for every matched + filled item.
       if (updates.length > 0) {
         await fetchFromHasura(
-          `mutation SetBankImages($updates: [menu_updates!]!) {
+          `mutation SetImages($updates: [menu_updates!]!) {
             update_menu_many(updates: $updates) { affected_rows }
           }`,
           { updates },
@@ -313,18 +359,23 @@ export function AdminV2Menu() {
       const found = updates.length;
       const notFound = itemsWithoutImages.length - found;
       if (found > 0) {
+        const parts: string[] = [];
+        if (bankFound > 0) parts.push(`${bankFound} from the image bank`);
+        if (googleFound > 0) parts.push(`${googleFound} from Google`);
         toast.success(
-          `Added images to ${found} item${found === 1 ? "" : "s"} from the image bank!`,
+          `Added images to ${found} item${found === 1 ? "" : "s"}${
+            parts.length ? ` (${parts.join(", ")})` : ""
+          }!`,
         );
       }
       if (notFound > 0) {
         toast.info(
-          `${notFound} item${notFound === 1 ? "" : "s"} had no match in the image bank.`,
+          `${notFound} item${notFound === 1 ? "" : "s"} had no image found.`,
         );
       }
     } catch (error) {
       console.error("Get all images failed:", error);
-      toast.error("Failed to fetch images from the image bank.");
+      toast.error("Failed to fetch images.");
     } finally {
       setIsFetchingImages(false);
     }

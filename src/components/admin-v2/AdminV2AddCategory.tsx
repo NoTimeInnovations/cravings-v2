@@ -33,6 +33,7 @@ import { TAG_CATEGORIES, getTagColor } from "@/data/foodTags";
 import { toast } from "sonner";
 import Img from "../Img";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { fillItemsFromGoogle } from "@/app/actions/googleImageFallback";
 import type { Schema } from "@google/generative-ai";
 import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
 
@@ -394,25 +395,67 @@ For each item, provide:
             }
 
             // Apply matches to local state (these items aren't saved yet).
-            let successCount = 0;
-            const nextItems = items.map(i => {
+            let bankFound = 0;
+            const afterBank = items.map(i => {
                 if (i.image_url) return i;
                 const url = urlByName.get((i.name || "").trim().toLowerCase());
                 if (url) {
-                    successCount++;
+                    bankFound++;
                     return { ...i, image_url: url };
                 }
                 return i;
             });
-            setItems(nextItems);
+
+            // Fallback: for items not in the image bank, search Google (Apify),
+            // re-upload the best result to S3, and record it in the image DB.
+            const misses = afterBank.filter(i => !i.image_url && i.name?.trim());
+            let googleFound = 0;
+            let finalItems = afterBank;
+            if (misses.length > 0 && userData?.id) {
+                const partnerName =
+                    (userData as { name?: string; store_name?: string })?.name?.trim() ||
+                    (userData as { name?: string; store_name?: string })?.store_name?.trim() ||
+                    "Partner";
+                const loadingId = toast.loading(
+                    `Searching Google for ${misses.length} item${misses.length === 1 ? "" : "s"} not in the image bank…`
+                );
+                try {
+                    const fills = await fillItemsFromGoogle(
+                        userData.id,
+                        partnerName,
+                        misses.map(i => ({ name: i.name, category_name: categoryName || null }))
+                    );
+                    const fillByName = new Map<string, string>();
+                    for (const f of fills) {
+                        fillByName.set(f.name.trim().toLowerCase(), f.image_url);
+                    }
+                    finalItems = afterBank.map(i => {
+                        if (i.image_url) return i;
+                        const url = fillByName.get((i.name || "").trim().toLowerCase());
+                        if (url) {
+                            googleFound++;
+                            return { ...i, image_url: url };
+                        }
+                        return i;
+                    });
+                } finally {
+                    toast.dismiss(loadingId);
+                }
+            }
+
+            setItems(finalItems);
             setImagesFetchedCount(itemsWithoutImages.length);
 
-            const notFoundCount = itemsWithoutImages.length - successCount;
-            if (successCount > 0) {
-                toast.success(`Added images to ${successCount} item${successCount === 1 ? "" : "s"} from the image bank`);
+            const found = bankFound + googleFound;
+            const notFoundCount = itemsWithoutImages.length - found;
+            if (found > 0) {
+                const parts: string[] = [];
+                if (bankFound > 0) parts.push(`${bankFound} from the image bank`);
+                if (googleFound > 0) parts.push(`${googleFound} from Google`);
+                toast.success(`Added images to ${found} item${found === 1 ? "" : "s"} (${parts.join(", ")})`);
             }
             if (notFoundCount > 0) {
-                toast.info(`${notFoundCount} item${notFoundCount === 1 ? "" : "s"} had no match in the image bank`);
+                toast.info(`${notFoundCount} item${notFoundCount === 1 ? "" : "s"} had no image found`);
             }
         } catch (error) {
             console.error("Get all images failed:", error);
