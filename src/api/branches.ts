@@ -7,7 +7,7 @@ query GetBranchByParentPartnerId($parent_partner_id: uuid!) {
     name
     tagline
     parent_partner_id
-    outlets(where: {status: {_eq: "active"}}, order_by: {store_name: asc}) {
+    outlets(where: {status: {_eq: "active"}, hide_from_outlets: {_eq: false}}, order_by: {store_name: asc}) {
       id
       username
       store_name

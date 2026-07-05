@@ -50,6 +50,7 @@ interface PartnerWithDetails extends Partner {
   place_id?: string;
   currency: string;
   show_price_data?: boolean;
+  hide_from_outlets?: boolean;
   razorpay_linked_account_id?: string;
   business_type?: string;
   country?: string;
@@ -129,6 +130,7 @@ const EditPartners = () => {
             place_id
             currency
             show_price_data
+            hide_from_outlets
             razorpay_linked_account_id
             business_type
             country_code
@@ -353,6 +355,7 @@ For any support or clarification, please contact us anytime.`;
       place_id: selectedPartner.place_id,
       currency: selectedPartner.currency,
       show_price_data: selectedPartner.show_price_data,
+      hide_from_outlets: selectedPartner.hide_from_outlets ?? false,
       razorpay_linked_account_id: selectedPartner.razorpay_linked_account_id,
       business_type: selectedPartner.business_type,
       country: selectedPartner.country,
@@ -739,6 +742,24 @@ For any support or clarification, please contact us anytime.`;
                       setSelectedPartner({
                         ...selectedPartner,
                         show_price_data: checked,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex justify-normal items-start gap-3">
+                  <div className="flex-1">
+                    <Label htmlFor="hide_from_outlets">Hide from outlet picker</Label>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      For a branch: hides it from the brand&apos;s outlet list so customers can&apos;t pick it (its own storefront still works).
+                    </p>
+                  </div>
+                  <Switch
+                    id="hide_from_outlets"
+                    checked={selectedPartner.hide_from_outlets ?? false}
+                    onCheckedChange={(checked) =>
+                      setSelectedPartner({
+                        ...selectedPartner,
+                        hide_from_outlets: checked,
                       })
                     }
                   />
