@@ -49,6 +49,7 @@ query GetPartnerBranchInfo($partner_id: uuid!) {
         location_details
         phone
         status
+        hide_from_outlets
       }
     }
   }
@@ -149,6 +150,7 @@ export interface PartnerBranchInfo {
       location_details?: string | null;
       phone?: string | null;
       status?: string | null;
+      hide_from_outlets?: boolean | null;
     }>;
   } | null;
 }

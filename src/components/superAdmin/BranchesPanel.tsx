@@ -7,6 +7,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   createBranchMutation,
   disbandBranchMutation,
@@ -66,6 +67,7 @@ export default function BranchesPanel({
   // Per-outlet "branch label" (partners.store_tagline) drafts, keyed by outlet id
   const [outletLabelDrafts, setOutletLabelDrafts] = useState<Record<string, string>>({});
   const [savingOutletId, setSavingOutletId] = useState<string | null>(null);
+  const [hidingOutletId, setHidingOutletId] = useState<string | null>(null);
 
   // Add-outlet picker state
   const [showAdd, setShowAdd] = useState(false);
@@ -144,6 +146,22 @@ export default function BranchesPanel({
       toast.error("Failed to save branch label");
     } finally {
       setSavingOutletId(null);
+    }
+  };
+
+  // Hide/show a single outlet in the brand's outlet picker.
+  const handleToggleHide = async (outletId: string, hidden: boolean) => {
+    setHidingOutletId(outletId);
+    try {
+      await updatePartner(outletId, { hide_from_outlets: hidden });
+      revalidateTag(outletId);
+      toast.success(hidden ? "Hidden from outlet picker" : "Shown in outlet picker");
+      await refresh();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update outlet visibility");
+    } finally {
+      setHidingOutletId(null);
     }
   };
 
@@ -513,6 +531,20 @@ export default function BranchesPanel({
                           )}
                           Save
                         </Button>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <Switch
+                          id={`hide_${o.id}`}
+                          checked={!!o.hide_from_outlets}
+                          disabled={hidingOutletId === o.id}
+                          onCheckedChange={(checked) => handleToggleHide(o.id, checked)}
+                        />
+                        <Label htmlFor={`hide_${o.id}`} className="text-xs text-gray-600">
+                          Hide this branch from the outlet picker
+                          {hidingOutletId === o.id && (
+                            <Loader2 className="inline w-3 h-3 animate-spin ml-1.5" />
+                          )}
+                        </Label>
                       </div>
                     </li>
                   );
