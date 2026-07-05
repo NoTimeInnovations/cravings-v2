@@ -5,19 +5,39 @@ import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { finalizeCfOrder } from "./cfOrders";
 
-// Only Flamin Hot Chicken uses Razorpay for order payments.
-// Set FLAMIN_PARTNER_ID in env to this partner's UUID.
-const FLAMIN_PARTNER_ID = process.env.FLAMIN_PARTNER_ID || "";
+// Partners that collect order payments through their OWN Razorpay account
+// (env-gated). Each slug SLUG needs these env vars:
+//   SLUG_PARTNER_ID              — the partner's UUID
+//   SLUG_RAZORPAY_KEY_ID         — their Razorpay key id
+//   SLUG_RAZORPAY_KEY_SECRET     — their Razorpay key secret
+//   SLUG_RAZORPAY_WEBHOOK_SECRET — their Razorpay webhook secret
+// (Plus NEXT_PUBLIC_SLUG_PARTNER_ID so the storefront checkout renders the
+// Razorpay path — see src/lib/ownRazorpayPartners.ts.)
+const RZP_PARTNER_SLUGS = ["FLAMIN", "REGU"];
 
-// Built per-call (not at module load) so it always reads the current env —
-// avoids permanently capturing undefined if the keys weren't present when this
-// module was first imported. Trim to defend against stray whitespace/newlines
-// pasted into .env, which would otherwise cause a 401 from Razorpay.
-function getFlaminRazorpay() {
-  return new Razorpay({
-    key_id: (process.env.FLAMIN_RAZORPAY_KEY_ID || "").trim(),
-    key_secret: (process.env.FLAMIN_RAZORPAY_KEY_SECRET || "").trim(),
-  });
+// Resolve a partner's Razorpay keys from env. Read per-call (not at module load)
+// so it always sees the current env. Trims to defend against stray whitespace
+// pasted into .env, which would otherwise 401 from Razorpay.
+function razorpayCredsForPartner(
+  partnerId: string,
+): { slug: string; keyId: string; keySecret: string } | null {
+  for (const slug of RZP_PARTNER_SLUGS) {
+    const pid = (process.env[`${slug}_PARTNER_ID`] || "").trim();
+    if (pid && pid === partnerId) {
+      const keyId = (process.env[`${slug}_RAZORPAY_KEY_ID`] || "").trim();
+      const keySecret = (process.env[`${slug}_RAZORPAY_KEY_SECRET`] || "").trim();
+      return keyId && keySecret ? { slug, keyId, keySecret } : null;
+    }
+  }
+  return null;
+}
+
+// Every configured partner's webhook secret — the shared /api/fhc/razorpay
+// webhook tries each so multiple accounts can point at the same URL.
+export async function allRazorpayWebhookSecrets(): Promise<string[]> {
+  return RZP_PARTNER_SLUGS.map((s) =>
+    (process.env[`${s}_RAZORPAY_WEBHOOK_SECRET`] || "").trim(),
+  ).filter(Boolean);
 }
 
 export async function createRazorpayOrderForPartner(
@@ -26,15 +46,14 @@ export async function createRazorpayOrderForPartner(
   amount: number, // in rupees (e.g. 299.00)
   customer: { id: string; name: string; phone: string; email?: string },
 ) {
-  if (!FLAMIN_PARTNER_ID || partnerId !== FLAMIN_PARTNER_ID) {
+  const creds = razorpayCredsForPartner(partnerId);
+  if (!creds) {
     return { success: false, error: "Razorpay not enabled for this restaurant" };
-  }
-  if (!process.env.FLAMIN_RAZORPAY_KEY_ID || !process.env.FLAMIN_RAZORPAY_KEY_SECRET) {
-    return { success: false, error: "Razorpay credentials not configured" };
   }
 
   try {
-    const order = await getFlaminRazorpay().orders.create({
+    const rzp = new Razorpay({ key_id: creds.keyId, key_secret: creds.keySecret });
+    const order = await rzp.orders.create({
       amount: Math.round(amount * 100), // Razorpay expects paise
       currency: "INR",
       receipt: orderId,
@@ -65,12 +84,12 @@ export async function createRazorpayOrderForPartner(
       console.error("[razorpay-flamin] failed to persist rzp_order_id on order", orderId, e);
     }
 
-    console.log("[razorpay-flamin] create-order ok", "rzp_order_id=", order.id);
+    console.log(`[razorpay-${creds.slug.toLowerCase()}] create-order ok`, "rzp_order_id=", order.id);
 
     return {
       success: true,
       rzpOrderId: order.id,
-      keyId: process.env.FLAMIN_RAZORPAY_KEY_ID, // safe to send to client
+      keyId: creds.keyId, // safe to send to client
     };
   } catch (error: any) {
     console.error("[razorpay-flamin] create-order FAILED", error);
@@ -84,18 +103,20 @@ export async function createRazorpayOrderForPartner(
 // Call this server-side after Razorpay checkout.js fires the handler callback.
 // rzpOrderId + rzpPaymentId + rzpSignature come from the Razorpay handler response.
 export async function verifyRazorpayPayment(
+  partnerId: string,
   rzpOrderId: string,
   rzpPaymentId: string,
   rzpSignature: string,
 ) {
-  const secret = process.env.FLAMIN_RAZORPAY_KEY_SECRET!;
+  const creds = razorpayCredsForPartner(partnerId);
+  if (!creds) return { success: false, paid: false };
   const generated = crypto
-    .createHmac("sha256", secret)
+    .createHmac("sha256", creds.keySecret)
     .update(`${rzpOrderId}|${rzpPaymentId}`)
     .digest("hex");
 
   const isValid = generated === rzpSignature;
-  console.log("[razorpay-flamin] verify", "valid=", isValid, "payment=", rzpPaymentId);
+  console.log(`[razorpay-${creds.slug.toLowerCase()}] verify`, "valid=", isValid, "payment=", rzpPaymentId);
 
   return { success: true, paid: isValid };
 }

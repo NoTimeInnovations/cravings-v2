@@ -24,6 +24,7 @@ import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { createCashfreeOrderForPartner, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
 import { createRazorpayOrderForPartner, verifyRazorpayPayment, markRazorpayOrderPaidSimple } from "@/app/actions/razorpayPartner";
+import { usesOwnRazorpay } from "@/lib/ownRazorpayPartners";
 import { verifyCashfreePaymentSettled } from "@/lib/cashfreeVerify";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import { isCustomDomainHost } from "@/lib/domain-utils";
@@ -524,10 +525,9 @@ ${itemsText}
     const whatsappLink = buildWhatsappLink();
     const hasUpiQr = partnerPaymentInfo?.show_payment_qr && !!partnerPaymentInfo?.upi_id;
     const hasCashfree = partnerPaymentInfo?.accept_payments_via_cashfree === true && !!partnerPaymentInfo?.cashfree_merchant_id;
-    // Flamin Hot Chicken pays via their own Razorpay, not the platform Cashfree.
-    const isFlamin =
-        !!process.env.NEXT_PUBLIC_FLAMIN_PARTNER_ID &&
-        order?.partnerId === process.env.NEXT_PUBLIC_FLAMIN_PARTNER_ID;
+    // Some partners (Flamin Hot Chicken, Regu Sweets, …) pay via their own
+    // Razorpay, not the platform Cashfree.
+    const isFlamin = usesOwnRazorpay(order?.partnerId);
 
     const handleCashfreePayment = async () => {
         if (!order) return;
@@ -654,6 +654,7 @@ ${itemsText}
                     setCashfreeVerifying(true);
                     try {
                         const v = await verifyRazorpayPayment(
+                            order.partnerId,
                             resp.razorpay_order_id,
                             resp.razorpay_payment_id,
                             resp.razorpay_signature,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { finalizeCfOrder } from "@/app/actions/cfOrders";
+import { allRazorpayWebhookSecrets } from "@/app/actions/razorpayPartner";
 
 export const dynamic = "force-dynamic";
 
@@ -62,13 +63,15 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.text();
     const signature = req.headers.get("x-razorpay-signature") || "";
 
-    const webhookSecret = process.env.FLAMIN_RAZORPAY_WEBHOOK_SECRET;
-    if (!webhookSecret) {
-      console.error("[Razorpay Webhook] FLAMIN_RAZORPAY_WEBHOOK_SECRET not configured");
+    // Both partners' Razorpay accounts can point at this same URL — try each
+    // configured webhook secret and accept if any matches.
+    const webhookSecrets = await allRazorpayWebhookSecrets();
+    if (!webhookSecrets.length) {
+      console.error("[Razorpay Webhook] no *_RAZORPAY_WEBHOOK_SECRET configured");
       return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
     }
 
-    if (!verifyWebhookSignature(rawBody, signature, webhookSecret)) {
+    if (!webhookSecrets.some((s) => verifyWebhookSignature(rawBody, signature, s))) {
       console.error("[Razorpay Webhook] invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }

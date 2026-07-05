@@ -72,6 +72,7 @@ import {
   verifyRazorpayPayment,
   markRazorpayOrderPaid,
 } from "@/app/actions/razorpayPartner";
+import { usesOwnRazorpay } from "@/lib/ownRazorpayPartners";
 import {
   resolveCurrencyCode,
   categoryName,
@@ -189,13 +190,12 @@ const PlaceOrderModalV2 = ({
   const accent = themeStyles?.accent || "#16A34A";
   const currency = hotelData?.currency || "₹";
 
-  // Flamin Hot Chicken collects "online" payments through their OWN Razorpay
-  // account instead of the platform Cashfree. We treat the online option as
-  // available for them (so the UI renders) and route the charge to Razorpay
-  // in handlePay. Everything else (Petpooja push, notifications) is unchanged.
-  const isFlamin =
-    !!process.env.NEXT_PUBLIC_FLAMIN_PARTNER_ID &&
-    (hotelData as any)?.id === process.env.NEXT_PUBLIC_FLAMIN_PARTNER_ID;
+  // Some partners (Flamin Hot Chicken, Regu Sweets, …) collect "online" payments
+  // through their OWN Razorpay account instead of the platform Cashfree. We treat
+  // the online option as available for them (so the UI renders) and route the
+  // charge to Razorpay in handlePay. Everything else (Petpooja push,
+  // notifications) is unchanged.
+  const isFlamin = usesOwnRazorpay((hotelData as any)?.id);
   const baseCashfree =
     (((hotelData as any)?.accept_payments_via_cashfree === true &&
       !!(hotelData as any)?.cashfree_merchant_id) ||
@@ -1837,6 +1837,7 @@ const PlaceOrderModalV2 = ({
           setOrderStatus("verifying");
           try {
             const v = await verifyRazorpayPayment(
+              hotelData.id,
               resp.razorpay_order_id,
               resp.razorpay_payment_id,
               resp.razorpay_signature,
