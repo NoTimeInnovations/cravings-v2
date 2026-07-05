@@ -32,7 +32,7 @@ import { ImageGridModalV2 } from "../bulkMenuUpload/ImageGridModalV2";
 import { TAG_CATEGORIES, getTagColor } from "@/data/foodTags";
 import { toast } from "sonner";
 import Img from "../Img";
-import axios from "axios";
+import { fetchFromHasura } from "@/lib/hasuraClient";
 import type { Schema } from "@google/generative-ai";
 import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
 
@@ -370,36 +370,55 @@ For each item, provide:
         setIsFetchingImages(true);
         setImagesFetchedCount(0);
 
-        let successCount = 0;
-        let notFoundCount = 0;
-        for (const item of itemsWithoutImages) {
-            try {
-                // Source images only from our Menuthere Image DB (by item name).
-                const bank = await axios.get("/api/image-bank", {
-                    params: { item: item.name, limit: 1 },
-                });
-                const imageUrl = bank.data?.images?.[0]?.image_url || null;
+        try {
+            // ONE batch lookup against the Menuthere Image DB (same Hasura).
+            const uniqueNames = Array.from(
+                new Set(itemsWithoutImages.map(i => i.name).filter(Boolean))
+            );
+            const { item_images } = await fetchFromHasura(
+                `query BankImages($names: [String!]!) {
+                    item_images(where: { item_name: { _in: $names } }) {
+                        item_name
+                        image_url
+                    }
+                }`,
+                { names: uniqueNames }
+            );
 
-                if (imageUrl) {
-                    setItems(prev =>
-                        prev.map(i => i.id === item.id ? { ...i, image_url: imageUrl } : i)
-                    );
-                    successCount++;
-                } else {
-                    notFoundCount++;
+            const urlByName = new Map<string, string>();
+            for (const row of (item_images as { item_name: string; image_url: string }[]) || []) {
+                const key = (row.item_name || "").trim().toLowerCase();
+                if (key && row.image_url && !urlByName.has(key)) {
+                    urlByName.set(key, row.image_url);
                 }
-            } catch (error) {
-                console.error(`Image bank lookup failed for ${item.name}:`, error);
             }
-            setImagesFetchedCount(prev => prev + 1);
-        }
 
-        setIsFetchingImages(false);
-        if (successCount > 0) {
-            toast.success(`Added images to ${successCount} item${successCount === 1 ? "" : "s"} from the image bank`);
-        }
-        if (notFoundCount > 0) {
-            toast.info(`${notFoundCount} item${notFoundCount === 1 ? "" : "s"} had no match in the image bank`);
+            // Apply matches to local state (these items aren't saved yet).
+            let successCount = 0;
+            const nextItems = items.map(i => {
+                if (i.image_url) return i;
+                const url = urlByName.get((i.name || "").trim().toLowerCase());
+                if (url) {
+                    successCount++;
+                    return { ...i, image_url: url };
+                }
+                return i;
+            });
+            setItems(nextItems);
+            setImagesFetchedCount(itemsWithoutImages.length);
+
+            const notFoundCount = itemsWithoutImages.length - successCount;
+            if (successCount > 0) {
+                toast.success(`Added images to ${successCount} item${successCount === 1 ? "" : "s"} from the image bank`);
+            }
+            if (notFoundCount > 0) {
+                toast.info(`${notFoundCount} item${notFoundCount === 1 ? "" : "s"} had no match in the image bank`);
+            }
+        } catch (error) {
+            console.error("Get all images failed:", error);
+            toast.error("Failed to fetch images from the image bank.");
+        } finally {
+            setIsFetchingImages(false);
         }
     };
 

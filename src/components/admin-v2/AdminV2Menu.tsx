@@ -57,7 +57,7 @@ import {
   formatDisplayName,
   useCategoryStore,
 } from "@/store/categoryStore_hasura";
-import axios from "axios";
+import { fetchFromHasura } from "@/lib/hasuraClient";
 import { isFreePlan as checkIsFreePlan } from "@/lib/getPlanLimits";
 
 export function AdminV2Menu() {
@@ -262,40 +262,71 @@ export function AdminV2Menu() {
     setTotalItemsToFetch(itemsWithoutImages.length);
     setImagesFetchedCount(0);
 
-    let successCount = 0;
-    let notFoundCount = 0;
+    try {
+      // 1. ONE batch lookup against the Menuthere Image DB (same Hasura, no
+      //    extra network hop, no per-item request).
+      const uniqueNames = Array.from(
+        new Set(itemsWithoutImages.map((i) => i.name).filter(Boolean)),
+      );
+      const { item_images } = await fetchFromHasura(
+        `query BankImages($names: [String!]!) {
+          item_images(where: { item_name: { _in: $names } }) {
+            item_name
+            image_url
+          }
+        }`,
+        { names: uniqueNames },
+      );
 
-    for (const item of itemsWithoutImages) {
-      try {
-        // Source images only from our Menuthere Image DB (by item name).
-        const bank = await axios.get("/api/image-bank", {
-          params: { item: item.name, limit: 1 },
-        });
-        const imageUrl = bank.data?.images?.[0]?.image_url || null;
-
-        if (imageUrl) {
-          await updateItem(item.id!, { image_url: imageUrl });
-          successCount++;
-        } else {
-          notFoundCount++;
+      // Case-insensitive name -> url map (first match wins).
+      const urlByName = new Map<string, string>();
+      for (const row of (item_images as { item_name: string; image_url: string }[]) || []) {
+        const key = (row.item_name || "").trim().toLowerCase();
+        if (key && row.image_url && !urlByName.has(key)) {
+          urlByName.set(key, row.image_url);
         }
-      } catch (error) {
-        console.error(`Image bank lookup failed for ${item.name}:`, error);
       }
 
-      setImagesFetchedCount((prev) => prev + 1);
-    }
+      // 2. Build one update per matched item. The bank URL is already a public
+      //    S3 asset, so we reference it directly (no re-download / re-upload).
+      const updates = itemsWithoutImages
+        .map((item) => {
+          const url = urlByName.get((item.name || "").trim().toLowerCase());
+          return url
+            ? { where: { id: { _eq: item.id } }, _set: { image_url: url } }
+            : null;
+        })
+        .filter(Boolean);
 
-    setIsFetchingImages(false);
-    if (successCount > 0) {
-      toast.success(
-        `Added images to ${successCount} item${successCount === 1 ? "" : "s"} from the image bank!`,
-      );
-    }
-    if (notFoundCount > 0) {
-      toast.info(
-        `${notFoundCount} item${notFoundCount === 1 ? "" : "s"} had no match in the image bank.`,
-      );
+      // 3. ONE batch mutation for every matched item.
+      if (updates.length > 0) {
+        await fetchFromHasura(
+          `mutation SetBankImages($updates: [menu_updates!]!) {
+            update_menu_many(updates: $updates) { affected_rows }
+          }`,
+          { updates },
+        );
+        await fetchMenu(userData?.id, true);
+      }
+
+      setImagesFetchedCount(itemsWithoutImages.length);
+      const found = updates.length;
+      const notFound = itemsWithoutImages.length - found;
+      if (found > 0) {
+        toast.success(
+          `Added images to ${found} item${found === 1 ? "" : "s"} from the image bank!`,
+        );
+      }
+      if (notFound > 0) {
+        toast.info(
+          `${notFound} item${notFound === 1 ? "" : "s"} had no match in the image bank.`,
+        );
+      }
+    } catch (error) {
+      console.error("Get all images failed:", error);
+      toast.error("Failed to fetch images from the image bank.");
+    } finally {
+      setIsFetchingImages(false);
     }
   };
 
