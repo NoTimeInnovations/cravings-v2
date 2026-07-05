@@ -745,17 +745,29 @@ export default function OutletPickerScreen({
                     style={isSelected ? { borderColor: accent } : undefined}
                   >
                     <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        isSelected ? "" : "bg-gray-100"
+                      className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center shrink-0 ${
+                        isSelected || o.store_banner ? "" : "bg-gray-100"
                       }`}
                       style={
-                        isSelected ? { backgroundColor: `${accent}15` } : undefined
+                        isSelected && !o.store_banner
+                          ? { backgroundColor: `${accent}15` }
+                          : undefined
                       }
                     >
-                      <Store
-                        className="w-4 h-4"
-                        style={{ color: isSelected ? accent : "#111827" }}
-                      />
+                      {o.store_banner ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={o.store_banner}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <Store
+                          className="w-4 h-4"
+                          style={{ color: isSelected ? accent : "#111827" }}
+                        />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
