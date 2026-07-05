@@ -8,77 +8,90 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 
+// Shared full-panel loader. Shown while a section's code-chunk downloads/mounts
+// (as the dynamic() fallback) AND for the brief pre-mount frame right after a
+// nav click — so switching sections always shows clear progress instead of a
+// blank/frozen-looking screen.
+function ViewLoading() {
+    return (
+        <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+            <span className="text-sm text-muted-foreground">Loading…</span>
+        </div>
+    );
+}
+
 const AdminV2Dashboard = dynamic(() => import("@/components/admin-v2/AdminV2Dashboard").then(mod => mod.AdminV2Dashboard), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Analytics = dynamic(() => import("@/components/admin-v2/AdminV2Analytics").then(mod => mod.AdminV2Analytics), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Orders = dynamic(() => import("@/components/admin-v2/AdminV2Orders").then(mod => mod.AdminV2Orders), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Menu = dynamic(() => import("@/components/admin-v2/AdminV2Menu").then(mod => mod.AdminV2Menu), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Settings = dynamic(() => import("@/components/admin-v2/AdminV2Settings").then(mod => mod.AdminV2Settings), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2CaptainSettings = dynamic(() => import("@/components/admin-v2/AdminV2CaptainSettings").then(mod => mod.AdminV2CaptainSettings), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2DeliveryBoys = dynamic(() => import("@/components/admin-v2/AdminV2DeliveryBoys").then(mod => mod.AdminV2DeliveryBoys), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2QrCodes = dynamic(() => import("@/components/admin-v2/AdminV2QrCodes").then(mod => mod.AdminV2QrCodes), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Offers = dynamic(() => import("@/components/admin-v2/AdminV2Offers").then(mod => mod.AdminV2Offers), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2HelpSupport = dynamic(() => import("@/components/admin-v2/AdminV2HelpSupport").then(mod => mod.AdminV2HelpSupport), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2POS = dynamic(() => import("@/components/admin-v2/AdminV2POS").then(mod => mod.AdminV2POS), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2PurchaseInventory = dynamic(() => import("@/components/admin-v2/AdminV2PurchaseInventory").then(mod => mod.AdminV2PurchaseInventory), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Billing = dynamic(() => import("@/components/admin-v2/AdminV2Billing").then(mod => mod.AdminV2Billing), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Customers = dynamic(() => import("@/components/admin-v2/AdminV2Customers").then(mod => mod.AdminV2Customers), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Notices = dynamic(() => import("@/components/admin-v2/AdminV2Notices").then(mod => mod.AdminV2Notices), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Reviews = dynamic(() => import("@/components/admin-v2/AdminV2Reviews").then(mod => mod.AdminV2Reviews), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Website = dynamic(() => import("@/components/admin-v2/AdminV2Website").then(mod => mod.AdminV2Website), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Notify = dynamic(() => import("@/components/admin-v2/AdminV2Notify").then(mod => mod.AdminV2Notify), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2PetpoojaIntegration = dynamic(() => import("@/components/admin-v2/AdminV2PetpoojaIntegration").then(mod => mod.AdminV2PetpoojaIntegration), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2DeliveryIntegration = dynamic(() => import("@/components/admin-v2/AdminV2DeliveryIntegration").then(mod => mod.AdminV2DeliveryIntegration), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2WhatsApp = dynamic(() => import("@/components/admin-v2/AdminV2WhatsApp").then(mod => mod.AdminV2WhatsApp), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2Loyalty = dynamic(() => import("@/components/admin-v2/AdminV2Loyalty").then(mod => mod.AdminV2Loyalty), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const AdminV2StockManagement = dynamic(() => import("@/components/admin-v2/AdminV2StockManagement").then(mod => mod.AdminV2StockManagement), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 const DeliveryPoolPanel = dynamic(() => import("@/components/admin-v2/DeliveryPoolPanel"), {
-    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+    loading: ViewLoading
 });
 import { useAdminStore } from "@/store/adminStore";
 import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
@@ -199,6 +212,12 @@ export default function AdminPage() {
                         {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "Delivery Boys" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && activeView !== "Customers" && activeView !== "Notices" && activeView !== "Reviews" && activeView !== "Website" && activeView !== "Notify" && activeView !== "Petpooja Integration" && activeView !== "Delivery Service Integration" && activeView !== "WhatsApp" && activeView !== "Loyalty" && activeView !== "Stock Management" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
+
+                        {/* Cover the frame between clicking a section and its
+                            component mounting (the dynamic() chunk loader takes
+                            over once it's in renderedViews) so the switch never
+                            looks frozen. */}
+                        {!renderedViews.includes(activeView) && <ViewLoading />}
 
                         {renderedViews.includes("Dashboard") && (
                             <div className={activeView === "Dashboard" ? "block" : "hidden"}>
