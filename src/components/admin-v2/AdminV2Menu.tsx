@@ -263,34 +263,40 @@ export function AdminV2Menu() {
     setImagesFetchedCount(0);
 
     let successCount = 0;
+    let notFoundCount = 0;
 
     for (const item of itemsWithoutImages) {
       try {
-        const searchTerm = item.name?.includes(item.category.name)
-          ? item.name
-          : item.name + " " + item.category.name;
-
-        const response = await axios.post(
-          "https://images.cravings.live/api/images/search-google",
-          { itemName: searchTerm },
-          { headers: { "Content-Type": "application/json" } },
-        );
-
-        const imageUrl = response.data?.data?.imageUrl;
+        // Source images only from our Menuthere Image DB (by item name).
+        const bank = await axios.get("/api/image-bank", {
+          params: { item: item.name, limit: 1 },
+        });
+        const imageUrl = bank.data?.images?.[0]?.image_url || null;
 
         if (imageUrl) {
           await updateItem(item.id!, { image_url: imageUrl });
           successCount++;
+        } else {
+          notFoundCount++;
         }
       } catch (error) {
-        console.error(`Failed to fetch image for ${item.name}:`, error);
+        console.error(`Image bank lookup failed for ${item.name}:`, error);
       }
 
       setImagesFetchedCount((prev) => prev + 1);
     }
 
     setIsFetchingImages(false);
-    toast.success(`Successfully added images to ${successCount} items!`);
+    if (successCount > 0) {
+      toast.success(
+        `Added images to ${successCount} item${successCount === 1 ? "" : "s"} from the image bank!`,
+      );
+    }
+    if (notFoundCount > 0) {
+      toast.info(
+        `${notFoundCount} item${notFoundCount === 1 ? "" : "s"} had no match in the image bank.`,
+      );
+    }
   };
 
   const handleSaveCategory = async (e: React.MouseEvent) => {

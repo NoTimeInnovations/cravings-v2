@@ -371,33 +371,36 @@ For each item, provide:
         setImagesFetchedCount(0);
 
         let successCount = 0;
+        let notFoundCount = 0;
         for (const item of itemsWithoutImages) {
             try {
-                const searchTerm = categoryName
-                    ? `${item.name} ${categoryName}`
-                    : item.name;
+                // Source images only from our Menuthere Image DB (by item name).
+                const bank = await axios.get("/api/image-bank", {
+                    params: { item: item.name, limit: 1 },
+                });
+                const imageUrl = bank.data?.images?.[0]?.image_url || null;
 
-                const response = await axios.post(
-                    "https://images.cravings.live/api/images/search-google",
-                    { itemName: searchTerm },
-                    { headers: { "Content-Type": "application/json" } }
-                );
-
-                const imageUrl = response.data?.data?.imageUrl;
                 if (imageUrl) {
                     setItems(prev =>
                         prev.map(i => i.id === item.id ? { ...i, image_url: imageUrl } : i)
                     );
                     successCount++;
+                } else {
+                    notFoundCount++;
                 }
             } catch (error) {
-                console.error(`Failed to fetch image for ${item.name}:`, error);
+                console.error(`Image bank lookup failed for ${item.name}:`, error);
             }
             setImagesFetchedCount(prev => prev + 1);
         }
 
         setIsFetchingImages(false);
-        toast.success(`Added images to ${successCount} items`);
+        if (successCount > 0) {
+            toast.success(`Added images to ${successCount} item${successCount === 1 ? "" : "s"} from the image bank`);
+        }
+        if (notFoundCount > 0) {
+            toast.info(`${notFoundCount} item${notFoundCount === 1 ? "" : "s"} had no match in the image bank`);
+        }
     };
 
     // ─── Save Category Handler ───

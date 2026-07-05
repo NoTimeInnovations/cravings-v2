@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2, Check, Upload, Image as ImageIcon, Search, X } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2, Check, Upload, Database, Search, X, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useMenuStore } from "@/store/menuStore_hasura";
 import Img from "../Img";
 import axios from "axios";
 import { toast } from "sonner";
@@ -20,6 +19,8 @@ interface ImageGridModalV2Props {
     onSelectImage: (url: string) => void;
 }
 
+type TabKey = "menuthere" | "google" | "upload";
+
 export function ImageGridModalV2({
     isOpen,
     onOpenChange,
@@ -29,82 +30,89 @@ export function ImageGridModalV2({
     onSelectImage,
 }: ImageGridModalV2Props) {
     const [searchQuery, setSearchQuery] = useState("");
-
-    const [galleryImages, setGalleryImages] = useState<string[]>([]);
-
-    const [isLoading, setIsLoading] = useState(false);
-
-    const [activeTab, setActiveTab] = useState("gallery");
+    const [menuthereImages, setMenuthereImages] = useState<string[]>([]);
+    const [googleImages, setGoogleImages] = useState<string[]>([]);
+    const [loadingTab, setLoadingTab] = useState<null | "menuthere" | "google">(null);
+    const [activeTab, setActiveTab] = useState<TabKey>("menuthere");
     const [canPaste, setCanPaste] = useState(false);
-    const { fetchCategorieImages } = useMenuStore();
 
     useEffect(() => {
-        // Check if the browser actually supports the read API before rendering the button
+        // Check if the browser supports the clipboard read API before showing the button.
         setCanPaste(!!(navigator.clipboard && navigator.clipboard.read));
     }, []);
 
-    // Initialize search terms
+    // Fetch curated images from the Menuthere Image DB (imagedb.menuthere.com via proxy).
+    const fetchMenuthereImages = useCallback(async (query: string) => {
+        setLoadingTab("menuthere");
+        try {
+            const bank = await axios.get("/api/image-bank", {
+                params: { item: query, limit: 30 },
+            });
+            const urls = (bank.data?.images || [])
+                .map((i: { image_url?: string }) => i.image_url)
+                .filter(Boolean) as string[];
+            setMenuthereImages(Array.from(new Set(urls)));
+        } catch (err) {
+            console.error("Menuthere DB fetch failed", err);
+            toast.error("Failed to fetch from Menuthere DB.");
+            setMenuthereImages([]);
+        } finally {
+            setLoadingTab(null);
+        }
+    }, []);
+
+    // Fetch from the Google image search API (same source used by "Get all images").
+    const fetchGoogleImages = useCallback(async (query: string) => {
+        setLoadingTab("google");
+        try {
+            const res = await axios.post(
+                "https://images.cravings.live/api/images/search-google",
+                { itemName: query },
+                { headers: { "Content-Type": "application/json" } }
+            );
+            const url = res.data?.data?.imageUrl;
+            setGoogleImages(url ? [url] : []);
+        } catch (err) {
+            console.error("Google Images fetch failed", err);
+            toast.error("Failed to fetch Google images.");
+            setGoogleImages([]);
+        } finally {
+            setLoadingTab(null);
+        }
+    }, []);
+
+    // On open: reset to the Menuthere DB tab and load it.
     useEffect(() => {
         if (isOpen) {
             const defaultTerm = itemName ? itemName.trim() : category.trim();
             setSearchQuery(defaultTerm);
-            fetchGalleryImages(defaultTerm);
+            setActiveTab("menuthere");
+            setGoogleImages([]);
+            fetchMenuthereImages(defaultTerm);
         }
-    }, [isOpen, itemName, category]);
+    }, [isOpen, itemName, category, fetchMenuthereImages]);
 
-    const fetchGalleryImages = async (query: string) => {
-        setIsLoading(true);
-        try {
-            const images: string[] = [];
-
-            // 1. Fetch from Internal Store (Category based)
-            // We try to fetch using the query as a "category" or just use the passed category if query is empty
-            // Since fetchCategorieImages expects a category string, we'll try our best.
-            try {
-                const internalMenus = await fetchCategorieImages(query);
-                if (internalMenus) {
-                    images.push(...internalMenus.map((m) => m.image_url).filter(Boolean));
-                }
-            } catch (err) {
-                console.warn("Internal fetch failed", err);
-            }
-
-            // 2. Fetch from Swiggy API (Web Search)
-            try {
-                const lat = "28.6139";
-                const lng = "77.2090";
-                const response = await axios.get(
-                    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images`,
-                    { params: { lat, lng, query: query } }
-                );
-                if (response.data && Array.isArray(response.data)) {
-                    images.push(...response.data);
-                }
-            } catch (err) {
-                console.warn("Swiggy fetch failed", err);
-            }
-
-            // Deduplicate
-            const uniqueImages = Array.from(new Set(images));
-            setGalleryImages(uniqueImages);
-        } catch (error) {
-            console.error("Error fetching gallery images:", error);
-            toast.error("Failed to fetch images.");
-        } finally {
-            setIsLoading(false);
-        }
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (activeTab === "google") fetchGoogleImages(searchQuery);
+        else fetchMenuthereImages(searchQuery);
     };
 
-    const handleGallerySearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        fetchGalleryImages(searchQuery);
+    const switchTab = (tab: TabKey) => {
+        setActiveTab(tab);
+        // Lazy-load a source the first time its tab is opened.
+        if (tab === "google" && googleImages.length === 0 && loadingTab !== "google") {
+            fetchGoogleImages(searchQuery);
+        }
+        if (tab === "menuthere" && menuthereImages.length === 0 && loadingTab !== "menuthere") {
+            fetchMenuthereImages(searchQuery);
+        }
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         const blobUrl = URL.createObjectURL(file);
-        setGalleryImages(prev => [blobUrl, ...prev]);
         onSelectImage(blobUrl);
     };
 
@@ -116,7 +124,6 @@ export function ImageGridModalV2({
                     if (type.startsWith("image/")) {
                         const blob = await item.getType(type);
                         const blobUrl = URL.createObjectURL(blob);
-                        setGalleryImages(prev => [blobUrl, ...prev]);
                         onSelectImage(blobUrl);
                         toast.success("Image pasted from clipboard");
                         return;
@@ -130,9 +137,23 @@ export function ImageGridModalV2({
         }
     };
 
+    const isSearchTab = activeTab === "menuthere" || activeTab === "google";
+    const activeImages = activeTab === "google" ? googleImages : menuthereImages;
+    const isLoading = loadingTab === activeTab;
+    const emptyHint =
+        activeTab === "google"
+            ? "No Google results. Try a different search."
+            : "Not in the Menuthere DB yet. Try a different search or the Google Images tab.";
+
+    const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+        { key: "menuthere", label: "Menuthere DB", icon: <Database className="w-4 h-4 mr-2" /> },
+        { key: "google", label: "Google Images", icon: <Sparkles className="w-4 h-4 mr-2" /> },
+        { key: "upload", label: "Upload", icon: <Upload className="w-4 h-4 mr-2" /> },
+    ];
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[85vw] md:max-w-7xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-background transform-gpu">
+            <DialogContent className="sm:max-w-[85vw] md:max-w-7xl sm:h-[92vh] flex flex-col p-0 gap-0 overflow-hidden bg-background transform-gpu">
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0 flex flex-row items-center justify-between">
                     <DialogTitle className="text-xl font-semibold">Media Library</DialogTitle>
                     <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => onOpenChange(false)}>
@@ -142,23 +163,18 @@ export function ImageGridModalV2({
 
                 <div className="flex flex-1 overflow-hidden">
                     {/* Sidebar / Tabs */}
-                    <div className="w-48 border-r bg-muted/30 hidden sm:flex flex-col p-2 gap-1">
-                        <Button
-                            variant={activeTab === "gallery" ? "secondary" : "ghost"}
-                            className="justify-start"
-                            onClick={() => setActiveTab("gallery")}
-                        >
-                            <ImageIcon className="w-4 h-4 mr-2" />
-                            Gallery
-                        </Button>
-                        <Button
-                            variant={activeTab === "upload" ? "secondary" : "ghost"}
-                            className="justify-start"
-                            onClick={() => setActiveTab("upload")}
-                        >
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload
-                        </Button>
+                    <div className="w-52 border-r bg-muted/30 hidden sm:flex flex-col p-2 gap-1">
+                        {TABS.map((t) => (
+                            <Button
+                                key={t.key}
+                                variant={activeTab === t.key ? "secondary" : "ghost"}
+                                className="justify-start"
+                                onClick={() => switchTab(t.key)}
+                            >
+                                {t.icon}
+                                {t.label}
+                            </Button>
+                        ))}
                     </div>
 
                     {/* Main Content */}
@@ -166,20 +182,32 @@ export function ImageGridModalV2({
                         {/* Mobile Tabs */}
                         <div className="sm:hidden border-b overflow-x-auto">
                             <div className="flex p-2 gap-2">
-                                <Button size="sm" variant={activeTab === "gallery" ? "secondary" : "ghost"} onClick={() => setActiveTab("gallery")}>Gallery</Button>
-                                <Button size="sm" variant={activeTab === "upload" ? "secondary" : "ghost"} onClick={() => setActiveTab("upload")}>Upload</Button>
+                                {TABS.map((t) => (
+                                    <Button
+                                        key={t.key}
+                                        size="sm"
+                                        variant={activeTab === t.key ? "secondary" : "ghost"}
+                                        onClick={() => switchTab(t.key)}
+                                    >
+                                        {t.label}
+                                    </Button>
+                                ))}
                             </div>
                         </div>
 
                         <div className="flex-1 overflow-hidden relative">
-                            {activeTab === "gallery" && (
+                            {isSearchTab && (
                                 <div className="h-full flex flex-col">
                                     <div className="p-4 border-b flex gap-2">
-                                        <form onSubmit={handleGallerySearch} className="flex-1 flex gap-2">
+                                        <form onSubmit={handleSearch} className="flex-1 flex gap-2">
                                             <div className="relative flex-1">
                                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                                 <Input
-                                                    placeholder="Search images..."
+                                                    placeholder={
+                                                        activeTab === "google"
+                                                            ? "Search Google images..."
+                                                            : "Search Menuthere DB..."
+                                                    }
                                                     className="pl-8"
                                                     value={searchQuery}
                                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -190,18 +218,18 @@ export function ImageGridModalV2({
                                             </Button>
                                         </form>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto p-4 max-h-[70vh]">
+                                    <div className="flex-1 overflow-y-auto p-4">
                                         {isLoading ? (
                                             <div className="flex items-center justify-center h-40">
                                                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                                             </div>
-                                        ) : galleryImages.length === 0 ? (
+                                        ) : activeImages.length === 0 ? (
                                             <div className="text-center py-12 text-muted-foreground">
-                                                No images found. Try a different search.
+                                                {emptyHint}
                                             </div>
                                         ) : (
                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                                {galleryImages.map((url, idx) => (
+                                                {activeImages.map((url, idx) => (
                                                     <div
                                                         key={`${url}-${idx}`}
                                                         className={cn(
@@ -234,7 +262,7 @@ export function ImageGridModalV2({
                                 <div className="w-full h-full flex flex-col items-center justify-center p-8 gap-6">
                                     <div className="text-center space-y-2">
                                         <div className="bg-muted/50 p-4 rounded-full inline-flex">
-                                            {/* <Upload className="w-8 h-8 text-muted-foreground" /> */}
+                                            <Upload className="w-8 h-8 text-muted-foreground" />
                                         </div>
                                         <h3 className="text-lg font-semibold">Upload Image</h3>
                                         <p className="text-sm text-muted-foreground max-w-xs mx-auto">
@@ -255,7 +283,6 @@ export function ImageGridModalV2({
                                         </div>
                                         {canPaste && (
                                             <Button variant="outline" className="w-full" onClick={handlePaste}>
-                                                {/* <ClipboardPaste className="w-4 h-4 mr-2" /> */}
                                                 Paste from Clipboard
                                             </Button>
                                         )}
