@@ -22,44 +22,10 @@ import {
   quickSignupFromGoogle,
   type ExtractedMenuItem,
 } from "@/app/actions/quickSignupFromGoogle";
-import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
 import { isDevModeOn } from "@/lib/devMode";
-import type { Schema } from "@google/generative-ai";
+import { extractMenuFromFiles } from "@/lib/menu/menuExtraction";
 
-const MAX_MENU_SIZE = 10 * 1024 * 1024; // 10MB — Gemini inline-data limit
-
-const MENU_EXTRACTION_SCHEMA: Schema = {
-  type: "array",
-  items: {
-    type: "object",
-    properties: {
-      name: { type: "string" },
-      price: { type: "number" },
-      description: { type: "string" },
-      category: { type: "string" },
-      variants: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            name: { type: "string" },
-            price: { type: "number" },
-          },
-          required: ["name", "price"],
-        },
-      },
-    },
-    required: ["name", "price", "description", "category"],
-  },
-} as Schema;
-
-const MENU_EXTRACTION_PROMPT = `Extract each distinct dish as a separate item from the provided menu files (images or PDFs).
-For each item, provide:
-- name: The name of the dish.
-- price: The minimum price.
-- description: A short, appetizing description (max 10 words).
-- category: The main heading.
-- variants: (Optional) Array of {name, price} for sizes.`;
+const MAX_MENU_SIZE = 10 * 1024 * 1024; // 10MB per file (downscaled before send)
 
 const STEPS = [
   "Reading your Google listing...",
@@ -422,21 +388,18 @@ export default function SignupFromGoogleClient({
     }
     if (files.length === 0) return [];
     try {
-      const inputs = await Promise.all(
-        files.map(async (f) => ({
-          data: await fileToBase64(f),
-          mimeType: f.type,
-        })),
-      );
-      const text = await aiGenerate({
-        model: "gemini-2.5-flash-lite",
-        prompt: MENU_EXTRACTION_PROMPT,
-        responseMimeType: "application/json",
-        responseSchema: MENU_EXTRACTION_SCHEMA,
-        files: inputs,
+      // Handles many files + PDFs: PDFs are split into page images and all pages
+      // are sent to the AI in size-bounded batches so the request limit is never
+      // hit. Partial batch failures still return whatever was read.
+      const result = await extractMenuFromFiles(files, {
+        model: "gemini-2.5-flash",
       });
-      const parsed = JSON.parse(text);
-      return Array.isArray(parsed) ? (parsed as ExtractedMenuItem[]) : [];
+      if (result.items.length === 0 && result.failedBatches > 0) {
+        toast.error(
+          "We couldn't read your menu — you can add items later in your dashboard.",
+        );
+      }
+      return result.items as ExtractedMenuItem[];
     } catch (err) {
       console.error("menu extraction failed", err);
       return [];

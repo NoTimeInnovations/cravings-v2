@@ -8,11 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { getImageSource } from "@/lib/getImageSource";
 import axios from "axios";
-import type { Schema } from "@google/generative-ai";
-import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
+import { extractMenuFromFiles } from "@/lib/menu/menuExtraction";
 
 interface UseBulkUploadProps {
   onProgress?: (current: number, total: number) => void;
@@ -522,117 +518,75 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
     }
   };
 
-  const handleExtractMenuItemsFromImage = async (retryCount = 0, extraPrompt = "") => {
+  // Extract menu items from ALL uploaded images/PDFs in one go. PDFs are split
+  // into page images and everything is sent to the AI in size-bounded batches
+  // (see extractMenuFromFiles) so the request limit is never hit. `retryCount`
+  // is kept for the existing call signature but is unused now — retries happen
+  // per batch inside the util.
+  const handleExtractMenuItemsFromImage = async (_retryCount = 0, extraPrompt = "") => {
+    if (!menuImageFiles || menuImageFiles.length === 0) {
+      toast.error("Please add at least one menu image or PDF.");
+      return [];
+    }
+    setIsExtractingMenu(true);
+    setExtractionError(null);
+    const toastId = toast.loading("Preparing your menu pages…");
     try {
-      toast.loading(
-        retryCount > 0
-          ? `Retrying menu extraction (attempt ${retryCount + 1
-          }/${MAX_RETRIES})...`
-          : "Extracting menu items..."
-      );
-
-      const responseSchema: Schema = {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            name: { type: "string" },
-            price: { type: "number" },
-            description: { type: "string" },
-            category: { type: "string" },
-            variants: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  price: { type: "number" },
-                },
-                required: ["name", "price"],
-              },
-            },
-          },
-          required: ["name", "price", "description", "category"],
-        },
-      } as Schema;
-
-      const prompt = `Extract each distinct dish as a separate item from the provided images.
-${extraPrompt ? `Extra Context: ${extraPrompt}\n` : ''}
-A 'variant' applies *only* to different sizes (e.g., Quarter, Half, Full, Small, Large, Regular) or quantities of the *same specific menu item*. 
-If a menu item does not have these explicit size/quantity options, it should *not* have a 'variants' field. 
-For example, 'Fresh Lime' and 'Mint Lime' are separate items, not variants of a general 'Lime Juice'.
-
-For each item, provide:
-- name: The name of the dish.
-- price: The minimum price if variants exist, otherwise the item's price. Price must be a number, greater than zero. Use 1 if no price is found.
-- description: A descriptive sentence for each item, maximum 10 words. Elaborate on the item's name and its category, highlighting key attributes like freshness, flavor, or main ingredients. For example:
-    - For 'Watermelon' under 'Fresh Juice': "A refreshing juice made from ripe, sweet watermelon, perfectly hydrating and a great choice on a hot day."
-    - For 'Carrot' under 'Pure Juice': "Experience the pure, wholesome goodness of freshly extracted carrot juice, packed with vitamins and natural sweetness."
-    - For 'Fresh Lime' under 'Lime Juice': "Enjoy a classic, zesty Fresh Lime juice, perfectly balanced and incredibly invigorating, a timeless favorite."
-- category: The main heading under which the item is listed.
-- variants: (Optional) An array of objects, each with 'name' and 'price', if the item has different sizes/portions. Variants must be arranged in ascending order of price. Variants should not contain item names or descriptions, only sizes/quantities. If no variants exist, this field should be omitted.
-- invalid variants example : Variants:
-Grilled veg overloaded fries
-₹150
-Scrambled egg overloaded fries
-₹180
-Pulled Chicken overloaded fries
-₹240
-Pulled Mixed loaded fries
-₹300
-- valid variants example : Variants:
-Variants:
-2 pieces Combo
-₹169
-4 pieces Combo
-₹399
-8 pieces Combo
-₹799
--take the largest text above the items as the category name if the variants is aaslo items`;
-
-      const files = await Promise.all(
-        menuImageFiles.map(async (file) => ({
-          data: await fileToBase64(file),
-          mimeType: file.type,
-        }))
-      );
-
-      const parsedMenu = await aiGenerate({
+      const result = await extractMenuFromFiles(menuImageFiles, {
         model: "gemini-2.5-flash",
-        prompt,
-        responseMimeType: "application/json",
-        responseSchema,
-        files,
+        extraContext: extraPrompt,
+        onProgress: (p) => {
+          if (p.phase === "rendering") {
+            toast.loading(
+              `Reading your menu… (${p.pagesReady} page${p.pagesReady === 1 ? "" : "s"})`,
+              { id: toastId },
+            );
+          } else {
+            toast.loading(
+              `Extracting items… (batch ${Math.min(p.batchesDone + 1, p.totalBatches)}/${p.totalBatches})`,
+              { id: toastId },
+            );
+          }
+        },
       });
 
-      setExtractedMenuItems(parsedMenu);
-      setJsonInput(parsedMenu);
+      toast.dismiss(toastId);
       setIsExtractingMenu(false);
-      setExtractionError(null);
-      toast.dismiss();
-      toast.success(`Extracted ${parsedMenu.length} menu items`);
-      handleJsonSubmit(parsedMenu);
-      return parsedMenu;
-    } catch (error) {
-      toast.dismiss();
 
-      console.error("Menu extraction error:", error);
-
-      if (retryCount < MAX_RETRIES - 1) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, RETRY_DELAY_MS * (retryCount + 1))
-        );
-        return handleExtractMenuItemsFromImage(retryCount + 1, extraPrompt);
+      if (result.items.length === 0) {
+        const msg =
+          result.failedBatches > 0
+            ? "Couldn't read your menu. Please try clearer images."
+            : "No menu items found in the uploaded pages.";
+        setExtractionError(msg);
+        toast.error(msg);
+        return [];
       }
 
-      const errorMsg =
-        "Failed to extract menu after multiple attempts. Please try again.";
+      const json = JSON.stringify(result.items);
+      setExtractedMenuItems(json);
+      setJsonInput(json);
+      setExtractionError(null);
+      handleJsonSubmit(json);
 
+      let summary = `Extracted ${result.items.length} item${result.items.length === 1 ? "" : "s"} from ${result.totalPages} page${result.totalPages === 1 ? "" : "s"}`;
+      if (result.failedBatches > 0) {
+        summary += ` — ${result.failedBatches} batch${result.failedBatches === 1 ? "" : "es"} failed, some items may be missing`;
+      }
+      if (result.truncatedPdf) summary += ". A very large PDF was truncated.";
+      if (result.unsupportedFiles > 0) {
+        summary += `. ${result.unsupportedFiles} unsupported file(s) skipped.`;
+      }
+      toast.success(summary);
+      return result.items;
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error("Menu extraction error:", error);
+      const errorMsg = "Failed to extract menu. Please try again.";
       setIsExtractingMenu(false);
       setExtractionError(errorMsg);
-
       toast.error(errorMsg);
-      throw new Error(errorMsg);
+      return [];
     }
   };
 

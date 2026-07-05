@@ -90,6 +90,7 @@
     "nodemailer": "^8.0.1",
     "onnxruntime-web": "^1.24.3",
     "openai": "^6.10.0",
+    "pdfjs-dist": "^4.10.38",
     "posthog-js": "^1.332.0",
     "puppeteer": "^23.11.1",
     "qrcode": "^1.5.4",
