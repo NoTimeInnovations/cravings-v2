@@ -6,7 +6,11 @@ export const maxDuration = 60;
 
 /**
  * Wakes WhatsApp-flow runs parked on a "delay" step whose wait has elapsed.
- * Runs every minute on a Vercel cron.
+ * Runs every 10 minutes on a Vercel cron — delays are typically long (e.g. an
+ * order-follow-up ~23.5h out), so a message landing up to ~10 min after its due
+ * time is fine and keeps invocations low (144/day vs 1,440/day at 1-min). A
+ * customer message that arrives after the delay lapses also wakes the run
+ * immediately, so short delays still feel responsive.
  *
  * A flow's Delay step (seconds → 24h) parks its run in a SLEEPING state
  * (status stays "active", but a non-null `resume_at` marks it as sleeping
@@ -21,7 +25,7 @@ export const maxDuration = 60;
  * works before configuration), mirroring the other cron routes.
  */
 // Runs woken per tick. Each wake is a few sequential Hasura round-trips, so we
-// stay well under maxDuration; any overflow is CAS-safe and drains next minute.
+// stay well under maxDuration; any overflow is CAS-safe and drains next tick.
 const BATCH = 50;
 
 export async function GET(req: NextRequest) {

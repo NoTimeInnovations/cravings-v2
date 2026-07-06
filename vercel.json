@@ -30,7 +30,7 @@
     },
     {
       "path": "/api/cron/resume-flow-delays",
-      "schedule": "* * * * *"
+      "schedule": "*/10 * * * *"
     }
   ]
 }
