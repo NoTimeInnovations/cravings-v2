@@ -111,6 +111,44 @@ const PALETTE: FlowNodeType[] = [
 let idSeq = 0;
 const genId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${idSeq++}`;
 
+// ─── Delay step helpers ──────────────────────────────────────────
+// A delay is stored as a single canonical `seconds` value (0..24h) so the
+// runtime reads one field, but the editor lets the author enter it in
+// seconds / minutes / hours. 24h is the outer bound (Meta's session window).
+type DelayUnit = "seconds" | "minutes" | "hours";
+const MAX_DELAY_SECONDS = 24 * 60 * 60;
+const DELAY_UNIT_SECONDS: Record<DelayUnit, number> = {
+  seconds: 1,
+  minutes: 60,
+  hours: 3600,
+};
+
+function clampDelaySeconds(sec: number): number {
+  if (!Number.isFinite(sec) || sec <= 0) return 0;
+  return Math.min(MAX_DELAY_SECONDS, Math.round(sec));
+}
+
+// Pick the largest whole unit that represents `sec` exactly, for display.
+function splitDelay(sec: number): { value: number; unit: DelayUnit } {
+  const s = clampDelaySeconds(sec);
+  if (s > 0 && s % 3600 === 0) return { value: s / 3600, unit: "hours" };
+  if (s > 0 && s % 60 === 0) return { value: s / 60, unit: "minutes" };
+  return { value: s, unit: "seconds" };
+}
+
+function toDelaySeconds(value: number, unit: DelayUnit): number {
+  return clampDelaySeconds((Number(value) || 0) * DELAY_UNIT_SECONDS[unit]);
+}
+
+function describeDelay(sec: number): string {
+  const s = clampDelaySeconds(sec);
+  if (s <= 0) return "No wait";
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const rem = s % 60;
+  return [h && `${h}h`, m && `${m}m`, rem && `${rem}s`].filter(Boolean).join(" ");
+}
+
 function defaultData(type: FlowNodeType): Record<string, unknown> {
   switch (type) {
     case "trigger":
@@ -134,7 +172,7 @@ function defaultData(type: FlowNodeType): Record<string, unknown> {
     case "condition":
       return { rules: [{ var: "", op: "equals", value: "", handle: genId("r") }], defaultHandle: "else" };
     case "delay":
-      return { seconds: 1 };
+      return { seconds: 60 };
     case "set_variable":
       return { name: "", value: "" };
     case "jump":
@@ -191,7 +229,7 @@ function nodeSummary(type: FlowNodeType, data: any): string {
     case "condition":
       return `${(data?.rules || []).length} rule(s)`;
     case "delay":
-      return `${data?.seconds || 0}s`;
+      return `⏱ ${describeDelay(Number(data?.seconds) || 0)}`;
     case "set_variable":
       return `${data?.name || "?"} = ${t(data?.value, 20)}`;
     case "jump":
@@ -938,17 +976,44 @@ function Inspector({
         </Field>
       )}
 
-      {type === "delay" && (
-        <Field label="Wait (seconds, max 10)">
-          <Input
-            type="number"
-            min={0}
-            max={10}
-            value={data.seconds ?? 1}
-            onChange={(e) => onChange({ seconds: Math.max(0, Math.min(10, Number(e.target.value) || 0)) })}
-          />
-        </Field>
-      )}
+      {type === "delay" && (() => {
+        const totalSec = clampDelaySeconds(Number(data.seconds) || 0);
+        const { value, unit } = splitDelay(totalSec);
+        const maxForUnit = Math.floor(MAX_DELAY_SECONDS / DELAY_UNIT_SECONDS[unit]);
+        return (
+          <Field label="Wait before continuing (up to 24 hours)">
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={maxForUnit}
+                value={value}
+                onChange={(e) =>
+                  onChange({ seconds: toDelaySeconds(Number(e.target.value) || 0, unit) })
+                }
+              />
+              <Select
+                value={unit}
+                onValueChange={(u) => onChange({ seconds: toDelaySeconds(value, u as DelayUnit) })}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="seconds">Seconds</SelectItem>
+                  <SelectItem value="minutes">Minutes</SelectItem>
+                  <SelectItem value="hours">Hours</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Waits {describeDelay(totalSec)}, then sends the next steps. Delays over a
+              few seconds continue automatically in the background — the customer
+              doesn’t need to reply.
+            </p>
+          </Field>
+        );
+      })()}
 
       {type === "set_variable" && (
         <>

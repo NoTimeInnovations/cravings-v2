@@ -28,6 +28,14 @@ const WELCOME_TYPING_MS = 1500;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const MAX_STEPS = 50; // loop guard across a whole run
 const MAX_SENDS_PER_TURN = 10; // bound Graph sends per inbound message
+// Delay ("wait then continue") support. A delay parks the run in a SLEEPING
+// state (status stays "active" so it keeps the single conversation slot; a
+// non-null resume_at marks it as sleeping rather than awaiting a reply) and a
+// cron wakes it. Capped at 24h — the outer bound Meta's session window allows.
+const MAX_DELAY_SECONDS = 24 * 60 * 60;
+// Extra head-room added past a delay's wake time so the run's TTL always
+// outlives the delay itself plus the steps that fire after it.
+const POST_DELAY_BUFFER_MS = 60 * 60 * 1000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface FlowInput {
@@ -59,7 +67,7 @@ interface Outbound {
 const Q_ACTIVE_RUN = `
   query ActiveRun($p: uuid!, $c: String!) {
     whatsapp_flow_execution_state(where: {partner_id: {_eq: $p}, contact_phone: {_eq: $c}, status: {_eq: "active"}}, limit: 1) {
-      id flow_id current_node_id variables step_count version expires_at
+      id flow_id current_node_id variables step_count version expires_at resume_at phone_number_id
     }
   }
 `;
@@ -88,6 +96,20 @@ const Q_LAST_FLOW_RUNS = `
 const Q_FLOW = `
   query Flow($id: uuid!) {
     whatsapp_flows_by_pk(id: $id) { id graph enabled escape_keyword run_ttl_hours }
+  }
+`;
+// Sleeping runs whose delay has elapsed — drained by the resume-flow-delays cron.
+// resume_at is only ever non-null on a sleeping ("active" but not awaiting a
+// reply) run, so `_lte now` is a precise "due to wake" filter.
+const Q_DUE_SLEEPING = `
+  query DueSleeping($now: timestamptz!, $limit: Int!) {
+    whatsapp_flow_execution_state(
+      where: {status: {_eq: "active"}, resume_at: {_lte: $now}}
+      order_by: {resume_at: asc}
+      limit: $limit
+    ) {
+      id partner_id flow_id contact_phone current_node_id variables step_count version phone_number_id resume_at expires_at
+    }
   }
 `;
 const Q_PARTNER_INFO = `
@@ -420,7 +442,7 @@ function executeForward(
   startId: string | null,
   state: RunState,
   outbound: Outbound[],
-): { parkedNodeId: string | null; completed: boolean } {
+): { parkedNodeId: string | null; completed: boolean; sleepMs?: number } {
   let nodeId = startId;
   let lastReply = String((state.variables.__lastReply as string) ?? "");
 
@@ -473,11 +495,22 @@ function executeForward(
         if (data.name) state.variables[data.name] = interpolate(data.value || "", state.variables);
         nodeId = firstEdgeTarget(graph, node.id);
         break;
-      case "delay":
-        // v1: delays are skipped (no inline sleep — keeps the webhook fast and
-        // safe; a real scheduler comes with the async-worker phase).
-        nodeId = firstEdgeTarget(graph, node.id);
+      case "delay": {
+        // Park the run to sleep for `seconds` (0..24h), then resume at the node
+        // AFTER the delay. Messages collected so far are dispatched by the
+        // caller before the run sleeps; the cron (resume-flow-delays) wakes it.
+        // A zero delay, or a delay with nothing after it, is a plain no-op.
+        const secs = Math.max(
+          0,
+          Math.min(MAX_DELAY_SECONDS, Math.floor(Number(data.seconds) || 0)),
+        );
+        const next = firstEdgeTarget(graph, node.id);
+        if (secs > 0 && next) {
+          return { parkedNodeId: next, completed: false, sleepMs: secs * 1000 };
+        }
+        nodeId = next;
         break;
+      }
       case "condition": {
         const handle = evaluateCondition(node, state.variables, lastReply);
         nodeId = firstEdgeTarget(graph, node.id, handle);
@@ -538,6 +571,27 @@ function executeForward(
     }
   }
   return { parkedNodeId: null, completed: true };
+}
+
+// Persistence fields for a run's post-turn state. When the walk parked on a
+// delay (`sleepMs`), the row sleeps: resume_at holds the wake time and the TTL
+// is pushed out so it always outlives the delay. Otherwise resume_at is cleared
+// (awaiting reply / completed) and the TTL is the normal run window.
+function sleepFields(
+  sleepMs: number | undefined,
+  ttlMs: number,
+): { resume_at: string | null; expires_at: string } {
+  const now = Date.now();
+  if (sleepMs && sleepMs > 0) {
+    const resumeAt = now + sleepMs;
+    return {
+      resume_at: new Date(resumeAt).toISOString(),
+      expires_at: new Date(
+        Math.max(now + ttlMs, resumeAt + POST_DELAY_BUFFER_MS),
+      ).toISOString(),
+    };
+  }
+  return { resume_at: null, expires_at: new Date(now + ttlMs).toISOString() };
 }
 
 // ─── Sending (native interactive) ────────────────────────────────
@@ -1102,7 +1156,7 @@ async function startNewRun(
   const sysVars = buildMessageRunVars(partnerId, localPhone, partner, lastOrder);
   const state: RunState = { flowId: matched.id, variables: sysVars, stepCount: 0, version: 0 };
   const outbound: Outbound[] = [];
-  const { parkedNodeId, completed } = executeForward(graph, startId, state, outbound);
+  const { parkedNodeId, completed, sleepMs } = executeForward(graph, startId, state, outbound);
 
   // Send the reply FIRST — reuse the token prefetched in the wave so this never
   // re-queries. Persisting the run state is moved AFTER the send so it's off the
@@ -1112,6 +1166,7 @@ async function startNewRun(
   await dispatch(partnerId, phoneNumberId, contactPhone, outbound, sendToken);
 
   const ttlMs = (matched.run_ttl_hours || 24) * 3600 * 1000;
+  const sf = sleepFields(sleepMs, ttlMs);
   // Insert the run with its post-turn state. The partial-unique active index is
   // the concurrency guard: if another instance already created an active run
   // for this contact, this insert throws and we drop (rare first-message race).
@@ -1121,6 +1176,7 @@ async function startNewRun(
         partner_id: partnerId,
         flow_id: matched.id,
         contact_phone: contactPhone,
+        phone_number_id: phoneNumberId,
         current_node_id: parkedNodeId,
         status: completed ? "completed" : "active",
         variables: state.variables,
@@ -1128,7 +1184,8 @@ async function startNewRun(
         version: 1,
         last_inbound_wa_id: waMessageId,
         last_interaction_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + ttlMs).toISOString(),
+        resume_at: sf.resume_at,
+        expires_at: sf.expires_at,
         updated_at: new Date().toISOString(),
       },
     });
@@ -1201,15 +1258,17 @@ export async function runOrderTriggeredFlows(args: {
     const startId = t.nodeId ? firstEdgeTarget(graph, t.nodeId) : null;
     const state: RunState = { flowId: flow.id, variables: { ...variables }, stepCount: 0, version: 0 };
     const outbound: Outbound[] = [];
-    const { parkedNodeId, completed } = executeForward(graph, startId, state, outbound);
+    const { parkedNodeId, completed, sleepMs } = executeForward(graph, startId, state, outbound);
 
     const ttlMs = (flow.run_ttl_hours || 24) * 3600 * 1000;
+    const sf = sleepFields(sleepMs, ttlMs);
     try {
       await fetchFromHasura(M_INSERT_RUN, {
         o: {
           partner_id: partnerId,
           flow_id: flow.id,
           contact_phone: customerPhone,
+          phone_number_id: phoneNumberId,
           current_node_id: parkedNodeId,
           status: completed ? "completed" : "active",
           variables: state.variables,
@@ -1217,7 +1276,8 @@ export async function runOrderTriggeredFlows(args: {
           version: 1,
           last_inbound_wa_id: idemKey,
           last_interaction_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + ttlMs).toISOString(),
+          resume_at: sf.resume_at,
+          expires_at: sf.expires_at,
           updated_at: new Date().toISOString(),
         },
       });
@@ -1288,15 +1348,17 @@ export async function runLoyaltyTriggeredFlows(args: {
     const startId = t.nodeId ? firstEdgeTarget(graph, t.nodeId) : null;
     const state: RunState = { flowId: flow.id, variables: { ...variables }, stepCount: 0, version: 0 };
     const outbound: Outbound[] = [];
-    const { parkedNodeId, completed } = executeForward(graph, startId, state, outbound);
+    const { parkedNodeId, completed, sleepMs } = executeForward(graph, startId, state, outbound);
 
     const ttlMs = (flow.run_ttl_hours || 24) * 3600 * 1000;
+    const sf = sleepFields(sleepMs, ttlMs);
     try {
       await fetchFromHasura(M_INSERT_RUN, {
         o: {
           partner_id: partnerId,
           flow_id: flow.id,
           contact_phone: customerPhone,
+          phone_number_id: phoneNumberId,
           current_node_id: parkedNodeId,
           status: completed ? "completed" : "active",
           variables: state.variables,
@@ -1304,7 +1366,8 @@ export async function runLoyaltyTriggeredFlows(args: {
           version: 1,
           last_inbound_wa_id: idemKey,
           last_interaction_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + ttlMs).toISOString(),
+          resume_at: sf.resume_at,
+          expires_at: sf.expires_at,
           updated_at: new Date().toISOString(),
         },
       });
@@ -1328,7 +1391,7 @@ async function resumeRun(
   contactPhone: string,
   waMessageId: string,
   input: FlowInput,
-  active: { id: string; flow_id: string; current_node_id: string | null; variables: any; step_count: number; version: number },
+  active: { id: string; flow_id: string; current_node_id: string | null; variables: any; step_count: number; version: number; resume_at?: string | null; phone_number_id?: string | null },
 ) {
   const flowRes = await fetchFromHasura(Q_FLOW, { id: active.flow_id });
   const flow = flowRes?.whatsapp_flows_by_pk;
@@ -1338,9 +1401,40 @@ async function resumeRun(
   }
   const graph: FlowGraph = flow.graph || { nodes: [], edges: [] };
 
-  // Escape keyword aborts the run.
+  // Escape keyword aborts the run (works mid-delay too).
   if (flow.escape_keyword && input.normalized === String(flow.escape_keyword).trim().toLowerCase()) {
-    await casUpdate(active, waMessageId, { status: "aborted", current_node_id: null });
+    await casUpdate(active, waMessageId, { status: "aborted", current_node_id: null, resume_at: null });
+    return;
+  }
+
+  // Sleeping (delay) run: parked on a delay, NOT awaiting a reply. If the delay
+  // is still counting down, this inbound isn't a reply to anything — leave the
+  // delay intact for the resume-flow-delays cron (a specific keyword trigger
+  // would have restarted the flow upstream, before we got here). If the delay is
+  // already due, the customer's message effectively wakes it now; the version
+  // CAS makes this idempotent with the cron.
+  if (active.resume_at) {
+    if (new Date(active.resume_at).getTime() > Date.now()) return;
+    const outbound: Outbound[] = [];
+    const st: RunState = {
+      id: active.id,
+      flowId: active.flow_id,
+      variables: { ...(active.variables || {}) },
+      stepCount: active.step_count || 0,
+      version: active.version,
+    };
+    const { parkedNodeId, completed, sleepMs } = executeForward(graph, active.current_node_id, st, outbound);
+    const sf = sleepFields(sleepMs, (flow.run_ttl_hours || 24) * 3600 * 1000);
+    const won = await casUpdate(active, waMessageId, {
+      current_node_id: parkedNodeId,
+      status: completed ? "completed" : "active",
+      variables: st.variables,
+      step_count: st.stepCount,
+      resume_at: sf.resume_at,
+      expires_at: sf.expires_at,
+      last_interaction_at: new Date().toISOString(),
+    });
+    if (won) await dispatch(partnerId, phoneNumberId, contactPhone, outbound);
     return;
   }
 
@@ -1429,13 +1523,16 @@ async function resumeRun(
     nextStart = firstEdgeTarget(graph, node.id);
   }
 
-  const { parkedNodeId, completed } = executeForward(graph, nextStart, state, outbound);
+  const { parkedNodeId, completed, sleepMs } = executeForward(graph, nextStart, state, outbound);
 
+  const sf = sleepFields(sleepMs, (flow.run_ttl_hours || 24) * 3600 * 1000);
   const won = await casUpdate(active, waMessageId, {
     current_node_id: parkedNodeId,
     status: completed ? "completed" : "active",
     variables: state.variables,
     step_count: state.stepCount,
+    resume_at: sf.resume_at,
+    expires_at: sf.expires_at,
     last_interaction_at: new Date().toISOString(),
   });
   if (won) await dispatch(partnerId, phoneNumberId, contactPhone, outbound);
@@ -1459,4 +1556,124 @@ async function casUpdate(
     console.error("Flow CAS update failed:", e);
     return false;
   }
+}
+
+// ─── Delayed-message resume (cron) ───────────────────────────────
+// Drains runs parked on a delay whose wake time has arrived. Called every
+// minute by /api/cron/resume-flow-delays. Each run is continued from the node
+// AFTER its delay; the walk may send messages, chain into another delay (parks
+// again with a fresh resume_at), park awaiting a reply, or finish. A version
+// CAS guards every advance, so overlapping cron ticks — or a concurrent inbound
+// that also wakes the run — can never double-send.
+export async function resumeDueDelayedFlows(
+  limit = 200,
+): Promise<{ due: number; processed: number }> {
+  const nowIso = new Date().toISOString();
+  const res = await fetchFromHasura(Q_DUE_SLEEPING, { now: nowIso, limit }).catch(
+    (e) => {
+      console.error("resumeDueDelayedFlows query failed:", e);
+      return null;
+    },
+  );
+  const runs = (res?.whatsapp_flow_execution_state || []) as Array<{
+    id: string;
+    partner_id: string;
+    flow_id: string;
+    contact_phone: string;
+    current_node_id: string | null;
+    variables: any;
+    step_count: number;
+    version: number;
+    phone_number_id: string | null;
+    resume_at: string;
+    expires_at: string | null;
+  }>;
+  let processed = 0;
+  for (const run of runs) {
+    try {
+      await wakeSleepingRun(run);
+      processed++;
+    } catch (e) {
+      console.error("wakeSleepingRun failed for run", run.id, e);
+    }
+  }
+  return { due: runs.length, processed };
+}
+
+async function resolvePhoneNumberId(
+  partnerId: string,
+  fallback?: string | null,
+): Promise<string | null> {
+  if (fallback) return fallback;
+  try {
+    const r = await fetchFromHasura(
+      `query PnByPartner($p: uuid!) {
+        whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, order_by: {is_primary: desc, updated_at: asc}, limit: 1) { phone_number_id }
+      }`,
+      { p: partnerId },
+    );
+    return r?.whatsapp_business_integrations?.[0]?.phone_number_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function wakeSleepingRun(run: {
+  id: string;
+  partner_id: string;
+  flow_id: string;
+  contact_phone: string;
+  current_node_id: string | null;
+  variables: any;
+  step_count: number;
+  version: number;
+  phone_number_id: string | null;
+  resume_at: string;
+  expires_at: string | null;
+}): Promise<void> {
+  // Outlived its TTL while sleeping (e.g. flow paused for a long time) → drop.
+  if (run.expires_at && new Date(run.expires_at).getTime() < Date.now()) {
+    await fetchFromHasura(M_EXPIRE_RUN, { id: run.id }).catch(() => {});
+    return;
+  }
+  const flowRes = await fetchFromHasura(Q_FLOW, { id: run.flow_id });
+  const flow = flowRes?.whatsapp_flows_by_pk;
+  if (!flow || !flow.enabled) {
+    // Flow was disabled/deleted during the wait — the delayed message is dropped.
+    await fetchFromHasura(M_EXPIRE_RUN, { id: run.id }).catch(() => {});
+    return;
+  }
+  const graph: FlowGraph = flow.graph || { nodes: [], edges: [] };
+  const state: RunState = {
+    id: run.id,
+    flowId: run.flow_id,
+    variables: { ...(run.variables || {}) },
+    stepCount: run.step_count || 0,
+    version: run.version,
+  };
+  const outbound: Outbound[] = [];
+  // Resume by executing FORWARD from current_node_id (the node after the delay).
+  const { parkedNodeId, completed, sleepMs } = executeForward(
+    graph,
+    run.current_node_id,
+    state,
+    outbound,
+  );
+  const sf = sleepFields(sleepMs, (flow.run_ttl_hours || 24) * 3600 * 1000);
+  // Synthetic wa id namespaces this wake so the CAS's last_inbound_wa_id guard
+  // plus the version check together make concurrent wakes idempotent.
+  const claimWaId = `wake_${new Date(run.resume_at).getTime()}`;
+  const won = await casUpdate(run, claimWaId, {
+    current_node_id: parkedNodeId,
+    status: completed ? "completed" : "active",
+    variables: state.variables,
+    step_count: state.stepCount,
+    resume_at: sf.resume_at,
+    expires_at: sf.expires_at,
+    last_interaction_at: new Date().toISOString(),
+  });
+  if (!won || !outbound.length) return;
+  const pnid = await resolvePhoneNumberId(run.partner_id, run.phone_number_id);
+  if (pnid) await dispatch(run.partner_id, pnid, run.contact_phone, outbound);
+  else console.error("wakeSleepingRun: no phone_number_id for partner", run.partner_id);
 }
