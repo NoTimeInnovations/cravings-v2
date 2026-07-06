@@ -161,27 +161,26 @@ export default function SuperadminGlobalFlows() {
     }
   };
 
-  // ── Builder overlay ─────────────────────────────────────────────
+  // ── Builder (rendered INLINE, not as a fixed overlay — an overlay would sit
+  // above the FlowBuilder's save Dialog (z-50) and swallow the save click) ──
   if (builder) {
     return (
-      <div className="fixed inset-0 z-[60] bg-background">
-        <FlowBuilder
-          scope={builder.scope}
-          flowId={builder.flowId}
-          partnerId={builder.scope === "partner" ? builder.partnerId : undefined}
-          loyaltyEnabled
-          onClose={() => {
-            const wasScope = builder.scope;
-            const wasPartner = builder.scope === "partner" ? builder.partnerId : null;
-            setBuilder(null);
-            if (wasScope === "global") loadGlobal();
-            else if (wasPartner) {
-              const p = selectedPartner;
-              if (p && p.id === wasPartner) selectPartner(p);
-            }
-          }}
-        />
-      </div>
+      <FlowBuilder
+        scope={builder.scope}
+        flowId={builder.flowId}
+        partnerId={builder.scope === "partner" ? builder.partnerId : undefined}
+        loyaltyEnabled
+        onClose={() => {
+          const wasScope = builder.scope;
+          const wasPartner = builder.scope === "partner" ? builder.partnerId : null;
+          setBuilder(null);
+          if (wasScope === "global") loadGlobal();
+          else if (wasPartner) {
+            const p = selectedPartner;
+            if (p && p.id === wasPartner) selectPartner(p);
+          }
+        }}
+      />
     );
   }
 
