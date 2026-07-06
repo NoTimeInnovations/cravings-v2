@@ -30,6 +30,8 @@ interface OrderTypeScreenProps {
   locationText?: string;
   socialLinks?: { phone?: string; whatsapp?: string; instagram?: string; googleReview?: string } | null;
   mapHref?: string | null;
+  /** Render the store logo large (full-width) instead of the small badge. */
+  logoFullScreen?: boolean;
 }
 
 export default function OrderTypeScreen({
@@ -53,6 +55,7 @@ export default function OrderTypeScreen({
   locationText,
   socialLinks,
   mapHref,
+  logoFullScreen = false,
 }: OrderTypeScreenProps) {
   const phoneHref = socialLinks?.phone ? `tel:${socialLinks.phone}` : null;
   const whatsappHref = socialLinks?.whatsapp || null;
@@ -110,14 +113,24 @@ export default function OrderTypeScreen({
         </button>
 
         <div className="mt-5 flex flex-col items-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-[3px] border-white shadow-md">
-            {storeBanner ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={storeBanner} alt={storeName} className="h-full w-full object-cover" />
-            ) : (
-              <span className="text-2xl text-white">🍽️</span>
-            )}
-          </div>
+          {logoFullScreen && storeBanner ? (
+            // Full-screen logo: large, full-width, whole image visible.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={storeBanner}
+              alt={storeName}
+              className="w-full max-h-[50vh] rounded-2xl object-contain"
+            />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-[3px] border-white shadow-md">
+              {storeBanner ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={storeBanner} alt={storeName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-2xl text-white">🍽️</span>
+              )}
+            </div>
+          )}
           {storeName && <h2 className="mt-2.5 text-lg font-bold tracking-tight">{storeName}</h2>}
           {locationText && <p className="mt-0.5 text-[13px] text-white/70">{locationText}</p>}
 

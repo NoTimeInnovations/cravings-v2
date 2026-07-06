@@ -62,6 +62,8 @@ interface StorefrontData {
     sections: StorefrontSection[];
     /** Show a Google-Translate language button on the customer menu (any layout). */
     languageSwitcher?: boolean;
+    /** Show the store logo full-screen on the onboarding screen (vs the small badge). */
+    onboardingLogoFullScreen?: boolean;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -137,6 +139,7 @@ const DEFAULT_STOREFRONT: StorefrontData = {
     logoImage: "",
     brandName: "",
     languageSwitcher: false,
+    onboardingLogoFullScreen: false,
     sections: [
         { id: uid(), type: "hero", enabled: true, content: { ...DEFAULT_CONTENT.hero } },
         { id: uid(), type: "imageText", enabled: true, content: { ...DEFAULT_CONTENT.imageText } },
@@ -334,6 +337,23 @@ export function StorefrontSettings() {
                         >
                             <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
                         </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardContent className="pt-5">
+                    <div className="flex items-center gap-3 rounded-xl border bg-secondary/40 p-3.5">
+                        <Switch
+                            checked={storefront.onboardingLogoFullScreen ?? false}
+                            onCheckedChange={(v) => updateStorefront({ onboardingLogoFullScreen: v })}
+                        />
+                        <div className="flex-1">
+                            <p className="text-sm font-bold">Full-screen onboarding logo</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                Show your store logo large on the onboarding screen instead of the small badge.
+                            </p>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

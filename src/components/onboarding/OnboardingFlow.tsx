@@ -131,6 +131,8 @@ export default function OnboardingFlow({
   const hasStorefrontSplash = !!parsedStorefront;
   const showStorefrontSplashInitially = hasStorefrontSplash && !skipStorefront;
   const accent = brandColorToHex(themeBrandColor || rawStorefront?.brandColor);
+  // Storefront setting: render the onboarding logo full-screen (vs the small badge).
+  const onboardingLogoFullScreen = !!rawStorefront?.onboardingLogoFullScreen;
 
   const hasOrdering = features.ordering.enabled && offered.takeaway;
   // Dine-in table reservation: offered + prebooking feature on.
@@ -464,6 +466,7 @@ export default function OnboardingFlow({
             locationText={hotelData?.location_details || (hotelData as any)?.location || hotelData?.district || hotelData?.country || ""}
             socialLinks={socialLinks}
             mapHref={getPartnerMapsUrl(hotelData)}
+            logoFullScreen={onboardingLogoFullScreen}
           />
         )}
 
