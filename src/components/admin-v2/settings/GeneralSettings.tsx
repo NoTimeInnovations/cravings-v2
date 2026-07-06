@@ -250,6 +250,18 @@ export function GeneralSettings() {
         }
     };
 
+    // Petpooja config (set at partner creation, shown read-only below).
+    const pp = userData as any;
+    const isPetpoojaPartner = !!(
+        pp?.petpooja_restaurant_id || pp?.petpooja_tax_type || pp?.petpooja_menu_type
+    );
+    const petpoojaTaxLabel =
+        pp?.petpooja_tax_type === "backward" ? "Backward" :
+        pp?.petpooja_tax_type === "forward" ? "Forward" : "—";
+    const petpoojaMenuLabel =
+        pp?.petpooja_menu_type === "offline" ? "Offline" :
+        pp?.petpooja_menu_type === "online" ? "Online" : "—";
+
     return (
         <div className="space-y-6">
             <div className="grid gap-6">
@@ -382,6 +394,37 @@ export function GeneralSettings() {
                         )}
                     </CardContent>
                 </Card>
+
+                {isPetpoojaPartner && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Petpooja Integration</CardTitle>
+                            <CardDescription>Set during onboarding — these fields are read-only.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label>Restaurant ID</Label>
+                                    <div className="h-10 flex items-center rounded-md border bg-muted/50 px-3 text-sm text-muted-foreground">
+                                        {pp?.petpooja_restaurant_id || "—"}
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Tax Type</Label>
+                                    <div className="h-10 flex items-center rounded-md border bg-muted/50 px-3 text-sm text-muted-foreground">
+                                        {petpoojaTaxLabel}
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Menu Type</Label>
+                                    <div className="h-10 flex items-center rounded-md border bg-muted/50 px-3 text-sm text-muted-foreground">
+                                        {petpoojaMenuLabel}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <LocationSettings />
 

@@ -30,6 +30,8 @@ export const partnerIdQuery = `
       password
       store_name
       petpooja_restaurant_id
+      petpooja_tax_type
+      petpooja_menu_type
       store_banner
       whatsapp_numbers
       footnote
@@ -104,6 +106,8 @@ export const partnerLoginQuery = `
       password
       store_name
       petpooja_restaurant_id
+      petpooja_tax_type
+      petpooja_menu_type
       store_banner
       whatsapp_numbers
       footnote

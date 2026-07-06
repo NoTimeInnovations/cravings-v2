@@ -147,6 +147,9 @@ export interface Partner extends BaseUser {
     expiryDate: string;
   };
   petpooja_restaurant_id?: string;
+  /** Petpooja config captured at partner creation, shown read-only in settings. */
+  petpooja_tax_type?: "forward" | "backward" | null;
+  petpooja_menu_type?: "online" | "offline" | null;
   /**
    * Per-restaurant merchant id assigned by Adloggs when the restaurant is
    * onboarded as a separate merchant under our Adloggs partner account.

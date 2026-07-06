@@ -15,6 +15,8 @@ export async function createPetpoojaPartnerNoWebsite(input: {
   password?: string;
   restaurantId?: string;
   phone?: string;
+  taxType?: "forward" | "backward" | string;
+  menuType?: "online" | "offline" | string;
 }): Promise<{ partnerId: string; username: string }> {
   const name = (input.name || "").trim();
   const email = (input.email || "").trim();
@@ -63,13 +65,16 @@ export async function createPetpoojaPartnerNoWebsite(input: {
     throw new Error("Failed to create the partner.");
   }
 
-  if (input.restaurantId) {
+  // Persist Petpooja config (restaurant id + tax/menu type) on the new partner.
+  const ppUpdates: Record<string, any> = {};
+  if (input.restaurantId) ppUpdates.petpooja_restaurant_id = input.restaurantId;
+  if (input.taxType) ppUpdates.petpooja_tax_type = input.taxType;
+  if (input.menuType) ppUpdates.petpooja_menu_type = input.menuType;
+  if (Object.keys(ppUpdates).length > 0) {
     try {
-      await updatePartner(result.partnerId, {
-        petpooja_restaurant_id: input.restaurantId,
-      });
+      await updatePartner(result.partnerId, ppUpdates);
     } catch (e) {
-      console.error("Failed to set petpooja id on new partner", e);
+      console.error("Failed to set petpooja config on new partner", e);
     }
   }
 

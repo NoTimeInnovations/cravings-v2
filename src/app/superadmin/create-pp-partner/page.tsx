@@ -282,6 +282,13 @@ const CreatePartnerPage = () => {
     e.preventDefault();
     setCreatedInfo(null);
 
+    // Petpooja config to persist on the partner (shown read-only in Store Settings).
+    const ppConfig = {
+      petpooja_tax_type: enableBackwardTax ? "backward" : "forward",
+      petpooja_menu_type:
+        (menuMapping || "").trim().toLowerCase() === "offline" ? "offline" : "online",
+    };
+
     // --- Email-only: skip any creation/update, just notify the Petpooja team.
     if (onlySendEmail) {
       if (!name) return alert("Please enter a valid name.");
@@ -308,6 +315,7 @@ const CreatePartnerPage = () => {
       try {
         await updatePartner(selectedPartner.id, {
           petpooja_restaurant_id: restaurantId,
+          ...ppConfig,
           ...(name && name !== (selectedPartner.store_name || selectedPartner.name)
             ? { name }
             : {}),
@@ -366,7 +374,7 @@ const CreatePartnerPage = () => {
         });
         if (restaurantId) {
           try {
-            await updatePartner(result.partnerId, { petpooja_restaurant_id: restaurantId });
+            await updatePartner(result.partnerId, { petpooja_restaurant_id: restaurantId, ...ppConfig });
           } catch (err) {
             console.error("Failed to set petpooja id on new partner", err);
           }
@@ -378,6 +386,8 @@ const CreatePartnerPage = () => {
           email,
           password: finalPassword,
           restaurantId,
+          taxType: ppConfig.petpooja_tax_type,
+          menuType: ppConfig.petpooja_menu_type,
         });
         username = result.username;
       }
