@@ -363,6 +363,15 @@ function firstEdgeTarget(graph: FlowGraph, nodeId: string, handle?: string): str
   return edges[0]?.target ?? null;
 }
 
+// A "greeting" trigger is one a customer intentionally opens a conversation
+// with — welcome (first contact) or an exact/contains keyword. Used to scope the
+// read-receipt + typing feature: catch-all triggers (any/default) and
+// event-driven ones (order/loyalty) are excluded so only a real greeting gets
+// the blue tick + typing, and every other message stays unread.
+function isGreetingTrigger(matchType: string): boolean {
+  return matchType === "welcome" || matchType === "exact" || matchType === "contains";
+}
+
 function triggerMatches(
   t: TriggerDef,
   normalized: string,
@@ -1093,8 +1102,9 @@ async function startNewRun(
   // check). When absent we start a fresh one — used by the keyword-restart path,
   // where the counts must reflect the just-aborted run.
   prefetchedWave?: Promise<StartRunWave>,
-  // Send read receipt + typing indicator if (and only if) the matched flow is the
-  // welcome flow. Gated upstream by whatsappOrdering + whatsappFlowTyping.
+  // Send read receipt + typing indicator if (and only if) the matched trigger is
+  // a greeting (welcome / exact / contains keyword). Gated upstream by
+  // whatsappOrdering + whatsappFlowTyping.
   flowTyping = false,
 ) {
   const { flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes } =
@@ -1132,10 +1142,16 @@ async function startNewRun(
   if (!matchedCand) return;
   const matched = matchedCand.flow;
 
-  // Welcome-only read receipt + typing. We're here only because the welcome flow
-  // passed every gate (enabled, not suppressed, not blocked by once-per-customer
-  // /cooldown, and the trigger matched on first contact) — so firing it here
-  // inherits all those rules. Sent BEFORE the reply and AWAITED, on purpose:
+  // Read receipt + typing on GREETING flows. A "greeting" trigger is one a
+  // customer intentionally starts a conversation with: welcome (first-ever
+  // message) or an exact/contains keyword ("hi", "menu", …). Catch-all triggers
+  // (any/default) are deliberately excluded so marketing / auto-reply flows
+  // leave the message unread — the whole point is that only a real greeting gets
+  // the blue tick + "typing…", and everything else stays unread for the partner
+  // to answer. We're here only because this flow passed every gate (enabled, not
+  // suppressed, not blocked by once-per-customer/cooldown, trigger matched), so
+  // firing it here inherits all those rules. Sent BEFORE the reply and AWAITED,
+  // on purpose:
   //   • awaiting means a serverless freeze after the webhook responds can't drop
   //     the call before it reaches Meta (the old fire-and-forget could vanish, so
   //     no blue tick ever showed), and
@@ -1143,7 +1159,7 @@ async function startNewRun(
   //     firing it concurrently with the reply made "typing…" invisible.
   // We mark read + start typing, hold a short beat so the animation is actually
   // seen, then fall through to send the reply (which clears the typing).
-  if (flowTyping && matchedCand.t.matchType === "welcome" && sendToken) {
+  if (flowTyping && isGreetingTrigger(matchedCand.t.matchType) && sendToken) {
     const shown = await sendWelcomeReadTyping(phoneNumberId, waMessageId, sendToken);
     if (shown) await sleep(WELCOME_TYPING_MS);
   }

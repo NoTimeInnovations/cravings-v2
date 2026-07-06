@@ -69,7 +69,7 @@ export function AdminV2WhatsAppFlows() {
       revalidateTag(partnerId);
       toast.success(
         val
-          ? "Read & typing on for the Welcome flow"
+          ? "Read & typing on for greeting flows"
           : "Read & typing turned off",
       );
     } catch {
@@ -227,18 +227,20 @@ export function AdminV2WhatsAppFlows() {
         </div>
       </div>
 
-      {/* Welcome-flow read receipt + typing animation toggle */}
+      {/* Greeting-flow read receipt + typing animation toggle */}
       <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
         <div className="space-y-0.5">
           <div className="text-sm font-medium">
-            Read receipt &amp; typing on Welcome
+            Read receipt &amp; typing on greetings
           </div>
           <p className="max-w-xl text-xs text-muted-foreground">
-            When a customer&apos;s message triggers your <b>Welcome flow</b>, mark
-            it read (blue tick) and show a typing animation while the reply is
-            prepared. <b>Only the Welcome flow does this</b> — every other message
-            stays unread so you can see and answer real customer queries. Works
-            only while your Welcome flow is on and follows its run frequency
+            When a customer&apos;s message starts a <b>greeting flow</b> — a
+            Welcome flow or one triggered by a keyword (e.g. &quot;hi&quot;,
+            &quot;menu&quot;) — mark it read (blue tick) and show a typing
+            animation while the reply is prepared. <b>Only greeting flows do
+            this</b> — messages that hit catch-all &quot;any message&quot; flows
+            (like a marketing auto-reply) stay unread so you can see and answer
+            real customer queries. Follows each flow&apos;s run frequency
             (e.g. once per customer / cooldown).
             {!whatsappOrderingEnabled && (
               <span className="block mt-1 text-amber-600">
