@@ -50,6 +50,7 @@ import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { getTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
+import { computeParcelCharge } from "@/lib/parcelCharge";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { useLiveStock } from "@/store/liveStockStore";
 
@@ -817,27 +818,9 @@ const PlaceOrderModalV2 = ({
     (porterQuoteLoading || !porterQuote?.available);
 
   const parcelCharge = useMemo(() => {
-    if (
-      tableNumber === 0 &&
-      !isDineIn &&
-      hotelData?.delivery_rules?.parcel_charge &&
-      hotelData.delivery_rules.parcel_charge > 0
-    ) {
-      const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
-      if (chargeType === "itemwise") {
-        const defaultCharge = hotelData.delivery_rules.parcel_charge || 0;
-        const customCharges = hotelData.delivery_rules.parcel_charge_items || {};
-        return (items || []).reduce((acc, item) => {
-          const charge = customCharges[item.id.split("|")[0]] ?? defaultCharge;
-          return acc + charge * item.quantity;
-        }, 0);
-      }
-      const itemCount = (items || []).reduce((acc, i) => acc + i.quantity, 0);
-      return chargeType === "variable"
-        ? itemCount * hotelData.delivery_rules.parcel_charge
-        : hotelData.delivery_rules.parcel_charge;
-    }
-    return 0;
+    // Delivery & takeaway only (not dine-in / QR table).
+    if (tableNumber !== 0 || isDineIn) return 0;
+    return computeParcelCharge(hotelData?.delivery_rules, items);
   }, [tableNumber, isDineIn, hotelData?.delivery_rules, items]);
 
   const qrExtraCharge = useMemo(() => {
@@ -1296,32 +1279,11 @@ const PlaceOrderModalV2 = ({
         });
       }
     }
-    if (
-      tableNumber === 0 &&
-      !isDineIn &&
-      hotelData?.delivery_rules?.parcel_charge &&
-      hotelData.delivery_rules.parcel_charge > 0
-    ) {
-      const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
-      let parcelAmount: number;
-      if (chargeType === "itemwise") {
-        const defC = hotelData.delivery_rules.parcel_charge || 0;
-        const custC = hotelData.delivery_rules.parcel_charge_items || {};
-        parcelAmount = (cartItems || []).reduce(
-          (acc, item) =>
-            acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity,
-          0,
-        );
-      } else {
-        const itemCount = (cartItems || []).reduce(
-          (a, i) => a + i.quantity,
-          0,
-        );
-        parcelAmount =
-          chargeType === "variable"
-            ? itemCount * hotelData.delivery_rules.parcel_charge
-            : hotelData.delivery_rules.parcel_charge;
-      }
+    if (tableNumber === 0 && !isDineIn) {
+      const parcelAmount = computeParcelCharge(
+        hotelData?.delivery_rules,
+        cartItems,
+      );
       if (parcelAmount > 0)
         list.push({
           name: "Parcel Charge",
