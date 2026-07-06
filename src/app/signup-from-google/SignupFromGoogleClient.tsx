@@ -13,6 +13,7 @@ import {
   X,
   AlertCircle,
   Image as ImageIcon,
+  Sparkles,
 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,9 @@ export default function SignupFromGoogleClient({
   // future digitisation step can pick them all up.
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
   const [oversizedFiles, setOversizedFiles] = useState<File[]>([]);
+  // Optional custom AI instruction for menu extraction (highest priority).
+  // Persisted alongside the files so it survives the Google OAuth round-trip.
+  const [menuInstruction, setMenuInstruction] = useState("");
   const menuInputRef = useRef<HTMLInputElement>(null);
 
   // Optional logo — saved to store_banner (the V3 hero logo) with size + bg
@@ -104,6 +108,16 @@ export default function SignupFromGoogleClient({
     }
     const items = await Promise.all(files.map(readFileToBase64));
     sessionStorage.setItem("uploaded_menu_files", JSON.stringify(items));
+  };
+
+  const handleMenuInstructionChange = (value: string) => {
+    setMenuInstruction(value);
+    try {
+      if (value.trim()) sessionStorage.setItem("uploaded_menu_instruction", value);
+      else sessionStorage.removeItem("uploaded_menu_instruction");
+    } catch {
+      /* storage disabled — ignore */
+    }
   };
 
   const handleAddFiles = async (incoming: FileList | null) => {
@@ -212,6 +226,12 @@ export default function SignupFromGoogleClient({
 
   useEffect(() => {
     try {
+      const savedInstruction = sessionStorage.getItem("uploaded_menu_instruction");
+      if (savedInstruction) setMenuInstruction(savedInstruction);
+    } catch {
+      /* ignore */
+    }
+    try {
       const raw = sessionStorage.getItem("uploaded_menu_files");
       if (!raw) return;
       const items = JSON.parse(raw) as Array<{
@@ -285,6 +305,7 @@ export default function SignupFromGoogleClient({
         try {
           sessionStorage.removeItem("gbp_signup_place");
           sessionStorage.removeItem("uploaded_menu_files");
+          sessionStorage.removeItem("uploaded_menu_instruction");
           sessionStorage.removeItem("uploaded_logo");
         } catch {}
         window.location.assign(result.redirectUrl);
@@ -346,6 +367,7 @@ export default function SignupFromGoogleClient({
       try {
         sessionStorage.removeItem("gbp_signup_place");
         sessionStorage.removeItem("uploaded_menu_files");
+        sessionStorage.removeItem("uploaded_menu_instruction");
         sessionStorage.removeItem("uploaded_logo");
       } catch {}
       window.location.assign(result.redirectUrl);
@@ -387,12 +409,23 @@ export default function SignupFromGoogleClient({
       }
     }
     if (files.length === 0) return [];
+    // The custom instruction may have been typed before the OAuth bounce, so
+    // fall back to sessionStorage when state is empty after the redirect.
+    let instruction = menuInstruction;
+    if (!instruction.trim()) {
+      try {
+        instruction = sessionStorage.getItem("uploaded_menu_instruction") || "";
+      } catch {
+        /* ignore */
+      }
+    }
     try {
       // Handles many files + PDFs: PDFs are split into page images and all pages
       // are sent to the AI in size-bounded batches so the request limit is never
       // hit. Partial batch failures still return whatever was read.
       const result = await extractMenuFromFiles(files, {
         model: "gemini-2.5-flash",
+        extraContext: instruction.trim() || undefined,
       });
       if (result.items.length === 0 && result.failedBatches > 0) {
         toast.error(
@@ -432,6 +465,7 @@ export default function SignupFromGoogleClient({
         try {
           sessionStorage.removeItem("gbp_signup_place");
           sessionStorage.removeItem("uploaded_menu_files");
+          sessionStorage.removeItem("uploaded_menu_instruction");
           sessionStorage.removeItem("uploaded_logo");
         } catch {}
         window.location.assign(result.redirectUrl);
@@ -601,6 +635,37 @@ export default function SignupFromGoogleClient({
                     <FileUp className="w-4 h-4" />
                     Add another file
                   </label>
+                </div>
+              )}
+
+              {/* Optional custom AI instruction — highest priority when we
+                  digitise the menu. Only relevant once a menu file is added. */}
+              {menuFiles.length > 0 && (
+                <div className="mb-4 rounded-xl border border-[#e8d2c1] bg-gradient-to-br from-[#fdf5ee] to-white p-3.5">
+                  <label
+                    htmlFor="signup-menu-instruction"
+                    className="flex items-center gap-2 text-sm font-semibold text-[#1a1410]"
+                  >
+                    <span className="flex items-center justify-center w-6 h-6 rounded-md bg-[#fbe6d6] shrink-0">
+                      <Sparkles className="w-[14px] h-[14px] text-[#a23717]" />
+                    </span>
+                    Custom instruction for the AI
+                    <span className="text-stone-400 font-normal">(optional)</span>
+                  </label>
+                  <p className="mt-1 text-xs text-stone-500">
+                    Tell us anything special about your menu — we&apos;ll follow it
+                    first. E.g. &quot;Ignore all drinks&quot;, &quot;Prices are in
+                    ₹&quot;, &quot;Treat Combos as a category&quot;.
+                  </p>
+                  <textarea
+                    id="signup-menu-instruction"
+                    value={menuInstruction}
+                    onChange={(e) => handleMenuInstructionChange(e.target.value)}
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="Ignore the drinks section and only extract food items…"
+                    className="mt-2 w-full resize-none rounded-lg border border-[#e8d2c1] bg-white px-3 py-2 text-sm text-[#1a1410] placeholder:text-stone-400 focus:border-[#a23717]/50 focus:outline-none focus:ring-1 focus:ring-[#a23717]/30"
+                  />
                 </div>
               )}
 

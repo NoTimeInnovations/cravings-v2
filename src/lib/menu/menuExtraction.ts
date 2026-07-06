@@ -43,7 +43,9 @@ export interface ExtractOptions {
   model?: string;
   prompt?: string;
   schema?: Schema;
-  /** Extra free-text hint appended to the prompt (e.g. "treat Loaded Fries as a category"). */
+  /** User's custom instruction, injected at the TOP of the prompt with highest
+   *  priority (overrides conflicting default rules). E.g. "ignore all drinks",
+   *  "treat Loaded Fries as a category". */
   extraContext?: string;
   maxRetries?: number;
   onProgress?: (p: ExtractProgress) => void;
@@ -341,8 +343,11 @@ export async function extractMenuFromFiles(
     onProgress,
     signal,
   } = opts;
+  // The user's custom instruction is given HIGHEST priority: it's placed first
+  // and explicitly told to override any conflicting rule in the base prompt, so
+  // a directive like "ignore all drinks" or "treat Combos as a category" wins.
   const finalPrompt = extraContext?.trim()
-    ? `${prompt}\nExtra context from the user: ${extraContext.trim()}`
+    ? `USER INSTRUCTION — HIGHEST PRIORITY. Follow this exactly. Whenever it conflicts with any rule in the task below, the USER INSTRUCTION WINS:\n"""\n${extraContext.trim()}\n"""\n\n--- TASK ---\n${prompt}`
     : prompt;
 
   const parts: PagePart[] = [];

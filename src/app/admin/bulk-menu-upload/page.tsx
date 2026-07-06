@@ -11,6 +11,7 @@ import {
   Trash2,
   UploadCloud,
   Pencil,
+  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { MenuItemCard } from "@/components/bulkMenuUpload/MenuItemCard";
@@ -759,14 +760,30 @@ const BulkUploadPage = () => {
                     />
                   </label>
 
-                  <div className="space-y-1">
-                    <Label htmlFor="extraPrompt" className="text-sm font-medium text-gray-700">Extra AI Prompt (Optional)</Label>
+                  <div className="rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white p-3.5 space-y-1.5">
+                    <Label
+                      htmlFor="extraPrompt"
+                      className="flex items-center gap-2 text-sm font-semibold text-gray-800"
+                    >
+                      <span className="flex items-center justify-center w-6 h-6 rounded-md bg-orange-100 shrink-0">
+                        <Sparkles className="w-[14px] h-[14px] text-orange-600" />
+                      </span>
+                      Custom instruction for the AI
+                      <span className="font-normal text-gray-400">(optional)</span>
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      Anything you type here takes <b>highest priority</b> and
+                      overrides the default rules. E.g. &quot;Ignore all
+                      drinks&quot;, &quot;Prices are in ₹&quot;, &quot;Treat Combos
+                      as a category, not items&quot;.
+                    </p>
                     <Textarea
                       id="extraPrompt"
-                      placeholder="E.g., Treat 'Loaded Fries' as a category, not an item. Ignore drinks."
+                      placeholder="Ignore the drinks section and only extract food items…"
                       value={extraPrompt}
                       onChange={(e) => setExtraPrompt(e.target.value)}
-                      className="min-h-[80px] text-sm bg-white"
+                      maxLength={1000}
+                      className="min-h-[80px] text-sm bg-white border-orange-200 focus-visible:ring-orange-400"
                     />
                   </div>
 
