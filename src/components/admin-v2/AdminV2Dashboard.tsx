@@ -5,22 +5,12 @@ import { startOfMonth } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  QrCode,
   UtensilsCrossed,
   ShoppingBag,
   Settings,
   BarChart3,
   ExternalLink,
   Globe,
-  Loader2,
-  Download,
   MessageCircle,
   AlertTriangle,
   Bike,
@@ -28,7 +18,6 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import QRCodeLib from "qrcode";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { useAdminStore } from "@/store/adminStore";
@@ -78,6 +67,11 @@ interface QuickAction {
   onClick?: () => void;
 }
 
+// "Contact Us" opens WhatsApp support with a pre-filled message.
+const SUPPORT_WHATSAPP_URL = `https://wa.me/917012944024?text=${encodeURIComponent(
+  "Hi Menuthere team, I need support in Menuthere.",
+)}`;
+
 export function AdminV2Dashboard() {
   const { userData } = useAuthStore();
   const { setActiveView } = useAdminStore();
@@ -92,11 +86,6 @@ export function AdminV2Dashboard() {
   const [storeName, setStoreName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [tutorialLang, setTutorialLang] = useState<"en" | "ml">("en");
-
-  // QR Dialog state
-  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
-  const [qrImageUrl, setQrImageUrl] = useState<string>("");
-  const [qrLoading, setQrLoading] = useState(false);
 
   // Tour state
   const { hasSeenDashboardTour, startTour, initFromDb } = useTourStore();
@@ -172,25 +161,6 @@ export function AdminV2Dashboard() {
     ? getFeatures(partner.feature_flags || "")
     : null;
 
-  const handleShowQr = async () => {
-    if (!qrId) return;
-    setIsQrDialogOpen(true);
-    setQrLoading(true);
-    try {
-      const DOMAIN = "menuthere.com";
-      const username = (userData as any)?.username;
-      const url = username
-        ? `https://${DOMAIN}/${username}`
-        : `https://${DOMAIN}/qrScan/${storeName?.replace(/\s+/g, "-")}/${qrId}`;
-      const dataUrl = await QRCodeLib.toDataURL(url, { width: 512, margin: 2 });
-      setQrImageUrl(dataUrl);
-    } catch {
-      // silently fail
-    } finally {
-      setQrLoading(false);
-    }
-  };
-
   const handleQuickAction = async (action: QuickAction) => {
     if (action.onClick) {
       action.onClick();
@@ -239,26 +209,6 @@ export function AdminV2Dashboard() {
 
   const allQuickActions: (QuickAction & { hidden?: boolean })[] = [
     {
-      title: "View Website",
-      icon: Globe,
-      href: partner?.username ? `/${partner.username}/home` : "/",
-    },
-    {
-      title: "View Menu",
-      icon: ExternalLink,
-      href: viewMenuHref,
-    },
-    ...(qrId
-      ? [
-          {
-            title: "View QR",
-            icon: QrCode,
-            onClick: handleShowQr,
-          },
-        ]
-      : []),
-
-    {
       title: "Manage Orders",
       icon: ShoppingBag,
       view: "Orders",
@@ -273,8 +223,16 @@ export function AdminV2Dashboard() {
     { title: "Edit Menu", icon: UtensilsCrossed, view: "Menu" },
     { title: "Availability", icon: Power, onClick: () => openMenuPanel("availability") },
     { title: "Priority", icon: ArrowUpDown, onClick: () => openMenuPanel("priority") },
-    { title: "Analytics", icon: BarChart3, view: "Analytics" },
+    { title: "Order Settings", icon: Bike, onClick: openOrdering },
     { title: "Settings", icon: Settings, view: "Settings" },
+    { title: "Analytics", icon: BarChart3, view: "Analytics" },
+    { title: "View Menu", icon: ExternalLink, href: viewMenuHref },
+    {
+      title: "View Website",
+      icon: Globe,
+      href: partner?.username ? `/${partner.username}/home` : "/",
+    },
+    { title: "Contact Us", icon: MessageCircle, href: SUPPORT_WHATSAPP_URL },
   ];
 
   const quickActions = allQuickActions.filter((a) => !a.hidden);
@@ -447,39 +405,6 @@ export function AdminV2Dashboard() {
       </div>
       */}
 
-      {/* View QR Dialog */}
-      <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Your QR Code</DialogTitle>
-            <DialogDescription>Scan this to view your menu.</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-2">
-            {qrLoading ? (
-              <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
-            ) : qrImageUrl ? (
-              <>
-                <img
-                  src={qrImageUrl}
-                  alt="QR Code"
-                  className="w-56 h-56 rounded-lg border"
-                />
-                <a
-                  href={qrImageUrl}
-                  download={`${partner?.store_name || "menu"}-qr.png`}
-                  className="flex items-center gap-2 text-sm font-medium text-orange-600 hover:underline"
-                >
-                  <Download className="h-4 w-4" /> Download QR
-                </a>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Could not generate QR.
-              </p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
