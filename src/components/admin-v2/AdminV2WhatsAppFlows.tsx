@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Workflow, Loader2, Pencil, Trash2, Power, Globe, UploadCloud } from "lucide-react";
+import { Plus, Workflow, Loader2, Pencil, Trash2, Power, Globe } from "lucide-react";
 import { toast } from "sonner";
 import type { Flow } from "@/lib/whatsappFlow/types";
 import { getFeatures, revertFeatureToString } from "@/lib/getFeatures";
@@ -87,7 +87,6 @@ export function AdminV2WhatsAppFlows() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [showGlobal, setShowGlobal] = useState(false);
-  const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!partnerId) return;
@@ -153,43 +152,6 @@ export function AdminV2WhatsAppFlows() {
       toast.success("Flow deleted");
     } catch {
       toast.error("Failed to delete flow");
-    }
-  };
-
-  // Push a flow into the shared Global Flows library. Fetches the full flow
-  // (the list rows carry no graph) then upserts it into the library by name.
-  const saveToGlobal = async (f: FlowListItem) => {
-    if (!partnerId) return;
-    setSavingGlobalId(f.id);
-    try {
-      const r = await fetch(`/api/whatsapp/flows/${f.id}?partnerId=${partnerId}`);
-      const d = await r.json();
-      if (!r.ok || !d.flow) throw new Error(d?.error || "Could not load flow");
-      const fl = d.flow;
-      const res = await fetch("/api/whatsapp/global-flows", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: fl.name,
-          description: fl.description ?? null,
-          graph: fl.graph,
-          escapeKeyword: fl.escape_keyword ?? null,
-          runTtlHours: fl.run_ttl_hours,
-          oncePerUser: fl.once_per_user,
-          cooldownHours: fl.cooldown_hours,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Failed to save to global");
-      toast.success(
-        data?.replaced
-          ? `Updated "${fl.name}" in Global Flows`
-          : `Saved "${fl.name}" to Global Flows`,
-      );
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to save to global");
-    } finally {
-      setSavingGlobalId(null);
     }
   };
 
@@ -339,19 +301,6 @@ export function AdminV2WhatsAppFlows() {
                 <p className="truncate text-xs text-muted-foreground">{triggerSummary(f)}</p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => saveToGlobal(f)}
-                  disabled={savingGlobalId === f.id}
-                  title="Save to Global Flows"
-                >
-                  {savingGlobalId === f.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <UploadCloud className="h-4 w-4 text-emerald-600" />
-                  )}
-                </Button>
                 <Button variant="ghost" size="sm" onClick={() => toggle(f)} title={f.enabled ? "Disable" : "Enable"}>
                   <Power className={`h-4 w-4 ${f.enabled ? "text-green-600" : "text-muted-foreground"}`} />
                 </Button>
@@ -385,7 +334,6 @@ export function AdminV2WhatsAppFlows() {
         <GlobalFlowsBrowser
           partnerId={partnerId}
           partnerFlows={flows.map((f) => ({ id: f.id, name: f.name }))}
-          loyaltyEnabled={loyaltyEnabled}
           onClose={() => setShowGlobal(false)}
           onImported={load}
         />

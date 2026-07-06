@@ -2,16 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import {
-  Globe,
-  Plus,
-  Pencil,
-  Trash2,
-  DownloadCloud,
-  X,
-  Loader2,
-  Workflow,
-} from "lucide-react";
+import { Globe, DownloadCloud, X, Loader2, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +12,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import type { TriggerDef } from "@/lib/whatsappFlow/types";
-import { FlowBuilder } from "@/components/admin-v2/whatsapp-flow/FlowBuilder";
 
 interface GlobalFlowItem {
   id: string;
@@ -50,23 +40,21 @@ function triggerSummary(triggers?: TriggerDef[]): string {
   return t.matchType;
 }
 
+// Partner-facing library browser: IMPORT ONLY. Managing the library (create /
+// edit / delete) lives in Superadmin → Global Flows.
 export function GlobalFlowsBrowser({
   partnerId,
   partnerFlows,
-  loyaltyEnabled,
   onClose,
   onImported,
 }: {
   partnerId: string;
   partnerFlows: PartnerFlowRef[];
-  loyaltyEnabled?: boolean;
   onClose: () => void;
   onImported: () => void;
 }) {
   const [flows, setFlows] = useState<GlobalFlowItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<"list" | "builder">("list");
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [importingId, setImportingId] = useState<string | null>(null);
   // Name-collision prompt: a global flow whose name matches an existing partner flow.
   const [collision, setCollision] = useState<{ gf: GlobalFlowItem; targetId: string } | null>(null);
@@ -122,37 +110,6 @@ export function GlobalFlowsBrowser({
     doImport(gf, "add");
   };
 
-  const remove = async (gf: GlobalFlowItem) => {
-    if (!confirm(`Delete global flow "${gf.name}"? This removes it from the shared library for everyone.`)) return;
-    try {
-      const res = await fetch(`/api/whatsapp/global-flows/${gf.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
-      setFlows((xs) => xs.filter((x) => x.id !== gf.id));
-      toast.success("Global flow deleted");
-    } catch {
-      toast.error("Failed to delete global flow");
-    }
-  };
-
-  // ── Builder (create / edit a global flow) ───────────────────────
-  if (mode === "builder") {
-    return (
-      <div className="fixed inset-0 z-[60] bg-background">
-        <FlowBuilder
-          scope="global"
-          flowId={editingId}
-          loyaltyEnabled={loyaltyEnabled}
-          onClose={() => {
-            setMode("list");
-            setEditingId(null);
-            load();
-          }}
-        />
-      </div>
-    );
-  }
-
-  // ── Full-screen library browser ─────────────────────────────────
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Header */}
@@ -164,24 +121,13 @@ export function GlobalFlowsBrowser({
           <div className="min-w-0">
             <h2 className="truncate text-lg font-semibold">Global Flows</h2>
             <p className="truncate text-xs text-muted-foreground">
-              A shared library of flows. Import one here, or save your own into it.
+              A shared library of ready-made flows. Import one into your own flows.
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            onClick={() => {
-              setEditingId(null);
-              setMode("builder");
-            }}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            <Plus className="mr-2 h-4 w-4" /> New Global Flow
-          </Button>
-          <Button variant="ghost" size="icon" onClick={onClose} title="Close">
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+        <Button variant="ghost" size="icon" onClick={onClose} title="Close">
+          <X className="h-5 w-5" />
+        </Button>
       </div>
 
       {/* Body */}
@@ -197,8 +143,7 @@ export function GlobalFlowsBrowser({
             </div>
             <h3 className="font-semibold">The library is empty</h3>
             <p className="text-sm text-muted-foreground">
-              Create a new global flow, or use “Save to Global” on any of your flows
-              to add it here.
+              There are no global flows to import yet.
             </p>
           </div>
         ) : (
@@ -225,41 +170,19 @@ export function GlobalFlowsBrowser({
                       <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{gf.description}</p>
                     )}
                   </div>
-                  <div className="mt-3 flex items-center gap-1.5">
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                      disabled={importingId === gf.id}
-                      onClick={() => handleImport(gf)}
-                    >
-                      {importingId === gf.id ? (
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <DownloadCloud className="mr-1.5 h-3.5 w-3.5" />
-                      )}
-                      Import
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      title="Edit global flow"
-                      onClick={() => {
-                        setEditingId(gf.id);
-                        setMode("builder");
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      title="Delete global flow"
-                      className="text-red-600 hover:text-red-700"
-                      onClick={() => remove(gf)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={importingId === gf.id}
+                    onClick={() => handleImport(gf)}
+                  >
+                    {importingId === gf.id ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <DownloadCloud className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Import
+                  </Button>
                 </div>
               );
             })}
@@ -274,7 +197,7 @@ export function GlobalFlowsBrowser({
             <DialogTitle>You already have a flow named “{collision?.gf.name}”</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Replace your existing flow with the global one (keeps it on/off state), or
+            Replace your existing flow with the global one (keeps its on/off state), or
             add the global flow as a separate copy?
           </p>
           <DialogFooter className="gap-2 sm:gap-2">
