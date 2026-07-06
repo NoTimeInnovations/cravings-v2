@@ -27,33 +27,18 @@ import { addAccount, getAccounts, getAllAccounts } from "@/lib/addAccount";
 import { transferTempDataToUserAccount } from "@/lib/transferTempDataToUserAccount";
 import { CommonOffer } from "@/components/superAdmin/OfferUploadSuperAdmin";
 import { UserCountryInfo } from "@/lib/getUserCountry";
-import plansData from "@/data/plans.json";
 import {
   NEW_PARTNER_FEATURE_FLAGS,
   NEW_PARTNER_THEME_STRING,
+  buildNewPartnerTrialSubscription,
 } from "@/lib/newPartnerDefaults";
 
 // New partner accounts created via self-serve signup get a 30-day trial:
 // ordering+delivery+newonboarding enabled out of the box, storefront access-only.
 // See /Users/abhinks/.claude/projects/-Users-abhinks-Documents-cravings-v2/memory/new-partner-trial-defaults.md
 const NEW_PARTNER_TRIAL_FEATURE_FLAGS = NEW_PARTNER_FEATURE_FLAGS;
-
-const buildNewPartnerTrialSubscription = (country?: string) => {
-  const isIndia = (country || "").trim().toLowerCase() === "india";
-  const planId = isIndia ? "in_trial_30d" : "intl_trial_30d";
-  const planArray = isIndia
-    ? (plansData as any).india
-    : (plansData as any).international;
-  const plan = planArray.find((p: any) => p.id === planId);
-  const now = new Date();
-  const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  return {
-    plan,
-    status: "active" as const,
-    startDate: now.toISOString(),
-    expiryDate: expiry.toISOString(),
-  };
-};
+// buildNewPartnerTrialSubscription is the canonical default (100-order trial for
+// India) — imported from newPartnerDefaults so every creation path stays in sync.
 
 interface BaseUser {
   id: string;

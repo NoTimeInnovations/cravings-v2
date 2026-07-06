@@ -7,7 +7,7 @@ import { updatePartner } from "@/api/partners";
 // Create a partner WITHOUT building a Google-sourced website — used when no place
 // is picked in the Create Petpooja Partner flow. Reuses onBoardUserSignup so the
 // partner still gets all the standard new-partner defaults (v3 storefront + v2
-// checkout theme, 30-day trial, feature flags, delivery windows); it just omits
+// checkout theme, 100-order free trial, feature flags, delivery windows); it just omits
 // website_config / geo / banner / place_id. The storefront menu still works.
 export async function createPetpoojaPartnerNoWebsite(input: {
   name: string;

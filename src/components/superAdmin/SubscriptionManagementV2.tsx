@@ -24,10 +24,22 @@ import { Label } from "@/components/ui/label";
 import { format, parseISO, isValid, addDays } from "date-fns";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import plansData from "@/data/plans.json";
+import { applyPlanFeatureFlags } from "@/lib/planFeatureFlags";
 import { addPaymentV2, updateSubscriptionV2, getPaymentHistory } from "@/app/actions/subscriptionV2";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Superadmin plan picker: surface the current billing-model plans (100-order
+// free trial, ₹3000/mo Pro) at the TOP of the India list so they're easy to
+// assign, then the rest in their existing order.
+const PRIORITY_PLAN_IDS = ["in_trial_100", "in_pro_monthly"];
+const INDIA_PLANS_ORDERED = [
+  ...PRIORITY_PLAN_IDS.map((id) =>
+    (plansData.india as any[]).find((p) => p.id === id),
+  ).filter(Boolean),
+  ...(plansData.india as any[]).filter((p) => !PRIORITY_PLAN_IDS.includes(p.id)),
+];
 
 // Types
 interface Partner {
@@ -36,13 +48,14 @@ interface Partner {
     phone: string;
     status: string;
     country: string;
+    feature_flags?: string | null;
     subscription_details: {
         plan: {
             id: string;
             name: string;
         } | null;
         status: string;
-        expiryDate: string;
+        expiryDate: string | null;
         startDate: string;
     } | null;
 }
@@ -106,6 +119,7 @@ const SubscriptionManagementV2 = () => {
           phone
           status
           country
+          feature_flags
           subscription_details
         }
       }
@@ -222,15 +236,24 @@ const SubscriptionManagementV2 = () => {
                 name: foundPlan.name
             } : null;
 
+            // Order-capped / free plans (period_days === -1) have no date expiry.
+            const noExpiry = (foundPlan as any)?.period_days === -1;
+
             const newDetails = {
                 startDate: new Date().toISOString(), // Default for new subscriptions
                 ...selectedPartner.subscription_details, // Overwrites startDate if exists
                 plan: planForUpdate,
-                expiryDate: editForm.expiryDate.toISOString(),
+                expiryDate: noExpiry ? null : editForm.expiryDate.toISOString(),
                 status: "active" as const
             };
 
-            const res = await updateSubscriptionV2(selectedPartner.id, newDetails);
+            // Unlock the assigned plan's features for this partner (merged with
+            // existing flags so unrelated ones are preserved).
+            const featureFlags = foundPlan
+                ? applyPlanFeatureFlags(foundPlan.id, selectedPartner.feature_flags)
+                : null;
+
+            const res = await updateSubscriptionV2(selectedPartner.id, newDetails, featureFlags);
             if (res.success) {
                 toast.success("Subscription updated successfully");
                 setViewMode('list');
@@ -264,16 +287,19 @@ const SubscriptionManagementV2 = () => {
                 return;
             }
 
-            // 2. If Plan is selected, Update Subscription
-            if (paymentForm.planId) {
+            // 2. If a real plan is selected (not the "-- No Plan Change --"
+            // placeholder), update the subscription. "none" is a non-empty string
+            // so it must be excluded explicitly, else the plan gets nulled out.
+            if (paymentForm.planId && paymentForm.planId !== "none") {
                 const foundPlan = [...plansData.india, ...plansData.international].find(p => p.id === paymentForm.planId);
                 const planForUpdate = foundPlan ? {
                     id: foundPlan.id,
                     name: foundPlan.name
                 } : null;
 
-                const daysToAdd = foundPlan?.period_days || 365;
-                const newExpiry = addDays(new Date(), daysToAdd).toISOString();
+                const noExpiry = (foundPlan as any)?.period_days === -1;
+                const daysToAdd = foundPlan?.period_days && foundPlan.period_days > 0 ? foundPlan.period_days : 365;
+                const newExpiry = noExpiry ? null : addDays(new Date(), daysToAdd).toISOString();
 
                 const newDetails = {
                     startDate: new Date().toISOString(),
@@ -284,7 +310,11 @@ const SubscriptionManagementV2 = () => {
                     status: "active" as const
                 };
 
-                const resSub = await updateSubscriptionV2(selectedPartner.id, newDetails);
+                const featureFlags = foundPlan
+                    ? applyPlanFeatureFlags(foundPlan.id, selectedPartner.feature_flags)
+                    : null;
+
+                const resSub = await updateSubscriptionV2(selectedPartner.id, newDetails, featureFlags);
                 if (!resSub.success) {
                     toast.warning("Payment recorded, but failed to update subscription plan.");
                 } else {
@@ -304,7 +334,7 @@ const SubscriptionManagementV2 = () => {
     };
 
     // Helper to format date safely
-    const safeFormat = (dateStr: string | undefined) => {
+    const safeFormat = (dateStr: string | null | undefined) => {
         if (!dateStr) return "N/A";
         try {
             return format(parseISO(dateStr), "MMM dd, yyyy");
@@ -362,7 +392,7 @@ const SubscriptionManagementV2 = () => {
                                 <SelectValue placeholder="Select a plan" />
                             </SelectTrigger>
                             <SelectContent>
-                                {plansData.india.map(plan => (
+                                {INDIA_PLANS_ORDERED.map((plan: any) => (
                                     <SelectItem key={plan.id} value={plan.id}>{plan.name} - {plan.price}</SelectItem>
                                 ))}
                                 {plansData.international.map(plan => (
@@ -414,7 +444,7 @@ const SubscriptionManagementV2 = () => {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="none">-- No Plan Change --</SelectItem>
-                                {plansData.india.map(plan => (
+                                {INDIA_PLANS_ORDERED.map((plan: any) => (
                                     <SelectItem key={plan.id} value={plan.id}>{plan.name} - {plan.price}</SelectItem>
                                 ))}
                                 {plansData.international.map(plan => (

@@ -125,7 +125,6 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
         try {
             const response = await createSubscriptionAction(
                 activeVariant.id,
-                activeVariant.rz_plan_id,
                 userData.id,
                 (userData as any).store_name,
             );
@@ -155,6 +154,7 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
                             price: activeVariant.price,
                             period_days: isAnnual ? 365 : 30,
                         },
+                        (userData as any).feature_flags,
                     );
                     if (verifyRes.success) {
                         // Refresh auth store with updated subscription & features

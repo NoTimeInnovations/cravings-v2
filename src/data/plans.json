@@ -156,6 +156,27 @@
             "scan_limit": -1
         },
         {
+            "id": "in_trial_100",
+            "name": "Free Trial (100 orders)",
+            "price": "Free",
+            "description": "Try all ordering & delivery features free for your first 100 orders",
+            "features": [
+                "All features included (Digital Menu + Ordering + Delivery)",
+                "First 100 orders free"
+            ],
+            "buttonText": "Start Free Trial",
+            "popular": false,
+            "period": "",
+            "period_days": -1,
+            "disabled": true,
+            "order_limit": 100,
+            "features_enabled": {
+                "ordering": true,
+                "delivery": true
+            },
+            "scan_limit": -1
+        },
+        {
             "id": "in_trial",
             "name": "Free Trial",
             "price": "Free",
@@ -244,6 +265,38 @@
             "disabled": false,
             "scan_limit": -1,
             "savings": "Save ₹589"
+        },
+        {
+            "id": "in_pro_monthly",
+            "rz_plan_id": "plan_TA8WvZnucUlMBD",
+            "rz_plan_id_test": "plan_TA6m5DxLEr3mWR",
+            "name": "Pro Plan",
+            "price": "₹3000",
+            "description": "All features — Digital Menu, Ordering, Delivery, WhatsApp, POS & more",
+            "features": [
+                "Everything included",
+                "Unlimited orders",
+                "Table & online ordering",
+                "Delivery management",
+                "WhatsApp integration",
+                "POS & inventory",
+                "Priority support"
+            ],
+            "buttonText": "Subscribe",
+            "popular": true,
+            "period": "/month",
+            "period_days": 30,
+            "disabled": false,
+            "features_enabled": {
+                "ordering": true,
+                "delivery": true,
+                "multiwhatsapp": true,
+                "pos": true,
+                "stockmanagement": true,
+                "captainordering": true,
+                "purchasemanagement": true
+            },
+            "scan_limit": -1
         },
         {
             "id": "in_digital_petpooja_monthly",

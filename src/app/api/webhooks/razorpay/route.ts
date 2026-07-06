@@ -166,8 +166,51 @@ async function updateUserSubscription(userId: string, data: any) {
 
 }
 
+// Has this exact Razorpay payment already been recorded for the partner? The
+// initial charge is recorded synchronously by verifySubscriptionAction (client
+// verify, key `razorpay_payment_id`); subscription.charged fires for that same
+// first charge (key `payment_id`), so we check BOTH shapes to avoid a duplicate.
+async function paymentAlreadyRecorded(userId: string, razorpayPaymentId: string): Promise<boolean> {
+    if (!razorpayPaymentId) return false;
+    const query = `
+        query ExistingPayment($userId: uuid!, $byPaymentId: jsonb!, $byRzpPaymentId: jsonb!) {
+            partner_payments(
+                where: {
+                    partner_id: { _eq: $userId },
+                    _or: [
+                        { payment_details: { _contains: $byPaymentId } },
+                        { payment_details: { _contains: $byRzpPaymentId } }
+                    ]
+                },
+                limit: 1
+            ) { id }
+        }
+    `;
+    try {
+        const res = await fetchFromHasura(query, {
+            userId,
+            byPaymentId: { payment_id: razorpayPaymentId },
+            byRzpPaymentId: { razorpay_payment_id: razorpayPaymentId },
+        });
+        return (res?.partner_payments?.length ?? 0) > 0;
+    } catch (e) {
+        // Fail OPEN: if the dedup check errors, don't silently drop a real payment.
+        console.error("Payment dedup check failed", e);
+        return false;
+    }
+}
+
 // Helper function to record payment
 async function recordPayment(userId: string, amount: number, date: string, paymentDetails: any) {
+    // Idempotency: skip if this Razorpay payment id is already recorded (e.g. the
+    // client verify already inserted the initial charge). Keeps the webhook safe to
+    // retry and prevents duplicate rows.
+    const razorpayPaymentId = paymentDetails?.payment_id || paymentDetails?.razorpay_payment_id || "";
+    if (razorpayPaymentId && (await paymentAlreadyRecorded(userId, razorpayPaymentId))) {
+        console.log(`Payment ${razorpayPaymentId} already recorded — skipping webhook insert`);
+        return true;
+    }
+
     const mutation = `
             mutation AddPaymentWebhook($object: partner_payments_insert_input!) {
                 insert_partner_payments_one(object: $object) {

@@ -1,3 +1,5 @@
+import plansData from "@/data/plans.json";
+
 // Canonical defaults applied to every newly created partner, regardless of
 // signup path (self-serve onboarding, super-admin manual, Petpooja). Centralised
 // here so the creation paths can't drift apart again.
@@ -31,6 +33,30 @@ export const NEW_PARTNER_FEATURE_FLAGS =
 
 // Stringified theme for the partners.theme column (used by paths that store a JSON string).
 export const NEW_PARTNER_THEME_STRING = JSON.stringify(NEW_PARTNER_THEME);
+
+// Canonical trial subscription for EVERY new partner — the single source of truth
+// used by all creation paths (self-serve signup, get-started wizard, Google
+// quick-signup, Create Petpooja Partner) so they can't drift. India → the
+// order-capped 100-order free trial (in_trial_100; no date expiry, gated on order
+// usage). International → the 30-day date trial (intl_trial_30d).
+export const buildNewPartnerTrialSubscription = (country?: string) => {
+  const isIndia = (country || "").trim().toLowerCase() === "india";
+  const planId = isIndia ? "in_trial_100" : "intl_trial_30d";
+  const planArray = isIndia
+    ? (plansData as any).india
+    : (plansData as any).international;
+  const plan = planArray.find((p: any) => p.id === planId);
+  const now = new Date();
+  const expiryDate = isIndia
+    ? null
+    : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  return {
+    plan,
+    status: "active" as const,
+    startDate: now.toISOString(),
+    expiryDate,
+  };
+};
 
 // Default delivery pricing + service windows for every new partner.
 // "first 4 km ₹40, then ₹10 per additional km" → first_km_range {km:4, rate:40}

@@ -95,6 +95,7 @@ const DeliveryPoolPanel = dynamic(() => import("@/components/admin-v2/DeliveryPo
 });
 import { useAdminStore } from "@/store/adminStore";
 import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
+import { SubscriptionGate } from "@/components/admin-v2/SubscriptionGate";
 
 
 export default function AdminPage() {
@@ -209,6 +210,7 @@ export default function AdminPage() {
 
                     {/* Main Content */}
                     <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-2" : "p-3 sm:p-4 md:p-6"}`}>
+                        <SubscriptionGate activeView={activeView} onNavigate={handleNavigate}>
                         {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "Delivery Boys" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && activeView !== "Customers" && activeView !== "Notices" && activeView !== "Reviews" && activeView !== "Website" && activeView !== "Notify" && activeView !== "Petpooja Integration" && activeView !== "Delivery Service Integration" && activeView !== "WhatsApp" && activeView !== "Loyalty" && activeView !== "Stock Management" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
@@ -339,6 +341,7 @@ export default function AdminPage() {
                                 <AdminV2WhatsApp />
                             </div>
                         )}
+                        </SubscriptionGate>
                     </main>
                 </div>
             </div>

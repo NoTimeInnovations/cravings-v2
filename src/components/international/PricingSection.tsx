@@ -215,7 +215,6 @@ const PricingSection = ({
     try {
       const response = await createSubscriptionAction(
         plan.id,
-        plan.rz_plan_id,
         (userData as any).id,
         (userData as any).store_name,
       );
@@ -240,6 +239,7 @@ const PricingSection = ({
             response.razorpay_signature,
             (userData as any).id,
             plan,
+            (userData as any).feature_flags,
           );
 
           if (verifyRes.success) {

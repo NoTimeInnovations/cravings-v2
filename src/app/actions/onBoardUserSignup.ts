@@ -6,12 +6,12 @@ import { addCategory } from "@/api/category";
 import { addMenu } from "@/api/menu";
 import { setAuthCookie } from "@/app/auth/actions";
 import { INSERT_QR_CODE } from "@/api/qrcodes";
-import plansData from "@/data/plans.json";
 import {
     NEW_PARTNER_FEATURE_FLAGS,
     applyNewPartnerThemeDefaults,
     NEW_PARTNER_DELIVERY_RATE,
     resolveNewPartnerDeliveryRules,
+    buildNewPartnerTrialSubscription,
 } from "@/lib/newPartnerDefaults";
 
 interface OnboardingData {
@@ -19,23 +19,6 @@ interface OnboardingData {
     categories: Record<string, any>;
     menu: { items: Record<string, any> };
 }
-
-const buildNewPartnerTrialSubscription = (country?: string) => {
-    const isIndia = (country || "").trim().toLowerCase() === "india";
-    const planId = isIndia ? "in_trial_30d" : "intl_trial_30d";
-    const planArray = isIndia
-        ? (plansData as any).india
-        : (plansData as any).international;
-    const plan = planArray.find((p: any) => p.id === planId);
-    const now = new Date();
-    const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    return {
-        plan,
-        status: "active" as const,
-        startDate: now.toISOString(),
-        expiryDate: expiry.toISOString(),
-    };
-};
 
 export const onBoardUserSignup = async (
     data: OnboardingData,
