@@ -64,6 +64,7 @@ export default function SuperadminGlobalFlows() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [partners, setPartners] = useState<PartnerRow[]>([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<PartnerRow | null>(null);
   const [partnerFlows, setPartnerFlows] = useState<FlowRow[]>([]);
   const [loadingPartnerFlows, setLoadingPartnerFlows] = useState(false);
@@ -99,22 +100,36 @@ export default function SuperadminGlobalFlows() {
     }
   };
 
-  const runSearch = async () => {
-    const q = query.trim();
-    if (!q) return;
+  const runSearch = useCallback(async (q: string) => {
+    const term = q.trim();
+    if (!term) {
+      setPartners([]);
+      return;
+    }
     setSearching(true);
     try {
-      const res = await fetchFromHasura(searchPartnersForAdminQuery, { query: `%${q}%` });
+      const res = await fetchFromHasura(searchPartnersForAdminQuery, { query: `%${term}%` });
       setPartners((res?.partners || []) as PartnerRow[]);
     } catch {
       toast.error("Partner search failed");
     } finally {
       setSearching(false);
     }
-  };
+  }, []);
+
+  // Live typeahead: search 300ms after the user stops typing.
+  useEffect(() => {
+    if (!query.trim()) {
+      setPartners([]);
+      return;
+    }
+    const t = setTimeout(() => runSearch(query), 300);
+    return () => clearTimeout(t);
+  }, [query, runSearch]);
 
   const selectPartner = async (p: PartnerRow) => {
     setSelectedPartner(p);
+    setDropdownOpen(false);
     setPartnerFlows([]);
     setLoadingPartnerFlows(true);
     try {
@@ -266,44 +281,55 @@ export default function SuperadminGlobalFlows() {
           the partner&apos;s flow directly).
         </p>
 
-        <form
-          className="flex items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            runSearch();
-          }}
-        >
-          <div className="relative flex-1 max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by store name, name, email, username…"
-              className="pl-9 bg-white"
-            />
-          </div>
-          <Button type="submit" disabled={searching || !query.trim()}>
-            {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
-          </Button>
-        </form>
+        {/* Live typeahead: results drop down under the box as you type. */}
+        <div className="relative max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setDropdownOpen(true);
+            }}
+            onFocus={() => query.trim() && setDropdownOpen(true)}
+            onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
+            placeholder="Search by store name, name, email, username…"
+            className="pl-9 pr-9 bg-white"
+          />
+          {searching && (
+            <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          )}
 
-        {partners.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {partners.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => selectPartner(p)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                  selectedPartner?.id === p.id
-                    ? "border-orange-500 bg-orange-50 text-orange-700"
-                    : "bg-white hover:bg-muted"
-                }`}
-              >
-                {p.store_name || p.name || p.username || p.email || p.id}
-              </button>
-            ))}
-          </div>
-        )}
+          {dropdownOpen && query.trim() && (
+            <div className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border bg-white shadow-lg">
+              {searching && partners.length === 0 ? (
+                <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Searching…
+                </div>
+              ) : partners.length === 0 ? (
+                <div className="px-3 py-3 text-sm text-muted-foreground">No partners found.</div>
+              ) : (
+                partners.map((p) => (
+                  <button
+                    key={p.id}
+                    // onMouseDown fires before the input's onBlur, so the pick registers.
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectPartner(p);
+                    }}
+                    className="flex w-full flex-col items-start gap-0.5 border-b px-3 py-2 text-left last:border-b-0 hover:bg-muted"
+                  >
+                    <span className="text-sm font-medium">
+                      {p.store_name || p.name || p.username || p.email || p.id}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {[p.username && `@${p.username}`, p.email].filter(Boolean).join(" · ") || p.id}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
 
         {selectedPartner && (
           <div className="rounded-xl border bg-white p-4">
