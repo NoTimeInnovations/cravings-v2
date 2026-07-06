@@ -295,6 +295,9 @@ export function FlowBuilder(props: {
   partnerId?: string;
   flowId: string | null;
   loyaltyEnabled?: boolean;
+  // "global" edits a flow in the shared global-flows library (no partner). All
+  // load/save hits /api/whatsapp/global-flows instead of the partner endpoints.
+  scope?: "partner" | "global";
   onClose: () => void;
 }) {
   return (
@@ -308,14 +311,17 @@ function BuilderInner({
   partnerId,
   flowId,
   loyaltyEnabled,
+  scope = "partner",
   onClose,
 }: {
   partnerId?: string;
   flowId: string | null;
   loyaltyEnabled?: boolean;
+  scope?: "partner" | "global";
   onClose: () => void;
 }) {
   const isNew = !flowId;
+  const isGlobal = scope === "global";
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -344,7 +350,11 @@ function BuilderInner({
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/whatsapp/flows/${flowId}?partnerId=${partnerId}`);
+        const res = await fetch(
+          isGlobal
+            ? `/api/whatsapp/global-flows/${flowId}`
+            : `/api/whatsapp/flows/${flowId}?partnerId=${partnerId}`,
+        );
         const data = await res.json();
         if (cancelled) return;
         if (!res.ok || !data.flow) {
@@ -464,27 +474,39 @@ function BuilderInner({
     setSaving(true);
     try {
       const payload = {
-        partnerId,
+        ...(isGlobal ? {} : { partnerId }),
         name: name.trim(),
         graph: buildGraph(),
         escapeKeyword: escapeKeyword.trim() || null,
         oncePerUser: runMode === "once",
         cooldownHours: runMode === "cooldown" ? cooldownHours : 0,
       };
+      const createUrl = isGlobal ? "/api/whatsapp/global-flows" : "/api/whatsapp/flows";
+      const updateUrl = isGlobal
+        ? `/api/whatsapp/global-flows/${flowId}`
+        : `/api/whatsapp/flows/${flowId}?partnerId=${partnerId}`;
       const res = isNew
-        ? await fetch("/api/whatsapp/flows", {
+        ? await fetch(createUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           })
-        : await fetch(`/api/whatsapp/flows/${flowId}?partnerId=${partnerId}`, {
+        : await fetch(updateUrl, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to save flow");
-      toast.success(isNew ? "Flow created" : "Flow saved");
+      toast.success(
+        isGlobal
+          ? isNew
+            ? "Global flow created"
+            : "Global flow saved"
+          : isNew
+            ? "Flow created"
+            : "Flow saved",
+      );
       setSaveOpen(false);
       onClose();
     } catch (e: any) {
