@@ -84,6 +84,16 @@ export function useProSubscribe(onSuccess?: () => void) {
         subscription_id: created.subscription_id,
         name: "Menuthere App",
         description: `Subscribe to ${PRO_PLAN.name} (${PRO_PLAN.price}/month)`,
+        // Attach partner metadata to the payment so it's identifiable in the
+        // Razorpay dashboard (subscription notes cover renewals via the webhook).
+        notes: {
+          partner_id: userData.id,
+          store_name: (userData as any).store_name || "",
+          plan_id: PRO_PLAN.id,
+          plan_name: PRO_PLAN.name,
+          email: (userData as any).email || "",
+          phone: (userData as any).phone || "",
+        },
         handler: async (res: any) => {
           try {
             const verifyRes = await verifySubscriptionAction(

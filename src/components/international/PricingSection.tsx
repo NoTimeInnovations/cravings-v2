@@ -230,6 +230,14 @@ const PricingSection = ({
         subscription_id: response.subscription_id,
         name: `Menuthere App`,
         description: `Upgrade to ${plan.name}`,
+        notes: {
+          partner_id: (userData as any).id,
+          store_name: (userData as any).store_name || "",
+          plan_id: plan.id,
+          plan_name: plan.name,
+          email: (userData as any).email || "",
+          phone: (userData as any).phone || "",
+        },
         handler: async function (response: any) {
           setRedirectLoadingText("Verifying Payment...");
 

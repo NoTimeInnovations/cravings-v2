@@ -140,6 +140,14 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
                 subscription_id: response.subscription_id,
                 name: "Menuthere App",
                 description: `Upgrade to ${activeVariant.name}`,
+                notes: {
+                    partner_id: userData.id,
+                    store_name: (userData as any).store_name || "",
+                    plan_id: activeVariant.id,
+                    plan_name: activeVariant.name,
+                    email: (userData as any).email || "",
+                    phone: (userData as any).phone || "",
+                },
                 handler: async function (res: any) {
                     setLoadingText("Verifying Payment...");
                     const verifyRes = await verifySubscriptionAction(
