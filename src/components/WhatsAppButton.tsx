@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 
-const WHATSAPP_NUMBER = "918590115462";
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
+const WHATSAPP_NUMBER = "917012944024";
+// Same pre-filled message as the "Book a Demo" navbar button.
+const WHATSAPP_MESSAGE =
+    "Hi Menuthere team! I'd love to book a demo to see how Menuthere can help my restaurant grow. Could we schedule a quick meeting at a convenient time? Thank you!";
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    WHATSAPP_MESSAGE,
+)}`;
 
 export default function WhatsAppButton() {
     const [hovered, setHovered] = useState(false);
