@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,8 @@ export function BrandingSettings() {
     // V3-only hero logo controls (size + bg color); persisted in storefront_settings.bannerLogo
     const [bannerLogoScale, setBannerLogoScale] = useState<number>(BANNER_LOGO_SCALE_DEFAULT);
     const [bannerLogoBgColor, setBannerLogoBgColor] = useState<string>("");
+    // Full-screen store logo on the onboarding screen (persisted in storefront_settings).
+    const [onboardingLogoFullScreen, setOnboardingLogoFullScreen] = useState<boolean>(false);
 
     // Theme menuStyle — controls whether V3 hero-logo cards are visible.
     const themeMenuStyle = (() => {
@@ -95,6 +98,7 @@ export function BrandingSettings() {
             const bl = sfParsed?.bannerLogo;
             setBannerLogoScale(clampBannerLogoScale(bl?.scale));
             setBannerLogoBgColor(typeof bl?.bgColor === "string" ? bl.bgColor : "");
+            setOnboardingLogoFullScreen(!!sfParsed?.onboardingLogoFullScreen);
         }
     }, [userData]);
 
@@ -125,6 +129,7 @@ export function BrandingSettings() {
                     scale: clampBannerLogoScale(bannerLogoScale),
                     bgColor: bannerLogoBgColor || "",
                 },
+                onboardingLogoFullScreen,
             };
             const storefrontPayload = JSON.stringify(nextStorefront);
 
@@ -140,7 +145,7 @@ export function BrandingSettings() {
             console.error("Error saving branding settings:", error);
             toast.error("Failed to save branding settings");
         }
-    }, [userData, announcement, carouselBanners, bannerLogoScale, bannerLogoBgColor, setState, setHasChanges]);
+    }, [userData, announcement, carouselBanners, bannerLogoScale, bannerLogoBgColor, onboardingLogoFullScreen, setState, setHasChanges]);
 
     useEffect(() => {
         if (userData?.role !== "partner") return;
@@ -332,6 +337,27 @@ export function BrandingSettings() {
     return (
         <div className="space-y-6">
             <div className="grid gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Onboarding Logo</CardTitle>
+                        <CardDescription>How your store logo appears on the onboarding screen customers see first.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-3 rounded-xl border bg-secondary/40 p-3.5">
+                            <Switch
+                                checked={onboardingLogoFullScreen}
+                                onCheckedChange={setOnboardingLogoFullScreen}
+                            />
+                            <div className="flex-1">
+                                <p className="text-sm font-bold">Full-screen logo</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Show your logo large on the onboarding screen instead of the small badge.
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <div className="relative">
                     {isOnFreePlan && (
                         <div

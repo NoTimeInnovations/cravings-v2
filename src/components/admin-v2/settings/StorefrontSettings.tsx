@@ -341,23 +341,6 @@ export function StorefrontSettings() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardContent className="pt-5">
-                    <div className="flex items-center gap-3 rounded-xl border bg-secondary/40 p-3.5">
-                        <Switch
-                            checked={storefront.onboardingLogoFullScreen ?? false}
-                            onCheckedChange={(v) => updateStorefront({ onboardingLogoFullScreen: v })}
-                        />
-                        <div className="flex-1">
-                            <p className="text-sm font-bold">Full-screen onboarding logo</p>
-                            <p className="text-[11px] text-muted-foreground">
-                                Show your store logo large on the onboarding screen instead of the small badge.
-                            </p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
             {/* Logo & Brand */}
             <Card>
                 <CardHeader>
