@@ -176,6 +176,10 @@ interface MenuState {
   setRecommendations: (itemId: string, recommendationIds: string[]) => Promise<void>;
   bulkSetAvailability: (ids: string[], is_available: boolean) => Promise<void>;
   patchAvailabilityLocal: (ids: string[], is_available: boolean) => void;
+  /** Set an image_url on items locally (no DB / no S3 re-upload). Used by
+   *  "Get all images" to reflect each fetched image immediately; the caller
+   *  persists to the DB separately. */
+  patchImageLocal: (ids: string[], image_url: string) => void;
   deleteItem: (id: string) => Promise<void>;
   fetchCategorieImages: (category: string) => Promise<CategoryImages[]>;
   groupItems: () => void;
@@ -585,6 +589,17 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     set({
       items: get().items.map((item) =>
         item.id && idSet.has(item.id) ? { ...item, is_available } : item
+      ),
+    });
+    get().groupItems();
+  },
+
+  patchImageLocal: (ids, image_url) => {
+    const idSet = new Set(ids.filter(Boolean));
+    if (idSet.size === 0 || !image_url) return;
+    set({
+      items: get().items.map((item) =>
+        item.id && idSet.has(item.id) ? { ...item, image_url } : item
       ),
     });
     get().groupItems();

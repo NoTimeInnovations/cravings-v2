@@ -33,7 +33,8 @@ import { TAG_CATEGORIES, getTagColor } from "@/data/foodTags";
 import { toast } from "sonner";
 import Img from "../Img";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { fillItemsFromGoogle } from "@/app/actions/googleImageFallback";
+import { fillOneItemFromGoogle } from "@/app/actions/googleImageFallback";
+import { runPool } from "@/lib/runPool";
 import type { Schema } from "@google/generative-ai";
 import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
 
@@ -360,7 +361,7 @@ For each item, provide:
         toast.success(`Added ${selected.length} items to list`);
     };
 
-    // ─── Get All Images Handler ───
+    // ─── Get All Images Handler (fetch 1-by-1, apply each as it returns) ───
     const handleGetAllImages = async () => {
         const itemsWithoutImages = items.filter(item => !item.image_url);
         if (itemsWithoutImages.length === 0) {
@@ -370,9 +371,12 @@ For each item, provide:
 
         setIsFetchingImages(true);
         setImagesFetchedCount(0);
+        let done = 0;
+        const bump = (n = 1) => { done += n; setImagesFetchedCount(done); };
 
         try {
-            // ONE batch lookup against the Menuthere Image DB (same Hasura).
+            // 1. ONE fast lookup against the Menuthere Image DB — apply matches
+            //    immediately (these items aren't saved yet, so just local state).
             const uniqueNames = Array.from(
                 new Set(itemsWithoutImages.map(i => i.name).filter(Boolean))
             );
@@ -385,72 +389,61 @@ For each item, provide:
                 }`,
                 { names: uniqueNames }
             );
-
             const urlByName = new Map<string, string>();
             for (const row of (item_images as { item_name: string; image_url: string }[]) || []) {
                 const key = (row.item_name || "").trim().toLowerCase();
-                if (key && row.image_url && !urlByName.has(key)) {
-                    urlByName.set(key, row.image_url);
-                }
+                if (key && row.image_url && !urlByName.has(key)) urlByName.set(key, row.image_url);
             }
 
-            // Apply matches to local state (these items aren't saved yet).
-            let bankFound = 0;
-            const afterBank = items.map(i => {
-                if (i.image_url) return i;
-                const url = urlByName.get((i.name || "").trim().toLowerCase());
-                if (url) {
-                    bankFound++;
-                    return { ...i, image_url: url };
-                }
-                return i;
-            });
+            const bankCount = itemsWithoutImages.filter(i =>
+                urlByName.has((i.name || "").trim().toLowerCase())
+            ).length;
+            if (bankCount > 0) {
+                setItems(prev => prev.map(i => {
+                    if (i.image_url) return i;
+                    const url = urlByName.get((i.name || "").trim().toLowerCase());
+                    return url ? { ...i, image_url: url } : i;
+                }));
+                bump(bankCount);
+            }
 
-            // Fallback: for items not in the image bank, search Google (Apify),
-            // re-upload the best result to S3, and record it in the image DB.
-            const misses = afterBank.filter(i => !i.image_url && i.name?.trim());
+            // 2. Misses → fetch from Google ONE BY ONE (bounded concurrency),
+            //    applying each image to matching items the moment it returns.
+            const missNames = Array.from(new Set(
+                itemsWithoutImages
+                    .filter(i => i.name?.trim() && !urlByName.has(i.name.trim().toLowerCase()))
+                    .map(i => i.name.trim())
+            ));
             let googleFound = 0;
-            let finalItems = afterBank;
-            if (misses.length > 0 && userData?.id) {
+            if (missNames.length > 0 && userData?.id) {
                 const partnerName =
                     (userData as { name?: string; store_name?: string })?.name?.trim() ||
                     (userData as { name?: string; store_name?: string })?.store_name?.trim() ||
                     "Partner";
-                const loadingId = toast.loading(
-                    `Searching Google for ${misses.length} item${misses.length === 1 ? "" : "s"} not in the image bank…`
-                );
-                try {
-                    const fills = await fillItemsFromGoogle(
-                        userData.id,
-                        partnerName,
-                        misses.map(i => ({ name: i.name, category_name: categoryName || null }))
+                await runPool(missNames, 6, async (name) => {
+                    const lname = name.toLowerCase();
+                    const affected = itemsWithoutImages.filter(
+                        i => (i.name || "").trim().toLowerCase() === lname
+                    ).length;
+                    const r = await fillOneItemFromGoogle(
+                        userData!.id, partnerName, { name, category_name: categoryName || null }
                     );
-                    const fillByName = new Map<string, string>();
-                    for (const f of fills) {
-                        fillByName.set(f.name.trim().toLowerCase(), f.image_url);
+                    if (r?.image_url) {
+                        googleFound += affected;
+                        setItems(prev => prev.map(i =>
+                            (!i.image_url && (i.name || "").trim().toLowerCase() === lname)
+                                ? { ...i, image_url: r.image_url } : i
+                        ));
                     }
-                    finalItems = afterBank.map(i => {
-                        if (i.image_url) return i;
-                        const url = fillByName.get((i.name || "").trim().toLowerCase());
-                        if (url) {
-                            googleFound++;
-                            return { ...i, image_url: url };
-                        }
-                        return i;
-                    });
-                } finally {
-                    toast.dismiss(loadingId);
-                }
+                    bump(affected);
+                });
             }
 
-            setItems(finalItems);
-            setImagesFetchedCount(itemsWithoutImages.length);
-
-            const found = bankFound + googleFound;
+            const found = bankCount + googleFound;
             const notFoundCount = itemsWithoutImages.length - found;
             if (found > 0) {
                 const parts: string[] = [];
-                if (bankFound > 0) parts.push(`${bankFound} from the image bank`);
+                if (bankCount > 0) parts.push(`${bankCount} from the image bank`);
                 if (googleFound > 0) parts.push(`${googleFound} from Google`);
                 toast.success(`Added images to ${found} item${found === 1 ? "" : "s"} (${parts.join(", ")})`);
             }
@@ -459,7 +452,7 @@ For each item, provide:
             }
         } catch (error) {
             console.error("Get all images failed:", error);
-            toast.error("Failed to fetch images from the image bank.");
+            toast.error("Failed to fetch images.");
         } finally {
             setIsFetchingImages(false);
         }

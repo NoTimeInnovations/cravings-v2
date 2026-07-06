@@ -58,7 +58,8 @@ import {
   useCategoryStore,
 } from "@/store/categoryStore_hasura";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { fillItemsFromGoogle } from "@/app/actions/googleImageFallback";
+import { fillOneItemFromGoogle } from "@/app/actions/googleImageFallback";
+import { runPool } from "@/lib/runPool";
 import { isFreePlan as checkIsFreePlan } from "@/lib/getPlanLimits";
 
 export function AdminV2Menu() {
@@ -66,6 +67,7 @@ export function AdminV2Menu() {
     items: menu,
     fetchMenu,
     updateItem,
+    patchImageLocal,
     groupedItems,
     groupItems,
     deleteCategoryAndItems,
@@ -249,9 +251,8 @@ export function AdminV2Menu() {
     }
   };
 
-  // Handler for "Get all images" button
+  // Handler for "Get all images" — fetch 1-by-1 and apply each as it returns.
   const handleGetAllImages = async () => {
-    // Find all items without images
     const itemsWithoutImages = menu.filter((item) => !item.image_url);
 
     if (itemsWithoutImages.length === 0) {
@@ -262,10 +263,18 @@ export function AdminV2Menu() {
     setIsFetchingImages(true);
     setTotalItemsToFetch(itemsWithoutImages.length);
     setImagesFetchedCount(0);
+    let done = 0;
+    const bump = (n = 1) => {
+      done += n;
+      setImagesFetchedCount(done);
+    };
+
+    const SET_IMAGES = `mutation SetImages($updates: [menu_updates!]!) {
+      update_menu_many(updates: $updates) { affected_rows }
+    }`;
 
     try {
-      // 1. ONE batch lookup against the Menuthere Image DB (same Hasura, no
-      //    extra network hop, no per-item request).
+      // 1. Image-bank lookup — persist matches (one mutation) + reflect locally now.
       const uniqueNames = Array.from(
         new Set(itemsWithoutImages.map((i) => i.name).filter(Boolean)),
       );
@@ -278,85 +287,72 @@ export function AdminV2Menu() {
         }`,
         { names: uniqueNames },
       );
-
-      // Case-insensitive name -> url map (first match wins).
       const urlByName = new Map<string, string>();
       for (const row of (item_images as { item_name: string; image_url: string }[]) || []) {
         const key = (row.item_name || "").trim().toLowerCase();
-        if (key && row.image_url && !urlByName.has(key)) {
-          urlByName.set(key, row.image_url);
-        }
+        if (key && row.image_url && !urlByName.has(key)) urlByName.set(key, row.image_url);
       }
 
-      // 2. Build one update per matched item. The bank URL is already a public
-      //    S3 asset, so we reference it directly (no re-download / re-upload).
-      type MenuImageUpdate = {
-        where: { id: { _eq: string } };
-        _set: { image_url: string };
-      };
-      const updates: MenuImageUpdate[] = [];
       const matchedIds = new Set<string>();
+      const bankUpdates: { where: { id: { _eq: string } }; _set: { image_url: string } }[] = [];
+      const bankByUrl = new Map<string, string[]>();
       for (const item of itemsWithoutImages) {
         const url = urlByName.get((item.name || "").trim().toLowerCase());
         if (url && item.id) {
-          updates.push({ where: { id: { _eq: item.id } }, _set: { image_url: url } });
+          bankUpdates.push({ where: { id: { _eq: item.id } }, _set: { image_url: url } });
           matchedIds.add(item.id);
+          const arr = bankByUrl.get(url) || [];
+          arr.push(item.id);
+          bankByUrl.set(url, arr);
         }
       }
-      const bankFound = updates.length;
-      setImagesFetchedCount(bankFound);
+      const bankFound = bankUpdates.length;
+      if (bankFound > 0) {
+        await fetchFromHasura(SET_IMAGES, { updates: bankUpdates });
+        for (const [url, ids] of bankByUrl) patchImageLocal(ids, url);
+        bump(bankFound);
+      }
 
-      // 3. Fallback: for items the image DB doesn't have, search Google (Apify),
-      //    re-upload the best result to S3, and record it back in the image DB.
-      const misses = itemsWithoutImages.filter(
-        (i) => i.id && !matchedIds.has(i.id),
-      );
+      // 2. Misses → fetch from Google ONE BY ONE (bounded concurrency); persist +
+      //    reflect each image the moment it returns.
+      const missGroups = new Map<string, { ids: string[]; category_name?: string }>();
+      for (const m of itemsWithoutImages) {
+        if (!m.id || matchedIds.has(m.id)) continue;
+        const name = (m.name || "").trim();
+        if (!name) continue;
+        const g = missGroups.get(name) || { ids: [], category_name: m.category?.name };
+        g.ids.push(m.id);
+        missGroups.set(name, g);
+      }
+
       let googleFound = 0;
-      if (misses.length > 0 && userData?.id) {
+      if (missGroups.size > 0 && userData?.id) {
         const partnerName =
           (userData as Partner)?.name?.trim() ||
           (userData as Partner)?.store_name?.trim() ||
           "Partner";
-        const loadingId = toast.loading(
-          `Searching Google for ${misses.length} item${misses.length === 1 ? "" : "s"} not in the image bank…`,
-        );
-        try {
-          const fills = await fillItemsFromGoogle(
-            userData.id,
-            partnerName,
-            misses.map((i) => ({
-              id: i.id!,
-              name: i.name,
-              category_name: i.category?.name,
-            })),
-          );
-          for (const f of fills) {
-            if (f.id) {
-              updates.push({
-                where: { id: { _eq: f.id } },
-                _set: { image_url: f.image_url },
-              });
-            }
+        await runPool([...missGroups.keys()], 6, async (name) => {
+          const g = missGroups.get(name)!;
+          const r = await fillOneItemFromGoogle(userData!.id, partnerName, {
+            id: g.ids[0],
+            name,
+            category_name: g.category_name,
+          });
+          if (r?.image_url) {
+            googleFound += g.ids.length;
+            await fetchFromHasura(SET_IMAGES, {
+              updates: g.ids.map((id) => ({
+                where: { id: { _eq: id } },
+                _set: { image_url: r.image_url },
+              })),
+            });
+            patchImageLocal(g.ids, r.image_url);
           }
-          googleFound = fills.length;
-        } finally {
-          toast.dismiss(loadingId);
-        }
+          bump(g.ids.length);
+        });
       }
 
-      // 4. ONE batch mutation for every matched + filled item.
-      if (updates.length > 0) {
-        await fetchFromHasura(
-          `mutation SetImages($updates: [menu_updates!]!) {
-            update_menu_many(updates: $updates) { affected_rows }
-          }`,
-          { updates },
-        );
-        await fetchMenu(userData?.id, true);
-      }
-
-      setImagesFetchedCount(itemsWithoutImages.length);
-      const found = updates.length;
+      const found = bankFound + googleFound;
       const notFound = itemsWithoutImages.length - found;
       if (found > 0) {
         const parts: string[] = [];

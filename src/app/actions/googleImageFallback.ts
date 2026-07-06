@@ -151,3 +151,19 @@ export async function fillItemsFromGoogle(
 
   return out;
 }
+
+/**
+ * Single-item variant of fillItemsFromGoogle — used by "Get all images" to fetch
+ * and apply images ONE BY ONE (with client-side concurrency) so each image lands
+ * in the UI the moment it's ready, instead of waiting for the whole batch. Reuses
+ * the same robust path (Apify search → S3 re-upload → image-bank cache).
+ */
+export async function fillOneItemFromGoogle(
+  partnerId: string,
+  partnerName: string,
+  item: FallbackInItem,
+  opts: { gl?: string; hl?: string } = {}
+): Promise<FallbackOutItem | null> {
+  const [result] = await fillItemsFromGoogle(partnerId, partnerName, [item], opts);
+  return result ?? null;
+}
