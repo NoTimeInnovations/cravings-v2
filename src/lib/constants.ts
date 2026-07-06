@@ -24,5 +24,10 @@ export const requiresThreeDecimalPlaces = (hotelId: string | undefined): boolean
  * @returns formatted price string or number
  */
 export const formatPrice = (price: number, hotelId: string | undefined): string | number => {
-  return requiresThreeDecimalPlaces(hotelId) ? price.toFixed(3) : price;
+  if (requiresThreeDecimalPlaces(hotelId)) return price.toFixed(3);
+  // Round to at most 2 decimals so computed prices (price × qty, discounts,
+  // variant sums) never show float artifacts like 250.9999999 in the item card /
+  // bottom sheet. Whole numbers stay clean ("250", not "250.00").
+  const p = Number(price);
+  return Number.isFinite(p) ? Math.round(p * 100) / 100 : 0;
 };
