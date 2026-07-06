@@ -174,26 +174,49 @@ function extractIncomingBody(msg: any): { type: string; body: string | null; med
   }
 }
 
-// Normalize an inbound message into the flow engine's input shape. Only
-// text / interactive-reply / button messages drive flows; everything else
-// returns null (ignored by the engine).
+// Normalize an inbound message into the flow engine's input shape. Text,
+// interactive-reply and button messages carry their text/title; media and
+// location messages drive flows too (so the "on any" trigger fires on a photo,
+// document, voice note, etc.), using the caption as text when present, "" when
+// not. Only genuinely non-actionable events (reactions, system/unsupported
+// messages) return null and are ignored by the engine.
 function normalizeFlowInput(msg: any): FlowInput | null {
+  const type = msg?.type as string;
   let text: string | null = null;
   let replyId: string | null = null;
-  if (msg.type === "text") {
-    text = msg.text?.body ?? null;
-  } else if (msg.type === "interactive") {
-    const ir = msg.interactive?.button_reply || msg.interactive?.list_reply;
-    if (ir) {
-      text = ir.title ?? null;
+  switch (type) {
+    case "text":
+      text = msg.text?.body ?? "";
+      break;
+    case "interactive": {
+      const ir = msg.interactive?.button_reply || msg.interactive?.list_reply;
+      if (!ir) return null;
+      text = ir.title ?? "";
       replyId = ir.id ?? null;
+      break;
     }
-  } else if (msg.type === "button") {
-    text = msg.button?.text ?? null;
-    replyId = msg.button?.payload ?? null;
+    case "button":
+      text = msg.button?.text ?? "";
+      replyId = msg.button?.payload ?? null;
+      break;
+    case "image":
+    case "video":
+    case "audio":
+    case "document":
+    case "sticker":
+      text = msg[type]?.caption ?? "";
+      break;
+    case "location":
+      text = msg.location?.name || msg.location?.address || "";
+      break;
+    case "contacts":
+      text = "";
+      break;
+    default:
+      // reaction / system / unsupported / unknown → not a flow-driving message
+      return null;
   }
-  if (text == null) return null;
-  return { text, normalized: String(text).trim().toLowerCase(), replyId };
+  return { text: text ?? "", normalized: String(text ?? "").trim().toLowerCase(), replyId, type };
 }
 
 async function persistIncoming(

@@ -39,9 +39,12 @@ const POST_DELAY_BUFFER_MS = 60 * 60 * 1000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface FlowInput {
-  text: string; // raw inbound text / interactive title
+  text: string; // raw inbound text / interactive title / media caption ("" if none)
   normalized: string; // text.trim().toLowerCase()
   replyId?: string | null; // interactive button/list reply id (= branch handle)
+  // WhatsApp message type ("text", "image", "location", …). Lets the "any"
+  // trigger fire on media messages that carry no caption (empty normalized).
+  type?: string;
 }
 
 interface RunState {
@@ -360,7 +363,12 @@ function firstEdgeTarget(graph: FlowGraph, nodeId: string, handle?: string): str
   return edges[0]?.target ?? null;
 }
 
-function triggerMatches(t: TriggerDef, normalized: string, firstContact: boolean): boolean {
+function triggerMatches(
+  t: TriggerDef,
+  normalized: string,
+  firstContact: boolean,
+  type?: string,
+): boolean {
   switch (t.matchType) {
     case "exact":
       return (t.keywords || []).includes(normalized);
@@ -369,7 +377,9 @@ function triggerMatches(t: TriggerDef, normalized: string, firstContact: boolean
     case "welcome":
       return firstContact;
     case "any":
-      return normalized.length > 0;
+      // Any inbound message: non-empty text, OR a non-text message (image,
+      // video, audio, document, location, …) that may carry no caption.
+      return normalized.length > 0 || (!!type && type !== "text");
     case "default":
       return true;
     default:
@@ -1117,7 +1127,7 @@ async function startNewRun(
     (c) =>
       !suppressed.has(c.flow.id) &&
       !flowBlockedFor(c.flow, lastRunByFlow) &&
-      triggerMatches(c.t, input.normalized, firstContact),
+      triggerMatches(c.t, input.normalized, firstContact, input.type),
   );
   if (!matchedCand) return;
   const matched = matchedCand.flow;
