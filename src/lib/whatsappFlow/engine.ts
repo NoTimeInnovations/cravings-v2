@@ -25,6 +25,12 @@ const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 // the reply. Meta shows typing for up to 25s; this only affects the
 // once-per-customer welcome path, so it never delays normal replies.
 const WELCOME_TYPING_MS = 1500;
+// Minimum time the "typing…" bubble stays visible before the reply dismisses it.
+// The read receipt + typing now fire at the very start of the turn (in parallel
+// with the read wave), so by the time the reply is ready the bubble has usually
+// already been showing for a while — we only sleep for whatever slice of this
+// window hasn't elapsed yet, so the reply is never held longer than needed.
+const MIN_TYPING_MS = 900;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const MAX_STEPS = 50; // loop guard across a whole run
 const MAX_SENDS_PER_TURN = 10; // bound Graph sends per inbound message
@@ -815,12 +821,34 @@ export async function runFlowForInbound(args: {
   const activeP = fetchFromHasura(Q_ACTIVE_RUN, { p: partnerId, c: contactPhone }).catch(
     () => null,
   );
+  // Fire the flows + run-count reads first and SHARE them: the ultra-fast read
+  // receipt + typing needs them now, and the read wave reuses them below (no
+  // duplicate queries).
+  const flowsP = fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId });
+  const runCountP = fetchFromHasura(Q_RUN_COUNT, { p: partnerId, c: contactPhone });
+  // Ultra-fast read receipt + typing: kick it the instant we can tell this is a
+  // greeting on a fresh conversation — in parallel with the idempotency /
+  // active-run / wave work, NOT after the wave resolves. Resolves to the ms the
+  // bubble was shown (or null) so the reply path can hold a minimum window.
+  const readTypingP: Promise<number | null> =
+    flowTyping && sendToken
+      ? maybeGreetingReadTyping({
+          phoneNumberId,
+          waMessageId,
+          sendToken,
+          input,
+          activeP,
+          flowsP,
+          runCountP,
+        })
+      : Promise.resolve(null);
+  readTypingP.catch(() => {});
   // Optimistically start the new-run read wave NOW, in parallel with the
   // active-run check — an inbound "hi" is almost always a fresh order, so this
   // collapses two sequential round-trips into one. On the rare resume the wave
   // is simply discarded (cheap reads). Pre-attach a no-op catch so a failure
   // here can't surface as an unhandled rejection when we don't await it.
-  const waveP = runStartRunWave(partnerId, contactPhone, sendToken);
+  const waveP = runStartRunWave(partnerId, contactPhone, sendToken, flowsP, runCountP);
   waveP.catch(() => {});
 
   const [isDuplicate, activeRes] = await Promise.all([eventP, activeP]);
@@ -857,6 +885,7 @@ export async function runFlowForInbound(args: {
     sendToken,
     waveP,
     flowTyping,
+    readTypingP,
   );
 }
 
@@ -1016,11 +1045,16 @@ function runStartRunWave(
   partnerId: string,
   contactPhone: string,
   prefetchedToken?: string,
+  // The flows / run-count reads may already be in flight (fired first so the
+  // ultra-fast read receipt + typing can go out before the rest of the wave).
+  // Reuse them instead of issuing duplicate queries.
+  prefetchedFlowsP?: Promise<any>,
+  prefetchedRunCountP?: Promise<any>,
 ): Promise<StartRunWave> {
   const phoneVariants = phoneMatchVariants(contactPhone);
   return Promise.all([
-    fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId }),
-    fetchFromHasura(Q_RUN_COUNT, { p: partnerId, c: contactPhone }),
+    prefetchedFlowsP ?? fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId }),
+    prefetchedRunCountP ?? fetchFromHasura(Q_RUN_COUNT, { p: partnerId, c: contactPhone }),
     getSuppressedFlowIds(partnerId, contactPhone),
     getLastFlowRunAt(partnerId, contactPhone),
     fetchFromHasura(Q_PARTNER_INFO, { id: partnerId }).catch(() => null),
@@ -1090,6 +1124,62 @@ async function sendWelcomeReadTyping(
   }
 }
 
+// Does this inbound match an enabled flow's GREETING trigger (welcome / exact /
+// contains)? Deliberately does NOT re-check suppression / cooldown — those live
+// in the fuller read wave, and skipping them keeps the read receipt on the
+// fastest possible path. The only cost is a rare cosmetic case: a greeting flow
+// that's suppressed/cooled-down still gets a blue tick + a brief "typing…" that
+// then clears with no reply.
+function matchesGreetingTrigger(
+  flows: Array<{ triggers?: TriggerDef[] }>,
+  input: FlowInput,
+  firstContact: boolean,
+): boolean {
+  for (const f of flows) {
+    for (const t of f.triggers || []) {
+      if (!isGreetingTrigger(t.matchType)) continue;
+      if (triggerMatches(t, input.normalized, firstContact, input.type)) return true;
+    }
+  }
+  return false;
+}
+
+// Ultra-fast read receipt + typing. Fired at the very START of the turn, in
+// parallel with the idempotency/active-run/read-wave work, so the blue tick and
+// "typing…" appear almost immediately instead of after the whole wave resolves.
+// Returns the Date.now() at which the bubble was shown (so the reply path can
+// hold it for a minimum visible window), or null if nothing was sent.
+async function maybeGreetingReadTyping(args: {
+  phoneNumberId: string;
+  waMessageId: string;
+  sendToken: string;
+  input: FlowInput;
+  activeP: Promise<any>;
+  flowsP: Promise<any>;
+  runCountP: Promise<any>;
+}): Promise<number | null> {
+  const { phoneNumberId, waMessageId, sendToken, input, activeP, flowsP, runCountP } = args;
+  try {
+    const [activeRes, flowsRes, runCountRes] = await Promise.all([activeP, flowsP, runCountP]);
+    // Mid-conversation reply (there's an active run) → not a greeting; stay unread.
+    if (activeRes?.whatsapp_flow_execution_state?.[0]) return null;
+    const flows = (flowsRes?.whatsapp_flows || []) as Array<{ triggers?: TriggerDef[] }>;
+    if (!flows.length) return null;
+    const hasWelcome = flows.some((f) =>
+      (f.triggers || []).some((t) => t.matchType === "welcome"),
+    );
+    const firstContact =
+      hasWelcome &&
+      (runCountRes?.whatsapp_flow_execution_state_aggregate?.aggregate?.count ?? 0) === 0;
+    if (!matchesGreetingTrigger(flows, input, firstContact)) return null;
+    const shown = await sendWelcomeReadTyping(phoneNumberId, waMessageId, sendToken);
+    return shown ? Date.now() : null;
+  } catch (e) {
+    console.error("maybeGreetingReadTyping error:", e);
+    return null;
+  }
+}
+
 async function startNewRun(
   partnerId: string,
   phoneNumberId: string,
@@ -1106,6 +1196,10 @@ async function startNewRun(
   // a greeting (welcome / exact / contains keyword). Gated upstream by
   // whatsappOrdering + whatsappFlowTyping.
   flowTyping = false,
+  // The already-in-flight ultra-fast read+typing promise (common path). Resolves
+  // to the ms the bubble was shown, or null. When absent (keyword-restart path)
+  // read+typing is fired inline below instead.
+  readTypingP?: Promise<number | null>,
 ) {
   const { flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes } =
     await (prefetchedWave ?? runStartRunWave(partnerId, contactPhone, prefetchedToken));
@@ -1145,21 +1239,22 @@ async function startNewRun(
   // Read receipt + typing on GREETING flows. A "greeting" trigger is one a
   // customer intentionally starts a conversation with: welcome (first-ever
   // message) or an exact/contains keyword ("hi", "menu", …). Catch-all triggers
-  // (any/default) are deliberately excluded so marketing / auto-reply flows
-  // leave the message unread — the whole point is that only a real greeting gets
-  // the blue tick + "typing…", and everything else stays unread for the partner
-  // to answer. We're here only because this flow passed every gate (enabled, not
-  // suppressed, not blocked by once-per-customer/cooldown, trigger matched), so
-  // firing it here inherits all those rules. Sent BEFORE the reply and AWAITED,
-  // on purpose:
-  //   • awaiting means a serverless freeze after the webhook responds can't drop
-  //     the call before it reaches Meta (the old fire-and-forget could vanish, so
-  //     no blue tick ever showed), and
-  //   • Meta dismisses the typing indicator the moment a message is sent, so
-  //     firing it concurrently with the reply made "typing…" invisible.
-  // We mark read + start typing, hold a short beat so the animation is actually
-  // seen, then fall through to send the reply (which clears the typing).
-  if (flowTyping && isGreetingTrigger(matchedCand.t.matchType) && sendToken) {
+  // (any/default) are excluded so marketing / auto-reply flows leave the message
+  // unread — only a real greeting gets the blue tick + "typing…".
+  //
+  // The read+typing was normally already fired at the very START of the turn
+  // (readTypingP), so the bubble has been visible while this wave ran. Here we
+  // only hold the reply until it's been shown for MIN_TYPING_MS — sleeping just
+  // the unelapsed slice — since Meta clears the typing bubble the moment a
+  // message is sent. The keyword-restart path has no readTypingP, so it fires
+  // read+typing inline (it inherits all the same gates by reaching this point).
+  if (readTypingP) {
+    const shownAt = await readTypingP;
+    if (shownAt) {
+      const remaining = MIN_TYPING_MS - (Date.now() - shownAt);
+      if (remaining > 0) await sleep(remaining);
+    }
+  } else if (flowTyping && isGreetingTrigger(matchedCand.t.matchType) && sendToken) {
     const shown = await sendWelcomeReadTyping(phoneNumberId, waMessageId, sendToken);
     if (shown) await sleep(WELCOME_TYPING_MS);
   }
