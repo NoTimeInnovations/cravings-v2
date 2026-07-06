@@ -343,14 +343,6 @@ export function AdminV2Dashboard() {
               <span className="text-center leading-tight">{action.title}</span>
             </button>
           ))}
-
-          <button
-            onClick={() => window.open("https://wa.me/918590115462", "_blank")}
-            className="flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium"
-          >
-            <MessageCircle className="h-5 w-5 text-orange-600 shrink-0" />
-            <span className="text-center leading-tight">Contact Us</span>
-          </button>
         </div>
       </div>
 
