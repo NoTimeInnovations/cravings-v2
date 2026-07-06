@@ -17,6 +17,7 @@ import {
   useLoadScript,
 } from "@react-google-maps/api";
 import { HotelData } from "@/app/hotels/[...id]/page";
+import { roadDistanceKm } from "@/lib/roadDistance";
 
 // Local types for user addresses (stored in users.addresses jsonb)
 export type SavedAddress = {
@@ -40,6 +41,9 @@ export type SavedAddress = {
   /** Receiver name and phone for the order — used by V2 checkout + 3PL booking. */
   receiverName?: string;
   receiverPhone?: string;
+  /** Road distance (km, address -> store) computed once at pick time and reused
+   *  at checkout so the fee/distance shown never diverges from what the picker showed. */
+  deliveryDistanceKm?: number | null;
   /** Epoch ms of when this address was last saved/selected — drives newest-first ordering. */
   savedAt?: number;
   /** Human-friendly locality name (e.g. "Kollamkudimugal") shown as the primary label. */
@@ -576,7 +580,20 @@ const AddressManagementModal = ({
     const lng = center.lng();
     mapCenterRef.current = { lat, lng };
     if (hotelCoords) {
-      setPinDistanceKm(haversineKm(hotelCoords, { lat, lng }));
+      // Road distance (address -> store) — same metric/direction checkout uses,
+      // so the number shown here equals what checkout charges. Fall back to
+      // straight-line if Mapbox is unavailable. Guard against a stale async
+      // result overwriting a newer pin position.
+      const at = { lat, lng };
+      setPinDistanceKm(haversineKm(hotelCoords, at));
+      roadDistanceKm(at, hotelCoords).then((km) => {
+        if (
+          mapCenterRef.current?.lat !== lat ||
+          mapCenterRef.current?.lng !== lng
+        )
+          return;
+        setPinDistanceKm(km ?? haversineKm(hotelCoords, at));
+      });
     }
 
     // Mark initialized after first idle (skip geocode timer during init)
@@ -636,6 +653,15 @@ const AddressManagementModal = ({
 
     setSaving(true);
     try {
+      // Authoritative road distance (address -> store) computed once here and
+      // reused at checkout, so the modal and checkout can never disagree. Fall
+      // back to the already-shown pin distance / straight-line if Mapbox fails.
+      let deliveryDistanceKm: number | null = pinDistanceKm ?? null;
+      if (hotelCoords) {
+        const roadKm = await roadDistanceKm(mapCenterRef.current, hotelCoords);
+        deliveryDistanceKm =
+          roadKm ?? pinDistanceKm ?? haversineKm(hotelCoords, mapCenterRef.current);
+      }
       const addr: SavedAddress = {
         id: editAddress?.id || `${Date.now()}`,
         label: editAddress?.label || geocodedInfo.name || "Other",
@@ -648,6 +674,7 @@ const AddressManagementModal = ({
         latitude: mapCenterRef.current.lat,
         longitude: mapCenterRef.current.lng,
         isDefault: false,
+        deliveryDistanceKm,
       };
 
       onSaved(addr);

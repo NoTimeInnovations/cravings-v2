@@ -18,6 +18,7 @@ import {
 import { GoogleMap, useLoadScript } from "@react-google-maps/api";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import type { SavedAddress } from "./AddressManagementModal";
+import { roadDistanceKm, haversineKm } from "@/lib/roadDistance";
 import reverseQarsFromCoord, {
   type QarsReverseResult,
 } from "@/app/actions/reverseQarsFromCoord";
@@ -125,46 +126,6 @@ function saveRecentSearch(item: RecentSearch) {
     const updated = [item, ...existing].slice(0, MAX_RECENT);
     localStorage?.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
   } catch {}
-}
-
-function haversineKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const R = 6371;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-// Road (driving) distance in km via Mapbox — the SAME metric checkout uses for
-// the delivery-radius check (calculateDeliveryDistanceAndCost). The picker must
-// validate serviceability by road distance, not straight-line: an address can
-// sit inside the straight-line radius circle yet be far longer by road (e.g.
-// backwater/river detours), and checkout would then reject it. Returns null on
-// any failure so the caller can fall back to the straight-line estimate.
-async function roadDistanceKm(
-  from: { lat: number; lng: number },
-  to: { lat: number; lng: number },
-): Promise<number | null> {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  if (!token) return null;
-  try {
-    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${from.lng},${from.lat};${to.lng},${to.lat}?access_token=${token}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const d = data?.routes?.[0]?.distance;
-    return typeof d === "number" ? d / 1000 : null;
-  } catch {
-    return null;
-  }
 }
 
 const SHOP_PIN_SVG = `data:image/svg+xml,${encodeURIComponent(
@@ -406,8 +367,10 @@ const AddressPickerV2 = ({
     (lat: number, lng: number) => {
       if (!hotelCoords) return;
       setPinDistanceKm(null);
-      roadDistanceKm(hotelCoords, { lat, lng }).then((km) => {
-        setPinDistanceKm(km ?? haversineKm(hotelCoords, { lat, lng }));
+      // Direction matters (Mapbox driving distance is asymmetric): always
+      // address -> store, matching checkout's calculateDeliveryDistanceAndCost.
+      roadDistanceKm({ lat, lng }, hotelCoords).then((km) => {
+        setPinDistanceKm(km ?? haversineKm({ lat, lng }, hotelCoords));
       });
     },
     [hotelCoords],
@@ -643,18 +606,20 @@ const AddressPickerV2 = ({
       toast.error("Please enter your flat / floor / building details");
       return;
     }
-    // Authoritative serviceability check by ROAD distance — the same metric
-    // checkout uses. Done here (even if the live refinement already ran) so a
-    // location that's inside the straight-line circle but too far by road can
-    // never be saved and then rejected later at checkout. Falls back to the
-    // straight-line estimate only if the road lookup itself fails.
-    if (radiusKm && hotelCoords && mapCenterRef.current) {
-      const roadKm = await roadDistanceKm(hotelCoords, mapCenterRef.current);
-      const effectiveKm = roadKm ?? pinDistanceKm;
-      if (effectiveKm != null) setPinDistanceKm(effectiveKm);
-      if (effectiveKm != null && effectiveKm > radiusKm) {
+    // Authoritative road distance (address -> store) — the same metric AND
+    // direction checkout uses. Computed once here and stored on the address so
+    // the picker, the radius check, and checkout can never disagree. Done even
+    // when there's no radius so checkout can reuse the exact number. Falls back
+    // to the straight-line estimate only if the road lookup itself fails.
+    let deliveryDistanceKm: number | null = pinDistanceKm ?? null;
+    if (hotelCoords && mapCenterRef.current) {
+      const roadKm = await roadDistanceKm(mapCenterRef.current, hotelCoords);
+      deliveryDistanceKm =
+        roadKm ?? pinDistanceKm ?? haversineKm(mapCenterRef.current, hotelCoords);
+      if (deliveryDistanceKm != null) setPinDistanceKm(deliveryDistanceKm);
+      if (radiusKm && deliveryDistanceKm != null && deliveryDistanceKm > radiusKm) {
         toast.error(
-          `This location is ${effectiveKm.toFixed(1)} km by road — ${hotelData?.store_name || "this store"} delivers within ${radiusKm} km`,
+          `This location is ${deliveryDistanceKm.toFixed(1)} km by road — ${hotelData?.store_name || "this store"} delivers within ${radiusKm} km`,
         );
         return;
       }
@@ -690,6 +655,7 @@ const AddressPickerV2 = ({
         latitude: mapCenterRef.current.lat,
         longitude: mapCenterRef.current.lng,
         isDefault: false,
+        deliveryDistanceKm,
       };
       onSaved(addr);
       onClose();

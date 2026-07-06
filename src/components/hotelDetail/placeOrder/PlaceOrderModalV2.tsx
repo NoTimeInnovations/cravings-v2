@@ -598,7 +598,12 @@ const PlaceOrderModalV2 = ({
   useEffect(() => {
     if (!open_place_order_modal || isQrScan) return;
     if (orderType !== "delivery" || !userCoordinates) return;
-    calculateDeliveryDistanceAndCost(hotelData, userCoordinates);
+    // If these coords belong to a saved address, reuse the road distance the
+    // picker stored on it (coord-keyed, so it can't go stale) — that keeps this
+    // charge identical to what the address modal showed. Otherwise (fresh
+    // onboarding coords not yet saved) fall through to a live Mapbox lookup.
+    const precomputed = findSavedAddress(address || "", userCoordinates)?.deliveryDistanceKm;
+    calculateDeliveryDistanceAndCost(hotelData, userCoordinates, precomputed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open_place_order_modal, isQrScan, orderType, userCoordinates?.lat, userCoordinates?.lng, hotelData?.id]);
 
@@ -1168,7 +1173,9 @@ const PlaceOrderModalV2 = ({
       const coords = addr.latitude && addr.longitude
         ? { lat: addr.latitude, lng: addr.longitude }
         : null;
-      calculateDeliveryDistanceAndCost(hotelData, coords);
+      // Reuse the road distance the picker already computed & stored on this
+      // address, so checkout shows the exact same number the address modal did.
+      calculateDeliveryDistanceAndCost(hotelData, coords, addr.deliveryDistanceKm);
     }
     // Bump this address to "latest" (with phone attached) so it shows first
     // next time. Saved locally always, and to the DB when logged in.
@@ -2580,7 +2587,10 @@ const PlaceOrderModalV2 = ({
                         onClick={() => {
                           if (!open) return;
                           setOrderType(type);
-                          if (type === "delivery") calculateDeliveryDistanceAndCost(hotelData, userCoordinates);
+                          if (type === "delivery") {
+                            const precomputed = findSavedAddress(address || "", userCoordinates)?.deliveryDistanceKm;
+                            calculateDeliveryDistanceAndCost(hotelData, userCoordinates, precomputed);
+                          }
                         }}
                         disabled={!open}
                         className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all border-2 ${

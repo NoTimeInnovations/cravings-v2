@@ -1,6 +1,6 @@
 "use client";
 import useOrderStore, { OrderItem } from "@/store/orderStore";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import {
@@ -1723,6 +1723,21 @@ const PlaceOrderModal = ({
 
   const { userData: user } = useAuthStore();
 
+  // Road distance the picker already computed & stored on the saved address at
+  // these coords, so checkout reuses the exact number the address modal showed
+  // (coord-keyed → never stale). undefined when no saved address matches →
+  // calculateDeliveryDistanceAndCost falls back to a live Mapbox lookup.
+  const savedDistanceForCoords = useCallback(
+    (coords?: { lat: number; lng: number } | null): number | null | undefined => {
+      if (!coords) return undefined;
+      const list = ((user as any)?.addresses || []) as SavedAddress[];
+      return list.find(
+        (a) => a.latitude === coords.lat && a.longitude === coords.lng,
+      )?.deliveryDistanceKm;
+    },
+    [user],
+  );
+
   // Per-item takeaway surcharge, baked into prices only when takeaway is selected.
   const takeawayAdjPerItem = orderType === "takeaway" ? getTakeawayAdjustment(hotelData) : 0;
 
@@ -1923,7 +1938,7 @@ const PlaceOrderModal = ({
   useEffect(() => {
     if (!open_place_order_modal) return;
     if (orderType !== "delivery" || !selectedCoords) return;
-    calculateDeliveryDistanceAndCost(hotelData as HotelData, selectedCoords);
+    calculateDeliveryDistanceAndCost(hotelData as HotelData, selectedCoords, savedDistanceForCoords(selectedCoords));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open_place_order_modal, orderType, selectedCoords?.lat, selectedCoords?.lng, hotelData?.id]);
 
@@ -2548,8 +2563,9 @@ const PlaceOrderModal = ({
       !isQrScan &&
       orderType === "delivery"
     ) {
-      calculateDeliveryDistanceAndCost(hotelData as HotelData, selectedCoords);
+      calculateDeliveryDistanceAndCost(hotelData as HotelData, selectedCoords, savedDistanceForCoords(selectedCoords));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCoords, isDelivery, hasDelivery, isQrScan, orderType, hotelData]);
 
   const handleApplyDiscount = async () => {

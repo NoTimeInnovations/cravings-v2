@@ -66,6 +66,7 @@ export const calculateGstForItems = (
 export const calculateDeliveryDistanceAndCost = async (
   hotelData: HotelData,
   explicitCoords?: { lat: number; lng: number } | null,
+  precomputedDistanceKm?: number | null,
 ) => {
   const { setDeliveryInfo } = useOrderStore.getState();
 
@@ -131,23 +132,34 @@ export const calculateDeliveryDistanceAndCost = async (
 
     const userLocation = [userLng, userLat];
 
-    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!mapboxToken) return;
+    // Prefer a distance already computed at address-pick time (stored on the
+    // saved address) so the fee/distance at checkout EXACTLY matches what the
+    // address picker showed — no second, independent Mapbox call that could
+    // differ by direction/route/fallback. Otherwise fetch a fresh road distance
+    // in the SAME direction the picker uses (address -> store).
+    let distanceInKm: number;
+    if (
+      typeof precomputedDistanceKm === "number" &&
+      Number.isFinite(precomputedDistanceKm) &&
+      precomputedDistanceKm >= 0
+    ) {
+      distanceInKm = precomputedDistanceKm;
+    } else {
+      const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      if (!mapboxToken) return;
 
-    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${userLocation.join(
-      ",",
-    )};${restaurantCoords.join(",")}?access_token=${mapboxToken}`;
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${userLocation.join(
+        ",",
+      )};${restaurantCoords.join(",")}?access_token=${mapboxToken}`;
 
-    const response = await fetch(url);
-    if (!response.ok) return;
-    const data = await response.json();
+      const response = await fetch(url);
+      if (!response.ok) return;
+      const data = await response.json();
 
-    if (!data.routes || data.routes.length === 0) return;
+      if (!data.routes || data.routes.length === 0) return;
 
-    const exactDistance = data.routes[0].distance / 1000;
-    // Ceil the distance for whole kilometer charging
-    // const distanceInKm = Math.ceil(exactDistance);
-    const distanceInKm = exactDistance;
+      distanceInKm = data.routes[0].distance / 1000;
+    }
     const deliveryRate = hotelData?.delivery_rate || 0;
 
     const {
