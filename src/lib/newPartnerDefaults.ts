@@ -20,8 +20,12 @@ export interface NewPartnerTheme {
   [key: string]: unknown;
 }
 
+// New partners default to the "Charcoal Noir" brand colour.
+export const NEW_PARTNER_BRAND_COLOR = "charcoal-noir";
+
 export const NEW_PARTNER_THEME: NewPartnerTheme = {
   colors: { accent: "#E9701B", bg: "#ffffff", text: "#000000" },
+  brandColor: NEW_PARTNER_BRAND_COLOR,
   menuStyle: "v3",
   checkoutStyle: "v2",
 };
@@ -61,8 +65,8 @@ export const buildNewPartnerTrialSubscription = (country?: string) => {
 // Default delivery pricing + service windows for every new partner.
 // "first 4 km ₹40, then ₹10 per additional km" → first_km_range {km:4, rate:40}
 // plus the separate partners.delivery_rate column (= per-additional-km rate).
-// Delivery & takeaway both run 10:00–22:00 by default. The partner can change
-// all of this in Settings → Delivery.
+// Delivery & takeaway both run all day (00:00–23:59) by default. The partner can
+// change all of this in Settings → Delivery.
 export const NEW_PARTNER_DELIVERY_RATE = 10;
 
 export const NEW_PARTNER_DELIVERY_RULES = {
@@ -72,8 +76,8 @@ export const NEW_PARTNER_DELIVERY_RULES = {
   delivery_ranges: [] as { from_km: number; to_km: number; rate: number }[],
   is_fixed_rate: false,
   minimum_order_amount: 0,
-  delivery_time_allowed: { from: "10:00", to: "22:00" },
-  takeaway_time_allowed: { from: "10:00", to: "22:00" },
+  delivery_time_allowed: { from: "00:00", to: "23:59" },
+  takeaway_time_allowed: { from: "00:00", to: "23:59" },
   isDeliveryActive: true,
   needDeliveryLocation: true,
 };
@@ -114,6 +118,9 @@ export const applyNewPartnerThemeDefaults = (
   return JSON.stringify({
     ...parsed,
     colors: { ...NEW_PARTNER_THEME.colors, ...parsedColors },
+    // Keep a brand colour the caller already chose (e.g. Google-signup pick),
+    // otherwise default new partners to Charcoal Noir.
+    brandColor: (parsed.brandColor as string) || NEW_PARTNER_BRAND_COLOR,
     menuStyle: "v3",
     checkoutStyle: "v2",
   });

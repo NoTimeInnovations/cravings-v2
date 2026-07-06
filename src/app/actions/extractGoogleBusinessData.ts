@@ -57,19 +57,22 @@ function pickComponent(
   return components.find((c) => c.types.includes(type))?.long_name || null;
 }
 
-// Reduce a Google phone string to bare digits only — no "+", no country code,
-// no spaces/brackets/dashes. We prefer `formatted_phone_number` (the national
-// format, which already excludes the country code) over the international one,
-// then strip every non-digit. e.g. "+91 98765 43210" → national "098765 43210"
-// → "09876543210"; "098765 43210" → "09876543210". A leading trunk "0" is left
-// as-is (still a digit) — the requirement is "digits only, no country code".
+// Reduce a Google phone string to the bare local number — no "+", no country
+// code, no leading trunk "0", no spaces/brackets/dashes. We prefer
+// `formatted_phone_number` (national format, no country code) over the
+// international one, strip every non-digit, then drop any leading trunk "0"(s)
+// so the stored number is the plain 10-digit local form. e.g.
+// "+91 98765 43210" → national "098765 43210" → "09876543210" → "9876543210";
+// "098765 43210" → "9876543210".
 function toDigitsOnly(
   national?: string | null,
   international?: string | null,
 ): string | null {
   const raw = national || international;
   if (!raw) return null;
-  const digits = raw.replace(/\D/g, "");
+  let digits = raw.replace(/\D/g, "");
+  // Strip leading trunk "0" so e.g. "09876543210" → "9876543210".
+  digits = digits.replace(/^0+/, "");
   return digits || null;
 }
 

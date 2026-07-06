@@ -18,6 +18,20 @@ import { useMenuStore } from "@/store/menuStore_hasura";
 import { countryCodes } from "@/utils/countryCodes";
 import { getDeliveryAgentWallet } from "@/app/actions/deliveryAgent";
 
+// Normalise a phone / WhatsApp number to the bare 10-digit local form: strips
+// spaces, "+", dashes, brackets, the country code, and any leading trunk "0".
+// So "+91 98765 43210", "098765 43210", "0 98765 43210" all become
+// "9876543210". Returns whatever digits remain if it can't reach 10 (the caller
+// validates length), so a genuinely-short entry still fails loudly.
+function sanitizeLocalPhone(raw: string, countryCode?: string): string {
+    let d = String(raw ?? "").replace(/\D/g, "");
+    const cc = String(countryCode ?? "").replace(/\D/g, "");
+    if (cc && d.length > 10 && d.startsWith(cc)) d = d.slice(cc.length);
+    d = d.replace(/^0+/, "");
+    if (d.length > 10) d = d.slice(-10);
+    return d;
+}
+
 export function TimePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
     const [open, setOpen] = useState(false);
     const [selecting, setSelecting] = useState<"hours" | "minutes">("hours");
@@ -434,10 +448,16 @@ export function DeliverySettings() {
     const handleSaveDelivery = useCallback(async () => {
         if (!userData) return;
 
-        // Validate WhatsApp numbers
-        for (const item of whatsappNumbers) {
+        // Normalise every WhatsApp number BEFORE validating, so a pasted
+        // "+91 98765 43210", "098765 43210", or a number with spaces is accepted
+        // and saved as a clean 10-digit number instead of erroring.
+        const cleanedWhatsapp = whatsappNumbers.map((item) => ({
+            ...item,
+            number: sanitizeLocalPhone(item.number, countryCode),
+        }));
+        for (const item of cleanedWhatsapp) {
             if (!item.number || item.number.length !== 10) {
-                toast.error(`Please enter a valid WhatsApp Number for ${item.area || "unnamed area"}`);
+                toast.error(`Please enter a valid 10-digit WhatsApp Number for ${item.area || "unnamed area"}`);
                 return;
             }
             if (!item.area) {
@@ -445,31 +465,40 @@ export function DeliverySettings() {
                 return;
             }
         }
+        // Reflect the cleaned numbers in the inputs.
+        setWhatsappNumbers(cleanedWhatsapp);
 
-        // Delivery Bridge mobiles — each must be blank or a 10-digit Indian number.
+        // Delivery Bridge mobiles — normalise, then each must be blank or a
+        // 10-digit Indian number.
+        const cleanPorter = sanitizeLocalPhone(porterMobile, countryCode);
+        const cleanUber = sanitizeLocalPhone(uberMobile, countryCode);
+        const cleanRapido = sanitizeLocalPhone(rapidoMobile, countryCode);
         for (const [label, m] of [
-            ["Porter", porterMobile],
-            ["Uber", uberMobile],
-            ["Rapido", rapidoMobile],
+            ["Porter", cleanPorter],
+            ["Uber", cleanUber],
+            ["Rapido", cleanRapido],
         ] as const) {
-            if (m.trim() && !/^[6-9][0-9]{9}$/.test(m.trim())) {
+            if (m && !/^[6-9][0-9]{9}$/.test(m)) {
                 toast.error(`${label} mobile must be a 10-digit number (or left blank)`);
                 return;
             }
         }
+        setPorterMobile(cleanPorter);
+        setUberMobile(cleanUber);
+        setRapidoMobile(cleanRapido);
 
         setIsSaving(true);
         try {
             const updates = {
                 delivery_rate: deliveryRate,
                 delivery_rules: deliveryRules,
-                whatsapp_numbers: whatsappNumbers,
+                whatsapp_numbers: cleanedWhatsapp,
                 country_code: countryCode,
                 price_adjustment: priceAdjustment,
                 takeaway_price_adjustment: takeawayPriceAdjustment,
-                porter_mobile: porterMobile.trim() || null,
-                uber_mobile: uberMobile.trim() || null,
-                rapido_mobile: rapidoMobile.trim() || null,
+                porter_mobile: cleanPorter || null,
+                uber_mobile: cleanUber || null,
+                rapido_mobile: cleanRapido || null,
             };
 
             await updatePartner(userData.id, updates);
