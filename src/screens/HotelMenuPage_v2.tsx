@@ -534,7 +534,11 @@ const HotelMenuPage = ({
     pathname: pathname,
     isOnFreePlan: isHotelOnFreePlan,
     hideOtherCategories: !!lockedCategory,
-    onShowStorefront: showOnboarding ? reopenOutletPicker : undefined,
+    // The menu back arrow must re-open THIS store's onboarding/storefront. For a
+    // child outlet, always provide the in-place re-open handler so the arrow does
+    // NOT fall through to brandHeader.onChange (which navigates to the brand
+    // parent / "first store"). reopenOutletPicker force-mounts the overlay below.
+    onShowStorefront: (showOnboarding || !!brandLink) ? reopenOutletPicker : undefined,
     brandHeader,
   };
 
@@ -638,7 +642,7 @@ const HotelMenuPage = ({
           )}
         </>
       )}
-      {showOnboarding && !isReorderMode && (
+      {(showOnboarding || forceStorefront) && !isReorderMode && (
         <OnboardingFlow
           key={onboardingKey}
           featureFlags={hoteldata?.feature_flags || ""}
