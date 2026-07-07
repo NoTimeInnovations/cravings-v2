@@ -25,6 +25,19 @@ export function IntegrationsSettings() {
     const planId = (userData as any)?.subscription_details?.plan?.id;
     const isOnFreePlan = isFreePlan(planId);
 
+    // Petpooja config (set at onboarding, read-only). Only shown when the partner
+    // has a Petpooja restaurant id AND both the tax type and menu type are set.
+    const pp = userData as any;
+    const hasPetpoojaConfig = !!(
+        pp?.petpooja_restaurant_id && pp?.petpooja_tax_type && pp?.petpooja_menu_type
+    );
+    const petpoojaTaxLabel =
+        pp?.petpooja_tax_type === "backward" ? "Backward" :
+        pp?.petpooja_tax_type === "forward" ? "Forward" : "—";
+    const petpoojaMenuLabel =
+        pp?.petpooja_menu_type === "offline" ? "Offline" :
+        pp?.petpooja_menu_type === "online" ? "Online" : "—";
+
     // Delivery Platform link state
     const [zomatoLink, setZomatoLink] = useState("");
     const [uberEatsLink, setUberEatsLink] = useState("");
@@ -614,6 +627,37 @@ export function IntegrationsSettings() {
     return (
         <div className="space-y-6">
             <div className="grid gap-6">
+                {hasPetpoojaConfig && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Petpooja Integration</CardTitle>
+                            <CardDescription>Set during onboarding — these fields are read-only.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label>Restaurant ID</Label>
+                                    <div className="h-10 flex items-center rounded-md border bg-muted/50 px-3 text-sm text-muted-foreground">
+                                        {pp?.petpooja_restaurant_id}
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Tax Type</Label>
+                                    <div className="h-10 flex items-center rounded-md border bg-muted/50 px-3 text-sm text-muted-foreground">
+                                        {petpoojaTaxLabel}
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Menu Type</Label>
+                                    <div className="h-10 flex items-center rounded-md border bg-muted/50 px-3 text-sm text-muted-foreground">
+                                        {petpoojaMenuLabel}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 {/* Delivery Platforms card hidden — not needed for now.
                 <Card>
                     <CardHeader>
