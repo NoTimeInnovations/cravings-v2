@@ -161,6 +161,12 @@ export const calculateDeliveryDistanceAndCost = async (
 
       distanceInKm = data.routes[0].distance / 1000;
     }
+
+    // Round the measured distance to 1 decimal place so it lines up with the
+    // tier boundaries (defined at 0.1 km granularity, e.g. 0.6, 1, 2.0). A raw
+    // value like 2.064 would otherwise sit in the fractional gap between tiers.
+    distanceInKm = Math.round(distanceInKm * 10) / 10;
+
     const deliveryRate = hotelData?.delivery_rate || 0;
 
     const {
@@ -174,7 +180,7 @@ export const calculateDeliveryDistanceAndCost = async (
 
     if (delivery_radius && distanceInKm > delivery_radius) {
       setDeliveryInfo({
-        distance: distanceInKm, // Already ceiled
+        distance: distanceInKm, // rounded to 1 decimal place
         cost: 0,
         ratePerKm: deliveryRate,
         isOutOfRange: true,
@@ -192,24 +198,34 @@ export const calculateDeliveryDistanceAndCost = async (
       delivery_ranges &&
       delivery_ranges.length > 0
     ) {
-      // Advanced mode: Range-based pricing
-      const applicableRange = delivery_ranges.find(
+      // Advanced mode: Range-based pricing. Partners often enter tiers with a
+      // gap between them (e.g. 1.1–2, 2.1–3) to avoid overlap, which leaves the
+      // fractional interval (2.0–2.1) uncovered. A distance landing in such a
+      // gap must snap UP to the next tier — NOT fall through to free delivery
+      // (which silently gave ₹0 delivery and stored extra_charges = null).
+      const ascByTo = [...delivery_ranges].sort((a, b) => a.to_km - b.to_km);
+
+      // Exact hit: distance inside a tier's [from_km, to_km].
+      const applicableRange = ascByTo.find(
         (range) => distanceInKm >= range.from_km && distanceInKm <= range.to_km,
       );
 
       if (applicableRange) {
         calculatedCost = applicableRange.rate;
       } else {
-        // If no range matches, find the highest range and apply its rate
-        const sortedRanges = [...delivery_ranges].sort(
-          (a, b) => b.to_km - a.to_km,
-        );
-        if (sortedRanges.length > 0 && distanceInKm > sortedRanges[0].to_km) {
-          // Beyond all ranges, use the default delivery rate per km
+        const maxToKm = ascByTo[ascByTo.length - 1].to_km;
+        const minFromKm = Math.min(...ascByTo.map((r) => r.from_km));
+        if (distanceInKm > maxToKm) {
+          // Beyond all tiers: use the default delivery rate per km.
           calculatedCost = distanceInKm * deliveryRate;
-        } else {
-          // Below all ranges, use free delivery
+        } else if (distanceInKm < minFromKm) {
+          // Genuinely below the smallest tier: free.
           calculatedCost = 0;
+        } else {
+          // In a gap between two tiers: charge the next tier up (the first tier
+          // whose upper bound reaches this distance).
+          const nextTier = ascByTo.find((range) => range.to_km >= distanceInKm);
+          calculatedCost = nextTier ? nextTier.rate : 0;
         }
       }
     } else if (
