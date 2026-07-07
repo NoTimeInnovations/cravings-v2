@@ -19,6 +19,9 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { LocationSettings } from "./LocationSettings";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { CURRENCY_OPTIONS } from "@/lib/worldCurrencies";
+import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 
 export function GeneralSettings() {
     const { userData, setState } = useAuthStore();
@@ -33,6 +36,7 @@ export function GeneralSettings() {
     const [facebookLink, setFacebookLink] = useState("");
     const [isShopOpen, setIsShopOpen] = useState(true);
     const [timezone, setTimezone] = useState("Asia/Kolkata");
+    const [currency, setCurrency] = useState("");
     const [languageSwitcher, setLanguageSwitcher] = useState(false);
     const [autoProgressOrders, setAutoProgressOrders] = useState(false);
     const [menuLanguages, setMenuLanguages] = useState<string[]>([]);
@@ -61,6 +65,7 @@ export function GeneralSettings() {
             setFootNote(userData.footnote || "");
             setIsShopOpen(userData.is_shop_open);
             setTimezone((userData as any).timezone || "Asia/Kolkata");
+            setCurrency((userData as any).currency || "");
             try {
                 const sfRaw = (userData as any).storefront_settings;
                 const sf = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
@@ -133,6 +138,7 @@ export function GeneralSettings() {
                 footnote: footNote,
                 is_shop_open: isShopOpen,
                 timezone,
+                currency: currency || null,
                 whatsapp_numbers: nextWhatsappNumbers,
                 social_links: {
                     ...existingSocialLinks,
@@ -156,7 +162,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, languageSwitcher, autoProgressOrders, menuLanguages, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
+    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, currency, languageSwitcher, autoProgressOrders, menuLanguages, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -199,6 +205,8 @@ export function GeneralSettings() {
             whatsappNumber !== (data.whatsapp_numbers?.[0]?.number || data.phone || "") ||
             footNote !== (data.footnote || "") ||
             isShopOpen !== data.is_shop_open ||
+            timezone !== (data.timezone || "Asia/Kolkata") ||
+            currency !== (data.currency || "") ||
             instaLink !== (socialLinks.instagram || "") ||
             facebookLink !== (socialLinks.facebook || "") ||
             officialName !== (data.official_name || "") ||
@@ -218,6 +226,8 @@ export function GeneralSettings() {
         whatsappNumber,
         footNote,
         isShopOpen,
+        timezone,
+        currency,
         instaLink,
         facebookLink,
         officialName,
@@ -304,26 +314,27 @@ export function GeneralSettings() {
                                 <Input value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+91..." />
                             </div>
                             <div className="space-y-2">
-                                <Label>Timezone</Label>
-                                <Input
-                                    list="timezone-options"
-                                    value={timezone}
-                                    onChange={(e) => setTimezone(e.target.value)}
-                                    placeholder="Asia/Kolkata"
+                                <Label>Currency</Label>
+                                <SearchableSelect
+                                    options={CURRENCY_OPTIONS}
+                                    value={currency}
+                                    onChange={setCurrency}
+                                    placeholder="Select currency"
+                                    searchPlaceholder="Search currency (e.g. USD, Euro, ₹)"
+                                    emptyText="No currency found"
                                 />
-                                <datalist id="timezone-options">
-                                    <option value="Asia/Kolkata" />
-                                    <option value="Asia/Dubai" />
-                                    <option value="Asia/Singapore" />
-                                    <option value="Asia/Bangkok" />
-                                    <option value="Asia/Tokyo" />
-                                    <option value="Europe/London" />
-                                    <option value="Europe/Paris" />
-                                    <option value="America/New_York" />
-                                    <option value="America/Los_Angeles" />
-                                    <option value="Australia/Sydney" />
-                                    <option value="UTC" />
-                                </datalist>
+                                <p className="text-xs text-muted-foreground">Symbol shown on menus, orders and bills.</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Timezone</Label>
+                                <SearchableSelect
+                                    options={TIMEZONE_OPTIONS}
+                                    value={timezone}
+                                    onChange={setTimezone}
+                                    placeholder="Select timezone"
+                                    searchPlaceholder="Search timezone (e.g. Kolkata, GMT+5:30)"
+                                    emptyText="No timezone found"
+                                />
                                 <p className="text-xs text-muted-foreground">Used for scheduled menu visibility.</p>
                             </div>
                         </div>
