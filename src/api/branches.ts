@@ -34,6 +34,7 @@ query GetPartnerBranchInfo($partner_id: uuid!) {
       id
       name
       tagline
+      whatsapp_source
       parent_partner_id
       parent_partner {
         id
@@ -100,6 +101,18 @@ mutation SetPartnerBranch($partner_id: uuid!, $branch_id: uuid) {
 }
 `;
 
+// WhatsApp status of a single partner (the main branch), for the branch-WhatsApp
+// toggle in superadmin. Fetched separately because the array relationship isn't
+// tracked on the partners GraphQL type.
+export const getPartnerWhatsappStatusQuery = `
+query GetPartnerWhatsappStatus($partner_id: uuid!) {
+  whatsapp_business_integrations(where: {partner_id: {_eq: $partner_id}}, order_by: {is_primary: desc}) {
+    display_phone
+    is_primary
+  }
+}
+`;
+
 /*...........types...........*/
 
 export interface BranchOutlet {
@@ -135,6 +148,7 @@ export interface PartnerBranchInfo {
     id: string;
     name: string;
     tagline?: string | null;
+    whatsapp_source?: "direct" | "main" | null;
     parent_partner_id: string;
     parent_partner?: {
       id: string;

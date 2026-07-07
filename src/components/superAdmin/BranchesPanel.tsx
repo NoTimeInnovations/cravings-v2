@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Search, X, Unlink as UnlinkIcon, Trash2, Plus, Store } from "lucide-react";
+import { Loader2, Search, X, Unlink as UnlinkIcon, Trash2, Plus, Store, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,17 @@ import {
   createBranchMutation,
   disbandBranchMutation,
   getPartnerBranchInfoQuery,
+  getPartnerWhatsappStatusQuery,
   setPartnerBranchMutation,
   updateBranchMutation,
   type PartnerBranchInfo,
 } from "@/api/branches";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
+import {
+  copyMainWhatsappToOutlets,
+  removeOutletWhatsappCopies,
+} from "@/app/actions/branchWhatsapp";
 
 interface BranchesPanelProps {
   partnerId: string;
@@ -75,12 +80,18 @@ export default function BranchesPanel({
   const [searchResults, setSearchResults] = useState<PartnerSearchRow[]>([]);
   const [searching, setSearching] = useState(false);
 
+  // Branch-WhatsApp state
+  const [mainWa, setMainWa] = useState<{ display_phone: string | null; is_primary: boolean }[]>([]);
+  const [waBusy, setWaBusy] = useState(false);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchFromHasura(getPartnerBranchInfoQuery, {
-        partner_id: partnerId,
-      });
+      const [res, waRes] = await Promise.all([
+        fetchFromHasura(getPartnerBranchInfoQuery, { partner_id: partnerId }),
+        fetchFromHasura(getPartnerWhatsappStatusQuery, { partner_id: partnerId }),
+      ]);
+      setMainWa((waRes?.whatsapp_business_integrations || []) as typeof mainWa);
       const row = res?.partners_by_pk as PartnerBranchInfo | null;
       setInfo(row);
       if (row?.branch) {
@@ -208,6 +219,66 @@ export default function BranchesPanel({
       toast.error("Failed to update brand");
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Switch the brand's WhatsApp source. "main" just records the mode (the
+  // actual copy is a separate manual button). "direct" removes the copied
+  // WhatsApp from every outlet before recording the mode.
+  const handleSetWaSource = async (next: "direct" | "main") => {
+    if (!info?.branch) return;
+    if (next === "direct") {
+      if (
+        !confirm(
+          "Switch to Direct? This REMOVES the copied WhatsApp (number + flows) from every outlet. Each outlet will have no WhatsApp until it connects its own.",
+        )
+      )
+        return;
+    }
+    setWaBusy(true);
+    try {
+      if (next === "direct") {
+        const r = await removeOutletWhatsappCopies(partnerId);
+        if (!r.ok) throw new Error(r.message || "Failed to remove outlet WhatsApp");
+        childOutlets.forEach((o) => revalidateTag(o.id));
+      }
+      await fetchFromHasura(updateBranchMutation, {
+        id: info.branch.id,
+        updates: { whatsapp_source: next },
+      });
+      toast.success(
+        next === "main"
+          ? "Outlets set to use the main branch's WhatsApp"
+          : "Reverted to Direct — outlet WhatsApp removed",
+      );
+      await refresh();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "Failed to update WhatsApp mode");
+    } finally {
+      setWaBusy(false);
+    }
+  };
+
+  // Push the main branch's WhatsApp (connection + flows) onto every outlet.
+  const handleCopyWhatsapp = async () => {
+    setWaBusy(true);
+    try {
+      const r = await copyMainWhatsappToOutlets(partnerId);
+      if (!r.ok) {
+        toast.error(r.message);
+        return;
+      }
+      childOutlets.forEach((o) => revalidateTag(o.id));
+      toast.success(
+        `Copied WhatsApp to ${r.outlets} outlet${r.outlets === 1 ? "" : "s"} · ${r.integrations} number${r.integrations === 1 ? "" : "s"}, ${r.flows} flow${r.flows === 1 ? "" : "s"}`,
+      );
+      await refresh();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "Copy failed");
+    } finally {
+      setWaBusy(false);
     }
   };
 
@@ -390,6 +461,66 @@ export default function BranchesPanel({
             >
               <Trash2 className="w-4 h-4 mr-2" /> Disband brand
             </Button>
+          </div>
+
+          {/* WhatsApp for outlets */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="font-semibold flex items-center gap-2">
+              <MessageCircle className="w-4 h-4 text-green-600" /> WhatsApp for outlets
+            </p>
+            <p className="text-xs text-gray-500">
+              Main branch WhatsApp:{" "}
+              {mainWa.length > 0 ? (
+                <span className="font-medium text-gray-700">
+                  {mainWa[0].display_phone || "connected"}
+                  {mainWa.length > 1 ? ` +${mainWa.length - 1} more` : ""}
+                </span>
+              ) : (
+                <span className="text-amber-600">Not connected</span>
+              )}
+            </p>
+            <div className="flex items-start gap-3">
+              <Switch
+                id="wa_source"
+                checked={(info.branch.whatsapp_source || "direct") === "main"}
+                disabled={waBusy}
+                onCheckedChange={(c) => handleSetWaSource(c ? "main" : "direct")}
+              />
+              <div className="text-sm">
+                <Label htmlFor="wa_source" className="font-medium">
+                  Use the main branch&apos;s WhatsApp for all outlets
+                  {waBusy && <Loader2 className="inline w-3 h-3 animate-spin ml-1.5" />}
+                </Label>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {(info.branch.whatsapp_source || "direct") === "main"
+                    ? "Outlets use the main branch's WhatsApp. Use “Copy to outlets” to push the current connection + flows."
+                    : "Each outlet manages its own WhatsApp connection."}
+                </p>
+              </div>
+            </div>
+            {(info.branch.whatsapp_source || "direct") === "main" && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCopyWhatsapp}
+                  disabled={waBusy || mainWa.length === 0}
+                >
+                  {waBusy && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+                  Copy to outlets ({childOutlets.length})
+                </Button>
+                {mainWa.length === 0 && (
+                  <span className="text-xs text-amber-600">
+                    Connect WhatsApp on the main branch first.
+                  </span>
+                )}
+              </div>
+            )}
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              Copying replaces each outlet&apos;s WhatsApp with the main branch&apos;s number and
+              flows. Outlets share the same number — order messages send per outlet, while inbound
+              replies route to only one. Switching back to Direct removes the copies from all outlets.
+            </p>
           </div>
 
           <div className="border-t pt-4">
