@@ -7,19 +7,18 @@
  * It replicates onBoardUserSignup + quickSignupFromGoogle:
  *   partner row (with the canonical new-partner defaults from
  *   src/lib/newPartnerDefaults.ts) -> categories -> menu items -> a default
- *   table-1 QR code -> optional branch link + WhatsApp copy -> ops webhook.
+ *   table-1 QR code -> optional branch link + WhatsApp copy.
  *
  * Credentials are read from the project's .env.local (NEXT_PUBLIC_HASURA_* +
  * NEXT_PUBLIC_S3_*). Uses the same prod-v2 endpoint/secret as the app's
  * src/lib/hasuraClient.ts.
  *
  * Usage:
- *   node create-partner.mjs <spec.json> [--dry-run] [--force] [--no-webhook]
+ *   node create-partner.mjs <spec.json> [--dry-run] [--force]
  *
  * --dry-run     resolve username/parent/WhatsApp read-only and print the plan;
  *               performs NO writes and NO logo upload.
  * --force       create even if a partner with the same email already exists.
- * --no-webhook  skip the n8n "mail-to-thrisha" ops notification.
  *
  * See ../SKILL.md for the spec.json schema.
  */
@@ -174,9 +173,13 @@ query MainWhatsApp($pid: uuid!) {
   }
 }`;
 
+// Copies the parent's WhatsApp to the outlet AND links the branch in a single
+// request (the `upd` also sets branch_id). Hasura runs multiple root mutation
+// fields in one transaction, so this is atomic.
 const COPY_TO_OUTLET = `
 mutation CopyWhatsAppToOutlet(
   $oid: uuid!
+  $bid: uuid!
   $integrations: [whatsapp_business_integrations_insert_input!]!
   $flows: [whatsapp_flows_insert_input!]!
   $nums: jsonb
@@ -185,7 +188,7 @@ mutation CopyWhatsAppToOutlet(
   del_flow: delete_whatsapp_flows(where: { partner_id: { _eq: $oid } }) { affected_rows }
   ins_int: insert_whatsapp_business_integrations(objects: $integrations) { affected_rows }
   ins_flow: insert_whatsapp_flows(objects: $flows) { affected_rows }
-  upd: update_partners_by_pk(pk_columns: { id: $oid }, _set: { whatsapp_integration_mode: "own", whatsapp_numbers: $nums }) { id }
+  upd: update_partners_by_pk(pk_columns: { id: $oid }, _set: { whatsapp_integration_mode: "own", whatsapp_numbers: $nums, branch_id: $bid }) { id branch_id }
 }`;
 
 // branches.ts
@@ -325,16 +328,6 @@ async function uploadLogo(localPath) {
   );
   return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
 }
-async function fetchWithTimeout(url, opts, ms) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  try {
-    return await fetch(url, { ...opts, signal: ctrl.signal });
-  } finally {
-    clearTimeout(t);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Branch resolution + WhatsApp copy
 // ---------------------------------------------------------------------------
@@ -393,18 +386,26 @@ async function ensureBranch(parent) {
   await gql(setPartnerBranchMutation, { partner_id: parent.id, branch_id: bid });
   return bid;
 }
-async function copyWhatsappFromParent(parentId, outletId) {
-  const main = await gql(READ_MAIN_WA, { pid: parentId });
-  const integrations = main.whatsapp_business_integrations || [];
-  const flows = main.whatsapp_flows || [];
-  const nums = main.partners_by_pk?.whatsapp_numbers ?? null;
-  if (integrations.length === 0)
+// Links the outlet to the branch and copies the parent's WhatsApp. `waData` is
+// the parent's already-read READ_MAIN_WA payload (passed in to avoid a second
+// read round-trip). When the parent has no WhatsApp, this still links the branch.
+async function linkBranchAndCopyWhatsapp(branchId, outletId, waData) {
+  const integrations = waData?.whatsapp_business_integrations || [];
+  const flows = waData?.whatsapp_flows || [];
+  const nums = waData?.partners_by_pk?.whatsapp_numbers ?? null;
+  if (integrations.length === 0) {
+    // Nothing to copy — just link the branch (single write).
+    await gql(setPartnerBranchMutation, {
+      partner_id: outletId,
+      branch_id: branchId,
+    });
     return {
       copied: false,
       reason: "parent has no WhatsApp integration connected",
       integrations: 0,
       flows: 0,
     };
+  }
   const intObjects = integrations.map((w) => ({
     partner_id: outletId,
     waba_id: w.waba_id,
@@ -429,6 +430,7 @@ async function copyWhatsappFromParent(parentId, outletId) {
   }));
   await gql(COPY_TO_OUTLET, {
     oid: outletId,
+    bid: branchId,
     integrations: intObjects,
     flows: flowObjects,
     nums,
@@ -448,10 +450,9 @@ async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
   const force = args.includes("--force");
-  const noWebhook = args.includes("--no-webhook");
   const specPath = args.find((a) => !a.startsWith("--"));
   if (!specPath)
-    die("usage: node create-partner.mjs <spec.json> [--dry-run] [--force] [--no-webhook]");
+    die("usage: node create-partner.mjs <spec.json> [--dry-run] [--force]");
 
   let spec;
   try {
@@ -468,11 +469,16 @@ async function main() {
   const items = Array.isArray(spec.items) ? spec.items : [];
   if (items.length === 0) die("spec.items must contain at least one menu item");
 
-  // Email de-dupe guard (prod safety against double runs).
-  const existing = await gql(
-    `query($e:String!){partners(where:{email:{_eq:$e}}){id username store_name}}`,
-    { e: spec.email },
-  );
+  // Preflight reads are independent — run them concurrently instead of in
+  // series: email de-dupe guard, branch-parent resolve, and username uniqueness.
+  const [existing, parent, username] = await Promise.all([
+    gql(
+      `query($e:String!){partners(where:{email:{_eq:$e}}){id username store_name}}`,
+      { e: spec.email },
+    ),
+    spec.branchParent ? resolveParent(spec.branchParent) : Promise.resolve(null),
+    uniqueUsername(storeName),
+  ]);
   if (existing.partners.length > 0 && !force)
     die(
       `A partner already exists with email ${spec.email}: ` +
@@ -482,16 +488,11 @@ async function main() {
         ". Re-run with --force to create anyway.",
     );
 
-  // Branch parent (optional).
-  let parent = null;
-  if (spec.branchParent) parent = await resolveParent(spec.branchParent);
-
   const country = spec.country || parent?.country || "India";
   const meta = countryMeta[country] || countryMeta["India"];
   const currency = spec.currency || parent?.currency || meta.symbol;
   const countryCode = spec.country_code || parent?.country_code || meta.code;
   const brandHex = normalizeHex(spec.brandColorHex);
-  const username = await uniqueUsername(storeName);
 
   const plan = { endpoint: HASURA_ENDPOINT, username, store_name: storeName,
     email: spec.email, country, currency, country_code: countryCode,
@@ -520,17 +521,28 @@ async function main() {
   }
 
   // ---------- WRITES (production) ----------
-  let storeBanner = "";
-  let storefrontSettings = null;
-  if (spec.logoPath) {
-    storeBanner = await uploadLogo(spec.logoPath);
-    storefrontSettings = JSON.stringify({
-      bannerLogo: {
-        scale: clamp(spec.logoScale ?? 100, 50, 500),
-        bgColor: spec.logoBgColor || "#ffffff",
-      },
-    });
-  }
+  // Kick off the slow, independent work up front so it overlaps the DB writes:
+  //  - the ~1 MB logo upload to S3
+  //  - branch prep (ensure the parent's branch row exists + read its WhatsApp);
+  //    both need only the parent, so they run while the partner/menu insert.
+  const logoP = spec.logoPath ? uploadLogo(spec.logoPath) : Promise.resolve("");
+  const branchPrepP = parent
+    ? Promise.all([ensureBranch(parent), gql(READ_MAIN_WA, { pid: parent.id })])
+    : Promise.resolve(null);
+  // branchPrepP is consumed later (inside branchFinalP), after an intervening
+  // await — attach a no-op rejection handler so an early failure can't surface
+  // as an unhandled rejection (which crashes Node); the real `await branchPrepP`
+  // below still throws and is caught by main().catch.
+  branchPrepP.catch(() => {});
+  const storefrontSettings = spec.logoPath
+    ? JSON.stringify({
+        bannerLogo: {
+          scale: clamp(spec.logoScale ?? 100, 50, 500),
+          bgColor: spec.logoBgColor || "#ffffff",
+        },
+      })
+    : null;
+  const storeBanner = await logoP;
 
   const partnerObject = {
     role: "partner",
@@ -570,48 +582,51 @@ async function main() {
   const ins = await gql(partnerMutation, { object: partnerObject });
   const partnerId = ins.insert_partners_one.id;
 
-  // Categories
-  const catMap = {};
+  // The remaining writes are independent of one another — run concurrently:
+  //  (a) categories -> menu (menu needs the category ids the insert returns)
+  //  (b) default table-1 QR code
+  //  (c) branch link + WhatsApp copy (branch prep already in flight above)
   const catObjects = categories.map((name, i) => ({
     name: normCat(name),
     partner_id: partnerId,
     priority: i,
     is_active: true,
   }));
-  if (catObjects.length) {
-    const cr = await gql(addCategory, { category: catObjects });
-    for (const c of cr.insert_category.returning) catMap[c.name] = c.id;
-  }
+  const menuCoreP = (async () => {
+    const catMap = {};
+    if (catObjects.length) {
+      const cr = await gql(addCategory, { category: catObjects });
+      for (const c of cr.insert_category.returning) catMap[c.name] = c.id;
+    }
+    const menuObjects = items
+      .map((it, i) => {
+        const cn = normCat(it.category || categories[0] || "Menu");
+        const categoryId = catMap[cn];
+        if (!categoryId) {
+          console.error(
+            `WARN: no category for item "${it.name}" (category "${it.category}") — skipped`,
+          );
+          return null;
+        }
+        return {
+          name: it.name,
+          category_id: categoryId,
+          partner_id: partnerId,
+          price: Number(it.price) || 0,
+          image_url: "",
+          description: it.description || "",
+          is_available: true,
+          is_veg: !!it.is_veg,
+          variants: Array.isArray(it.variants) ? it.variants : [],
+          priority: i,
+        };
+      })
+      .filter(Boolean);
+    if (menuObjects.length) await gql(addMenu, { menu: menuObjects });
+    return menuObjects.length;
+  })();
 
-  // Menu items
-  const menuObjects = items
-    .map((it, i) => {
-      const cn = normCat(it.category || categories[0] || "Menu");
-      const categoryId = catMap[cn];
-      if (!categoryId) {
-        console.error(
-          `WARN: no category for item "${it.name}" (category "${it.category}") — skipped`,
-        );
-        return null;
-      }
-      return {
-        name: it.name,
-        category_id: categoryId,
-        partner_id: partnerId,
-        price: Number(it.price) || 0,
-        image_url: "",
-        description: it.description || "",
-        is_available: true,
-        is_veg: !!it.is_veg,
-        variants: Array.isArray(it.variants) ? it.variants : [],
-        priority: i,
-      };
-    })
-    .filter(Boolean);
-  if (menuObjects.length) await gql(addMenu, { menu: menuObjects });
-
-  // Default table-1 QR code
-  await gql(INSERT_QR_CODE, {
+  const qrP = gql(INSERT_QR_CODE, {
     object: {
       partner_id: partnerId,
       table_number: 1,
@@ -621,49 +636,20 @@ async function main() {
     },
   });
 
-  // Branch link + WhatsApp copy
-  let branchResult = null;
-  if (parent) {
-    const branchId = await ensureBranch(parent);
-    await gql(setPartnerBranchMutation, {
-      partner_id: partnerId,
-      branch_id: branchId,
-    });
-    branchResult = await copyWhatsappFromParent(parent.id, partnerId);
-    branchResult.branchId = branchId;
-    branchResult.parent = `${parent.store_name} (@${parent.username})`;
-  }
+  const branchFinalP = (async () => {
+    if (!parent) return null;
+    const [branchId, waData] = await branchPrepP;
+    const res = await linkBranchAndCopyWhatsapp(branchId, partnerId, waData);
+    res.branchId = branchId;
+    res.parent = `${parent.store_name} (@${parent.username})`;
+    return res;
+  })();
 
-  // Ops webhook (non-blocking)
-  let webhook = "skipped";
-  if (!noWebhook) {
-    try {
-      const r = await fetchWithTimeout(
-        "https://n8n.cravings.live/webhook/mail-to-thrisha",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: spec.name,
-            store_name: storeName,
-            email: spec.email,
-            phone: spec.phone || "",
-            country,
-            district: partnerObject.district,
-            state: partnerObject.state,
-            location: partnerObject.location,
-            username,
-            menu_link: `https://menuthere.com/${username}`,
-            partner_id: partnerId,
-          }),
-        },
-        8000,
-      );
-      webhook = r.ok ? "sent" : `failed(${r.status})`;
-    } catch (e) {
-      webhook = "failed(" + (e.message || "error") + ")";
-    }
-  }
+  const [itemsCreated, , branchResult] = await Promise.all([
+    menuCoreP,
+    qrP,
+    branchFinalP,
+  ]);
 
   const result = {
     success: true,
@@ -674,11 +660,10 @@ async function main() {
     email: spec.email,
     password: partnerObject.password,
     categoriesCreated: catObjects.length,
-    itemsCreated: menuObjects.length,
+    itemsCreated,
     logo: storeBanner || null,
     brandColor: brandHex || "charcoal-noir(default)",
     branch: branchResult,
-    webhook,
   };
   console.log(JSON.stringify(result, null, 2));
 }

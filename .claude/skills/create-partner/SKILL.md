@@ -22,7 +22,6 @@ Provisions a fully set-up partner directly against **production Hasura**
   brand's `branch` and copies the parent's `whatsapp_business_integrations` +
   `whatsapp_flows` onto it (same logic as the superadmin "copy main branch's
   WhatsApp to outlets" feature)
-- fires the `mail-to-thrisha` ops webhook
 
 The heavy lifting is in `scripts/create-partner.mjs`; Claude's job is to collect
 inputs, digitise the menu, pick the brand colour, assemble a spec JSON, preview
@@ -43,6 +42,22 @@ password **`123456`**, phone empty. For a branch, country/currency/district are
 inherited from the parent.
 
 ## Steps
+
+> **Keep it fast.** The script is quick (~3s); most wasted time is avoidable
+> agent overhead. So run this skill with **minimal deliberation** — follow the
+> steps directly, don't over-analyse or explore, and act on sensible defaults.
+> Specifically:
+> - **Don't pre-query Hasura** to find or verify the branch parent — pass the
+>   store name / `@username` as `branchParent` and let `--dry-run` resolve it. The
+>   dry-run prints the resolved parent and the exact WhatsApp integration/flow
+>   counts that would be copied.
+> - **Don't run verification queries after creating.** The result JSON already
+>   reports the storefront URL, category/item counts, and how much WhatsApp was
+>   copied — trust it and report from it.
+> - One `--dry-run` → one confirm → one create. Batch any clarifying questions
+>   into a **single** `AskUserQuestion` call.
+> - Only look up external sources (Google Business, maps, etc.) if the user
+>   explicitly asks for it.
 
 1. **Gather the inputs.** Confirm name + email. Ask for the branch parent only if
    the user indicated it's an outlet/branch.
@@ -78,8 +93,7 @@ inherited from the parent.
    ```bash
    node .claude/skills/create-partner/scripts/create-partner.mjs <spec>.json
    ```
-   Add `--force` only to override the duplicate-email guard, `--no-webhook` to
-   skip the ops notification.
+   Add `--force` only to override the duplicate-email guard.
 
 7. **Report** the printed result: storefront URL (`https://menuthere.com/<username>`),
    login email + password, counts, and (for branches) how many WhatsApp
@@ -125,11 +139,16 @@ inherited from the parent.
 - New-partner defaults (feature flags, trial subscription, delivery rules, theme)
   mirror `src/lib/newPartnerDefaults.ts` — **if that file changes, update the
   constants at the top of the script.**
-- Branch: finds (or creates + links) the parent's `branches` row, sets the new
-  partner's `branch_id`, then copies WhatsApp via the exact `COPY_TO_OUTLET`
-  mutation from `src/app/actions/branchWhatsapp.ts`. `phone_number_id` is shared
-  by design (not unique in prod). If the parent has no WhatsApp connected, the
-  copy is skipped with a warning.
+- Branch: finds (or creates + links) the parent's `branches` row, then copies
+  WhatsApp **and** sets the new partner's `branch_id` in a single `COPY_TO_OUTLET`
+  mutation (adapted from `src/app/actions/branchWhatsapp.ts`). `phone_number_id`
+  is shared by design (not unique in prod). If the parent has no WhatsApp
+  connected, the branch is still linked and the copy is skipped with a warning.
+- **Speed:** the write path is parallelised — the preflight reads
+  (email-dedupe, parent-resolve, username) run concurrently; the ~1 MB logo
+  upload and branch prep overlap the DB writes; and categories→menu, the QR
+  code, and the branch link+WhatsApp copy all run concurrently. A full branch
+  create (logo + WhatsApp copy) runs in **~3s**.
 
 ## Cautions
 
