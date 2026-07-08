@@ -2,6 +2,7 @@
 
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { applyVisibilityState } from "@/lib/visibility";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import LocationHeader from "../../LocationHeader";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
@@ -638,19 +639,10 @@ const Sidebar = ({
 
           {/* Offers Banner */}
           {offers.length > 0 && (() => {
-            const isWithinDeliveryTime = () => {
-              if (!hoteldata?.delivery_rules?.delivery_time_allowed) return true;
-              const convertTimeToMinutes = (timeStr: string) => {
-                const [hours, minutes] = timeStr.split(":").map(Number);
-                return hours * 60 + minutes;
-              };
-              const now = new Date();
-              const currentTime = now.getHours() * 60 + now.getMinutes();
-              const startTime = convertTimeToMinutes(hoteldata.delivery_rules.delivery_time_allowed.from ?? "00:00");
-              const endTime = convertTimeToMinutes(hoteldata.delivery_rules.delivery_time_allowed.to ?? "23:59");
-              if (startTime > endTime) return currentTime >= startTime || currentTime <= endTime;
-              return currentTime >= startTime && currentTime <= endTime;
-            };
+            // Store hours in the RESTAURANT's timezone, not the customer's browser.
+            const _hotelTz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+            const isWithinDeliveryTime = () =>
+              isWithinTimeWindow(hoteldata?.delivery_rules?.delivery_time_allowed, _hotelTz);
             const features = getFeatures(hoteldata?.feature_flags || "");
             const isDeliveryActive = hoteldata?.delivery_rules?.isDeliveryActive ?? true;
             const canOrder =

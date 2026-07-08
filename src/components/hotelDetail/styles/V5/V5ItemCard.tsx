@@ -342,9 +342,10 @@ const V5ItemCard = ({
 
   const features = getFeatures(feature_flags || "");
   const deliveryRules = hoteldata?.delivery_rules;
+  const _tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
   const isDeliveryTimeOpen = deliveryRules?.isDeliveryActive !== false &&
-    isWithinTimeWindow(deliveryRules?.delivery_time_allowed);
-  const isTakeawayTimeOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed);
+    isWithinTimeWindow(deliveryRules?.delivery_time_allowed, _tz);
+  const isTakeawayTimeOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed, _tz);
   const hasDeliveryFeature =
     features?.delivery.enabled && tableNumber === 0 && isDeliveryTimeOpen;
   const hasOrderingFeature =

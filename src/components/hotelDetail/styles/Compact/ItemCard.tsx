@@ -121,8 +121,9 @@ const ItemCard = ({
 
   const _features = getFeatures(feature_flags || "");
   const _dr = hoteldata?.delivery_rules;
-  const _isDeliveryTimeOpen = _dr?.isDeliveryActive !== false && isWithinTimeWindow(_dr?.delivery_time_allowed);
-  const _isTakeawayTimeOpen = isWithinTimeWindow(_dr?.takeaway_time_allowed);
+  const _tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+  const _isDeliveryTimeOpen = _dr?.isDeliveryActive !== false && isWithinTimeWindow(_dr?.delivery_time_allowed, _tz);
+  const _isTakeawayTimeOpen = isWithinTimeWindow(_dr?.takeaway_time_allowed, _tz);
   const hasDeliveryFeature =
     _features?.delivery.enabled && tableNumber === 0 && _isDeliveryTimeOpen;
   const hasOrderingFeature =

@@ -63,7 +63,7 @@ import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
 import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
 import { computeMaxRedeemable } from "@/lib/loyalty/config";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
+import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 
@@ -939,6 +939,7 @@ const OrderTypeCard = ({
   allowDineIn = false,
   offeredDelivery = true,
   offeredTakeaway = true,
+  timezone = "Asia/Kolkata",
 }: {
   orderType: "takeaway" | "delivery" | "dine_in" | null;
   setOrderType: (type: "takeaway" | "delivery" | "dine_in") => void;
@@ -948,32 +949,18 @@ const OrderTypeCard = ({
   allowDineIn?: boolean;
   offeredDelivery?: boolean;
   offeredTakeaway?: boolean;
+  timezone?: string;
 }) => {
-  const { isWithinTimeWindow, formatTime12h } = (() => {
-    const check = (tw: { from: string; to: string } | null | undefined) => {
-      if (!tw?.from || !tw?.to) return true;
-      const now = new Date();
-      const [fH, fM] = tw.from.split(":").map(Number);
-      const [tH, tM] = tw.to.split(":").map(Number);
-      const s = new Date(); s.setHours(fH, fM, 0, 0);
-      const e = new Date(); e.setHours(tH, tM, 0, 0);
-      return s > e ? (now >= s || now <= e) : (now >= s && now <= e);
-    };
-    const fmt = (t: string) => {
-      const [h, m] = t.split(":").map(Number);
-      const p = h >= 12 ? "PM" : "AM";
-      return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:${m.toString().padStart(2, "0")} ${p}`;
-    };
-    return { isWithinTimeWindow: check, formatTime12h: fmt };
-  })();
-
+  // Store hours are evaluated in the RESTAURANT's timezone (passed in), not the
+  // customer's browser — otherwise an out-of-timezone customer (e.g. Dubai) sees
+  // the window shifted by the offset and gets wrongly blocked / allowed.
   const timeMap: Record<string, { allowed: boolean; window?: { from: string; to: string } | null; inactiveMsg?: string }> = {
     delivery: {
-      allowed: isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed),
+      allowed: isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed, timezone),
       window: deliveryTimeAllowed,
       inactiveMsg: !isDeliveryActive ? "Delivery is currently unavailable" : undefined,
     },
-    takeaway: { allowed: isWithinTimeWindow(takeawayTimeAllowed), window: takeawayTimeAllowed },
+    takeaway: { allowed: isWithinTimeWindow(takeawayTimeAllowed, timezone), window: takeawayTimeAllowed },
     dine_in: { allowed: true },
   };
 
@@ -2353,11 +2340,13 @@ const PlaceOrderModal = ({
   ]);
 
   // Read onboarding data from localStorage
+  const hotelTimezone = (hotelData as any)?.timezone || "Asia/Kolkata";
   const isDeliveryAvailable =
     (hotelData?.delivery_rules?.isDeliveryActive ?? true) &&
-    isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed);
+    isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed, hotelTimezone);
   const isTakeawayAvailable = isWithinTimeWindow(
-    hotelData?.delivery_rules?.takeaway_time_allowed
+    hotelData?.delivery_rules?.takeaway_time_allowed,
+    hotelTimezone
   );
 
   // Order types that are both offered AND currently available (open), in the
@@ -3623,8 +3612,8 @@ const PlaceOrderModal = ({
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
   const _noOrderingAvailable = tableNumber === 0 &&
-    !isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed) &&
-    !isWithinTimeWindow(hotelData?.delivery_rules?.takeaway_time_allowed);
+    !isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed, hotelTimezone) &&
+    !isWithinTimeWindow(hotelData?.delivery_rules?.takeaway_time_allowed, hotelTimezone);
   const isPlaceOrderDisabled =
     _noOrderingAvailable ||
     orderStatus === "loading" || orderStatus === "verifying" || orderStatus === "failed" || orderStatus === "processing" ||
@@ -3759,6 +3748,7 @@ const PlaceOrderModal = ({
                       allowDineIn={allowDineInReservation}
                       offeredDelivery={offered.delivery}
                       offeredTakeaway={offered.takeaway}
+                      timezone={(hotelData as any)?.timezone || "Asia/Kolkata"}
                     />
                   </div>
                 )}

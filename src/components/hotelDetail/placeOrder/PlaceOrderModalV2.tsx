@@ -374,8 +374,12 @@ const PlaceOrderModalV2 = ({
   const isDeliveryActive = hotelData?.delivery_rules?.isDeliveryActive ?? true;
   const deliveryTimeAllowed = hotelData?.delivery_rules?.delivery_time_allowed;
   const takeawayTimeAllowed = hotelData?.delivery_rules?.takeaway_time_allowed;
-  const isDeliveryOpen = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
-  const isTakeawayOpen = isWithinTimeWindow(takeawayTimeAllowed);
+  // Evaluate store hours in the RESTAURANT's timezone, not the customer's
+  // browser — otherwise an out-of-timezone customer (e.g. Dubai) sees the wrong
+  // open/closed state, shifted by the offset.
+  const hotelTimezone = (hotelData as any)?.timezone || "Asia/Kolkata";
+  const isDeliveryOpen = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed, hotelTimezone);
+  const isTakeawayOpen = isWithinTimeWindow(takeawayTimeAllowed, hotelTimezone);
 
   const allMenus = (hotelData as any)?.allMenus || hotelData?.menus || [];
   const incompatibleItems = useMemo(() => {

@@ -8,6 +8,7 @@ import useOrderStore from "@/store/orderStore";
 import { toast } from "sonner";
 import ItemDetailsModal from "./styles/Default/ItemDetailsModal";
 import { getFeatures } from "@/lib/getFeatures";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice } from "@/lib/constants";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
@@ -279,41 +280,12 @@ const SearchMenu = ({
 
                   // Same conditions as SidebarItemCard's showAddButton
                   const features = getFeatures(hotelData.feature_flags || "");
-                  const isWithinDeliveryTime = () => {
-                    if (!hotelData?.delivery_rules?.delivery_time_allowed)
-                      return true;
-                    const convertTimeToMinutes = (timeStr: string) => {
-                      const [hours, minutes] = timeStr.split(":").map(Number);
-                      return hours * 60 + minutes;
-                    };
-                    const now = new Date();
-                    const currentTime = now.getHours() * 60 + now.getMinutes();
-                    const startTime = convertTimeToMinutes(
-                      hotelData.delivery_rules.delivery_time_allowed.from ??
-                        "00:00",
-                    );
-                    const endTime = convertTimeToMinutes(
-                      hotelData.delivery_rules.delivery_time_allowed.to ??
-                        "23:59",
-                    );
-                    if (startTime > endTime)
-                      return currentTime >= startTime || currentTime <= endTime;
-                    return currentTime >= startTime && currentTime <= endTime;
-                  };
-                  const isWithinTakeawayTime = () => {
-                    const takeawayTime = hotelData?.delivery_rules?.takeaway_time_allowed;
-                    if (!takeawayTime) return true;
-                    const convertTimeToMinutes = (timeStr: string) => {
-                      const [hours, minutes] = timeStr.split(":").map(Number);
-                      return hours * 60 + minutes;
-                    };
-                    const now = new Date();
-                    const currentTime = now.getHours() * 60 + now.getMinutes();
-                    const startTime = convertTimeToMinutes(takeawayTime.from ?? "00:00");
-                    const endTime = convertTimeToMinutes(takeawayTime.to ?? "23:59");
-                    if (startTime > endTime) return currentTime >= startTime || currentTime <= endTime;
-                    return currentTime >= startTime && currentTime <= endTime;
-                  };
+                  // Store hours in the RESTAURANT's timezone, not the customer's browser.
+                  const _hotelTz = (hotelData as any)?.timezone || "Asia/Kolkata";
+                  const isWithinDeliveryTime = () =>
+                    isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed, _hotelTz);
+                  const isWithinTakeawayTime = () =>
+                    isWithinTimeWindow(hotelData?.delivery_rules?.takeaway_time_allowed, _hotelTz);
                   const hasOrderingFeature =
                     features?.ordering?.enabled &&
                     (tableNumber !== 0 || isWithinTakeawayTime());
