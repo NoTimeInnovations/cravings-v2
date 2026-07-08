@@ -433,13 +433,16 @@ export async function getPartnerByWabaId(wabaId: string) {
 export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
   const query = `
     query GetPartnerByPhoneNumber($phone_number_id: String!) {
-      whatsapp_business_integrations(where: {phone_number_id: {_eq: $phone_number_id}}) {
+      whatsapp_business_integrations(
+        where: {phone_number_id: {_eq: $phone_number_id}}
+        order_by: {updated_at: asc}
+      ) {
         id
         partner_id
         phone_number_id
         access_token
         flow_enabled
-        partner { feature_flags }
+        partner { feature_flags branch { parent_partner_id } }
       }
     }
   `;
@@ -447,11 +450,40 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
   const res = await fetchFromHasura(query, {
     phone_number_id: phoneNumberId,
   });
-  const row = res?.whatsapp_business_integrations?.[0];
-  if (!row) return null;
+  const rows = (res?.whatsapp_business_integrations ?? []) as Array<{
+    id: string;
+    partner_id: string;
+    phone_number_id: string;
+    access_token: string;
+    flow_enabled: boolean;
+    partner?: { feature_flags?: string | null; branch?: { parent_partner_id?: string | null } | null } | null;
+  }>;
+  if (!rows.length) return null;
+  // A brand can COPY its WhatsApp integration to every outlet (a shared number),
+  // so ONE phone_number_id can map to many partner rows. Inbound (a customer's
+  // "hi") must resolve to the number's OWNER — the brand's PARENT branch — not an
+  // arbitrary outlet, or the reply runs the wrong partner's flow and its order
+  // link points at the wrong store (e.g. a "welcome to Televery" message whose
+  // link went to sm_houseware). Prefer the row whose partner IS its branch's
+  // parent; otherwise the oldest row (the original connector). `order_by
+  // updated_at asc` makes that deterministic — previously there was no order, so
+  // `[0]` picked an undefined/arbitrary row.
+  const row =
+    rows.find(
+      (r) =>
+        !!r.partner?.branch?.parent_partner_id &&
+        r.partner.branch.parent_partner_id === r.partner_id,
+    ) ?? rows[0];
   // Flatten feature_flags onto the row so the cached webhook lookup can gate
   // WhatsApp features without an extra round-trip.
-  return { ...row, feature_flags: row.partner?.feature_flags ?? null };
+  return {
+    id: row.id,
+    partner_id: row.partner_id,
+    phone_number_id: row.phone_number_id,
+    access_token: row.access_token,
+    flow_enabled: row.flow_enabled,
+    feature_flags: row.partner?.feature_flags ?? null,
+  };
 }
 
 // Short-lived in-memory cache of the phone-number → partner mapping. This is the
