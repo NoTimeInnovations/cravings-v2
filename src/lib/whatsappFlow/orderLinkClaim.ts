@@ -18,7 +18,7 @@ function claimCookieName(token: string): string {
   return `olt_${hashToken(token).slice(0, 16)}`;
 }
 
-const CLAIM_TTL_SECONDS = 10 * 60; // matches the auth order-link token TTL
+const CLAIM_TTL_SECONDS = 23 * 60 * 60; // 23 hours — matches the auth order-link token TTL
 
 /**
  * Atomically claim an order link for its first opener. On the first claim it

@@ -23,7 +23,7 @@ export interface DefaultFlowDef {
 const WELCOME_TEXT =
   "Hi 👋 Welcome to *{{store_name}}*!\n\n" +
   "🛒 Tap *Order Now* below to open the menu — you'll be signed in automatically.\n" +
-  "_The link is valid for 10 minutes._ ⏱️";
+  "_The link is valid for 23 hours._ ⏱️";
 
 function welcomeFlow(): DefaultFlowDef {
   return {
@@ -64,7 +64,7 @@ function orderNowFlow(): DefaultFlowDef {
           data: {
             text:
               "🛒 Tap *Order Now* below to open the menu — you'll be signed in automatically.\n" +
-              "_The link is valid for 10 minutes._ ⏱️",
+              "_The link is valid for 23 hours._ ⏱️",
             buttonText: "Order Now",
             url: "{{order_link}}",
           },

@@ -8,11 +8,12 @@ import crypto from "crypto";
 // Two token shapes:
 //   • 2-part  `exp.sig`         — HMAC over (partnerId, exp). Plain order link.
 //   • 3-part  `exp.userId.sig`  — HMAC over (partnerId, exp, userId). Carries
-//     the customer so the storefront can silently log them in (no OTP). Used a
-//     tighter expiry since it doubles as a bearer login credential.
+//     the customer so the storefront can silently log them in (no OTP). It
+//     doubles as a bearer login credential, so its expiry is a product tradeoff
+//     between convenience and how long a shared link stays usable (23 hours).
 
 const DEFAULT_TTL_MIN = 30; // plain order link
-const AUTH_TTL_MIN = 10; // auto-login (authed) link — tighter window
+const AUTH_TTL_MIN = 23 * 60; // 23 hours — auto-login (authed) order link
 const STOREFRONT_ORIGIN = "https://menuthere.com";
 
 // Version byte that marks an ENCRYPTED (phone-bearing) token. Legacy tokens are
@@ -149,8 +150,8 @@ export function verifyOrderLinkToken(
 
 // Full ordering URL with a fresh token, e.g.
 //   https://menuthere.com/oreodemo?olt=<token>
-// Pass `userId` to mint an auto-login (10-min) link; omit it for a plain
-// 30-min order link.
+// Pass `userId`/`phone` to mint an auto-login (23-hour) link; omit both for a
+// plain 30-min order link.
 //
 // When the partner has a verified custom domain we point at its ROOT
 // (https://flaminhotchickenindia.com/?olt=<token>): proxy.ts maps a custom
