@@ -117,7 +117,12 @@ export const PostCheckoutModal = () => {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const extraChargesTotal = extraCharges.reduce(
+  // Drive the bill from the PERSISTED order, not the live cart state:
+  // posStore.checkout() writes the Round Off into order.extraCharges and the
+  // rounded value into order.totalPrice, but never updates the store cart — so
+  // reading the store here would show the pre-round total and omit the line.
+  const orderCharges = (((order as any).extraCharges || (order as any).extra_charges || []) as { name: string; amount: number; charge_type?: string }[]);
+  const extraChargesTotal = orderCharges.reduce(
     (sum, charge) => sum + charge.amount,
     0
   );
@@ -127,7 +132,8 @@ export const PostCheckoutModal = () => {
     order.items.map((i) => ({ price: i.price, quantity: i.quantity, tax_inclusive: (i as any).tax_inclusive })),
     gstPercentage,
   );
-  const grandTotal = subtotal + gstAmount;
+  // Persisted total is authoritative (includes discount + round-off); fall back to the recompute.
+  const grandTotal = typeof order.totalPrice === "number" ? order.totalPrice : subtotal + gstAmount;
 
   // Determine timezone from userData (partner) or browser
   const tz = (userData as any)?.timezone || (typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC");
@@ -248,13 +254,13 @@ export const PostCheckoutModal = () => {
                 </div>
 
                 {/* Extra Charges */}
-                {extraCharges.length > 0 && (
+                {orderCharges.length > 0 && (
                   <div className="p-4">
                     <h3 className="font-semibold text-lg mb-3">
                       Extra Charges
                     </h3>
                     <div className="space-y-2">
-                      {extraCharges.map((charge, index) => (
+                      {orderCharges.map((charge, index) => (
                         <div
                           key={index}
                           className="flex justify-between items-center"
@@ -494,7 +500,7 @@ export const PostCheckoutModal = () => {
           ref={billRef}
           order={order}
           userData={userData as Partner}
-          extraCharges={extraCharges}
+          extraCharges={orderCharges}
           tz={tz}
         />
       </div>

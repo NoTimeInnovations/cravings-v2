@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { usePOSStore } from "@/store/posStore";
 import { useAuthStore, Partner } from "@/store/authStore";
+import { computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, ChevronUp, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save, MessageSquare } from "lucide-react";
@@ -328,7 +329,10 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const discRatio = effectiveFoodAmount > 0 ? discountedFoodAmount / effectiveFoodAmount : 0;
     const adjItems = effectivePosItems.map((item) => ({ price: item.price * discRatio, quantity: item.quantity, tax_inclusive: item.tax_inclusive }));
     const { additionalGst: gstAmount } = calculateGstForItems(adjItems, partnerData?.gst_percentage || 0);
-    const grandTotal = discountedSubtotal + gstAmount;
+    const preRoundTotal = discountedSubtotal + gstAmount;
+    // Round Off: match posStore's persisted total when the partner enables it.
+    const roundOff = isRoundOffEnabled(partnerData?.delivery_rules) ? computeRoundOff(preRoundTotal) : 0;
+    const grandTotal = Math.round((preRoundTotal + roundOff) * 100) / 100;
 
     const activeOrderDataSubtotal = activeOrderData
         ? (activeOrderData.items || activeOrderData.order_items)?.reduce((acc: number, item: any) => {

@@ -61,7 +61,9 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
     const ratio = foodSubtotal > 0 ? discountedFoodSubtotal / foodSubtotal : 0;
     const adjItems = order.items.map((i) => ({ price: i.price * ratio, quantity: i.quantity, tax_inclusive: (i as any).tax_inclusive }));
     const { additionalGst: gstAmount } = calculateGstForItems(adjItems, gstPercentage);
-    const grandTotal = discountedSubtotal + gstAmount;
+    // Prefer the persisted order total (includes round-off) so the printed receipt
+    // TOTAL always equals what was charged; fall back to the recompute.
+    const grandTotal = typeof (order as any).totalPrice === "number" ? (order as any).totalPrice : discountedSubtotal + gstAmount;
 
 
     // Determine order type and display text

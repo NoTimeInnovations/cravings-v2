@@ -51,6 +51,7 @@ import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { getTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { computeParcelCharge } from "@/lib/parcelCharge";
+import { computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { useLiveStock } from "@/store/liveStockStore";
 
@@ -876,8 +877,15 @@ const PlaceOrderModalV2 = ({
     return Math.min(savings, subtotal);
   }, [appliedDiscount, subtotal, hotelData?.menus]);
 
+  // Round Off (display): mirror what orderStore persists — round the pre-round
+  // grand total UP to the next whole number when the partner enables it. Baked
+  // into grandTotal so payableTotal, analytics values and the footer all agree
+  // with the charged amount. The store adds the "Round Off" extra_charge itself,
+  // so we must NOT add it to the extra_charges we pass to placeOrder (no double).
+  const preRoundGrandTotal = Math.max(0, displaySubtotal + deliveryCharge + parcelCharge + qrExtraCharge + additionalGst - discountSavings);
+  const roundOff = isRoundOffEnabled(hotelData?.delivery_rules) ? computeRoundOff(preRoundGrandTotal) : 0;
   const extraChargesTotal = deliveryCharge + parcelCharge + qrExtraCharge;
-  const grandTotal = Math.max(0, displaySubtotal + extraChargesTotal + additionalGst - discountSavings);
+  const grandTotal = Math.round((preRoundGrandTotal + roundOff) * 100) / 100;
 
   // ---- Loyalty redemption (derived) ----
   // grandTotal is the pre-redemption total; payableTotal is what the customer pays.
@@ -3098,6 +3106,9 @@ const PlaceOrderModalV2 = ({
                   )}
                   {additionalGst > 0 && (
                     <Row label="GST & Other Charges" value={`${currency}${additionalGst.toFixed(0)}`} />
+                  )}
+                  {roundOff > 0 && (
+                    <Row label="Round Off" value={`${currency}${roundOff.toFixed(2)}`} />
                   )}
                   {loyaltyRedeemValue > 0 && (
                     <Row

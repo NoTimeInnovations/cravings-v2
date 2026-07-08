@@ -26,6 +26,7 @@ import { v4 as uuidv4 } from "uuid";
 import { computeDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems } from "@/lib/takeawayPricing";
+import { ROUND_OFF_NAME, computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -688,7 +689,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
     }));
     const { additionalGst } = calculateGstForItems(adjustedItems, gstPercentage);
 
-    return discountedSubtotal + additionalGst;
+    const total = discountedSubtotal + additionalGst;
+    // Match the persisted total: add the round-off when enabled so the POS
+    // header/cart total equals what checkout will charge.
+    if (isRoundOffEnabled(hotelData?.delivery_rules)) {
+      return Math.round((total + computeRoundOff(total)) * 100) / 100;
+    }
+    return total;
   },
 
   checkout: async () => {
@@ -774,7 +781,29 @@ export const usePOSStore = create<POSState>((set, get) => ({
       }));
       const { additionalGst: posAdditionalGst } = calculateGstForItems(discountAdjustedItems, gstPercentage);
 
-      const grandTotal = discountedSubtotal + posAdditionalGst;
+      let grandTotal = discountedSubtotal + posAdditionalGst;
+
+      // Round Off: when enabled, append a final charge that rounds the grand
+      // total UP to the next whole number. Computed on the final total (after
+      // discount + GST) and pushed onto allExtraCharges so the persisted
+      // extra_charges and total reconcile. Captains carry the partner config
+      // under `partner`.
+      const roundOffRules =
+        userData?.role === "captain"
+          ? (userData as Captain)?.partner?.delivery_rules
+          : (userData as Partner)?.delivery_rules;
+      if (isRoundOffEnabled(roundOffRules)) {
+        const roundOffAmount = computeRoundOff(grandTotal);
+        if (roundOffAmount > 0) {
+          allExtraCharges.push({
+            id: uuidv4(),
+            name: ROUND_OFF_NAME,
+            amount: roundOffAmount,
+            charge_type: "FLAT_FEE",
+          } as any);
+          grandTotal = Math.round((grandTotal + roundOffAmount) * 100) / 100;
+        }
+      }
 
       const orderTypeString = isTakeaway ? "delivery" : "pos";
 

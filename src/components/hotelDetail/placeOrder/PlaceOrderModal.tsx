@@ -24,6 +24,7 @@ import { Styles } from "@/screens/HotelMenuPage_v2";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { getTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { computeParcelCharge } from "@/lib/parcelCharge";
+import { computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
@@ -755,8 +756,14 @@ const BillCard = ({
     }
     discountSavings = Math.min(discountSavings, baseSubtotal);
   }
-  const loyaltyApplied = Math.max(0, Math.min(loyaltyRedeemValue, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings));
-  const grandTotal = Math.max(0, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings - loyaltyApplied);
+  // Round Off (display): round the pre-loyalty bill UP to a whole number when the
+  // partner enables it, matching what orderStore persists. Loyalty is applied on
+  // the rounded bill (it's a separate redemption).
+  const preRoundBill = Math.max(0, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings);
+  const billRoundOff = isRoundOffEnabled(hotelData?.delivery_rules) ? computeRoundOff(preRoundBill) : 0;
+  const roundedBill = Math.round((preRoundBill + billRoundOff) * 100) / 100;
+  const loyaltyApplied = Math.max(0, Math.min(loyaltyRedeemValue, roundedBill));
+  const grandTotal = Math.max(0, Math.round((roundedBill - loyaltyApplied) * 100) / 100);
 
   return (
     <div>
@@ -881,6 +888,13 @@ const BillCard = ({
             <span style={{ color: "var(--pom-accent, #ea580c)" }}>
               -{currency}{" "}{discountSavings.toFixed(2)}
             </span>
+          </div>
+        )}
+
+        {billRoundOff > 0 && (
+          <div className="flex justify-between text-sm">
+            <span style={{ color: "var(--pom-text-muted)" }}>Round Off</span>
+            <span className="text-inherit">{currency}{" "}{billRoundOff.toFixed(2)}</span>
           </div>
         )}
 
@@ -2775,7 +2789,10 @@ const PlaceOrderModal = ({
       : { totalGst: 0, additionalGst: 0 };
 
     const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-    const grandTotal = Math.max(0, baseTotal + qrCharge + deliveryCharge + parcelCharge + gstAdditional - discountSavingsAmount);
+    const _grandTotalPreRound = Math.max(0, baseTotal + qrCharge + deliveryCharge + parcelCharge + gstAdditional - discountSavingsAmount);
+    const grandTotal = isRoundOffEnabled(hotelData?.delivery_rules)
+      ? Math.round((_grandTotalPreRound + computeRoundOff(_grandTotalPreRound)) * 100) / 100
+      : _grandTotalPreRound;
 
     const hasMultiWhatsapp = getFeatures(hotelData?.feature_flags || "")
       ?.multiwhatsapp?.enabled;
@@ -3032,7 +3049,14 @@ const PlaceOrderModal = ({
       const takeawayCharge = takeawayChargeForItems(items || [], takeawayAdjPerItem);
       const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
       const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-      const computedFinalAmount = Math.max(0, subtotal + takeawayCharge + extraChargesTotal + gstAdditionalOrder - discountSavingsAmount);
+      // Round Off: the UPI-QR / COD amount the customer is asked to pay must match
+      // the rounded total_price orderStore persists (which appends the Round Off
+      // charge). The loyalty branch later overrides finalOrderAmount with the
+      // exact persisted total; this covers the non-loyalty path.
+      const _finalPreRound = Math.max(0, subtotal + takeawayCharge + extraChargesTotal + gstAdditionalOrder - discountSavingsAmount);
+      const computedFinalAmount = isRoundOffEnabled(hotelData?.delivery_rules)
+        ? Math.round((_finalPreRound + computeRoundOff(_finalPreRound)) * 100) / 100
+        : _finalPreRound;
       setFinalOrderAmount(computedFinalAmount);
       // Snapshots for the GTM purchase event (cart + coupon are cleared on success).
       let purchaseValue = computedFinalAmount;
@@ -3229,7 +3253,12 @@ const PlaceOrderModal = ({
       const takeawayCharge = takeawayChargeForItems(items || [], takeawayAdjPerItem);
       const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
       const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-      const grandTotal = Math.max(0, subtotal + takeawayCharge + extraChargesTotal + gstAmountCalc - discountSavingsAmount);
+      const _grandTotalPreRound = Math.max(0, subtotal + takeawayCharge + extraChargesTotal + gstAmountCalc - discountSavingsAmount);
+      // Round Off: the Cashfree charge amount must match orderStore's persisted
+      // total (which appends the same round-off), or payment and order diverge.
+      const grandTotal = isRoundOffEnabled(hotelData?.delivery_rules)
+        ? Math.round((_grandTotalPreRound + computeRoundOff(_grandTotalPreRound)) * 100) / 100
+        : _grandTotalPreRound;
 
       // Create a temporary order ID for Cashfree
       const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -3641,7 +3670,11 @@ const PlaceOrderModal = ({
     hotelData?.gst_percentage || 0,
   );
   const _barDiscountSavings = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-  const _barGrandTotal = Math.max(0, _barSubtotal + _barQrCharge + _barDeliveryCharge + _barParcelCharge + _barGst - _barDiscountSavings);
+  const _barPreRound = Math.max(0, _barSubtotal + _barQrCharge + _barDeliveryCharge + _barParcelCharge + _barGst - _barDiscountSavings);
+  // Round Off: match orderStore's persisted total so the bottom-bar price and the
+  // payment amount (payableTotal) equal what the customer is charged.
+  const _barRoundOff = isRoundOffEnabled(hotelData?.delivery_rules) ? computeRoundOff(_barPreRound) : 0;
+  const _barGrandTotal = Math.round((_barPreRound + _barRoundOff) * 100) / 100;
 
   // ---- Loyalty redemption (derived) ----
   // `_barGrandTotal` is the pre-redemption total. Max points are bounded by the

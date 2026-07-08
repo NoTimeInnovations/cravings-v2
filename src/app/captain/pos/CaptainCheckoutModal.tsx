@@ -60,7 +60,11 @@ export const CaptainCheckoutModal = () => {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const extraChargesTotal = extraCharges.reduce(
+  // Drive the bill from the PERSISTED order (round-off-inclusive), not the live
+  // cart — posStore.checkout() appends the Round Off to order.extraCharges and
+  // sets the rounded order.totalPrice, but never updates the store cart state.
+  const orderCharges = (((order as any).extraCharges || (order as any).extra_charges || []) as { name: string; amount: number; charge_type?: string }[]);
+  const extraChargesTotal = orderCharges.reduce(
     (sum, charge) => sum + charge.amount,
     0
   );
@@ -70,7 +74,7 @@ export const CaptainCheckoutModal = () => {
     order.items.map((i) => ({ price: i.price, quantity: i.quantity, tax_inclusive: (i as any).tax_inclusive })),
     gstPercentage,
   );
-  const grandTotal = subtotal + gstAmount;
+  const grandTotal = typeof order.totalPrice === "number" ? order.totalPrice : subtotal + gstAmount;
 
   // Format order time using client's timezone (fallback to partner.timezone or UTC)
   const tz =
@@ -168,13 +172,13 @@ export const CaptainCheckoutModal = () => {
               </div>
 
               {/* Extra Charges */}
-              {extraCharges.length > 0 && (
+              {orderCharges.length > 0 && (
                 <div className="bg-white border rounded-md p-3">
                   <h3 className="font-semibold text-base mb-2">
                     Extra Charges
                   </h3>
                   <div className="space-y-2">
-                    {extraCharges.map((charge, index) => (
+                    {orderCharges.map((charge, index) => (
                       <div
                         key={index}
                         className="flex justify-between items-center text-sm"
@@ -255,7 +259,7 @@ export const CaptainCheckoutModal = () => {
           ref={billRef}
           order={order}
           userData={partnerData || (captainData as any)}
-          extraCharges={extraCharges}
+          extraCharges={orderCharges}
           tz={tz}
         />
       </div>

@@ -8,6 +8,7 @@ import {
 } from "@/lib/partnerDataLayer";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { getTakeawayAdjustment, applyTakeawayAdjustment } from "@/lib/takeawayPricing";
+import { ROUND_OFF_NAME, computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { getFeatures } from "@/lib/getFeatures";
 import { getSafeStorage } from "@/lib/safeStorage";
 import { create } from "zustand";
@@ -1581,7 +1582,26 @@ const useOrderStore = create(
           );
 
           const discountSavings = discounts?.savings || 0;
-          const grandTotal = Math.max(0, subtotal + (gstIncluded || 0) + totalExtraCharges - discountSavings);
+          let grandTotal = Math.max(0, subtotal + (gstIncluded || 0) + totalExtraCharges - discountSavings);
+
+          // Round Off: when enabled, append a final charge that brings the grand
+          // total UP to the next whole number (always 0..1). Computed on the true
+          // final total (items + all charges + GST − discount) and pushed onto
+          // exCharges so total_price and the persisted/Petpooja extra_charges stay
+          // in lockstep. `grandTotal` is reassigned so every downstream total
+          // (ppTotalPrice, total_price) picks up the rounded value.
+          if (isRoundOffEnabled(hotelData?.delivery_rules)) {
+            const roundOffAmount = computeRoundOff(grandTotal);
+            if (roundOffAmount > 0) {
+              exCharges.push({
+                name: ROUND_OFF_NAME,
+                amount: roundOffAmount,
+                charge_type: "FLAT_FEE",
+                id: uuidv4(),
+              });
+              grandTotal = Math.round((grandTotal + roundOffAmount) * 100) / 100;
+            }
+          }
 
           const getNextDisplayOrderNumber = await getNextOrderNumber(
             hotelData.id

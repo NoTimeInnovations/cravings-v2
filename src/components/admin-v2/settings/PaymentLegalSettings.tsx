@@ -52,6 +52,11 @@ export function PaymentLegalSettings() {
     const [gstPercentage, setGstPercentage] = useState(0);
     const [gstEnabled, setGstEnabled] = useState(false);
 
+    // Round Off: when on, checkout adds a "Round Off" charge so the total is a
+    // whole number. Stored inside delivery_rules (the billing-config blob).
+    // Defaults to false.
+    const [roundOff, setRoundOff] = useState(false);
+
     useEffect(() => {
         if (userData?.role === "partner") {
             setUpiId(userData.upi_id || "");
@@ -61,6 +66,7 @@ export function PaymentLegalSettings() {
             setGstNo(userData.gst_no || "");
             setGstPercentage(userData.gst_percentage || 0);
             setGstEnabled((userData.gst_percentage || 0) > 0);
+            setRoundOff(!!(userData as any).delivery_rules?.round_off);
             setAcceptCod((userData as any).accept_cod ?? true);
             setCashfreeMerchantId((userData as any).cashfree_merchant_id || "");
             setAcceptPaymentsViaCashfree((userData as any).accept_payments_via_cashfree || false);
@@ -93,6 +99,9 @@ export function PaymentLegalSettings() {
         if (!userData) return;
         setIsSaving(true);
         try {
+            // Merge round_off into the existing delivery_rules (read-modify-write)
+            // so we don't clobber delivery pricing / windows owned by DeliverySettings.
+            const existingDeliveryRules = (userData as any).delivery_rules || {};
             const updates = {
                 upi_id: upiId,
                 show_payment_qr: showPaymentQr,
@@ -105,6 +114,7 @@ export function PaymentLegalSettings() {
                 accept_payments_via_cashfree: acceptPaymentsViaCashfree,
                 delivery_qr_method: deliveryQrMethod,
                 payment_modes: paymentModes,
+                delivery_rules: { ...existingDeliveryRules, round_off: roundOff },
             };
 
             await updatePartner(userData.id, updates);
@@ -118,7 +128,7 @@ export function PaymentLegalSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, deliveryQrMethod, paymentModes, setState]);
+    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, deliveryQrMethod, paymentModes, roundOff, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -150,6 +160,7 @@ export function PaymentLegalSettings() {
         const initialCashfreeMerchantId = data.cashfree_merchant_id || "";
         const initialAcceptCashfree = data.accept_payments_via_cashfree || false;
         const initialDeliveryQrMethod = data.delivery_qr_method || "none";
+        const initialRoundOff = !!data.delivery_rules?.round_off;
         const initialPaymentModes = (() => {
             const pm = data.payment_modes;
             const bo = data.accept_payments_via_cashfree || false;
@@ -173,6 +184,7 @@ export function PaymentLegalSettings() {
             cashfreeMerchantId !== initialCashfreeMerchantId ||
             acceptPaymentsViaCashfree !== initialAcceptCashfree ||
             deliveryQrMethod !== initialDeliveryQrMethod ||
+            roundOff !== initialRoundOff ||
             JSON.stringify(paymentModes) !== JSON.stringify(initialPaymentModes);
 
         setHasChanges(hasChanges);
@@ -190,6 +202,7 @@ export function PaymentLegalSettings() {
         acceptPaymentsViaCashfree,
         deliveryQrMethod,
         paymentModes,
+        roundOff,
         userData,
         setHasChanges
     ]);
@@ -450,6 +463,16 @@ export function PaymentLegalSettings() {
                                 </div>
                             </div>
                         )}
+                    </div>
+
+                    <div className="flex items-center justify-between border rounded-lg p-4">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Round Off</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Add a &quot;Round Off&quot; charge at checkout so the bill total is a whole number.
+                            </p>
+                        </div>
+                        <Switch checked={roundOff} onCheckedChange={setRoundOff} />
                     </div>
                 </CardContent>
             </Card>
