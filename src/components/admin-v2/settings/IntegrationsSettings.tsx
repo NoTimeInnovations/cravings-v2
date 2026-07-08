@@ -20,6 +20,44 @@ import { isFreePlan } from "@/lib/getPlanLimits";
 import { UpgradePrompt } from "@/components/admin-v2/UpgradePrompt";
 import { WhatsAppHealthStatus } from "@/components/admin-v2/WhatsAppHealthStatus";
 
+// Map Meta's per-number name_status to a small badge. Returns null when there's
+// nothing worth surfacing (no display name requested yet, or unknown).
+function nameStatusBadge(status: string | null | undefined): {
+    label: string;
+    className: string;
+    title: string;
+} | null {
+    switch (status) {
+        case "APPROVED":
+        case "AVAILABLE_WITHOUT_REVIEW":
+            return {
+                label: "Name approved",
+                className: "border-green-300 bg-green-100 text-green-800",
+                title: "Your WhatsApp display name is approved by Meta.",
+            };
+        case "PENDING_REVIEW":
+            return {
+                label: "Name in review",
+                className: "border-amber-300 bg-amber-100 text-amber-800",
+                title: "Meta is reviewing your display name. This usually takes a few minutes, and up to ~2 business days.",
+            };
+        case "DECLINED":
+            return {
+                label: "Name declined",
+                className: "border-red-300 bg-red-100 text-red-800",
+                title: "Meta declined this display name. Update it in WhatsApp Manager and resubmit for review.",
+            };
+        case "EXPIRED":
+            return {
+                label: "Name expired",
+                className: "border-red-300 bg-red-100 text-red-800",
+                title: "This display name request expired. Resubmit it in WhatsApp Manager.",
+            };
+        default:
+            return null;
+    }
+}
+
 export function IntegrationsSettings() {
     const { userData, setState } = useAuthStore();
     const planId = (userData as any)?.subscription_details?.plan?.id;
@@ -64,6 +102,12 @@ export function IntegrationsSettings() {
         Array<{ id: string; phone_number_id: string; display_phone: string | null; is_primary: boolean; flow_enabled: boolean }>
     >([]);
     const [isWabaLoading, setIsWabaLoading] = useState(false);
+    // Per-number Meta display-name review state, keyed by phone_number_id.
+    // Loaded lazily (see effect) so the number list renders without waiting on
+    // Meta's Graph API. { nameStatus, verifiedName }
+    const [nameStatuses, setNameStatuses] = useState<
+        Record<string, { nameStatus: string | null; verifiedName: string | null }>
+    >({});
     // Where login OTPs are sent FROM. Defaults to "menuthere"; "own" sends from
     // the partner's connected number. Only shown when their WhatsApp is connected.
     const [otpSender, setOtpSender] = useState<"menuthere" | "own">(
@@ -533,6 +577,30 @@ export function IntegrationsSettings() {
         setOtpSender((userData as any)?.otp_sender === "own" ? "own" : "menuthere");
     }, [(userData as any)?.otp_sender]);
 
+    // Load each connected number's Meta display-name review status for the
+    // badges. Best-effort — if it fails the badges just don't render.
+    useEffect(() => {
+        if (!wabaConnected || !userData?.id) {
+            setNameStatuses({});
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch(
+                    `/api/whatsapp/meta/name-status?partnerId=${userData.id}`,
+                );
+                const data = await res.json();
+                if (!cancelled && res.ok && data?.names) setNameStatuses(data.names);
+            } catch {
+                // best-effort — leave badges hidden
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [wabaConnected, userData?.id]);
+
     const handleOtpSenderChange = async (mode: "menuthere" | "own") => {
         setOtpSender(mode);
         if (!userData) return;
@@ -877,6 +945,19 @@ export function IntegrationsSettings() {
                                                                             Default sender
                                                                         </span>
                                                                     )}
+                                                                    {(() => {
+                                                                        const badge = nameStatusBadge(
+                                                                            nameStatuses[n.phone_number_id]?.nameStatus,
+                                                                        );
+                                                                        return badge ? (
+                                                                            <span
+                                                                                title={badge.title}
+                                                                                className={`text-[11px] font-medium px-1.5 py-0.5 rounded border ${badge.className}`}
+                                                                            >
+                                                                                {badge.label}
+                                                                            </span>
+                                                                        ) : null;
+                                                                    })()}
                                                                 </div>
                                                                 {!n.is_primary && (
                                                                     <button
