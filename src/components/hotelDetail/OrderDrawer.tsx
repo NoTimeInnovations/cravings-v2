@@ -18,7 +18,6 @@ import PlaceOrderModalV2 from "./placeOrder/PlaceOrderModalV2";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getTakeawayAdjustment, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { computeParcelCharge } from "@/lib/parcelCharge";
-import path from "path/win32";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { useAuthStore, User } from "@/store/authStore"; // <-- Added
 import { Button } from "@/components/ui/button";

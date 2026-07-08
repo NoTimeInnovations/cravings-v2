@@ -119,11 +119,14 @@ export async function autoLoginFromOrderToken(
       if (!res?.users?.length) return false;
     }
 
-    // Single-use lock: the first opener claims the link. If it was already
-    // claimed (the link was forwarded/shared), don't establish a session — the
-    // storefront then shows the expired screen for this visitor.
-    const claimed = await claimOrderLink(token, partnerId, userId);
-    if (!claimed) return false;
+    // Best-effort first-open tracking. We NO LONGER hard-block re-opens: the
+    // link is personal to this customer and already expires (23h), and the
+    // single-use lock was locking out legitimate customers — WhatsApp opens
+    // links in an in-app browser and the customer often re-opens in the system
+    // browser (separate cookie jar), re-taps, or a preview crawler fetches it
+    // first. So establish the session on EVERY valid, unexpired open; only the
+    // genuine first claim fires the "you opened the menu" confirmation.
+    const claimedFirst = await claimOrderLink(token, partnerId, userId);
 
     await setAuthCookie({
       id: userId,
@@ -134,7 +137,7 @@ export async function autoLoginFromOrderToken(
 
     // First open of this link → send the opt-in "you opened the menu" confirmation
     // (only for phone-bearing links, where we can message the customer back).
-    if (v.phone) await notifyOrderLinkOpened(partnerId, v.phone);
+    if (claimedFirst && v.phone) await notifyOrderLinkOpened(partnerId, v.phone);
 
     return true;
   } catch (e) {

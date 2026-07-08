@@ -12,7 +12,7 @@ import crypto from "crypto";
 //     doubles as a bearer login credential, so its expiry is a product tradeoff
 //     between convenience and how long a shared link stays usable (23 hours).
 
-const DEFAULT_TTL_MIN = 30; // plain order link
+const DEFAULT_TTL_MIN = 23 * 60; // 23 hours — plain order link (menu, no auto-login)
 const AUTH_TTL_MIN = 23 * 60; // 23 hours — auto-login (authed) order link
 const STOREFRONT_ORIGIN = "https://menuthere.com";
 
@@ -23,7 +23,12 @@ const STOREFRONT_ORIGIN = "https://menuthere.com";
 const ENC_TOKEN_VERSION = 0x01;
 
 function secret(): string {
-  return process.env.META_APP_SECRET || process.env.WHATSAPP_ACCESS_TOKEN || "menuthere-order-link";
+  // MUST be a STABLE secret shared by minting (webhook/flow engine) and
+  // verifying (storefront render). We deliberately do NOT fall back to
+  // WHATSAPP_ACCESS_TOKEN — that token ROTATES, so a token minted before a
+  // rotation would fail to verify afterwards and silently break auto-login
+  // (customer opens the link but isn't signed in). Set META_APP_SECRET in prod.
+  return process.env.META_APP_SECRET || "menuthere-order-link";
 }
 
 // 32-byte AES key derived from the same secret the HMAC uses. SHA-256 yields

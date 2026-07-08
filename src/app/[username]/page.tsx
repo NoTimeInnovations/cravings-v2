@@ -18,7 +18,6 @@ import {
 } from "@/components/SubscriptionStatusCards";
 import { ExpiredOrderLinkCard } from "@/components/ExpiredOrderLinkCard";
 import { verifyOrderLinkToken } from "@/lib/whatsappFlow/orderLink";
-import { isOrderLinkLockedToOther } from "@/lib/whatsappFlow/orderLinkClaim";
 import OrderLinkAutoLogin from "@/components/OrderLinkAutoLogin";
 
 async function getBranchContextForParent(
@@ -173,16 +172,11 @@ const UsernamePage = async ({
   // visits and valid links are unaffected.
   const olt = (sp as any).olt as string | undefined;
   const oltStatus = olt ? verifyOrderLinkToken(partnerId, olt) : null;
-  // Show the "expired" screen when the link is past its expiry OR — for a valid
-  // link — when it is locked to a DIFFERENT visitor. Order links are single-use
-  // ("session-locked"): the first opener claims it, and is recognised on re-open
-  // either by being signed in as the link's own customer (the auto-login set
-  // this) OR by holding the matching claim cookie. Anyone the link is forwarded
-  // to is neither, so they're blocked.
-  let oltBlocked = !!oltStatus?.expired;
-  if (olt && oltStatus?.valid && !oltBlocked) {
-    oltBlocked = await isOrderLinkLockedToOther(olt, auth?.id);
-  }
+  // Only a genuinely EXPIRED token shows the block screen. We no longer block
+  // "already used": order links are personal + expiring, and the single-use
+  // lock was wrongly blocking legitimate re-opens (WhatsApp in-app browser vs
+  // system browser, re-taps, preview crawlers). See autoLoginFromOrderToken.
+  const oltBlocked = !!oltStatus?.expired;
   if (oltBlocked) {
     const info = await fetchFromHasura(
       `query OrderLinkInfo($p: uuid!) {
@@ -200,7 +194,7 @@ const UsernamePage = async ({
       <ExpiredOrderLinkCard
         storeName={info?.partners_by_pk?.store_name ?? null}
         waNumber={waNumber}
-        reason={oltStatus?.expired ? "expired" : "used"}
+        reason="expired"
       />
     );
   }
