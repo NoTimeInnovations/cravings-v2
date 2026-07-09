@@ -24,6 +24,7 @@ import {
   Home,
   Store,
   Wallet,
+  CreditCard,
 } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
@@ -36,6 +37,7 @@ import {
   mergeAddresses,
 } from "@/lib/localAddresses";
 import AddressPickerV2 from "./AddressPickerV2";
+import { UpiPaymentScreen } from "./UpiPaymentScreen";
 import { updateUserAddressesMutation, updateUserFullNameMutation } from "@/api/auth";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
@@ -131,6 +133,7 @@ function accountReceiverName(user: any): string {
 const PlaceOrderModalV2 = ({
   hotelData,
   tableNumber,
+  getWhatsappLink,
   qrId,
   qrGroup,
   tableName,
@@ -138,7 +141,7 @@ const PlaceOrderModalV2 = ({
 }: {
   hotelData: HotelData;
   tableNumber: number;
-  getWhatsappLink: (orderId: string) => string;
+  getWhatsappLink: (orderId?: string) => string;
   qrId: string | null;
   qrGroup: QrGroup | null;
   tableName?: string;
@@ -215,15 +218,29 @@ const PlaceOrderModalV2 = ({
   let hasCod = _methodPm?.cash ?? baseCod;
   if (!hasCashfree && !hasCod) hasCod = true;
 
+  // UPI QR (Payment settings → "Payment Configuration"): when the partner turns
+  // on "show payment QR" and has a UPI id, a cash / pay-on-delivery order shows a
+  // UPI QR screen after placement so the customer can pay the store directly —
+  // same as the classic checkout. Online (Cashfree/Razorpay) is unaffected.
+  const hasUpiQr =
+    hotelData?.show_payment_qr === true && !!hotelData?.upi_id;
+  const postPaymentMessage = hotelData?.post_payment_message ?? null;
+
   const hasCashfreeReturn =
     typeof window !== "undefined" &&
     !!sessionStorage.getItem("cashfree_pending_order");
 
   const [view, setView] = useState<"main" | "discounts">("main");
   const [showOrderNoteInput, setShowOrderNoteInput] = useState(!!orderNote);
+  // Default to online whenever it's offered (Cashfree / connected online team) —
+  // "pay online" is the primary; if online isn't available we fall back to
+  // pay-on-delivery. The customer switches between them via the PAY USING sheet.
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
-    hasCashfree && !hasCod ? "online" : "cash",
+    hasCashfree ? "online" : "cash",
   );
+  // PAY USING bottom sheet (shown only when both methods are offered).
+  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
+  const [paymentSheetClosing, setPaymentSheetClosing] = useState(false);
   // If the order type changes (delivery↔takeaway) and the selected method is no
   // longer offered for it, snap to an available one so the selection stays valid.
   useEffect(() => {
@@ -245,6 +262,11 @@ const PlaceOrderModalV2 = ({
   const [savedOrderTotal, setSavedOrderTotal] = useState<number | null>(null);
   /** Captures the placed order's id so the success screen can deep-link to /order/[id]. */
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
+  // UPI QR screen shown after a cash / pay-on-delivery order when the partner has
+  // "show payment QR" on. The amount + WhatsApp link are snapshotted before the
+  // cart is cleared (placeOrder empties it), so the screen shows correct details.
+  const [showUpiScreen, setShowUpiScreen] = useState(false);
+  const [generatedWhatsappLink, setGeneratedWhatsappLink] = useState("");
   const router = useRouter();
   const [cashfreePaid, setCashfreePaid] = useState(hasCashfreeReturn);
   const [paymentFailReason, setPaymentFailReason] = useState("");
@@ -1913,8 +1935,8 @@ const PlaceOrderModalV2 = ({
   }, []);
 
   const handlePay = async (methodOverride?: "online" | "cash") => {
-    // Each footer button names its own method (there's no selector anymore), so
-    // the tapped button decides the route; fall back to state if unspecified.
+    // The Place Order button passes the method chosen in the PAY USING selector;
+    // fall back to the selected state if unspecified.
     const method = methodOverride ?? paymentMethod;
     if (!items || items.length === 0) {
       toast.error("Your cart is empty.");
@@ -2035,6 +2057,15 @@ const PlaceOrderModalV2 = ({
         });
       }
 
+      // Snapshot the WhatsApp order link BEFORE placing — a COD order clears the
+      // cart inside placeOrder, so the item list must be captured now (the UPI
+      // screen's "Send Order to WhatsApp" button uses it). Mirrors the classic checkout.
+      if (hasUpiQr) {
+        try {
+          setGeneratedWhatsappLink(getWhatsappLink());
+        } catch {}
+      }
+
       const result = await placeOrder(
         hotelData,
         tableNumber,
@@ -2097,7 +2128,11 @@ const PlaceOrderModalV2 = ({
         try {
           sessionStorage.removeItem(`order_type_${hotelData.id}`);
         } catch {}
+        // Order placed. When the partner shows a UPI payment QR, surface it now so
+        // the customer can pay the store directly; the success screen sits behind
+        // it (the QR screen's back arrow reveals it). Otherwise go straight to success.
         setOrderStatus("success");
+        if (hasUpiQr) setShowUpiScreen(true);
       } else {
         toast.error("Failed to place order. Please try again.");
         setOrderStatus("idle");
@@ -2173,7 +2208,59 @@ const PlaceOrderModalV2 = ({
     router.push(`/order/${id}`);
   };
 
+  // ----- PAY USING selector sheet -----
+  const openPaymentSheet = () => {
+    setPaymentSheetClosing(false);
+    setShowPaymentSheet(true);
+  };
+  const closePaymentSheet = (choice?: "online" | "cash") => {
+    if (choice) setPaymentMethod(choice);
+    setPaymentSheetClosing(true);
+    setTimeout(() => {
+      setShowPaymentSheet(false);
+      setPaymentSheetClosing(false);
+    }, 250);
+  };
+
+  // "Back to Menu" from the UPI QR screen — clear the order and close everything.
+  const handleCloseUpiScreen = () => {
+    setShowUpiScreen(false);
+    setGeneratedWhatsappLink("");
+    setOrderStatus("idle");
+    setSavedOrderTotal(null);
+    setPlacedOrderId(null);
+    try { useOrderStore.getState().clearOrder(); } catch {}
+    setOpenPlaceOrderModal(false);
+    setOpenOrderDrawer(false);
+    setOpenDrawerBottom(true);
+  };
+
   if (!open_place_order_modal) return null;
+
+  // UPI QR screen (cash / pay-on-delivery orders when "show payment QR" is on).
+  // Rendered before the status screens so the order sits in the background at
+  // "success" — the header back arrow reveals it; "Back to Menu" clears the order.
+  if (showUpiScreen && hasUpiQr) {
+    return (
+      <UpiPaymentScreen
+        upiId={hotelData.upi_id}
+        storeName={hotelData.store_name}
+        amount={savedOrderTotal ?? 0}
+        currency={currency}
+        orderId={
+          placedOrderId ||
+          (typeof localStorage !== "undefined"
+            ? localStorage.getItem("last-order-id")
+            : "") ||
+          ""
+        }
+        postPaymentMessage={postPaymentMessage}
+        whatsappLink={generatedWhatsappLink}
+        onBack={() => setShowUpiScreen(false)}
+        onClose={handleCloseUpiScreen}
+      />
+    );
+  }
 
   // ----- "Placing your order" undo window (cash / pay-on-delivery) -----
   if (orderStatus === "confirming") {
@@ -2444,8 +2531,23 @@ const PlaceOrderModalV2 = ({
   const restaurantName = hotelData?.store_name || (hotelData as any)?.name || "";
   const restaurantSubtitle = hotelData?.district || (hotelData as any)?.address || "";
 
-  // Label for the cash / pay-later action, worded for the current order type.
-  const cashLabel = orderType === "delivery" ? "Pay on delivery" : "Pay at store";
+  // PAY USING selector labels — title + subtitle for the currently-selected
+  // method. Online is the primary; cash reads "Cash on delivery" / "Pay at store"
+  // and notes UPI when the partner shows a payment QR.
+  const payMethodTitle =
+    paymentMethod === "online"
+      ? "Pay online"
+      : orderType === "delivery"
+        ? "Cash on delivery"
+        : "Pay at store";
+  const payMethodSubtitle =
+    paymentMethod === "online"
+      ? "Cards, UPI & Netbanking"
+      : hasUpiQr
+        ? "Pay using cash or UPI"
+        : "Pay using cash";
+  // The PAY USING selector is only interactive when both methods are offered.
+  const canSwitchPayment = hasCashfree && hasCod;
 
   // Every guard that must block placing an order. Shared by the footer's pay
   // buttons so both the "Pay now" (online) and cash actions honour it.
@@ -3162,69 +3264,127 @@ const PlaceOrderModalV2 = ({
       )}
     </div>
 
-    {/* Footer Pay Bar — outside animated div so fixed positioning works */}
+    {/* Footer Pay Bar — PAY USING selector + Place Order (outside the animated
+        div so fixed positioning works). The left selector shows the active
+        payment method; tap it (when both are offered) to switch via the sheet. */}
     {view === "main" && (items?.length ?? 0) > 0 && (
-      <>
-        <div className="v2-checkout-fixed fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[510]">
-          <div className="px-3 py-3 flex items-center gap-2.5">
-          {/* To pay */}
-          <div className="shrink-0">
-            <p className="text-[11px] font-medium text-gray-500 leading-none">To pay</p>
-            <p className="mt-1 text-[17px] font-extrabold text-gray-900 leading-none">
-              {currency}{payableTotal.toFixed(0)}
+      <div className="v2-checkout-fixed fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[510]">
+        <div className="px-3 py-2.5 flex items-center gap-2.5">
+          {/* Left: PAY USING selector */}
+          <button
+            type="button"
+            onClick={() => { if (canSwitchPayment) openPaymentSheet(); }}
+            disabled={!canSwitchPayment}
+            aria-label="Change payment method"
+            className="shrink-0 min-w-0 text-left disabled:cursor-default"
+          >
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Wallet size={13} className="shrink-0 text-gray-500" />
+              <span className="text-[11px] font-semibold tracking-wide whitespace-nowrap text-gray-500">
+                PAY USING{canSwitchPayment ? " ▲" : ""}
+              </span>
+            </div>
+            <p className="font-bold text-[13px] leading-tight whitespace-nowrap" style={{ color: accent }}>
+              {payMethodTitle}
             </p>
-          </div>
+            <p className="text-[11px] leading-tight whitespace-nowrap" style={{ color: accent, opacity: 0.7 }}>
+              {payMethodSubtitle}
+            </p>
+          </button>
 
-          {/* Cash / pay-later button — only when COD is offered AND online is too
-              (two-button layout). If COD is the only option it's promoted to the
-              primary "Place order" button on the right instead. */}
-          {hasCod && hasCashfree && (
-            <button
-              type="button"
-              onClick={() => handlePay("cash")}
-              disabled={placementDisabled}
-              className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-xl border-2 px-2 py-2.5 text-center disabled:opacity-60"
-              style={{ borderColor: `${accent}55` }}
-            >
-              <span className="max-w-full truncate text-[13px] font-bold leading-tight" style={{ color: accent }}>
-                {cashLabel}
-              </span>
-              <span className="max-w-full truncate text-[11px] leading-tight text-gray-400">
-                Cash or UPI
-              </span>
-            </button>
-          )}
-
-          {/* Primary (right) action. Online available → "Pay now" (grows to fill
-              when it's the only button). No online → "Place order" with the cash
-              method shown small beneath. */}
-          {hasCashfree ? (
-            <button
-              type="button"
-              onClick={() => handlePay("online")}
-              disabled={placementDisabled}
-              className={`shrink-0 rounded-xl px-5 py-3.5 font-semibold text-white disabled:opacity-60 ${hasCod ? "" : "flex-1"}`}
-              style={{ backgroundColor: accent }}
-            >
-              Pay now
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => handlePay("cash")}
-              disabled={placementDisabled}
-              className="flex flex-1 flex-col items-center justify-center rounded-xl px-5 py-2.5 font-semibold text-white disabled:opacity-60"
-              style={{ backgroundColor: accent }}
-            >
-              <span className="text-[15px] leading-tight">Place order</span>
-              <span className="text-[11px] font-normal leading-tight text-white/80">{cashLabel}</span>
-            </button>
-          )}
-         </div>
+          {/* Right: Place Order button (TOTAL + CTA) */}
+          <button
+            type="button"
+            onClick={() => handlePay(paymentMethod)}
+            disabled={placementDisabled}
+            className="flex-1 min-w-0 py-3 rounded-xl text-white font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-between px-4 active:scale-[0.98]"
+            style={{ backgroundColor: accent }}
+          >
+            <span className="text-left shrink-0">
+              <span className="block text-[15px] font-extrabold leading-tight">{currency}{payableTotal.toFixed(0)}</span>
+              <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
+            </span>
+            <span className="flex items-center gap-1 text-[15px] font-bold whitespace-nowrap">
+              Place Order
+              <ChevronDown size={16} className="-rotate-90" />
+            </span>
+          </button>
         </div>
-      </>
+      </div>
     )}
     </div>
+
+    {/* PAY USING bottom sheet — switch between online & pay-on-delivery. */}
+    {showPaymentSheet && (
+      <div
+        className="fixed inset-0 z-[560] flex items-end justify-center"
+        onClick={() => closePaymentSheet()}
+        style={{ transition: "opacity 0.25s ease", opacity: paymentSheetClosing ? 0 : 1 }}
+      >
+        <div className="absolute inset-0 bg-black/50" />
+        <div
+          className="relative w-full md:max-w-2xl rounded-t-2xl bg-white p-5 pb-8"
+          style={{
+            transition: "transform 0.25s ease",
+            transform: paymentSheetClosing ? "translateY(100%)" : "translateY(0)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-10 h-1 rounded-full mx-auto mb-5 bg-gray-300" />
+          <h3 className="font-bold text-[16px] mb-4 text-gray-900">Select payment method</h3>
+          <div className="flex flex-col gap-2">
+            {hasCashfree && (
+              <button
+                type="button"
+                onClick={() => closePaymentSheet("online")}
+                className="flex items-center gap-3 p-4 rounded-xl border-2 bg-gray-50 transition-all"
+                style={{ borderColor: paymentMethod === "online" ? accent : "#e5e5e5" }}
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${accent}14` }}
+                >
+                  <CreditCard size={20} style={{ color: accent }} />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-[14px] text-gray-900">Pay online</p>
+                  <p className="text-[12px] text-gray-500">Cards, UPI &amp; Netbanking</p>
+                </div>
+                {paymentMethod === "online" && (
+                  <Check size={20} className="ml-auto shrink-0" style={{ color: accent }} />
+                )}
+              </button>
+            )}
+            {hasCod && (
+              <button
+                type="button"
+                onClick={() => closePaymentSheet("cash")}
+                className="flex items-center gap-3 p-4 rounded-xl border-2 bg-gray-50 transition-all"
+                style={{ borderColor: paymentMethod === "cash" ? accent : "#e5e5e5" }}
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${accent}14` }}
+                >
+                  <Wallet size={20} style={{ color: accent }} />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-[14px] text-gray-900">
+                    {orderType === "delivery" ? "Cash on delivery" : "Pay at store"}
+                  </p>
+                  <p className="text-[12px] text-gray-500">
+                    {hasUpiQr ? "Pay using cash or UPI" : "Pay using cash"}
+                  </p>
+                </div>
+                {paymentMethod === "cash" && (
+                  <Check size={20} className="ml-auto shrink-0" style={{ color: accent }} />
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* Address overlays — rendered outside scrollable container */}
 
