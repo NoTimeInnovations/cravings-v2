@@ -426,6 +426,10 @@ export default function GetStartedClient({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isHydrated, setIsHydrated] = useState(false);
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
+  // Optional custom instruction the partner can add to steer AI menu extraction
+  // (e.g. "ignore all drinks", "treat Combos as its own category", "prices are
+  // in AED"). Injected at the TOP of the extraction prompt with highest priority.
+  const [menuInstruction, setMenuInstruction] = useState<string>("");
   // Logo (optional) — saved into store_banner; the V3 storefront renders it on
   // a colored tile sized by storefront_settings.bannerLogo. bgColor defaults to
   // white to match the banner-settings default (V3 uses bgColor || "#ffffff").
@@ -819,13 +823,22 @@ export default function GetStartedClient({
         },
       } as Schema;
 
-      const prompt = `Extract each distinct dish as a separate item from the provided menu files (images or PDFs).
+      const basePrompt = `Extract each distinct dish as a separate item from the provided menu files (images or PDFs).
       For each item, provide:
       - name: The name of the dish.
       - price: The minimum price.
       - description: A short, appetizing description (max 10 words).
       - category: The main heading.
       - variants: (Optional) Array of {name, price} for sizes.`;
+
+      // The partner's custom instruction (if any) is given HIGHEST priority: it's
+      // placed first and explicitly told to override any conflicting rule below,
+      // so a directive like "ignore all drinks" or "treat Combos as a category"
+      // wins over the defaults.
+      const instruction = menuInstruction.trim();
+      const prompt = instruction
+        ? `USER INSTRUCTION — HIGHEST PRIORITY. Follow this exactly. Whenever it conflicts with any rule in the task below, the USER INSTRUCTION WINS:\n"""\n${instruction}\n"""\n\n--- TASK ---\n${basePrompt}`
+        : basePrompt;
 
       const files = await Promise.all(
         menuFiles.map(async (file) => ({
@@ -1446,6 +1459,29 @@ export default function GetStartedClient({
           ))}
         </div>
       )}
+
+      {/* Optional custom instruction to steer AI menu extraction */}
+      <div className="space-y-1.5">
+        <label
+          htmlFor="menu-instruction"
+          className="text-xs md:text-sm font-medium text-stone-700"
+        >
+          Instructions for our AI{" "}
+          <span className="text-stone-400 font-normal">(optional)</span>
+        </label>
+        <textarea
+          id="menu-instruction"
+          value={menuInstruction}
+          onChange={(e) => setMenuInstruction(e.target.value)}
+          rows={2}
+          maxLength={500}
+          placeholder={`Anything special about your menu? e.g. "Ignore all drinks", "Treat Combos as its own category", "Prices are in AED"`}
+          className="w-full resize-none rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-colors"
+        />
+        <p className="text-[11px] text-stone-400">
+          Your instruction takes priority when the AI reads your files.
+        </p>
+      </div>
 
       <ButtonV2
         onClick={handleStep1Next}
