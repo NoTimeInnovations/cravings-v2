@@ -219,6 +219,8 @@ const HIDDEN_PATHS = [
   "/delivery-app/download",
   "/profile",
   "/user-profile",
+  "/share",
+  "/share/.*",
 ];
 
 // Known top-level static routes — any single-segment path NOT in this list

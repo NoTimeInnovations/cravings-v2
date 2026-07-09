@@ -250,6 +250,7 @@ const BottomNav = () => {
     !pathname.startsWith("/pricing") &&
     !pathname.startsWith("/business") &&
     !pathname.startsWith("/order/") &&
+    !pathname.startsWith("/share") &&
     !pathname.startsWith("/delivery-app/download");
 
   if (!shouldShow) return null;

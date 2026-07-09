@@ -88,9 +88,43 @@ export default function ShareBranchClient({ brandName, password, outlets }: Prop
     );
   }, [query, outlets]);
 
+  // Shared copy button — compact in the desktop table, full-width on mobile cards.
+  const CopyBtn = ({ o, fullWidth }: { o: ShareOutlet; fullWidth?: boolean }) => {
+    const done = copiedId === o.id;
+    return (
+      <button
+        onClick={() => handleCopy(o)}
+        aria-label={`Copy details for ${o.store_name}`}
+        className={`inline-flex items-center gap-1.5 rounded-lg border text-[12.5px] font-semibold transition active:translate-y-px ${
+          fullWidth ? "w-full justify-center px-3 py-2" : "px-3 py-1.5"
+        } ${
+          done
+            ? "border-[#BDE3D0] bg-[#EFFAF4] text-[#1E7A54]"
+            : "border-[#ECE6E1] bg-white text-[#A31621] hover:border-[#D62839] hover:bg-[#FFF6F7]"
+        }`}
+      >
+        {done ? (
+          <>
+            <Check className="h-3.5 w-3.5" /> Copied
+          </>
+        ) : (
+          <>
+            <Copy className="h-3.5 w-3.5" /> Copy
+          </>
+        )}
+      </button>
+    );
+  };
+
+  const pwChip = (
+    <span className="rounded-md border border-[#ECE6E1] bg-[#F4EFEB] px-2 py-0.5 font-mono text-[12.5px] tracking-wide">
+      {password}
+    </span>
+  );
+
   return (
     <div className="min-h-screen bg-[#FAF8F6] text-[#1C1714] antialiased">
-      <div className="mx-auto max-w-5xl px-5 pb-16 pt-7">
+      <div className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-5 sm:pt-8">
         {/* Masthead */}
         <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b-2 border-[#1C1714] pb-4">
           <div>
@@ -100,28 +134,26 @@ export default function ShareBranchClient({ brandName, password, outlets }: Prop
                 {brandName} Branch
               </p>
             </div>
-            <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-balance">
+            <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-balance sm:text-[26px]">
               Partner Credentials
             </h1>
-            <p className="mt-1.5 text-[13.5px] text-[#837A73]">
+            <p className="mt-1.5 text-[13px] text-[#837A73] sm:text-[13.5px]">
               <b className="tabular-nums text-[#1C1714]">{outlets.length}</b>{" "}
               {outlets.length === 1 ? "branch" : "branches"} · storefronts on{" "}
               <b className="text-[#1C1714]">menuthere.com</b> · default password{" "}
-              <span className="rounded-md border border-[#ECE6E1] bg-[#F4EFEB] px-2 py-0.5 font-mono text-[12.5px] tracking-wide">
-                {password}
-              </span>
+              {pwChip}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative">
+          <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto">
+            <div className="relative flex-1 sm:flex-none">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#ABA39C]" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search branches…"
                 aria-label="Search branches"
-                className="w-[210px] max-w-[70vw] rounded-[9px] border border-[#ECE6E1] bg-white py-2 pl-9 pr-3 text-[13.5px] outline-none transition focus:border-[#D62839] focus:ring-[3px] focus:ring-[#D62839]/15"
+                className="w-full rounded-[9px] border border-[#ECE6E1] bg-white py-2 pl-9 pr-3 text-[13.5px] outline-none transition focus:border-[#D62839] focus:ring-[3px] focus:ring-[#D62839]/15 sm:w-[210px]"
               />
             </div>
             <button
@@ -133,8 +165,8 @@ export default function ShareBranchClient({ brandName, password, outlets }: Prop
           </div>
         </header>
 
-        {/* Table */}
-        <div className="overflow-hidden rounded-[14px] border border-[#ECE6E1] bg-white shadow-[0_1px_2px_rgba(28,23,20,0.04),0_8px_28px_rgba(28,23,20,0.05)]">
+        {/* Desktop / tablet: table */}
+        <div className="hidden overflow-hidden rounded-[14px] border border-[#ECE6E1] bg-white shadow-[0_1px_2px_rgba(28,23,20,0.04),0_8px_28px_rgba(28,23,20,0.05)] md:block">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse">
               <thead>
@@ -172,7 +204,6 @@ export default function ShareBranchClient({ brandName, password, outlets }: Prop
                 )}
                 {filtered.map((o, i) => {
                   const link = `${BASE}${o.username}`;
-                  const done = copiedId === o.id;
                   return (
                     <tr
                       key={o.id}
@@ -209,30 +240,10 @@ export default function ShareBranchClient({ brandName, password, outlets }: Prop
                         </a>
                       </td>
                       <td className="border-b border-[#ECE6E1] px-4 py-3 text-[13.5px]">
-                        <span className="rounded-md border border-[#ECE6E1] bg-[#F4EFEB] px-2 py-0.5 font-mono text-[12.5px] tracking-wide">
-                          {password}
-                        </span>
+                        {pwChip}
                       </td>
                       <td className="border-b border-[#ECE6E1] px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleCopy(o)}
-                          aria-label={`Copy details for ${o.store_name}`}
-                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition active:translate-y-px ${
-                            done
-                              ? "border-[#BDE3D0] bg-[#EFFAF4] text-[#1E7A54]"
-                              : "border-[#ECE6E1] bg-white text-[#A31621] hover:border-[#D62839] hover:bg-[#FFF6F7]"
-                          }`}
-                        >
-                          {done ? (
-                            <>
-                              <Check className="h-3.5 w-3.5" /> Copied
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3.5 w-3.5" /> Copy
-                            </>
-                          )}
-                        </button>
+                        <CopyBtn o={o} />
                       </td>
                     </tr>
                   );
@@ -240,6 +251,72 @@ export default function ShareBranchClient({ brandName, password, outlets }: Prop
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Mobile: cards */}
+        <div className="space-y-3 md:hidden">
+          {filtered.length === 0 && (
+            <div className="rounded-[14px] border border-[#ECE6E1] bg-white px-4 py-10 text-center text-sm text-[#837A73]">
+              No branches match your search.
+            </div>
+          )}
+          {filtered.map((o, i) => {
+            const link = `${BASE}${o.username}`;
+            return (
+              <div
+                key={o.id}
+                className={`rounded-[14px] border p-4 shadow-[0_1px_2px_rgba(28,23,20,0.04)] ${
+                  o.isParent
+                    ? "border-[#F3CDD1] bg-[#FDEDEE]"
+                    : "border-[#ECE6E1] bg-white"
+                }`}
+              >
+                <div className="mb-3 flex items-start gap-2">
+                  <span className="mt-0.5 text-[11px] tabular-nums text-[#B4ABA4]">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold leading-snug tracking-[-0.005em]">
+                      {o.store_name}
+                    </h3>
+                    {o.isParent && (
+                      <span className="mt-1 inline-block rounded-full bg-[#F7DEE1] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#A31621]">
+                        Brand / Main
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <dl className="space-y-2 text-[13px]">
+                  <div className="flex gap-3">
+                    <dt className="w-[68px] flex-none text-[#9A918B]">Email</dt>
+                    <dd className="min-w-0 break-all text-[#4A433E]">{o.email}</dd>
+                  </div>
+                  <div className="flex gap-3">
+                    <dt className="w-[68px] flex-none text-[#9A918B]">Link</dt>
+                    <dd className="min-w-0">
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="break-all text-[#A31621] hover:underline"
+                      >
+                        {link}
+                      </a>
+                    </dd>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <dt className="w-[68px] flex-none text-[#9A918B]">Password</dt>
+                    <dd>{pwChip}</dd>
+                  </div>
+                </dl>
+
+                <div className="mt-4">
+                  <CopyBtn o={o} fullWidth />
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <p className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[#837A73]">
