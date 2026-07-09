@@ -22,6 +22,7 @@ import { LocationSettings } from "./LocationSettings";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { CURRENCY_OPTIONS } from "@/lib/worldCurrencies";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
+import PartnerConnectionsCard from "@/components/PartnerConnectionsCard";
 
 export function GeneralSettings() {
     const { userData, setState } = useAuthStore();
@@ -281,6 +282,8 @@ export function GeneralSettings() {
                         </div>
                     </CardContent>
                 </Card>
+
+                <PartnerConnectionsCard partnerId={userData?.id} />
 
                 <Card>
                     <CardHeader>
