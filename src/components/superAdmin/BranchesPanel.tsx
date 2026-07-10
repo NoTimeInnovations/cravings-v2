@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Search, X, Unlink as UnlinkIcon, Trash2, Plus, Store, MessageCircle } from "lucide-react";
+import { Loader2, Search, X, Unlink as UnlinkIcon, Trash2, Plus, Store, MessageCircle, LayoutGrid, List } from "lucide-react";
 import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,10 @@ export default function BranchesPanel({
   // Branch-WhatsApp state
   const [mainWa, setMainWa] = useState<{ display_phone: string | null; is_primary: boolean }[]>([]);
   const [waBusy, setWaBusy] = useState(false);
+
+  // Outlet-picker layout ("list" | "grid") — how the customer outlet screen lays
+  // out outlets for this brand.
+  const [viewBusy, setViewBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -257,6 +261,29 @@ export default function BranchesPanel({
       toast.error(e?.message || "Failed to update WhatsApp mode");
     } finally {
       setWaBusy(false);
+    }
+  };
+
+  // Set how the customer outlet-picker screen lays out outlets (list vs grid).
+  // Saves immediately and revalidates the brand-parent's storefront so the
+  // change is live on the next load.
+  const handleSetOutletView = async (next: "list" | "grid") => {
+    if (!info?.branch) return;
+    if ((info.branch.outlet_view || "list") === next) return;
+    setViewBusy(true);
+    try {
+      await fetchFromHasura(updateBranchMutation, {
+        id: info.branch.id,
+        updates: { outlet_view: next },
+      });
+      revalidateTag(partnerId);
+      toast.success(`Outlet screen set to ${next} view`);
+      await refresh();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update outlet view");
+    } finally {
+      setViewBusy(false);
     }
   };
 
@@ -521,6 +548,40 @@ export default function BranchesPanel({
               flows. Outlets share the same number — order messages send per outlet, while inbound
               replies route to only one. Switching back to Direct removes the copies from all outlets.
             </p>
+          </div>
+
+          {/* Outlet screen view (grid vs list) */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="font-semibold flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4 text-gray-600" /> Outlet screen view
+            </p>
+            <p className="text-xs text-gray-500">
+              How the customer outlet picker lays out outlets for this brand.
+            </p>
+            <div className="inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+              {(["list", "grid"] as const).map((v) => {
+                const active = (info.branch!.outlet_view || "list") === v;
+                const Icon = v === "grid" ? LayoutGrid : List;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    disabled={viewBusy}
+                    onClick={() => handleSetOutletView(v)}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium capitalize transition disabled:opacity-60 ${
+                      active
+                        ? "bg-white shadow-sm text-gray-900"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" /> {v}
+                  </button>
+                );
+              })}
+              {viewBusy && (
+                <Loader2 className="w-4 h-4 animate-spin ml-1.5 text-gray-400" />
+              )}
+            </div>
           </div>
 
           <div className="border-t pt-4">

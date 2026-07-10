@@ -94,6 +94,9 @@ export default function OutletPickerScreen({
   hotelData,
 }: OutletPickerScreenProps) {
   const isDelivery = orderType === "delivery";
+  // Brand-configured outlet layout (superadmin Branches panel). "grid" shows a
+  // 2-up card grid; anything else (default) keeps the vertical list.
+  const isGrid = (brand.outlet_view || "list") === "grid";
   const { coords: storedCoords, getLocation, isLoading: locating } = useLocationStore();
   const savedUserAddress = useOrderStore((s) => s.userAddress);
   const { userData: authUser } = useAuthStore();
@@ -723,9 +726,13 @@ export default function OutletPickerScreen({
           {/* Outlets — outlet page (delivery) or takeaway */}
           {showOutletsView && (
             <>
-          <div className="mt-3 flex flex-col gap-2">
+          <div
+            className={
+              isGrid ? "mt-3 grid grid-cols-2 gap-2.5" : "mt-3 flex flex-col gap-2"
+            }
+          >
             {sortedOutlets.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-6">
+              <p className="text-sm text-gray-500 text-center py-6 col-span-2">
                 No outlets available right now.
               </p>
             ) : (
@@ -733,15 +740,77 @@ export default function OutletPickerScreen({
                 const isSelected =
                   selectedId === o.id || (!selectedId && o === sortedOutlets[0]);
                 const dist = distanceFor(o);
+                const label = o.store_tagline?.trim() || o.store_name;
+                const locText = [o.location_details, o.location]
+                  .filter(Boolean)
+                  .join(", ");
+                const selectedCls = isSelected
+                  ? "border-[1.5px] shadow-[0_0_0_2px_rgba(0,0,0,0.05)]"
+                  : "border border-gray-200";
+
+                if (isGrid) {
+                  return (
+                    <button
+                      key={o.id}
+                      onClick={() => setSelectedId(o.id)}
+                      className={`rounded-xl bg-white overflow-hidden text-left transition-all ${selectedCls}`}
+                      style={isSelected ? { borderColor: accent } : undefined}
+                    >
+                      <div
+                        className={`aspect-[4/3] w-full overflow-hidden flex items-center justify-center ${
+                          o.store_banner ? "" : "bg-gray-100"
+                        }`}
+                        style={
+                          isSelected && !o.store_banner
+                            ? { backgroundColor: `${accent}15` }
+                            : undefined
+                        }
+                      >
+                        {o.store_banner ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={o.store_banner}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <Store
+                            className="w-6 h-6"
+                            style={{ color: isSelected ? accent : "#111827" }}
+                          />
+                        )}
+                      </div>
+                      <div className="p-2.5">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {label}
+                          </p>
+                          {dist && (
+                            <p
+                              className="text-[10px] font-semibold shrink-0"
+                              style={{ color: accent }}
+                            >
+                              {dist}
+                            </p>
+                          )}
+                        </div>
+                        {locText && (
+                          <p className="mt-0.5 text-xs text-gray-600 flex items-start gap-1">
+                            <MapPin className="w-3 h-3 mt-0.5 shrink-0 text-gray-400" />
+                            <span className="line-clamp-1">{locText}</span>
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                }
+
                 return (
                   <button
                     key={o.id}
                     onClick={() => setSelectedId(o.id)}
-                    className={`w-full px-3 py-2.5 rounded-xl bg-white flex items-center gap-2.5 text-left transition-all ${
-                      isSelected
-                        ? "border-[1.5px] shadow-[0_0_0_2px_rgba(0,0,0,0.05)]"
-                        : "border border-gray-200"
-                    }`}
+                    className={`w-full px-3 py-2.5 rounded-xl bg-white flex items-center gap-2.5 text-left transition-all ${selectedCls}`}
                     style={isSelected ? { borderColor: accent } : undefined}
                   >
                     <div
@@ -772,7 +841,7 @@ export default function OutletPickerScreen({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold text-gray-900 truncate">
-                          {o.store_tagline?.trim() || o.store_name}
+                          {label}
                         </p>
                         {dist && (
                           <p
@@ -783,14 +852,10 @@ export default function OutletPickerScreen({
                           </p>
                         )}
                       </div>
-                      {(o.location || o.location_details) && (
+                      {locText && (
                         <p className="mt-0.5 text-xs text-gray-600 flex items-start gap-1">
                           <MapPin className="w-3 h-3 mt-0.5 shrink-0 text-gray-400" />
-                          <span className="line-clamp-1">
-                            {[o.location_details, o.location]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </span>
+                          <span className="line-clamp-1">{locText}</span>
                         </p>
                       )}
                     </div>

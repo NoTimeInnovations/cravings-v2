@@ -6,6 +6,7 @@ query GetBranchByParentPartnerId($parent_partner_id: uuid!) {
     id
     name
     tagline
+    outlet_view
     parent_partner_id
     outlets(where: {status: {_eq: "active"}, hide_from_outlets: {_eq: false}}, order_by: {store_name: asc}) {
       id
@@ -35,6 +36,7 @@ query GetPartnerBranchInfo($partner_id: uuid!) {
       name
       tagline
       whatsapp_source
+      outlet_view
       parent_partner_id
       parent_partner {
         id
@@ -137,6 +139,8 @@ export interface BranchContext {
   id: string;
   name: string;
   tagline?: string | null;
+  /** How the customer outlet picker lays out outlets. Defaults to "list". */
+  outlet_view?: "grid" | "list" | null;
   parent_partner_id: string;
   outlets: BranchOutlet[];
 }
@@ -149,6 +153,7 @@ export interface PartnerBranchInfo {
     name: string;
     tagline?: string | null;
     whatsapp_source?: "direct" | "main" | null;
+    outlet_view?: "grid" | "list" | null;
     parent_partner_id: string;
     parent_partner?: {
       id: string;
