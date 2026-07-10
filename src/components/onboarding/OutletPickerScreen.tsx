@@ -782,21 +782,21 @@ export default function OutletPickerScreen({
                         )}
                       </div>
                       <div className="p-2.5">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
-                            {label}
+                        {/* Name gets the full width and up to two lines so long
+                            outlet names aren't cut off; distance sits below it. */}
+                        <p className="text-[13px] font-semibold leading-snug text-gray-900 line-clamp-2">
+                          {label}
+                        </p>
+                        {dist && (
+                          <p
+                            className="mt-1 text-[10px] font-semibold"
+                            style={{ color: accent }}
+                          >
+                            {dist}
                           </p>
-                          {dist && (
-                            <p
-                              className="text-[10px] font-semibold shrink-0"
-                              style={{ color: accent }}
-                            >
-                              {dist}
-                            </p>
-                          )}
-                        </div>
+                        )}
                         {locText && (
-                          <p className="mt-0.5 text-xs text-gray-600 flex items-start gap-1">
+                          <p className="mt-0.5 text-[11px] text-gray-600 flex items-start gap-1">
                             <MapPin className="w-3 h-3 mt-0.5 shrink-0 text-gray-400" />
                             <span className="line-clamp-1">{locText}</span>
                           </p>
