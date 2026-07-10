@@ -102,9 +102,10 @@ export default function OrderTypeScreen({
   }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive, hotelTimezone, hasDelivery, hasOrdering, hasDineIn]);
 
   return (
-    <div className="relative flex min-h-dvh flex-col mx-auto w-full md:max-w-md" style={{ fontFamily: "'Inter', system-ui, sans-serif", background: heroGradient }}>
-      {/* Branded hero header */}
-      <div className="relative px-6 pt-[40px] pb-8 text-white">
+    <div className="relative flex h-dvh flex-col overflow-hidden mx-auto w-full md:max-w-md" style={{ fontFamily: "'Inter', system-ui, sans-serif", background: heroGradient }}>
+      {/* Branded hero header — never shrinks; kept compact so the whole screen
+          (options + CTA) fits within the viewport without page scroll. */}
+      <div className="relative shrink-0 px-6 pt-[40px] pb-6 text-white">
         <button
           onClick={onBack || onSkip}
           className="absolute left-5 top-[36px] flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm transition active:opacity-70"
@@ -114,12 +115,15 @@ export default function OrderTypeScreen({
 
         <div className="mt-5 flex flex-col items-center text-center">
           {logoFullScreen && storeBanner ? (
-            // Full-screen logo: large, full-width, whole image visible.
+            // Full-screen logo: full-width but kept SHORT (capped height) and at
+            // the top, so the options + Continue button stay visible without the
+            // screen scrolling — especially on phones. Whole image stays visible
+            // (object-contain, no cropping).
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={storeBanner}
               alt={storeName}
-              className="w-full max-h-[50vh] rounded-2xl object-contain"
+              className="w-full max-h-[26vh] rounded-2xl object-contain"
             />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-[3px] border-white shadow-md">
@@ -166,8 +170,10 @@ export default function OrderTypeScreen({
         </div>
       </div>
 
-      {/* White content sheet */}
-      <div className="relative z-[1] -mt-5 flex-1 rounded-t-[28px] bg-white px-6 pt-5 pb-[112px] shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+      {/* White content sheet — takes the remaining height and scrolls its own
+          content in the rare case it overflows (e.g. 3 order types + a
+          closed-hours notice), so the sticky CTA below is always on screen. */}
+      <div className="relative z-[1] -mt-5 flex-1 min-h-0 overflow-y-auto rounded-t-[28px] bg-white px-6 pt-5 pb-[112px] shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
         <h1 className="text-xl lg:text-2xl font-semibold tracking-tight text-gray-900">
           How would you like your order?
         </h1>
