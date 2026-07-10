@@ -866,7 +866,20 @@ const useOrderStore = create(
       },
 
       setUserCoordinates: (coords) => {
-        set({ coordinates: coords });
+        // Changing the delivery point invalidates any previously computed
+        // delivery distance/charge. Clear deliveryInfo whenever the coordinates
+        // actually change so a stale value for the OLD location can never keep
+        // showing while the new one is (re)computed — the root cause of
+        // "distance/charge don't update when the address is changed".
+        const prev = get().coordinates;
+        const changed =
+          (prev?.lat ?? null) !== (coords?.lat ?? null) ||
+          (prev?.lng ?? null) !== (coords?.lng ?? null);
+        set(
+          changed
+            ? { coordinates: coords, deliveryInfo: null }
+            : { coordinates: coords },
+        );
       },
 
       subscribeUserOrders: (callback) => {
@@ -2219,8 +2232,15 @@ const useOrderStore = create(
       storage: createJSONStorage(() => getSafeStorage()),
       partialize: (state) => {
         // pendingCheckoutOpen is a transient one-shot intent — never persist it.
-        const { orderType: _orderType, pendingCheckoutOpen: _pco, ...rest } =
-          state as any;
+        // deliveryInfo is DERIVED from the current delivery coordinates + partner
+        // rules; persisting it risks rehydrating a stale distance/charge that no
+        // longer matches the address, so it is always recomputed at checkout.
+        const {
+          orderType: _orderType,
+          pendingCheckoutOpen: _pco,
+          deliveryInfo: _deliveryInfo,
+          ...rest
+        } = state as any;
         return rest;
       },
     }

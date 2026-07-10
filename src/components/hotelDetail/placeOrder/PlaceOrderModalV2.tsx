@@ -1187,12 +1187,20 @@ const PlaceOrderModalV2 = ({
     setSelectedReceiverName(receiverName || null);
     setShowAddressSheet(false);
     if (orderType === "delivery") {
-      const coords = addr.latitude && addr.longitude
-        ? { lat: addr.latitude, lng: addr.longitude }
-        : null;
-      // Reuse the road distance the picker already computed & stored on this
-      // address, so checkout shows the exact same number the address modal did.
-      calculateDeliveryDistanceAndCost(hotelData, coords, addr.deliveryDistanceKm);
+      if (addr.latitude && addr.longitude) {
+        // Reuse the road distance the picker already computed & stored on this
+        // address, so checkout shows the exact same number the address modal did.
+        calculateDeliveryDistanceAndCost(
+          hotelData,
+          { lat: addr.latitude, lng: addr.longitude },
+          addr.deliveryDistanceKm,
+        );
+      } else {
+        // Address has no coordinates → clear any stale distance/charge rather
+        // than recomputing the PREVIOUS point from the localStorage GPS
+        // fallback (which would show the old address's numbers).
+        useOrderStore.getState().setUserCoordinates(null);
+      }
     }
     // Bump this address to "latest" (with phone attached) so it shows first
     // next time. Saved locally always, and to the DB when logged in.
@@ -3416,7 +3424,13 @@ const PlaceOrderModalV2 = ({
             useLocationStore.getState().setCoords(coords);
           }
           if (orderType === "delivery") {
-            calculateDeliveryDistanceAndCost(hotelData, coords ?? null);
+            if (coords) {
+              calculateDeliveryDistanceAndCost(hotelData, coords);
+            } else {
+              // No coords → clear stale distance/charge instead of recomputing
+              // the previous point from the localStorage GPS fallback.
+              useOrderStore.getState().setUserCoordinates(null);
+            }
           }
           setSelectedReceiverPhone((user as any)?.phone || null);
           setSelectedReceiverName(accountReceiverName(user) || null);

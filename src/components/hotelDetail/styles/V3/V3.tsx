@@ -7,7 +7,7 @@ import { DefaultHotelPageProps } from "../Default/Default";
 import { applyVisibilityState, getItemDisplayState } from "@/lib/visibility";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import V3ItemCard from "./V3ItemCard";
-import OrderDrawer from "../../OrderDrawer";
+import OrderDrawer, { calculateDeliveryDistanceAndCost } from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
@@ -93,6 +93,14 @@ const V3 = ({
       const c = { lat: saved.latitude, lng: saved.longitude };
       useOrderStore.getState().setUserCoordinates(c);
       useLocationStore.getState().setCoords(c);
+      // Recompute delivery distance/charge for the NEW location — without this
+      // the storefront kept showing the previous address's values. Reuse the
+      // address's already-validated road distance when present.
+      void calculateDeliveryDistanceAndCost(
+        hoteldata as any,
+        c,
+        saved.deliveryDistanceKm ?? null,
+      );
     }
     // Save locally with a fresh timestamp so it shows newest-first (survives
     // reload + works for guests).
@@ -116,7 +124,7 @@ const V3 = ({
         toast.error("Failed to save address");
       }
     }
-  }, [authUser, savedAddresses]);
+  }, [authUser, savedAddresses, hoteldata]);
 
   useEffect(() => {
     setBannerError(false);
@@ -710,7 +718,12 @@ const V3 = ({
             onSelect={(addr, coords) => {
               if (addr) {
                 useOrderStore.getState().setUserAddress(addr);
-                if (coords) useOrderStore.getState().setUserCoordinates(coords);
+                if (coords) {
+                  useOrderStore.getState().setUserCoordinates(coords);
+                  useLocationStore.getState().setCoords(coords);
+                  // Recompute distance/charge for the newly chosen address.
+                  void calculateDeliveryDistanceAndCost(hoteldata as any, coords);
+                }
               }
               setAddressSheetOpen(false);
             }}
