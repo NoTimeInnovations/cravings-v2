@@ -209,6 +209,21 @@ export default function OutletPickerScreen({
       .map((x) => x.o);
   }, [brand.outlets, userCoords]);
 
+  // Takeaway: the search box doubles as an outlet finder — filter the list by
+  // name / tagline / location as the user types. (Delivery uses the box for the
+  // delivery address instead, so name-filtering is skipped there.)
+  const displayedOutlets = useMemo(() => {
+    const q = areaInput.trim().toLowerCase();
+    if (isDelivery || !q) return sortedOutlets;
+    return sortedOutlets.filter((o) => {
+      const hay = [o.store_name, o.store_tagline, o.location, o.location_details]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [sortedOutlets, areaInput, isDelivery]);
+
   const distanceFor = (o: BranchOutlet): string | null => {
     if (!userCoords) return null;
     const c = outletCoords(o);
@@ -234,7 +249,7 @@ export default function OutletPickerScreen({
   };
 
   const effectiveSelected: BranchOutlet | null =
-    sortedOutlets.find((o) => o.id === selectedId) || sortedOutlets[0] || null;
+    displayedOutlets.find((o) => o.id === selectedId) || displayedOutlets[0] || null;
   const selectedOutOfRange =
     isDelivery && !!savedAddress && !!effectiveSelected
       ? isOutletOutOfRange(effectiveSelected)
@@ -441,12 +456,12 @@ export default function OutletPickerScreen({
 
   const canContinue = isDelivery
     ? Boolean(savedAddress) && sortedOutlets.length > 0
-    : sortedOutlets.length > 0;
+    : displayedOutlets.length > 0;
 
   const handleContinue = () => {
     if (!canContinue) return;
     const target =
-      sortedOutlets.find((o) => o.id === selectedId) || sortedOutlets[0];
+      displayedOutlets.find((o) => o.id === selectedId) || displayedOutlets[0];
     if (target) onSelect(target);
   };
 
@@ -560,7 +575,7 @@ export default function OutletPickerScreen({
           {(showAddressView || !isDelivery) && (
           <div className="mt-5 rounded-2xl bg-gray-50 p-4">
             <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-gray-500">
-              {isDelivery ? "Your delivery address" : "Find nearest to me"}
+              {isDelivery ? "Your delivery address" : "Search outlets"}
             </p>
             <div className="mt-2 relative">
               <div className="relative flex items-center h-10 rounded-xl border border-gray-200 bg-white focus-within:ring-2 focus-within:ring-gray-200">
@@ -568,12 +583,14 @@ export default function OutletPickerScreen({
                   value={areaInput}
                   onChange={(e) => handleAddressInputChange(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleFind();
+                    // Takeaway filters the outlet list live as you type, so Enter
+                    // has nothing to geocode; delivery still geocodes the address.
+                    if (e.key === "Enter" && isDelivery) handleFind();
                   }}
                   placeholder={
                     isDelivery
                       ? "Search street, area, landmark"
-                      : "Type your area / address"
+                      : "Search by outlet name or area"
                   }
                   className="flex-1 h-full pl-3 pr-9 bg-transparent text-sm rounded-xl focus:outline-none"
                 />
@@ -731,14 +748,16 @@ export default function OutletPickerScreen({
               isGrid ? "mt-3 grid grid-cols-2 gap-2.5" : "mt-3 flex flex-col gap-2"
             }
           >
-            {sortedOutlets.length === 0 ? (
+            {displayedOutlets.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-6 col-span-2">
-                No outlets available right now.
+                {!isDelivery && areaInput.trim()
+                  ? `No outlets match “${areaInput.trim()}”.`
+                  : "No outlets available right now."}
               </p>
             ) : (
-              sortedOutlets.map((o) => {
+              displayedOutlets.map((o) => {
                 const isSelected =
-                  selectedId === o.id || (!selectedId && o === sortedOutlets[0]);
+                  selectedId === o.id || (!selectedId && o === displayedOutlets[0]);
                 const dist = distanceFor(o);
                 const label = o.store_tagline?.trim() || o.store_name;
                 const locText = [o.location_details, o.location]
