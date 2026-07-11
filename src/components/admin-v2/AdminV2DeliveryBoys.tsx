@@ -19,8 +19,10 @@ import { Loader2, Plus, Trash2, Truck, ArrowLeft, Pencil, Download } from "lucid
 import { getFeatures } from "@/lib/getFeatures";
 import { Switch } from "@/components/ui/switch";
 
-const V1_APP_URL =
+const PETPOOJA_APP_URL =
     "https://drive.google.com/file/d/1inKs5F6b6Ch18N4l22L2Em4hbeo0u8lH/view?usp=sharing";
+const DELIVERY_POOL_APP_URL =
+    "https://drive.google.com/file/d/1EJdOjkHEytoT0y80tfabwgj0TSob10-K/view?usp=sharing";
 
 interface DeliveryBoy {
     id: string;
@@ -261,13 +263,20 @@ export function AdminV2DeliveryBoys() {
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Delivery Boy Management</h1>
                     <p className="text-muted-foreground">Manage your delivery boys.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <Button
                         variant="outline"
-                        onClick={() => window.open(V1_APP_URL, "_blank", "noopener,noreferrer")}
+                        onClick={() => window.open(PETPOOJA_APP_URL, "_blank", "noopener,noreferrer")}
                     >
                         <Download className="mr-2 h-4 w-4" />
-                        Download V1 app
+                        Download Petpooja Delivery Boy App
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => window.open(DELIVERY_POOL_APP_URL, "_blank", "noopener,noreferrer")}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Delivery Pool App
                     </Button>
                     <Button onClick={() => setIsAddingDeliveryBoy(true)}>
                         <Plus className="mr-2 h-4 w-4" />
