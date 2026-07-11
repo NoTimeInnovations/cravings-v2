@@ -268,6 +268,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           show_on_delivery: mi.show_on_delivery,
           show_on_takeaway: mi.show_on_takeaway,
           show_on_dine_in: mi.show_on_dine_in,
+          tax_inclusive: mi.tax_inclusive ?? false,
           recommendations: Array.isArray(mi.recommendations) ? mi.recommendations : [],
           reactivate_at: mi.reactivate_at ?? null,
         };
