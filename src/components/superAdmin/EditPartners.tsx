@@ -45,6 +45,7 @@ import { useLocationStore } from "@/store/locationStore";
 import BranchesPanel from "./BranchesPanel";
 import { FeatureFlags, getFeatures, revertFeatureToString } from "@/lib/getFeatures";
 import { provisionDefaultFlows, provisionLoyaltyFlows } from "@/app/actions/provisionDefaultFlows";
+import { syncPoolRestaurant } from "@/app/actions/deliveryPoolAdmin";
 import { Trash2, ArrowLeft, Copy } from "lucide-react";
 
 interface PartnerWithDetails extends Partner {
@@ -380,6 +381,18 @@ For any support or clarification, please contact us anytime.`;
       provisionLoyaltyFlows(selectedPartner.id)
         .then((r) => {
           if (r.created > 0) toast.success(`Added ${r.created} loyalty WhatsApp flow${r.created > 1 ? "s" : ""}`);
+        })
+        .catch(() => {});
+    }
+    // When the partner has the delivery pool feature, register/refresh them in the
+    // rider pool NOW (pool_enabled mirrors the toggle). Previously this only
+    // happened when someone opened the partner's Delivery Pool panel, so newly
+    // enabled restaurants never showed in the delivery pool app until then.
+    if (featureFlags?.delivery_pool?.access) {
+      const poolOn = !!featureFlags.delivery_pool.enabled;
+      syncPoolRestaurant(selectedPartner.id, poolOn)
+        .then((r) => {
+          if (r.ok && poolOn) toast.success("Added to the delivery pool");
         })
         .catch(() => {});
     }

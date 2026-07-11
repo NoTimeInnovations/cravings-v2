@@ -106,20 +106,55 @@ export async function verifyPoolRiderKyc(
  * into the pool's restaurant_pool_config (name + pickup geo), so they're listed
  * for riders without any manual "register" step. pool_enabled mirrors -true/-false.
  */
+type PoolPartnerRow = {
+  id: string;
+  store_name: string | null;
+  geo_location: { coordinates?: [number, number] } | null;
+  feature_flags: string | null;
+  phone: string | null;
+  country_code: string | null;
+  store_banner: string | null;
+  address: string | null;
+};
+
+const POOL_PARTNER_FIELDS = `id store_name geo_location feature_flags phone country_code store_banner address`;
+
+// Push ONE partner's config into the pool. pool_enabled mirrors the
+// delivery_pool-true/-false flag, so this both registers (enable) and de-lists
+// (disable) the restaurant. `enabledOverride` lets a caller pass the just-saved
+// flag state directly, avoiding a read-your-write race on feature_flags.
+async function syncOnePoolPartner(
+  p: PoolPartnerRow,
+  enabledOverride?: boolean,
+): Promise<boolean> {
+  const coords = p.geo_location?.coordinates;
+  const pickup =
+    Array.isArray(coords) && coords.length === 2 ? { lat: coords[1], lng: coords[0] } : undefined;
+  const enabled =
+    typeof enabledOverride === "boolean"
+      ? enabledOverride
+      : (p.feature_flags ?? "").includes("delivery_pool-true");
+  const contact_phone = p.phone
+    ? p.country_code && !p.phone.startsWith("+")
+      ? p.country_code + p.phone
+      : p.phone
+    : undefined;
+  const r = await poolSyncConfig(p.id, {
+    name: p.store_name ?? undefined,
+    pool_enabled: enabled,
+    pickup,
+    contact_phone,
+    banner_url: p.store_banner ?? undefined,
+    address: p.address ?? undefined,
+  });
+  return r.ok;
+}
+
 export async function syncAllPoolRestaurants(): Promise<{ ok: boolean; total: number; synced: number; error?: string }> {
-  let partners: Array<{
-    id: string;
-    store_name: string | null;
-    geo_location: { coordinates?: [number, number] } | null;
-    feature_flags: string | null;
-    phone: string | null;
-    country_code: string | null;
-    store_banner: string | null;
-    address: string | null;
-  }> = [];
+  let partners: PoolPartnerRow[] = [];
   try {
     const data = await fetchFromHasura(
-      `query PoolPartners { partners(where: { feature_flags: { _ilike: "%delivery_pool-%" } }) { id store_name geo_location feature_flags phone country_code store_banner address } }`,
+      `query PoolPartners { partners(where: { feature_flags: { _ilike: "%delivery_pool-%" } }) { ${POOL_PARTNER_FIELDS} } }`,
     );
     partners = data?.partners ?? [];
   } catch (e) {
@@ -127,24 +162,33 @@ export async function syncAllPoolRestaurants(): Promise<{ ok: boolean; total: nu
   }
   let synced = 0;
   for (const p of partners) {
-    const coords = p.geo_location?.coordinates;
-    const pickup =
-      Array.isArray(coords) && coords.length === 2 ? { lat: coords[1], lng: coords[0] } : undefined;
-    const enabled = (p.feature_flags ?? "").includes("delivery_pool-true");
-    const contact_phone = p.phone
-      ? p.country_code && !p.phone.startsWith("+")
-        ? p.country_code + p.phone
-        : p.phone
-      : undefined;
-    const r = await poolSyncConfig(p.id, {
-      name: p.store_name ?? undefined,
-      pool_enabled: enabled,
-      pickup,
-      contact_phone,
-      banner_url: p.store_banner ?? undefined,
-      address: p.address ?? undefined,
-    });
-    if (r.ok) synced++;
+    if (await syncOnePoolPartner(p)) synced++;
   }
   return { ok: true, total: partners.length, synced };
+}
+
+/**
+ * Register/refresh a SINGLE partner in the pool. Call this the moment the
+ * delivery_pool feature is toggled (e.g. from superadmin Edit Partners) so the
+ * restaurant appears in the delivery pool app immediately — without anyone
+ * having to open that partner's Delivery Pool panel first (the old trigger).
+ * Pass `enabled` to mirror the just-saved flag without re-reading feature_flags.
+ */
+export async function syncPoolRestaurant(
+  partnerId: string,
+  enabled?: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!partnerId) return { ok: false, error: "no partnerId" };
+  try {
+    const data = await fetchFromHasura(
+      `query PoolPartner($id: uuid!) { partners_by_pk(id: $id) { ${POOL_PARTNER_FIELDS} } }`,
+      { id: partnerId },
+    );
+    const p = (data?.partners_by_pk ?? null) as PoolPartnerRow | null;
+    if (!p) return { ok: false, error: "partner not found" };
+    const ok = await syncOnePoolPartner(p, enabled);
+    return { ok };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
 }
