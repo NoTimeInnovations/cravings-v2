@@ -19,6 +19,7 @@ import {
 import RiderDocsModal from "@/components/deliveryPool/RiderDocsModal";
 import RiderAvatar from "@/components/deliveryPool/RiderAvatar";
 import RiderAvailabilityMap from "@/components/deliveryPool/RiderAvailabilityMap";
+import DeliveryAppDownloads from "@/components/admin-v2/DeliveryAppDownloads";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -165,6 +166,9 @@ export default function DeliveryPoolPanel() {
               Set your store location (Settings → Store) so riders can find you.
             </p>
           )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <DeliveryAppDownloads apps={["pool"]} />
+          </div>
         </CardContent>
       </Card>
 
