@@ -618,6 +618,7 @@ subscription GetDraftOrders($partner_id: uuid!) {
     scheduled_time_to
     booking_persons
     delivery_address
+    delivery_location
     status
     partner_id
     display_id
@@ -630,6 +631,11 @@ subscription GetDraftOrders($partner_id: uuid!) {
     gst_included
     extra_charges
     discounts
+    user {
+      full_name
+      phone
+      email
+    }
     order_items {
       id
       quantity
