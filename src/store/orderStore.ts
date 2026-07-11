@@ -1730,7 +1730,12 @@ const useOrderStore = create(
               payment_details: null,
               display_id: getNextDisplayOrderNumber.toString(),
               table_name: tableName || null,
-              payment_method: "cash",
+              // Online (Cashfree/Razorpay) orders defer the push until payment
+              // confirms — mark them as an online method (mirrors the persisted
+              // order's "cashfree" at createPendingCfOrder) so pp_menu_insert maps
+              // payment_type -> ONLINE. Only true COD (immediate push) is "cash";
+              // hardcoding "cash" made every prepaid order show as COD in Petpooja.
+              payment_method: deferForPayment ? "cashfree" : "cash",
               petpooja_restaurant_id: hotelData.petpooja_restaurant_id,
               discounts: ppDiscounts,
               items: [
