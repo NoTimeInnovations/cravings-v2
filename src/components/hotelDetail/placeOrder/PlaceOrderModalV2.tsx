@@ -117,6 +117,8 @@ type AvailableDiscount = {
   min_order_value: number | null;
   max_discount_amount: number | null;
   terms_conditions?: string | null;
+  discount_order_types?: string | null;
+  valid_days?: string | null;
 };
 
 /**
@@ -890,18 +892,59 @@ const PlaceOrderModalV2 = ({
     }, 0);
   };
 
+  // Is the currently-applied discount STILL valid for the current cart? The
+  // apply-time filters (min_order_value / order type / valid days) run only
+  // once, so without this an applied discount keeps applying after the customer
+  // edits the cart (e.g. steps items down below the minimum) — silently
+  // over-discounting the persisted order (orderStore trusts our `savings`).
+  // Returns the failing reason, or null when eligible.
+  const discountIneligibleReason = useMemo<
+    null | "min" | "ordertype" | "day" | "empty"
+  >(() => {
+    const d = appliedDiscount;
+    if (!d) return null;
+    if (!items || items.length === 0 || subtotal <= 0) return "empty";
+    if (d.min_order_value && subtotal < Number(d.min_order_value)) return "min";
+    if (d.discount_order_types) {
+      const code = isQrScan ? "3" : orderType === "takeaway" ? "2" : "1";
+      const allowed = d.discount_order_types.split(",").map((t) => t.trim());
+      if (!allowed.includes(code)) return "ordertype";
+    }
+    if (d.valid_days && d.valid_days !== "All") {
+      const today = new Date().toLocaleDateString("en-US", { weekday: "short" });
+      if (!d.valid_days.split(",").map((x) => x.trim()).includes(today)) return "day";
+    }
+    return null;
+  }, [appliedDiscount, items, subtotal, orderType, isQrScan]);
+
+  // Auto-applied (non-coupon) discounts have no Remove control, so self-clear
+  // them once they stop qualifying — the auto-apply effect then re-evaluates and
+  // applies the best still-eligible one (no oscillation: this only clears
+  // INELIGIBLE ones, auto-apply only applies ELIGIBLE ones). Customer-entered
+  // coupons are kept (with a hint) so they don't silently vanish; their savings
+  // are forced to 0 below until the cart qualifies again.
+  useEffect(() => {
+    if (appliedDiscount && discountIneligibleReason && !appliedDiscount.has_coupon) {
+      setAppliedDiscount(null);
+    }
+  }, [appliedDiscount, discountIneligibleReason]);
+
   const discountSavings = useMemo(() => {
-    if (!appliedDiscount) return 0;
-    if (appliedDiscount.type === "freebie") return getFreebieItemsTotal(appliedDiscount);
+    if (!appliedDiscount || discountIneligibleReason) return 0;
     let savings =
-      appliedDiscount.type === "percentage"
-        ? (subtotal * appliedDiscount.value) / 100
-        : appliedDiscount.value;
+      appliedDiscount.type === "freebie"
+        ? getFreebieItemsTotal(appliedDiscount)
+        : appliedDiscount.type === "percentage"
+          ? (subtotal * appliedDiscount.value) / 100
+          : appliedDiscount.value;
     if (appliedDiscount.max_discount_amount) {
       savings = Math.min(savings, appliedDiscount.max_discount_amount);
     }
+    // Clamp EVERY type (including freebie, which previously returned early and
+    // unclamped) to the cart, so a discount can never exceed the item total and
+    // drag GST/delivery/parcel into a near-free order.
     return Math.min(savings, subtotal);
-  }, [appliedDiscount, subtotal, hotelData?.menus]);
+  }, [appliedDiscount, subtotal, hotelData?.menus, discountIneligibleReason]);
 
   // Round Off (display): mirror what orderStore persists — round the pre-round
   // grand total UP to the next whole number when the partner enables it. Baked
@@ -961,7 +1004,7 @@ const PlaceOrderModalV2 = ({
     fetchFromHasura(
       `query GetActiveDiscountsV2($partner_id: uuid!) {
         discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, order_by: [{ rank: asc_nulls_last }], limit: 10) {
-          id code description discount_type discount_value min_order_value max_discount_amount terms_conditions
+          id code description discount_type discount_value min_order_value max_discount_amount terms_conditions discount_order_types valid_days
         }
       }`,
       { partner_id: hotelData.id },
@@ -974,6 +1017,9 @@ const PlaceOrderModalV2 = ({
   useEffect(() => {
     if (!open_place_order_modal || !hotelData?.id || appliedDiscount) return;
     if (!items || items.length === 0 || subtotal <= 0) return;
+    // Stale-closure guard: if the cart/order-type changes during the async
+    // fetch, don't apply a discount that was validated against the old subtotal.
+    let ignore = false;
 
     fetchFromHasura(
       `query GetAutoApplyV2($partner_id: uuid!) {
@@ -1039,7 +1085,7 @@ const PlaceOrderModalV2 = ({
           break;
         }
 
-        if (eligible) {
+        if (eligible && !ignore) {
           setAppliedDiscount({
             id: eligible.id,
             code: eligible.code,
@@ -1062,6 +1108,9 @@ const PlaceOrderModalV2 = ({
         }
       })
       .catch(() => {});
+    return () => {
+      ignore = true;
+    };
   }, [hotelData?.id, open_place_order_modal, items, subtotal, orderType, isQrScan, appliedDiscount]);
 
   const validateAndApplyCode = async (code: string) => {
@@ -1096,6 +1145,23 @@ const PlaceOrderModalV2 = ({
       if (disc.min_order_value && subtotal < Number(disc.min_order_value)) {
         setDiscountError(`Minimum order of ${currency}${disc.min_order_value} required.`);
         return;
+      }
+      // Parity with the auto-apply filter: manual codes must also respect the
+      // discount's order-type and valid-day restrictions.
+      if (disc.discount_order_types) {
+        const code = isQrScan ? "3" : orderType === "takeaway" ? "2" : "1";
+        const allowed = disc.discount_order_types.split(",").map((t: string) => t.trim());
+        if (!allowed.includes(code)) {
+          setDiscountError("This code isn't valid for this order type.");
+          return;
+        }
+      }
+      if (disc.valid_days && disc.valid_days !== "All") {
+        const today = new Date().toLocaleDateString("en-US", { weekday: "short" });
+        if (!disc.valid_days.split(",").map((x: string) => x.trim()).includes(today)) {
+          setDiscountError("This code isn't valid today.");
+          return;
+        }
       }
       if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) {
         setDiscountError("This code has reached its usage limit.");
@@ -1148,9 +1214,28 @@ const PlaceOrderModalV2 = ({
   };
 
   const applyFromList = (d: AvailableDiscount) => {
+    // Validate inline against the current cart (NOT via validateAndApplyCode,
+    // which upper-cases + re-queries by exact code — that breaks mixed-case
+    // Petpooja-synced coupon names). Carry discount_order_types + valid_days so
+    // the revalidation memo can also drop it later if the cart/order-type changes.
     if (d.min_order_value && subtotal < Number(d.min_order_value)) {
       toast.error(`Minimum order of ${currency}${d.min_order_value} required.`);
       return;
+    }
+    const code = isQrScan ? "3" : orderType === "takeaway" ? "2" : "1";
+    if (d.discount_order_types) {
+      const allowed = d.discount_order_types.split(",").map((t) => t.trim());
+      if (!allowed.includes(code)) {
+        toast.error("This coupon isn't valid for this order type.");
+        return;
+      }
+    }
+    if (d.valid_days && d.valid_days !== "All") {
+      const today = new Date().toLocaleDateString("en-US", { weekday: "short" });
+      if (!d.valid_days.split(",").map((x) => x.trim()).includes(today)) {
+        toast.error("This coupon isn't valid today.");
+        return;
+      }
     }
     setAppliedDiscount({
       id: d.id,
@@ -1161,6 +1246,8 @@ const PlaceOrderModalV2 = ({
       min_order_value: d.min_order_value ? Number(d.min_order_value) : undefined,
       description: d.description || undefined,
       terms_conditions: d.terms_conditions || undefined,
+      discount_order_types: d.discount_order_types || undefined,
+      valid_days: d.valid_days || undefined,
       has_coupon: true,
     });
     setView("main");
@@ -1451,8 +1538,11 @@ const PlaceOrderModalV2 = ({
 
   // Shared discount payload for placeOrder, used by both the cash path and the
   // deferred (online-payment) path so the persisted order total/discount match.
+  // Skip it entirely when the applied discount is no longer eligible for the
+  // current cart (a kept coupon below its minimum, wrong order type, etc.) so an
+  // ineligible discount is never persisted (savings would be 0 anyway).
   const buildDiscountArg = () =>
-    appliedDiscount
+    appliedDiscount && !discountIneligibleReason
       ? {
           code: appliedDiscount.code,
           type: appliedDiscount.type,
@@ -1645,7 +1735,7 @@ const PlaceOrderModalV2 = ({
           orderType: orderType || null,
           address: address || null,
           orderNote: orderNote || null,
-          discountId: appliedDiscount?.id || null,
+          discountId: appliedDiscount?.id && !discountIneligibleReason ? appliedDiscount.id : null,
           prebooking: prebookingArg,
         }),
       );
@@ -2102,7 +2192,7 @@ const PlaceOrderModalV2 = ({
             }
           }
         }
-        if (appliedDiscount?.id) {
+        if (appliedDiscount?.id && !discountIneligibleReason) {
           fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => {});
         }
         // GTM purchase — COD/immediate (v2 checkout). value = payableTotal (the
@@ -2110,7 +2200,7 @@ const PlaceOrderModalV2 = ({
         pushPurchaseOnce(result.id, {
           value: payableTotal,
           currency: resolveCurrencyCode(hotelData?.currency),
-          coupon: appliedDiscount?.code,
+          coupon: appliedDiscount && !discountIneligibleReason ? appliedDiscount.code : undefined,
           items: (items || []).map((it) => ({
             item_id: baseItemId(it.id),
             item_name: it.name,
@@ -2521,7 +2611,9 @@ const PlaceOrderModalV2 = ({
   }
 
   const freebieItems =
-    appliedDiscount?.type === "freebie" && appliedDiscount.freebie_item_ids
+    appliedDiscount?.type === "freebie" &&
+    appliedDiscount.freebie_item_ids &&
+    !discountIneligibleReason
       ? appliedDiscount.freebie_item_ids
           .split(",")
           .map((id) => hotelData?.menus?.find((m) => m.id === id.trim()))
@@ -3048,6 +3140,18 @@ const PlaceOrderModalV2 = ({
                     <Check className="h-4 w-4" />
                     <span className="text-sm font-medium">Applied</span>
                   </div>
+                </div>
+              )}
+
+              {appliedDiscount?.has_coupon && discountIneligibleReason && (
+                <div className="px-4 pb-2 -mt-1 text-xs font-medium text-red-600">
+                  {discountIneligibleReason === "min"
+                    ? `Add ${currency}${Math.max(0, Number(appliedDiscount.min_order_value || 0) - subtotal).toFixed(0)} more to use ${appliedDiscount.code}`
+                    : discountIneligibleReason === "ordertype"
+                      ? `${appliedDiscount.code} isn't valid for this order type`
+                      : discountIneligibleReason === "day"
+                        ? `${appliedDiscount.code} isn't valid today`
+                        : `${appliedDiscount.code} no longer applies to this order`}
                 </div>
               )}
 
