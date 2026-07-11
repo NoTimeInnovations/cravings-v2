@@ -15,17 +15,12 @@ import {
     deleteDeliveryBoyMutation,
     updateDeliveryBoyMutation,
 } from "@/api/deliveryBoys";
-import { Loader2, Plus, Trash2, Truck, ArrowLeft, Pencil, Download, Copy, Share2, Smartphone } from "lucide-react";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Loader2, Plus, Trash2, Truck, ArrowLeft, Pencil, Download } from "lucide-react";
 import { getFeatures } from "@/lib/getFeatures";
 import { Switch } from "@/components/ui/switch";
 
-const DOWNLOAD_PAGE_URL = "/delivery-app/download";
+const V1_APP_URL =
+    "https://drive.google.com/file/d/1inKs5F6b6Ch18N4l22L2Em4hbeo0u8lH/view?usp=sharing";
 
 interface DeliveryBoy {
     id: string;
@@ -267,34 +262,13 @@ export function AdminV2DeliveryBoys() {
                     <p className="text-muted-foreground">Manage your delivery boys.</p>
                 </div>
                 <div className="flex gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                <Smartphone className="mr-2 h-4 w-4" />
-                                Download App
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                                window.open(`${DOWNLOAD_PAGE_URL}?action=download`, "_blank");
-                            }}>
-                                <Download className="mr-2 h-4 w-4" />
-                                Download APK
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                                window.open(`${DOWNLOAD_PAGE_URL}?action=copy`, "_blank");
-                            }}>
-                                <Copy className="mr-2 h-4 w-4" />
-                                Copy Link
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                                window.open(`${DOWNLOAD_PAGE_URL}?action=share`, "_blank");
-                            }}>
-                                <Share2 className="mr-2 h-4 w-4" />
-                                Share Link
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                        variant="outline"
+                        onClick={() => window.open(V1_APP_URL, "_blank", "noopener,noreferrer")}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download V1 app
+                    </Button>
                     <Button onClick={() => setIsAddingDeliveryBoy(true)}>
                         <Plus className="mr-2 h-4 w-4" />
                         Add Delivery Boy
