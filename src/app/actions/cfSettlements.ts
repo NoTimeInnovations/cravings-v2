@@ -74,8 +74,10 @@ type SettlementRaw = {
 
 /** One transaction in the ledger — always present; settlement fields fill in later. */
 export type LedgerRow = {
-  /** Our human order id (short_id). */
+  /** Our human order id (short_id), shown in the table. */
   orderRef: string | null;
+  /** Internal order uuid — used to link to /order/{id}. */
+  orderPk: string | null;
   /** Cashfree merchant order id (what we sent / matches settlement.order_id). */
   cfOrderId: string | null;
   cfPaymentId: string | null;
@@ -245,6 +247,7 @@ export async function getPartnerSettlementLedger(
       null;
     return {
       orderRef: str(o.short_id ?? o.id),
+      orderPk: str(o.id),
       cfOrderId,
       cfPaymentId,
       amount: num(o.total_price),

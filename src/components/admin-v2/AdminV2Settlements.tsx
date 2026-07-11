@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Landmark,
   Download,
@@ -317,8 +318,19 @@ export function AdminV2Settlements() {
                   return (
                     <tr key={(r.cfPaymentId || r.orderRef || "") + i} className="border-b border-muted last:border-0 hover:bg-muted/30">
                       <td className="whitespace-nowrap px-4 py-2.5">{fmtDate(r.paymentTime)}</td>
-                      <td className="max-w-[130px] truncate px-4 py-2.5 font-mono text-xs text-muted-foreground" title={r.orderRef || ""}>
-                        {r.orderRef || "—"}
+                      <td className="max-w-[130px] truncate px-4 py-2.5 font-mono text-xs" title={r.orderRef || ""}>
+                        {r.orderPk ? (
+                          <Link
+                            href={`/order/${r.orderPk}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-700 hover:underline"
+                          >
+                            {r.orderRef || r.orderPk}
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground">{r.orderRef || "—"}</span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right font-medium tabular-nums">{money(r.amount)}</td>
                       <td className="whitespace-nowrap px-4 py-2.5">
