@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * Cashfree settlements for the logged-in restaurant (sub-merchant).
+ * Cashfree online-payment ledger for the logged-in restaurant (sub-merchant).
  *
- * Read-only reconciliation view: per settled online payment it shows the gross
- * amount, Cashfree's fee (₹ + %, both base and GST-inclusive) and the net amount
- * settled to the restaurant's bank. Data comes from Cashfree AFTER settlement
- * (~T+1/T+2), so a just-paid order won't appear yet.
+ * Lists every paid Cashfree transaction in the period straight away (from our
+ * own order data), and fills in Cashfree's settlement amount + fee % per row
+ * once the payment is settled to the bank (~T+1/T+2). Until then a row reads
+ * "Awaiting settlement".
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -19,12 +19,14 @@ import {
   Info,
   Loader2,
   AlertCircle,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
-import { getPartnerSettlements, type SettlementRow } from "@/app/actions/cfSettlements";
+import { getPartnerSettlementLedger, type LedgerRow } from "@/app/actions/cfSettlements";
 
 type FilterKey = "today" | "7d" | "month";
 const FILTERS: { key: FilterKey; label: string }[] = [
@@ -51,6 +53,10 @@ function rangeFor(key: FilterKey): { startDate: string; endDate: string } {
   }
   return { startDate: iso(new Date(now.getFullYear(), now.getMonth(), 1)), endDate: end };
 }
+const feeOf = (r: LedgerRow) => (r.serviceCharge || 0) + (r.serviceTax || 0);
+const basePctOf = (r: LedgerRow) =>
+  r.settled && r.amount > 0 ? ((r.serviceCharge || 0) / r.amount) * 100 : null;
+const effPctOf = (r: LedgerRow) => (r.settled && r.amount > 0 ? (feeOf(r) / r.amount) * 100 : null);
 
 export function AdminV2Settlements() {
   const { userData } = useAuthStore();
@@ -59,15 +65,17 @@ export function AdminV2Settlements() {
   const enabled =
     !!(userData as any)?.accept_payments_via_cashfree && !!(userData as any)?.cashfree_merchant_id;
 
-  const [filter, setFilter] = useState<FilterKey>("7d");
-  const [rows, setRows] = useState<SettlementRow[]>([]);
+  const [filter, setFilter] = useState<FilterKey>("today");
+  const [rows, setRows] = useState<LedgerRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
+  const [settlementsDown, setSettlementsDown] = useState(false);
   const [page, setPage] = useState(0);
 
   const money = useCallback(
-    (n: number) => `${currency}${(Math.round(n * 100) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    (n: number) =>
+      `${currency}${(Math.round(n * 100) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     [currency],
   );
 
@@ -77,22 +85,17 @@ export function AdminV2Settlements() {
     setError(null);
     setPage(0);
     try {
-      const res = await getPartnerSettlements(partnerId, rangeFor(filter));
+      const res = await getPartnerSettlementLedger(partnerId, rangeFor(filter));
       if (res.success) {
-        // newest settled first
-        const sorted = [...res.rows].sort((a, b) => {
-          const ta = a.transferTime || a.paymentTime || "";
-          const tb = b.transferTime || b.paymentTime || "";
-          return ta < tb ? 1 : ta > tb ? -1 : 0;
-        });
-        setRows(sorted);
-        setTruncated(res.truncated);
+        setRows(res.rows);
+        setTruncated(res.settlementsTruncated);
+        setSettlementsDown(res.settlementsUnavailable);
       } else {
         setRows([]);
         setError(res.error);
       }
     } catch {
-      setError("Something went wrong loading settlements.");
+      setError("Something went wrong loading transactions.");
     } finally {
       setLoading(false);
     }
@@ -104,14 +107,27 @@ export function AdminV2Settlements() {
 
   const totals = useMemo(() => {
     let gross = 0,
-      settled = 0,
-      fee = 0;
+      settledGross = 0,
+      settledAmt = 0,
+      fee = 0,
+      settledCount = 0;
     for (const r of rows) {
-      gross += r.orderAmount;
-      settled += r.settlementAmount;
-      fee += r.serviceCharge + r.serviceTax;
+      gross += r.amount;
+      if (r.settled) {
+        settledCount++;
+        settledGross += r.amount;
+        settledAmt += r.settlementAmount || 0;
+        fee += feeOf(r);
+      }
     }
-    return { count: rows.length, gross, settled, fee, effPct: gross > 0 ? (fee / gross) * 100 : 0 };
+    return {
+      count: rows.length,
+      gross,
+      settledCount,
+      settledAmt,
+      fee,
+      effPct: settledGross > 0 ? (fee / settledGross) * 100 : 0,
+    };
   }, [rows]);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -119,55 +135,50 @@ export function AdminV2Settlements() {
 
   const downloadCsv = () => {
     const head = [
-      "Settled on",
       "Paid on",
-      "Order ID",
+      "Order",
       "CF Payment ID",
-      "Settlement ID",
-      "UTR",
-      "Gross amount",
+      "Amount",
+      "Status",
       "Fee (service charge)",
       "GST on fee",
       "Total fee",
       "Base fee %",
       "Effective fee %",
       "Net settled",
-      "Status",
+      "UTR",
+      "Settled on",
     ];
     const esc = (v: unknown) => {
       const s = v == null ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const lines = rows.map((r) => {
-      const totalFee = r.serviceCharge + r.serviceTax;
-      const basePct = r.orderAmount > 0 ? (r.serviceCharge / r.orderAmount) * 100 : 0;
-      const effPct = r.orderAmount > 0 ? (totalFee / r.orderAmount) * 100 : 0;
-      return [
-        r.transferTime,
+    const lines = rows.map((r) =>
+      [
         r.paymentTime,
-        r.orderId,
+        r.orderRef,
         r.cfPaymentId,
-        r.cfSettlementId,
+        r.amount.toFixed(2),
+        r.settled ? "Settled" : "Awaiting settlement",
+        r.settled ? (r.serviceCharge || 0).toFixed(2) : "",
+        r.settled ? (r.serviceTax || 0).toFixed(2) : "",
+        r.settled ? feeOf(r).toFixed(2) : "",
+        basePctOf(r) != null ? basePctOf(r)!.toFixed(2) : "",
+        effPctOf(r) != null ? effPctOf(r)!.toFixed(2) : "",
+        r.settlementAmount != null ? r.settlementAmount.toFixed(2) : "",
         r.transferUtr,
-        r.orderAmount.toFixed(2),
-        r.serviceCharge.toFixed(2),
-        r.serviceTax.toFixed(2),
-        totalFee.toFixed(2),
-        basePct.toFixed(2),
-        effPct.toFixed(2),
-        r.settlementAmount.toFixed(2),
-        r.status,
+        r.transferTime,
       ]
         .map(esc)
-        .join(",");
-    });
-    const r = rangeFor(filter);
+        .join(","),
+    );
+    const rr = rangeFor(filter);
     const csv = [head.join(","), ...lines].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `cashfree-settlements_${r.startDate}_to_${r.endDate}.csv`;
+    a.download = `cashfree-transactions_${rr.startDate}_to_${rr.endDate}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 500);
   };
@@ -176,10 +187,14 @@ export function AdminV2Settlements() {
     if (!s) return "—";
     const d = new Date(s);
     if (isNaN(d.getTime())) return s;
-    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  // ---- not enabled ----
   if (!enabled) {
     return (
       <div className="max-w-2xl">
@@ -188,8 +203,8 @@ export function AdminV2Settlements() {
           <Landmark className="mx-auto size-8 text-muted-foreground" />
           <h3 className="mt-3 font-semibold">Cashfree isn&rsquo;t set up yet</h3>
           <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
-            Online payment settlements appear here once Cashfree is connected for your store. Add
-            your Cashfree Merchant ID and turn on online payments in{" "}
+            Online payments and settlements appear here once Cashfree is connected. Add your Cashfree
+            Merchant ID and turn on online payments in{" "}
             <span className="font-medium text-foreground">Settings → Payments</span>.
           </p>
         </Card>
@@ -224,12 +239,7 @@ export function AdminV2Settlements() {
             <RefreshCw className={cn("mr-1.5 size-3.5", loading && "animate-spin")} />
             Refresh
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={downloadCsv}
-            disabled={loading || rows.length === 0}
-          >
+          <Button variant="outline" size="sm" onClick={downloadCsv} disabled={loading || rows.length === 0}>
             <Download className="mr-1.5 size-3.5" />
             Download report
           </Button>
@@ -239,29 +249,42 @@ export function AdminV2Settlements() {
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Transactions" value={loading ? "—" : totals.count.toLocaleString("en-IN")} />
-        <Stat label="Gross amount" value={loading ? "—" : money(totals.gross)} />
-        <Stat label="Net settled" value={loading ? "—" : money(totals.settled)} accent />
+        <Stat label="Amount collected" value={loading ? "—" : money(totals.gross)} />
+        <Stat
+          label="Net settled"
+          value={loading ? "—" : money(totals.settledAmt)}
+          sub={loading ? undefined : `${totals.settledCount} of ${totals.count} settled`}
+          accent
+        />
         <Stat
           label="Cashfree fee"
           value={loading ? "—" : money(totals.fee)}
-          sub={loading ? undefined : `${totals.effPct.toFixed(2)}% effective`}
+          sub={loading || totals.settledCount === 0 ? "on settled" : `${totals.effPct.toFixed(2)}% effective`}
         />
       </div>
+
+      {settlementsDown && !loading && rows.length > 0 && (
+        <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+          Showing transactions, but settlement details couldn&rsquo;t be fetched from Cashfree right
+          now — amounts and fees will fill in once available.
+        </p>
+      )}
 
       {/* Table */}
       <Card className="overflow-hidden border bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full min-w-[880px] text-sm">
             <thead>
               <tr className="border-b bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-2.5 text-left font-medium">Settled on</th>
+                <th className="px-4 py-2.5 text-left font-medium">Paid on</th>
                 <th className="px-4 py-2.5 text-left font-medium">Order</th>
-                <th className="px-4 py-2.5 text-right font-medium">Gross</th>
+                <th className="px-4 py-2.5 text-right font-medium">Amount</th>
+                <th className="px-4 py-2.5 text-left font-medium">Status</th>
                 <th className="px-4 py-2.5 text-right font-medium">Fee</th>
                 <th className="px-4 py-2.5 text-right font-medium">Base %</th>
                 <th className="px-4 py-2.5 text-right font-medium">Eff. % (GST)</th>
                 <th className="px-4 py-2.5 text-right font-medium">Net settled</th>
-                <th className="px-4 py-2.5 text-left font-medium">UTR</th>
               </tr>
             </thead>
             <tbody>
@@ -281,40 +304,45 @@ export function AdminV2Settlements() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center">
-                    <div className="text-sm font-medium">No settlements in this period</div>
+                    <div className="text-sm font-medium">No online transactions in this period</div>
                     <div className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
-                      Cashfree settles online payments to your bank about 1&ndash;2 working days
-                      after the customer pays, so today&rsquo;s payments usually appear here from
-                      tomorrow.
+                      Paid Cashfree orders show here as they come in.
                     </div>
                   </td>
                 </tr>
               ) : (
                 pageRows.map((r, i) => {
-                  const totalFee = r.serviceCharge + r.serviceTax;
-                  const basePct = r.orderAmount > 0 ? (r.serviceCharge / r.orderAmount) * 100 : 0;
-                  const effPct = r.orderAmount > 0 ? (totalFee / r.orderAmount) * 100 : 0;
+                  const base = basePctOf(r);
+                  const eff = effPctOf(r);
                   return (
-                    <tr key={(r.cfPaymentId || r.orderId || "") + i} className="border-b border-muted last:border-0 hover:bg-muted/30">
-                      <td className="whitespace-nowrap px-4 py-2.5">{fmtDate(r.transferTime || r.paymentTime)}</td>
-                      <td className="max-w-[160px] truncate px-4 py-2.5 font-mono text-xs text-muted-foreground" title={r.orderId || ""}>
-                        {r.orderId || "—"}
+                    <tr key={(r.cfPaymentId || r.orderRef || "") + i} className="border-b border-muted last:border-0 hover:bg-muted/30">
+                      <td className="whitespace-nowrap px-4 py-2.5">{fmtDate(r.paymentTime)}</td>
+                      <td className="max-w-[130px] truncate px-4 py-2.5 font-mono text-xs text-muted-foreground" title={r.orderRef || ""}>
+                        {r.orderRef || "—"}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums">{money(r.orderAmount)}</td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-muted-foreground">
-                        {money(totalFee)}
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right font-medium tabular-nums">{money(r.amount)}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5">
+                        {r.settled ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                            <CheckCircle2 className="size-3" /> Settled
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            <Clock className="size-3" /> Awaiting
+                          </span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-muted-foreground">
-                        {basePct.toFixed(2)}%
+                        {r.settled ? money(feeOf(r)) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                        {base != null ? `${base.toFixed(2)}%` : "—"}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums font-medium">
-                        {effPct.toFixed(2)}%
+                        {eff != null ? `${eff.toFixed(2)}%` : "—"}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-primary">
-                        {money(r.settlementAmount)}
-                      </td>
-                      <td className="max-w-[140px] truncate px-4 py-2.5 font-mono text-xs text-muted-foreground" title={r.transferUtr || ""}>
-                        {r.transferUtr || "—"}
+                        {r.settlementAmount != null ? money(r.settlementAmount) : "—"}
                       </td>
                     </tr>
                   );
@@ -324,21 +352,14 @@ export function AdminV2Settlements() {
           </table>
         </div>
 
-        {/* Pagination */}
         {!loading && !error && rows.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
             <span className="text-muted-foreground">
-              Showing {page * PAGE_SIZE + 1}&ndash;{Math.min((page + 1) * PAGE_SIZE, rows.length)} of{" "}
-              {rows.length}
-              {truncated && " (capped — narrow the date range)"}
+              Showing {page * PAGE_SIZE + 1}&ndash;{Math.min((page + 1) * PAGE_SIZE, rows.length)} of {rows.length}
+              {truncated && " (settlements capped — narrow the range)"}
             </span>
             <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-              >
+              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
                 <ChevronLeft className="size-4" />
               </Button>
               <span className="px-2 text-muted-foreground">
@@ -359,9 +380,9 @@ export function AdminV2Settlements() {
 
       <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
         <Info className="mt-0.5 size-3.5 shrink-0" />
-        Settlement figures come from Cashfree after payout (about 1&ndash;2 working days). Fee % is
-        computed from Cashfree&rsquo;s charge: base = fee ÷ amount, effective includes 18% GST on the
-        fee.
+        Transactions appear as soon as a customer pays. Cashfree settles to your bank about
+        1&ndash;2 working days later, so &ldquo;Awaiting&rdquo; rows gain their settlement amount and
+        fee % then. Base % = fee ÷ amount; effective % includes 18% GST on the fee.
       </p>
     </div>
   );
@@ -375,28 +396,16 @@ function Header() {
         Settlements
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Online payments settled to your bank via Cashfree — amount, fees and net received.
+        Your online (Cashfree) transactions — amount, fees and the net settled to your bank.
       </p>
     </div>
   );
 }
 
-function Stat({
-  label,
-  value,
-  sub,
-  accent,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  accent?: boolean;
-}) {
+function Stat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
     <Card className="border bg-white p-4">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className={cn("mt-1.5 text-xl font-semibold tabular-nums tracking-tight", accent && "text-primary")}>
         {value}
       </div>
