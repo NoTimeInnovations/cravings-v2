@@ -16,11 +16,13 @@ import GrowthSection from "./sections/GrowthSection";
 import RestaurantsSection from "./sections/RestaurantsSection";
 import UsageSection from "./sections/UsageSection";
 import DiscoverySection from "./sections/DiscoverySection";
+import TargetSection from "./sections/TargetSection";
 import type { PublicStats, PosthogStats, Range } from "./types";
 
 const REFRESH_MS = 30_000;
 const VALID_TABS = new Set<Tab>([
   "overview",
+  "target",
   "live",
   "orders",
   "selected",
@@ -97,20 +99,26 @@ export default function Dashboard() {
               {activeTabMeta?.label}
             </div>
             <div className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
-              {hasura ? (
-                <SyncedAt at={hasura.syncedAt} />
+              {tab === "target" ? (
+                <span className="text-muted-foreground/80">{activeTabMeta?.description}</span>
               ) : (
-                <span className="text-muted-foreground/60">Loading…</span>
-              )}
-              {refreshing && (
-                <span className="inline-flex items-center gap-1 text-xs text-primary">
-                  <Loader2 className="size-3 animate-spin" />
-                  Updating
-                </span>
+                <>
+                  {hasura ? (
+                    <SyncedAt at={hasura.syncedAt} />
+                  ) : (
+                    <span className="text-muted-foreground/60">Loading…</span>
+                  )}
+                  {refreshing && (
+                    <span className="inline-flex items-center gap-1 text-xs text-primary">
+                      <Loader2 className="size-3 animate-spin" />
+                      Updating
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
-          {tab !== "live" && tab !== "selected" && tab !== "orders" && (
+          {tab !== "live" && tab !== "selected" && tab !== "orders" && tab !== "target" && (
             <RangeSelector current={range} disabled={refreshing} />
           )}
           {(tab === "live" || tab === "selected" || tab === "orders") && (
@@ -127,7 +135,9 @@ export default function Dashboard() {
           )}
         </div>
 
-        {loading || !hasura ? (
+        {tab === "target" ? (
+          <TargetSection />
+        ) : loading || !hasura ? (
           <SectionSkeleton />
         ) : (
           <div className="relative">
