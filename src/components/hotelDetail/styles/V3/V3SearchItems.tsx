@@ -8,6 +8,7 @@ import { formatPrice } from "@/lib/constants";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { filterMenuByQuery } from "@/lib/menuSearch";
 
 function useInView() {
   const ref = useRef<HTMLDivElement>(null);
@@ -172,14 +173,10 @@ const V3SearchItems = ({ menu, hoteldata, tableNumber, onClose }: V3SearchItemsP
   const [closing, setClosing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const filteredMenu = useMemo(() => {
-    if (!searchQuery) return menu;
-    return menu.filter(
-      (item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [menu, searchQuery]);
+  const filteredMenu = useMemo(
+    () => filterMenuByQuery(menu, searchQuery),
+    [menu, searchQuery],
+  );
 
   useEffect(() => {
     document.body.style.overflow = "hidden";

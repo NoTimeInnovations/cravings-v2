@@ -14,6 +14,7 @@ import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { filterMenuByQuery } from "@/lib/menuSearch";
 
 // Search result item with add button
 const SearchResultItem = ({
@@ -156,16 +157,10 @@ const SearchItems = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Memoize the filtered menu to prevent recalculating on every render
-  const filteredMenu = useMemo(() => {
-    if (!searchQuery) {
-      return menu;
-    }
-    return menu.filter(
-      (item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [menu, searchQuery]);
+  const filteredMenu = useMemo(
+    () => filterMenuByQuery(menu, searchQuery),
+    [menu, searchQuery],
+  );
 
   // Effect to handle body scroll and input focus when modal is open/closed
   useEffect(() => {

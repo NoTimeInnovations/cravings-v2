@@ -12,6 +12,7 @@ import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice } from "@/lib/constants";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
+import { filterMenuByQuery } from "@/lib/menuSearch";
 
 const SearchMenu = ({
   hotelData,
@@ -115,19 +116,10 @@ const SearchMenu = ({
     }
   }, [menu]);
 
-  // Perform search
+  // Perform search — matching rules live in src/lib/menuSearch (word-AND,
+  // substring, across name/description/category/variants/tags).
   useEffect(() => {
-    if (query.trim() === "") {
-      setItems(menu);
-      return;
-    }
-    const words = query.trim().toLowerCase().split(/\s+/);
-    const filtered = menu.filter((item) => {
-      const nameWords = item.name.toLowerCase().split(/\s+/);
-      // Every search word must match the start of some word in the item name
-      return words.every((word) => nameWords.some((nw) => nw.startsWith(word)));
-    });
-    setItems(filtered);
+    setItems(filterMenuByQuery(menu, query));
   }, [query, menu]);
 
   // Focus input when search opens
