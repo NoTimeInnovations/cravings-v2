@@ -56,7 +56,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { countryCodes } from "@/utils/countryCodes";
+import { COUNTRY_NAMES, ALL_COUNTRIES, getCountryByName, getCountryByDial } from "@/lib/countries";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 // --- Types ---
@@ -76,8 +76,7 @@ interface HotelDetails {
   phone: string;
   phoneCode: string;
   country: string;
-  state?: string;
-  district?: string;
+  address?: string;
   facebook_link?: string;
   instagram_link?: string;
   location_link?: string;
@@ -91,8 +90,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 import _COUNTRY_META_DATA from "@/data/countryMetaData.json";
 const COUNTRY_META_DATA = _COUNTRY_META_DATA as Record<string, { code: string; currency: string; symbol: string }>;
-import STATES from "@/data/states.json";
-import KERALA_DISTRICTS from "@/data/keralaDistricts.json";
 import CURRENCIES from "@/data/currencies.json";
 
 const COUNTRIES = Object.keys(COUNTRY_META_DATA);
@@ -440,15 +437,13 @@ export default function GetStartedClient({
   const [showSampleMenuDialog, setShowSampleMenuDialog] = useState(false);
 
   const getDefaultPhoneCode = (country: string) => {
-    const entry = countryCodes.find((c) => c.country === country);
-    return entry?.code || "+1";
+    return getCountryByName(country)?.dial || "+1";
   };
 
   // Determine default currency based on country
   const getDefaultCurrency = (country: string) => {
     if (!country) return "";
-    const meta = COUNTRY_META_DATA[country];
-    return meta?.symbol || "";
+    return getCountryByName(country)?.currencySymbol || COUNTRY_META_DATA[country]?.symbol || "";
   };
 
   const [hotelDetails, setHotelDetails] = useState<HotelDetails>({
@@ -456,8 +451,7 @@ export default function GetStartedClient({
     phone: "",
     phoneCode: getDefaultPhoneCode(defaultCountry),
     country: defaultCountry,
-    state: "",
-    district: "",
+    address: "",
     facebook_link: "",
     instagram_link: "",
     location_link: "",
@@ -723,21 +717,14 @@ export default function GetStartedClient({
     }
 
     if (name === "country") {
-      const isIndia = value === "India" || value === "IN";
-      const phoneCodeEntry = countryCodes.find((c) => c.country === value);
+      const info = getCountryByName(value);
       setHotelDetails((prev) => ({
         ...prev,
         [name]: value,
-        currency: isIndia ? "₹" : "$", // Auto-select currency symbol
-        phoneCode: phoneCodeEntry?.code || prev.phoneCode, // Update phone code
-        state: "", // Clear state when country changes
-        district: "", // Clear district when country changes
-      }));
-    } else if (name === "state") {
-      setHotelDetails((prev) => ({
-        ...prev,
-        [name]: value,
-        district: "", // Clear district when state changes
+        // Auto-fill currency symbol + dialing code for the chosen country now
+        // that the list is comprehensive; both remain user-overridable below.
+        currency: info?.currencySymbol || prev.currency || "$",
+        phoneCode: info?.dial || prev.phoneCode,
       }));
     } else if (name === "name") {
       // Auto-generate username from store name (no availability check on every keystroke)
@@ -1077,12 +1064,12 @@ export default function GetStartedClient({
         store_name: hotelDetails.name,
         phone: finalPhone,
         country: hotelDetails.country,
-        location: hotelDetails.location_link || "",
+        location: hotelDetails.address || "",
         status: "active",
         upi_id: "",
         whatsapp_numbers: [],
-        district: hotelDetails.district || "",
-        state: hotelDetails.state || "",
+        district: "",
+        state: "",
         delivery_status: false,
         geo_location: { type: "Point", coordinates: [0, 0] },
         delivery_rate: 0,
@@ -1655,10 +1642,10 @@ export default function GetStartedClient({
           </Label>
           <div className="flex">
             <Select
-              value={countryCodes.find((c) => c.code === hotelDetails.phoneCode)?.country || ""}
+              value={getCountryByDial(hotelDetails.phoneCode)?.name || ""}
               onValueChange={(country) => {
-                const entry = countryCodes.find((c) => c.country === country);
-                if (entry) setHotelDetails((prev) => ({ ...prev, phoneCode: entry.code }));
+                const info = getCountryByName(country);
+                if (info) setHotelDetails((prev) => ({ ...prev, phoneCode: info.dial }));
               }}
             >
               <SelectTrigger className="w-24 shrink-0 h-10 md:h-11 min-h-[2.5rem] md:min-h-[2.75rem] rounded-l-xl rounded-r-none border border-r-0 border-stone-200 bg-stone-100 px-2 text-sm text-stone-600 shadow-none focus:ring-orange-600/30 focus:ring-offset-0" style={{ height: "auto" }}>
@@ -1667,9 +1654,9 @@ export default function GetStartedClient({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-60">
-                {countryCodes.map((c) => (
-                  <SelectItem key={c.country} value={c.country}>
-                    {c.country} ({c.code})
+                {ALL_COUNTRIES.map((c) => (
+                  <SelectItem key={c.iso} value={c.name}>
+                    {c.name} ({c.dial})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1711,63 +1698,24 @@ export default function GetStartedClient({
             onChange={(value) =>
               handleDetailsChange({ target: { name: "country", value } } as React.ChangeEvent<HTMLSelectElement>)
             }
-            options={countryCodes.map((c) => c.country)}
+            options={COUNTRY_NAMES}
             placeholder="Select or type Country"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="state" className="text-sm">
-            State <span className="text-red-500">*</span>
+          <Label htmlFor="address" className="text-sm">
+            Address <span className="text-red-500">*</span>
           </Label>
-          {(() => {
-            // India-like detection is case/space tolerant so the searchable
-            // dropdown still appears if the country was typed (e.g. "india") via
-            // the free-text country combobox. Non-India countries get the same
-            // combobox with no preset list — still type-to-enter, just no
-            // suggestions — instead of a separate, non-searchable plain input.
-            const isIndia = ["india", "in"].includes(
-              (hotelDetails.country || "").trim().toLowerCase(),
-            );
-            return (
-              <Combobox
-                id="state"
-                name="state"
-                value={hotelDetails.state || ""}
-                onChange={(value) =>
-                  handleDetailsChange({ target: { name: "state", value } } as React.ChangeEvent<HTMLSelectElement>)
-                }
-                options={isIndia ? (STATES as string[]) : []}
-                placeholder={isIndia ? "Select or type State" : "State / Province"}
-              />
-            );
-          })()}
+          <Input
+            id="address"
+            name="address"
+            value={hotelDetails.address || ""}
+            onChange={handleDetailsChange}
+            placeholder="Street, area, city…"
+            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
+          />
         </div>
-
-        {hotelDetails.state === "Kerala" && (
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="district" className="text-sm">
-              District <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={hotelDetails.district}
-              onValueChange={(value) =>
-                handleDetailsChange({ target: { name: "district", value } } as React.ChangeEvent<HTMLSelectElement>)
-              }
-            >
-              <SelectTrigger className="w-full h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 focus:ring-orange-600/30 focus:ring-offset-0">
-                <SelectValue placeholder="Select District" />
-              </SelectTrigger>
-              <SelectContent>
-                {KERALA_DISTRICTS.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {d}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
 
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="currency" className="text-sm">
