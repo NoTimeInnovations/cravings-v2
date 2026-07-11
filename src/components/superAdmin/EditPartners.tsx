@@ -384,15 +384,22 @@ For any support or clarification, please contact us anytime.`;
         })
         .catch(() => {});
     }
-    // When the partner has the delivery pool feature, register/refresh them in the
-    // rider pool NOW (pool_enabled mirrors the toggle). Previously this only
-    // happened when someone opened the partner's Delivery Pool panel, so newly
-    // enabled restaurants never showed in the delivery pool app until then.
-    if (featureFlags?.delivery_pool?.access) {
-      const poolOn = !!featureFlags.delivery_pool.enabled;
+    // Keep the delivery pool in sync with the feature flag on every save:
+    //   • enabled            → register / refresh (appears in the pool app)
+    //   • disabled (-false)  → de-list (pool_enabled false)
+    //   • feature removed    → de-list too. Unchecking "Access" writes NO
+    //     delivery_pool flag at all, so we also look at the previously-saved
+    //     value to catch that removal — otherwise a de-listed restaurant would
+    //     stay visible in the pool app.
+    // Previously this only ran when someone opened the partner's Delivery Pool
+    // panel, so the pool app never reflected enabling/disabling until then.
+    const hadPool = (selectedPartner.feature_flags || "").includes("delivery_pool-");
+    const poolAccess = !!featureFlags?.delivery_pool?.access;
+    if (hadPool || poolAccess) {
+      const poolOn = poolAccess && !!featureFlags?.delivery_pool?.enabled;
       syncPoolRestaurant(selectedPartner.id, poolOn)
         .then((r) => {
-          if (r.ok && poolOn) toast.success("Added to the delivery pool");
+          if (r.ok) toast.success(poolOn ? "Added to the delivery pool" : "Removed from the delivery pool");
         })
         .catch(() => {});
     }
