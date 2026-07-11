@@ -24,6 +24,7 @@ import {
   Gift,
   Boxes,
   Bell,
+  Landmark,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -61,6 +62,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "WhatsApp", icon: MessageSquare, id: "whatsapp" },
   { title: "Settings", icon: Settings, id: "settings" },
   { title: "Billing", icon: Receipt, id: "billing" },
+  { title: "Settlements", icon: Landmark, id: "settlements" },
 ];
 
 const integrationsItem: SidebarItem = {
@@ -111,6 +113,11 @@ export function AdminSidebar({
     // Stock Management is flag-gated regardless of plan.
     if (item.id === "stock-management") {
       return features?.stockmanagement?.enabled ? "visible" : "hidden";
+    }
+    // Settlements only make sense for stores that accept online (Cashfree)
+    // payments — hidden otherwise, regardless of plan.
+    if (item.id === "settlements") {
+      return (userData as any)?.accept_payments_via_cashfree ? "visible" : "hidden";
     }
     if (isOnFreePlan) {
       if (FREE_PLAN_LOCKED_IDS.includes(item.id)) {
