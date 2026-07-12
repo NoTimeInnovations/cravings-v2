@@ -376,6 +376,7 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         dine_in_slot_mode: parsed.dine_in_slot_mode === "rolling" ? "rolling" : "windows",
         dine_in_rolling_interval_minutes: num(parsed.dine_in_rolling_interval_minutes, 15),
         dine_in_rolling_slot_count: num(parsed.dine_in_rolling_slot_count, 2),
+        dine_in_ask_people_count: parsed.dine_in_ask_people_count === true,
         dine_in_windows: normalizeWindows(parsed.dine_in_windows ?? parsed.windows, base.dine_in_windows),
     };
 }

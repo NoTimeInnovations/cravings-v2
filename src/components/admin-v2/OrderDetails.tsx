@@ -470,6 +470,14 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 </Badge>
                             </div>
                         )}
+                        {order.booking_persons != null && order.booking_persons > 1 && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Guests:</span>
+                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 font-medium">
+                                    {order.booking_persons} people
+                                </Badge>
+                            </div>
+                        )}
                         {(order.phone || order.user?.phone) && (
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Phone:</span>

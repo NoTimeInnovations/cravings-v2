@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { CalendarClock, ChevronDown, Check, X } from "lucide-react";
+import { CalendarClock, ChevronDown, Check, X, Users, Minus, Plus } from "lucide-react";
 import { PrebookingSettings } from "@/store/orderStore";
 import {
     PrebookOrderType,
@@ -72,9 +72,12 @@ export function PrebookingPicker({
     const allowed = reservation ? true : isOrderTypeAllowed(settings, orderTypeKey);
     const [date, setDate] = useState<string>("");
     const [time, setTime] = useState<string>("");
-    // Guest count is no longer collected; keep a fixed default so dine-in orders
-    // still record a party size (used as the table-booking marker downstream).
-    const persons = 1;
+    // Party size. Only collected for dine-in reservations when the partner turns
+    // on "Ask number of people"; otherwise a fixed 1 still records the table
+    // marker downstream (booking_persons) without prompting.
+    const askPeople = reservation && !!settings.dine_in_ask_people_count;
+    const MAX_PERSONS = 20;
+    const [persons, setPersons] = useState<number>(askPeople ? 2 : 1);
     const [sheet, setSheet] = useState<null | "date" | "slot">(null);
     // Which selectors to show (partner config). When one is hidden it's still
     // auto-selected to its first option so the order carries a valid date + slot.
@@ -226,6 +229,37 @@ export function PrebookingPicker({
                     </button>
                 )}
             </div>
+
+            {askPeople && (
+                <div className="flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl border-2 border-gray-100 bg-gray-50">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+                        <Users className="h-4 w-4 text-gray-400" />
+                        Number of people
+                    </span>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setPersons((p) => Math.max(1, p - 1))}
+                            disabled={persons <= 1}
+                            aria-label="Decrease"
+                            className="h-7 w-7 flex items-center justify-center rounded-full border-2 border-gray-200 bg-white text-gray-700 disabled:opacity-40"
+                        >
+                            <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="min-w-[1.5rem] text-center text-sm font-bold text-gray-900">{persons}</span>
+                        <button
+                            type="button"
+                            onClick={() => setPersons((p) => Math.min(MAX_PERSONS, p + 1))}
+                            disabled={persons >= MAX_PERSONS}
+                            aria-label="Increase"
+                            className="h-7 w-7 flex items-center justify-center rounded-full border-2 text-white disabled:opacity-40"
+                            style={{ backgroundColor: accentColor, borderColor: accentColor }}
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
 
             {sheet === "date" && (

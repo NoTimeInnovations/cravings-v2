@@ -44,6 +44,7 @@ import {
   Clock,
   MapPin,
   Table2,
+  Users,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
@@ -644,6 +645,11 @@ export function AdminV2Orders() {
                         {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons, to: order.scheduled_time_to })}` : ""}
                       </Badge>
                     )}
+                    {order.booking_persons != null && order.booking_persons > 1 && (
+                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 whitespace-nowrap gap-1">
+                        <Users className="h-3 w-3" /> {order.booking_persons}
+                      </Badge>
+                    )}
                   </div>
                 </TableCell>
                 {showGrowjetColumn && (
@@ -817,6 +823,11 @@ export function AdminV2Orders() {
                       <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap">
                         {order.booking_persons ? "Table" : "Prebooked"} · {formatPrebookDateLabel(order.scheduled_date)}
                         {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons, to: order.scheduled_time_to })}` : ""}
+                      </Badge>
+                    )}
+                    {order.booking_persons != null && order.booking_persons > 1 && (
+                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap gap-1">
+                        <Users className="h-3 w-3" /> {order.booking_persons}
                       </Badge>
                     )}
                   </div>

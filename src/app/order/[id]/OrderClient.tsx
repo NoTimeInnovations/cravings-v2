@@ -837,6 +837,11 @@ ${itemsText}
                                               )}`
                                             : ""}
                                     </p>
+                                    {order?.booking_persons != null && order.booking_persons > 1 && (
+                                        <p className="mt-0.5 text-sm font-medium text-blue-900">
+                                            {order.booking_persons} people
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         )}

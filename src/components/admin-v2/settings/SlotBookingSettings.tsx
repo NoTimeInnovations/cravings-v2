@@ -47,6 +47,7 @@ export function SlotBookingSettings() {
     const [slotMode, setSlotMode] = useState<"windows" | "rolling">("windows");
     const [rollingInterval, setRollingInterval] = useState<number>(15);
     const [rollingCount, setRollingCount] = useState<number>(2);
+    const [askPeople, setAskPeople] = useState(false);
     const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
     const [ranges, setRanges] = useState<PrebookingRange[]>([{ from: "10:00", to: "22:00" }]);
     const [initialLoaded, setInitialLoaded] = useState(false);
@@ -63,6 +64,7 @@ export function SlotBookingSettings() {
         setSlotMode(merged.dine_in_slot_mode ?? "windows");
         setRollingInterval(merged.dine_in_rolling_interval_minutes ?? 15);
         setRollingCount(merged.dine_in_rolling_slot_count ?? 2);
+        setAskPeople(merged.dine_in_ask_people_count ?? false);
         setDays(new Set(merged.dine_in_windows.filter((w) => w.enabled).map((w) => w.day)));
         const fe =
             merged.dine_in_windows.find((w) => w.enabled && w.ranges?.length) ||
@@ -79,7 +81,7 @@ export function SlotBookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, dine_in_today_only: todayOnly, dine_in_start_date: startDate || undefined, dine_in_end_date: endDate || undefined, dine_in_picker_mode: pickerMode, dine_in_slot_mode: slotMode, dine_in_rolling_interval_minutes: rollingInterval, dine_in_rolling_slot_count: rollingCount, dine_in_windows });
+            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, dine_in_today_only: todayOnly, dine_in_start_date: startDate || undefined, dine_in_end_date: endDate || undefined, dine_in_picker_mode: pickerMode, dine_in_slot_mode: slotMode, dine_in_rolling_interval_minutes: rollingInterval, dine_in_rolling_slot_count: rollingCount, dine_in_ask_people_count: askPeople, dine_in_windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -89,7 +91,7 @@ export function SlotBookingSettings() {
             console.error("Error saving slot booking settings:", e);
             toast.error("Failed to save slot booking settings");
         }
-    }, [cfg, enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -99,7 +101,7 @@ export function SlotBookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -212,6 +214,16 @@ export function SlotBookingSettings() {
                                         <SelectItem value="time_only">Time only</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="flex items-center justify-between p-4 border rounded-lg">
+                                <div className="space-y-0.5">
+                                    <div className="font-medium">Ask number of people</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Show a party-size input next to the date &amp; slot so customers pick how many people the table is for.
+                                    </div>
+                                </div>
+                                <Switch checked={askPeople} onCheckedChange={setAskPeople} />
                             </div>
 
                             <div className="space-y-2">

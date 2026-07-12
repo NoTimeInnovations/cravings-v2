@@ -224,6 +224,8 @@ export interface PrebookingSettings {
   dine_in_slot_mode?: PrebookingSlotMode;
   dine_in_rolling_interval_minutes?: number;
   dine_in_rolling_slot_count?: number;
+  /** When true, ask the customer how many people the table booking is for. */
+  dine_in_ask_people_count?: boolean;
   /** Explicit dine-in table slot times per weekday. */
   dine_in_windows: PrebookingWindow[];
 }
