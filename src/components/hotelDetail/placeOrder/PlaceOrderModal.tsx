@@ -66,6 +66,7 @@ import { computeMaxRedeemable } from "@/lib/loyalty/config";
 import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
+import { clearSessionOrderType } from "@/lib/onboardingSession";
 
 const DELIVERY_AGENT_PRICE_MARKUP = 10;
 
@@ -3134,7 +3135,7 @@ const PlaceOrderModal = ({
 
         // Clear only the sessionStorage order type so the order type screen re-prompts on reload.
         try {
-          sessionStorage.removeItem(`order_type_${hotelData.id}`);
+          clearSessionOrderType(hotelData.id);
         } catch {}
 
         if (onSuccessCallback) {

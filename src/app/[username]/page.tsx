@@ -7,7 +7,8 @@ import {
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { processHotelPage, fetchHotelMetadata } from "@/lib/hotelDataFetcher";
 import HotelMenuPage from "@/screens/HotelMenuPage_v2";
-import { getAuthCookie, getOrderSessionCookie } from "@/app/auth/actions";
+import { getAuthCookie, getOrderSessionCookie, getOnboardingDataCookie, getSessionOrderTypeCookie } from "@/app/auth/actions";
+import { evaluateSkipOnboarding } from "@/lib/onboardingSession";
 import { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
@@ -223,6 +224,23 @@ const UsernamePage = async ({
     ? null
     : await getBrandLinkForOutlet(partnerId);
 
+  // Skip the onboarding order-type overlay in the SSR HTML when the customer
+  // already chose delivery/takeaway this browser session (+ a saved address for
+  // delivery). Computed on the server from cookies so the overlay is never in
+  // the initial HTML — no flash on reload.
+  const sessionOrderType = await getSessionOrderTypeCookie(partnerId);
+  const savedOnboarding = sessionOrderType
+    ? await getOnboardingDataCookie(partnerId)
+    : null;
+  const initialSkipOnboarding = evaluateSkipOnboarding({
+    sessionOrderType,
+    hasSavedDeliveryAddress: !!(savedOnboarding?.address && savedOnboarding?.coords),
+    featureFlags: (data.hotelData as any)?.feature_flags,
+    orderTypesEnabled: (data.hotelData as any)?.order_types_enabled,
+    tableNumber: 0,
+    isBrandParent: !!(branchContext && branchContext.outlets.length > 0),
+  });
+
   const deliveryRules = (data.hotelData as any)?.delivery_rules;
   const hotelTimezone = (data.hotelData as any)?.timezone || "Asia/Kolkata";
   const isDeliveryActive = deliveryRules?.isDeliveryActive ?? true;
@@ -277,6 +295,7 @@ const UsernamePage = async ({
       branchContext={branchContext}
       preselectedOrderType={preselectedOrderType}
       brandLink={brandLink}
+      initialSkipOnboarding={initialSkipOnboarding}
     />
     </>
   );

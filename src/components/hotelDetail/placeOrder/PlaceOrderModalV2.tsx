@@ -87,6 +87,7 @@ import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
 import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
 import { computeMaxRedeemable } from "@/lib/loyalty/config";
+import { clearSessionOrderType } from "@/lib/onboardingSession";
 
 type AppliedDiscount = {
   id: string;
@@ -1525,7 +1526,7 @@ const PlaceOrderModalV2 = ({
       } catch {}
       useOrderStore.getState().notifyOrderPlaced();
       try {
-        sessionStorage.removeItem(`order_type_${hotelData.id}`);
+        clearSessionOrderType(hotelData.id);
       } catch {}
       setOrderStatus("success");
     } catch (error) {
@@ -1965,7 +1966,7 @@ const PlaceOrderModalV2 = ({
             setSavedOrderTotal(payable);
             try { useOrderStore.getState().clearOrder(); } catch {}
             useOrderStore.getState().notifyOrderPlaced();
-            try { sessionStorage.removeItem(`order_type_${hotelData.id}`); } catch {}
+            try { clearSessionOrderType(hotelData.id); } catch {}
             setOrderStatus("success");
           } catch (e) {
             console.error("Razorpay verification error:", e);
@@ -2216,7 +2217,7 @@ const PlaceOrderModalV2 = ({
         setDiscountError("");
         useOrderStore.getState().notifyOrderPlaced();
         try {
-          sessionStorage.removeItem(`order_type_${hotelData.id}`);
+          clearSessionOrderType(hotelData.id);
         } catch {}
         // Order placed. When the partner shows a UPI payment QR, surface it now so
         // the customer can pay the store directly; the success screen sits behind

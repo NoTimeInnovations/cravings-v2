@@ -6,6 +6,7 @@ import useOrderStore from "@/store/orderStore";
 import { useLocationStore } from "@/store/geolocationStore";
 import { getFeatures } from "@/lib/getFeatures";
 import { parseOrderTypesEnabled, parsePrebookingSettings } from "@/lib/prebooking";
+import { canSkipOnboarding, getSessionOrderType, setSessionOrderType } from "@/lib/onboardingSession";
 import { setOnboardingDataCookie, getOnboardingDataCookie } from "@/app/auth/actions";
 import StorefrontScreen from "./StorefrontScreen";
 import DeliveryAddressScreen from "./DeliveryAddressScreen";
@@ -53,6 +54,9 @@ interface OnboardingFlowProps {
    * and pre-set the chosen type. Used after redirect from a brand parent.
    */
   preselectedOrderType?: "delivery" | "takeaway" | null;
+  /** Server-computed: already chose an order type this session — start dismissed
+   * (no SSR flash). */
+  initialSkipOnboarding?: boolean;
 }
 
 export default function OnboardingFlow({
@@ -80,6 +84,7 @@ export default function OnboardingFlow({
   forceStart,
   branchContext,
   preselectedOrderType,
+  initialSkipOnboarding = false,
 }: OnboardingFlowProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -179,6 +184,25 @@ export default function OnboardingFlow({
         }
       } catch {}
     }
+    // Already picked delivery/takeaway (+ address) this session — don't re-show
+    // the order-type screen on reload. `initialSkipOnboarding` is decided on the
+    // SERVER (from cookies) so this matches the SSR HTML and never flashes; the
+    // client check is a fallback for soft navigations. The mount effect below
+    // restores the saved order type + address into the store.
+    if (
+      !forceStart &&
+      !forceShowPicker &&
+      (initialSkipOnboarding ||
+        canSkipOnboarding({
+          partnerId,
+          featureFlags,
+          orderTypesEnabled: hotelData?.order_types_enabled,
+          tableNumber,
+          isBrandParent,
+        }))
+    ) {
+      return true;
+    }
     return false;
   });
   const [closing, setClosing] = useState(false);
@@ -215,12 +239,10 @@ export default function OnboardingFlow({
         useLocationStore.getState().setCoords(saved.coords);
       }
     }).catch(() => {});
-    try {
-      const storedType = sessionStorage.getItem(`order_type_${partnerId}`);
-      if (storedType === "delivery" || storedType === "takeaway") {
-        setOrderType(storedType);
-      }
-    } catch {}
+    const storedType = getSessionOrderType(partnerId);
+    if (storedType) {
+      setOrderType(storedType);
+    }
   }, [partnerId]);
 
   const handleAddressContinue = useCallback(async (addr: string, coords: { lat: number; lng: number } | null) => {
@@ -253,9 +275,11 @@ export default function OnboardingFlow({
 
   const handleOrderTypeSelect = useCallback(async (type: "delivery" | "takeaway" | "dine_in") => {
     setOrderType(type);
-    try {
-      sessionStorage.setItem(`order_type_${partnerId}`, type);
-    } catch {}
+    // Persist to a server-readable session cookie so a reload skips this screen
+    // without an SSR flash. dine_in isn't a stored "session order type".
+    if (type === "delivery" || type === "takeaway") {
+      setSessionOrderType(partnerId, type);
+    }
 
     if (needsOutletPicker) {
       setStep("outletPicker");
@@ -283,13 +307,7 @@ export default function OnboardingFlow({
   }, [setOrderType, partnerId, dismissWithAnimation, needsAddress, needsOutletPicker, setUserAddress, setUserCoordinates]);
 
   const handleOutletSelect = useCallback((outlet: BranchOutlet) => {
-    const chosenType =
-      (typeof window !== "undefined" &&
-        (sessionStorage.getItem(`order_type_${partnerId}`) as
-          | "delivery"
-          | "takeaway"
-          | null)) ||
-      null;
+    const chosenType = getSessionOrderType(partnerId);
     // If the user picks the partner whose page they're already on (only
     // possible on a brand-parent that's also one of the outlets), skip
     // navigation. Next.js same-path router.push doesn't remount client state,
@@ -350,9 +368,7 @@ export default function OnboardingFlow({
     if (preselectApplied.current) return;
     preselectApplied.current = true;
     setOrderType(preselectedOrderType);
-    try {
-      sessionStorage.setItem(`order_type_${partnerId}`, preselectedOrderType);
-    } catch {}
+    setSessionOrderType(partnerId, preselectedOrderType);
     if (preselectedOrderType === "delivery" && needsAddress) {
       (async () => {
         try {
@@ -482,14 +498,7 @@ export default function OnboardingFlow({
                   : undefined
             }
             accent={accent}
-            orderType={
-              typeof window !== "undefined"
-                ? (sessionStorage.getItem(`order_type_${partnerId}`) as
-                    | "delivery"
-                    | "takeaway"
-                    | null)
-                : null
-            }
+            orderType={getSessionOrderType(partnerId)}
             onAddressSave={handleOutletAddressSave}
             hotelData={hotelData}
           />

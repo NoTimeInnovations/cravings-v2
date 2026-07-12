@@ -370,3 +370,23 @@ export const getOnboardingDataCookie = async (partnerId: string) => {
     return null;
   }
 };
+
+/**
+ * Read the per-partner session order type (delivery/takeaway) from the
+ * server-readable `order_type_session` cookie. Used to skip the onboarding
+ * order-type overlay in the SSR HTML so it never flashes on reload. Lives on the
+ * server side of @/lib/onboardingSession's cookie contract.
+ */
+export const getSessionOrderTypeCookie = async (
+  partnerId: string,
+): Promise<"delivery" | "takeaway" | null> => {
+  const cookie = (await cookies()).get("order_type_session")?.value;
+  if (!cookie) return null;
+  try {
+    const all = JSON.parse(decodeURIComponent(cookie));
+    const v = all?.[partnerId];
+    return v === "delivery" || v === "takeaway" ? v : null;
+  } catch {
+    return null;
+  }
+};

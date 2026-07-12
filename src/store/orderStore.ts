@@ -1857,6 +1857,12 @@ const useOrderStore = create(
               partnerId: hotelData.id,
               userId: userData.id,
               type,
+              // Persist the checkout phone onto the order row itself (the same
+              // value we send to Petpooja). Without this, orders.phone stays
+              // null and the dashboard can only fall back to users.phone —
+              // which is empty for online-payment customers who signed in
+              // without a verified phone (so drafts showed no phone at all).
+              phone: customerPhone?.trim() || userData.phone || null,
               status: deferForPayment ? "pending_payment" : "pending",
               order_channel,
               ...(deferForPayment

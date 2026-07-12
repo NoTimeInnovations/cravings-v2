@@ -14,6 +14,7 @@ import {
   Building2,
   Navigation,
   Trash2,
+  Search,
 } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
 import { toast } from "sonner";
@@ -118,6 +119,10 @@ export default function OutletPickerScreen({
   const [finding, setFinding] = useState(false);
   const [findError, setFindError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Delivery outlet page: a dedicated name/area filter for the outlet list.
+  // (areaInput holds the delivery ADDRESS in delivery mode, so it can't double
+  // as the outlet search the way it does for takeaway.)
+  const [outletQuery, setOutletQuery] = useState("");
   // Delivery is a two-page flow: first the address, then the outlet list. Start
   // on the outlet page only when a delivery address is already known (returning
   // user); otherwise collect the address first. Takeaway keeps its single
@@ -209,12 +214,14 @@ export default function OutletPickerScreen({
       .map((x) => x.o);
   }, [brand.outlets, userCoords]);
 
-  // Takeaway: the search box doubles as an outlet finder — filter the list by
-  // name / tagline / location as the user types. (Delivery uses the box for the
-  // delivery address instead, so name-filtering is skipped there.)
+  // Filter the outlet list by name / tagline / location as the user types.
+  // Takeaway reuses the top search card (areaInput); delivery has its own
+  // dedicated outlet search on the outlet page (outletQuery), because areaInput
+  // is the delivery address there.
+  const activeOutletSearch = isDelivery ? outletQuery : areaInput;
   const displayedOutlets = useMemo(() => {
-    const q = areaInput.trim().toLowerCase();
-    if (isDelivery || !q) return sortedOutlets;
+    const q = activeOutletSearch.trim().toLowerCase();
+    if (!q) return sortedOutlets;
     return sortedOutlets.filter((o) => {
       const hay = [o.store_name, o.store_tagline, o.location, o.location_details]
         .filter(Boolean)
@@ -222,7 +229,7 @@ export default function OutletPickerScreen({
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [sortedOutlets, areaInput, isDelivery]);
+  }, [sortedOutlets, activeOutletSearch]);
 
   const distanceFor = (o: BranchOutlet): string | null => {
     if (!userCoords) return null;
@@ -455,7 +462,7 @@ export default function OutletPickerScreen({
   }, [areaInput, savedAddress, isDelivery]);
 
   const canContinue = isDelivery
-    ? Boolean(savedAddress) && sortedOutlets.length > 0
+    ? Boolean(savedAddress) && displayedOutlets.length > 0
     : displayedOutlets.length > 0;
 
   const handleContinue = () => {
@@ -463,6 +470,15 @@ export default function OutletPickerScreen({
     const target =
       displayedOutlets.find((o) => o.id === selectedId) || displayedOutlets[0];
     if (target) onSelect(target);
+  };
+
+  // Tapping an outlet card redirects straight to that store (no need to then tap
+  // the bottom button — which still works as a fallback). Out-of-range delivery
+  // is re-checked on the destination store / at checkout, so we never block the
+  // navigation here.
+  const handleOutletClick = (o: BranchOutlet) => {
+    setSelectedId(o.id);
+    onSelect(o);
   };
 
   // Two-page delivery flow: address page first, outlets page next. Takeaway is
@@ -743,6 +759,29 @@ export default function OutletPickerScreen({
           {/* Outlets — outlet page (delivery) or takeaway */}
           {showOutletsView && (
             <>
+          {/* Delivery outlet search — filter the list by outlet name / area.
+              (Takeaway already searches via the top card.) */}
+          {isDelivery && sortedOutlets.length > 0 && (
+            <div className="mt-4 relative flex items-center h-10 rounded-xl border border-gray-200 bg-white focus-within:ring-2 focus-within:ring-gray-200">
+              <Search className="w-4 h-4 text-gray-400 ml-3 shrink-0" />
+              <input
+                value={outletQuery}
+                onChange={(e) => setOutletQuery(e.target.value)}
+                placeholder="Search outlets by name or area"
+                className="flex-1 h-full pl-2 pr-9 bg-transparent text-sm rounded-xl focus:outline-none"
+              />
+              {outletQuery && (
+                <button
+                  type="button"
+                  onClick={() => setOutletQuery("")}
+                  aria-label="Clear outlet search"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
           <div
             className={
               isGrid ? "mt-3 grid grid-cols-2 gap-2.5" : "mt-3 flex flex-col gap-2"
@@ -750,8 +789,8 @@ export default function OutletPickerScreen({
           >
             {displayedOutlets.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-6 col-span-2">
-                {!isDelivery && areaInput.trim()
-                  ? `No outlets match “${areaInput.trim()}”.`
+                {activeOutletSearch.trim()
+                  ? `No outlets match “${activeOutletSearch.trim()}”.`
                   : "No outlets available right now."}
               </p>
             ) : (
@@ -771,7 +810,7 @@ export default function OutletPickerScreen({
                   return (
                     <button
                       key={o.id}
-                      onClick={() => setSelectedId(o.id)}
+                      onClick={() => handleOutletClick(o)}
                       className={`rounded-xl bg-white overflow-hidden text-left transition-all ${selectedCls}`}
                       style={isSelected ? { borderColor: accent } : undefined}
                     >
@@ -828,7 +867,7 @@ export default function OutletPickerScreen({
                 return (
                   <button
                     key={o.id}
-                    onClick={() => setSelectedId(o.id)}
+                    onClick={() => handleOutletClick(o)}
                     className={`w-full px-3 py-2.5 rounded-xl bg-white flex items-center gap-2.5 text-left transition-all ${selectedCls}`}
                     style={isSelected ? { borderColor: accent } : undefined}
                   >

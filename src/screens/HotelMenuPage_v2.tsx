@@ -11,6 +11,7 @@ import useOrderStore from "@/store/orderStore";
 import { useEffect, useMemo, useCallback, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getFeatures } from "@/lib/getFeatures";
+import { canSkipOnboarding } from "@/lib/onboardingSession";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { addToRecent } from "@/lib/addToRecent";
@@ -79,6 +80,9 @@ interface HotelMenuPageProps {
   branchContext?: BranchContext | null;
   preselectedOrderType?: "delivery" | "takeaway" | null;
   brandLink?: BrandLinkInfo | null;
+  /** Server-computed: the customer already chose an order type this session, so
+   * skip the onboarding overlay without an SSR flash. */
+  initialSkipOnboarding?: boolean;
 }
 
 // The "My Orders" back button sets this one-shot flag right before router.back()
@@ -117,6 +121,7 @@ const HotelMenuPage = ({
   branchContext,
   preselectedOrderType,
   brandLink,
+  initialSkipOnboarding = false,
 }: HotelMenuPageProps) => {
   // Read URL params on the client. URL is the source of truth so navigating
   // from /name?category=x&hide=others to /name correctly clears the filter,
@@ -218,7 +223,20 @@ const HotelMenuPage = ({
       !showOnboarding ||
       isBackNavInitial ||
       isReorderMode ||
-      peekSkipStorefrontOnce(),
+      peekSkipStorefrontOnce() ||
+      // Already chose delivery/takeaway (+ address) this session — don't re-ask
+      // on reload; paint the menu straight away with the saved selection.
+      // `initialSkipOnboarding` is computed on the SERVER (from cookies) so this
+      // is decided during SSR and the overlay never flashes; the client check is
+      // a fallback for soft (client-side) navigations.
+      initialSkipOnboarding ||
+      canSkipOnboarding({
+        partnerId: hoteldata?.id,
+        featureFlags: hoteldata?.feature_flags,
+        orderTypesEnabled: (hoteldata as any)?.order_types_enabled,
+        tableNumber,
+        isBrandParent: !!(branchContext && branchContext.outlets.length > 0),
+      }),
   );
   const [onboardingKey, setOnboardingKey] = useState(0);
   // When the menu-page back button reopens onboarding, start at the storefront
@@ -668,6 +686,7 @@ const HotelMenuPage = ({
           hotelTimezone={hotelTimezone}
           branchContext={branchContext}
           preselectedOrderType={preselectedOrderType}
+          initialSkipOnboarding={forceStorefront ? false : initialSkipOnboarding}
           onDismiss={() => { setOnboardingDismissed(true); setForceStorefront(false); }}
         />
       )}

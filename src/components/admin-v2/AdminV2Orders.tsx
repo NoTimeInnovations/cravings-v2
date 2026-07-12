@@ -59,7 +59,7 @@ import { useAdminStore } from "@/store/adminStore";
 import { AdminV2AllOrders } from "./AdminV2AllOrders";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
-import { Edit, FileClock } from "lucide-react";
+import { Edit, FileClock, CalendarClock } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { expireCfOrder } from "@/app/actions/cfOrders";
 import { getFeatures } from "@/lib/getFeatures";
@@ -81,6 +81,9 @@ export function AdminV2Orders() {
   const [drafts, setDrafts] = useState<Order[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
   const [clearingDrafts, setClearingDrafts] = useState(false);
+  // Prebookings = live orders scheduled for later (have a scheduled_date). They
+  // are kept out of the normal live feed and shown only when this toggle is on.
+  const [showPrebookings, setShowPrebookings] = useState(false);
   useEffect(() => {
     const unsubscribe = subscribeDraftOrders((d) => setDrafts(d));
     return () => unsubscribe();
@@ -135,8 +138,27 @@ export function AdminV2Orders() {
   // Partner's configured slot ranges, used to show a booked slot as "from – to".
   const prebookCfg = parsePrebookingSettings((userData as any)?.prebooking_settings);
 
+  // Prebookings are live orders scheduled for a future date/slot.
+  const prebookings = orders.filter((o) => !!o.scheduled_date);
+  // Badge count reflects only actionable prebookings — terminal ones
+  // (completed/cancelled) need no attention. Normalize the status so casing or
+  // stray whitespace in the stored value can't slip a terminal order through.
+  const isTerminalStatus = (status?: string | null) => {
+    const s = (status || "").trim().toLowerCase();
+    return s === "completed" || s === "cancelled" || s === "canceled";
+  };
+  const activePrebookingsCount = prebookings.filter(
+    (o) => !isTerminalStatus(o.status),
+  ).length;
+
   // When the Draft Orders toggle is on, the whole view operates on drafts.
-  const activeOrders = showDrafts ? drafts : orders;
+  // When Prebookings is on, only scheduled orders are shown. Otherwise the
+  // normal live feed excludes prebookings so they stay separated.
+  const activeOrders = showDrafts
+    ? drafts
+    : showPrebookings
+      ? prebookings
+      : orders.filter((o) => !o.scheduled_date);
 
   const selectedOrder = activeOrders.find((o) => o.id === selectedOrderId) || null;
 
@@ -472,8 +494,38 @@ export function AdminV2Orders() {
 
         <div className="flex items-center gap-2">
           <Button
+            variant={showPrebookings ? "default" : "outline"}
+            onClick={() =>
+              setShowPrebookings((v) => {
+                const next = !v;
+                if (next) setShowDrafts(false);
+                return next;
+              })
+            }
+            className="relative gap-2"
+          >
+            <CalendarClock className="h-4 w-4" />
+            {showPrebookings ? "Back to Orders" : "Prebookings"}
+            {activePrebookingsCount > 0 && (
+              <Badge className="absolute -right-2 -top-2 bg-blue-600 px-1.5 text-white hover:bg-blue-600">
+                {activePrebookingsCount}
+              </Badge>
+            )}
+          </Button>
+          {!showDrafts && !showPrebookings && (
+            <Button variant="outline" onClick={() => setViewMode("all")}>
+              Show All Orders
+            </Button>
+          )}
+          <Button
             variant={showDrafts ? "default" : "outline"}
-            onClick={() => setShowDrafts((v) => !v)}
+            onClick={() =>
+              setShowDrafts((v) => {
+                const next = !v;
+                if (next) setShowPrebookings(false);
+                return next;
+              })
+            }
             className="gap-2"
           >
             <FileClock className="h-4 w-4" />
@@ -484,11 +536,6 @@ export function AdminV2Orders() {
               </Badge>
             )}
           </Button>
-          {!showDrafts && (
-            <Button variant="outline" onClick={() => setViewMode("all")}>
-              Show All Orders
-            </Button>
-          )}
         </div>
       </div>
 
@@ -510,6 +557,15 @@ export function AdminV2Orders() {
               {clearingDrafts ? "Clearing…" : "Clear drafts"}
             </Button>
           )}
+        </div>
+      )}
+
+      {showPrebookings && (
+        <div className="flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50/60 px-4 py-2 text-sm text-blue-800">
+          <span>
+            Showing <b>prebookings</b> — orders scheduled for a later date or slot.
+            They are kept separate from the live orders list.
+          </span>
         </div>
       )}
 
