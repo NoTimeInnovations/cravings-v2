@@ -1,14 +1,19 @@
 "use client";
 
 /**
- * Target — a self-contained growth plan + daily tracker.
+ * Target — the road to ₹10,00,000 / month, plus a shared watchlist of the
+ * restaurants we're tracking.
  *
- * Goal-driven view: pick a revenue target and date, and it derives how many
- * new paying customers (and calls) are needed per working day, tracks pace
- * against the required run-rate, and lets the team log calls / new customers /
- * payments each day. State is stored in this browser (localStorage) so there is
- * no server dependency; use Export/Import to back it up or move it. A shared,
- * DB-backed version can replace the storage layer without touching the UI.
+ * Everything here is DB-backed and identical for everyone:
+ *  - The watchlist (which restaurants, their plan, and paying/test/free status)
+ *    is stored in `analytics_watchlist` — only the selection is persisted.
+ *  - Paying customers + MRR are derived from the watchlist (status = "paying").
+ *  - Order stats (total / avg-per-day / avg-per-week and day/week/month trends)
+ *    are computed live on every load from the orders table — nothing cached,
+ *    nothing in localStorage.
+ *
+ * Money is all in INR. Target = ₹10,00,000/mo; at the ₹3,000 base plan that is
+ * 334 paying customers.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -25,47 +30,72 @@ import {
 } from "recharts";
 import {
   Target as TargetIcon,
-  Phone,
   Users,
   CalendarClock,
   TrendingUp,
   TrendingDown,
-  Download,
-  Upload,
-  RotateCcw,
-  Pencil,
+  Minus,
+  Plus,
   X,
-  Flag,
+  Search,
+  Loader2,
+  Building2,
+  RefreshCw,
+  IndianRupee,
+  ArrowUpDown,
+  Check,
+  ChevronLeft,
+  Pencil,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { rupees } from "../format";
+import { SectionHeader } from "./OverviewSection";
+import type { WatchlistEntry, WatchlistStatus } from "../types";
+import { toast } from "sonner";
 
-// ---------------------------------------------------------------- types
-type Assumptions = {
-  start: string;
-  target: string;
-  goalUsd: number;
-  fx: number; // rupees per dollar
-  priceInr: number;
-  existing: number;
-  dpw: number; // working days / week
-  closePct: number; // new customers per 100 calls
+// ---------------------------------------------------------------- config (shared for everyone)
+const MONTHLY_TARGET_INR = 1_000_000; // ₹10,00,000 / month
+const BASE_PLAN_INR = 3000; // headline: "if everyone paid this"
+const PLAN_OPTIONS = [3000, 5000];
+const PLAN_START = "2026-07-01";
+const GOAL_DATE = "2026-12-31";
+const DPW = 6; // working days / week
+const REFRESH_MS = 30_000;
+const SEARCH_DEBOUNCE_MS = 250;
+
+const TARGET_CUSTOMERS = Math.ceil(MONTHLY_TARGET_INR / BASE_PLAN_INR); // 334
+
+const STATUS_META: Record<
+  WatchlistStatus,
+  { label: string; badge: string; dot: string }
+> = {
+  paying: {
+    label: "Paying",
+    badge: "text-emerald-700 bg-emerald-50 border-emerald-200",
+    dot: "bg-emerald-500",
+  },
+  test: {
+    label: "Test",
+    badge: "text-amber-700 bg-amber-50 border-amber-200",
+    dot: "bg-amber-500",
+  },
+  free: {
+    label: "Free",
+    badge: "text-sky-700 bg-sky-50 border-sky-200",
+    dot: "bg-sky-500",
+  },
 };
-type LogEntry = {
-  id: number;
-  date: string;
-  calls: number;
-  conv: number;
-  pay: number;
-  note: string;
-};
+const STATUS_ORDER: WatchlistStatus[] = ["paying", "test", "free"];
 
-const LS_A = "analytics.target.assumptions.v1";
-const LS_L = "analytics.target.log.v1";
-
-// ---------------------------------------------------------------- date/number utils
+// ---------------------------------------------------------------- utils
 const pad = (n: number) => (n < 10 ? "0" + n : "" + n);
 const isoD = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseD = (s: string) => {
@@ -104,125 +134,93 @@ const addWork = (a: Date, n: number, dpw: number) => {
   }
   return d;
 };
-const nf = (n: number) => Math.round(n).toLocaleString("en-US");
-const inrFull = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
-const usdFull = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
+const nf = (n: number) => Math.round(n).toLocaleString("en-IN");
+const nf1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString("en-IN");
+const inr = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 const fmtD = (d: Date) =>
-  d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-const fmtDShort = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-const clampNum = (v: string | number, min: number, def: number) => {
-  const x = typeof v === "number" ? v : parseFloat(v);
-  if (isNaN(x)) return def;
-  return x < min ? min : x;
-};
+  d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+const fmtDShort = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
-function defaults(): Assumptions {
-  return {
-    start: isoD(midnight(new Date())),
-    target: "2026-12-31",
-    goalUsd: 10000,
-    fx: 105,
-    priceInr: 3000,
-    existing: 20,
-    dpw: 6,
-    closePct: 10,
-  };
-}
+// ---------------------------------------------------------------- plan metrics
+function computePlan(entries: WatchlistEntry[]) {
+  const paying = entries.filter((e) => e.status === "paying");
+  const payingCount = paying.length;
+  const mrrInr = paying.reduce((s, e) => s + (e.planInr || 0), 0);
+  const remainingMrr = Math.max(0, MONTHLY_TARGET_INR - mrrInr);
+  const remainingCustomers = Math.ceil(remainingMrr / BASE_PLAN_INR);
 
-// ---------------------------------------------------------------- compute
-function compute(A: Assumptions, log: LogEntry[]) {
-  const start = parseD(A.start);
-  const target = parseD(A.target);
+  const start = parseD(PLAN_START);
+  const goal = parseD(GOAL_DATE);
   const now = midnight(new Date());
-  const targetSubs = Math.max(A.existing, Math.ceil((A.goalUsd * A.fx) / A.priceInr));
-  const netNew = Math.max(0, targetSubs - A.existing);
-  const totalWD = Math.max(1, countWork(start, target, A.dpw));
-  const eff = clampD(now, start, target);
-  const elapsedWD = now < start ? 0 : countWork(start, eff, A.dpw);
-  const remWD = now > target ? 0 : Math.max(0, countWork(eff, target, A.dpw));
+  const eff = clampD(now, start, goal);
+  const totalWD = Math.max(1, countWork(start, goal, DPW));
+  const elapsedWD = now < start ? 0 : countWork(start, eff, DPW);
+  const remWD = now > goal ? 0 : Math.max(0, countWork(eff, goal, DPW));
 
-  let sumConv = 0,
-    sumCalls = 0,
-    sumPay = 0;
-  for (const e of log) {
-    sumConv += +e.conv || 0;
-    sumCalls += +e.calls || 0;
-    sumPay += +e.pay || 0;
-  }
-  const achieved = sumConv;
-  const remaining = Math.max(0, netNew - achieved);
-  const currentSubs = A.existing + achieved;
-  const mrrInr = currentSubs * A.priceInr;
-  const mrrUsd = mrrInr / A.fx;
-  const closeRate = Math.max(0.001, A.closePct / 100);
-  const perDayConv = remWD > 0 ? remaining / remWD : remaining;
-  const perDayCalls = perDayConv / closeRate;
-  const totalCallsRem = remaining / closeRate;
+  const requiredByToday = MONTHLY_TARGET_INR * (elapsedWD / totalWD);
+  const delta = mrrInr - requiredByToday;
+  const weekWorth = (MONTHLY_TARGET_INR / totalWD) * DPW;
 
-  const expectedByToday = netNew * (elapsedWD / totalWD);
-  const delta = achieved - expectedByToday;
-  const weekTarget = (netNew / totalWD) * A.dpw;
+  const perDayMrr = remWD > 0 ? remainingMrr / remWD : remainingMrr;
+  const perDayCust = perDayMrr / BASE_PLAN_INR;
+  const perWeekCust = perDayCust * DPW;
 
   type Pace = { cls: "good" | "warn" | "bad" | "neutral"; label: string };
   let pace: Pace;
   if (now < start) pace = { cls: "neutral", label: "Not started" };
-  else if (remaining <= 0) pace = { cls: "good", label: "Goal reached 🎉" };
+  else if (remainingMrr <= 0) pace = { cls: "good", label: "Goal reached 🎉" };
+  else if (payingCount === 0) pace = { cls: "bad", label: "No paying customers yet" };
   else if (delta >= 0) pace = { cls: "good", label: "On / ahead of pace" };
-  else if (delta >= -weekTarget) pace = { cls: "warn", label: "Slightly behind" };
+  else if (delta >= -weekWorth) pace = { cls: "warn", label: "Slightly behind" };
   else pace = { cls: "bad", label: "Behind pace" };
 
-  const avgRate = elapsedWD > 0 ? achieved / elapsedWD : 0;
+  const rate = elapsedWD > 0 ? mrrInr / elapsedWD : 0; // ₹ per working day
   let projDate: Date | null = null;
   let projOnTime: boolean | null = null;
-  if (remaining <= 0) {
-    projOnTime = true;
-  } else if (avgRate > 0) {
-    projDate = addWork(eff, Math.ceil(remaining / avgRate), A.dpw);
-    projOnTime = projDate <= target;
+  if (remainingMrr <= 0) projOnTime = true;
+  else if (rate > 0) {
+    projDate = addWork(eff, Math.ceil(remainingMrr / rate), DPW);
+    projOnTime = projDate <= goal;
   }
 
   return {
     start,
-    target,
+    goal,
     now,
-    targetSubs,
-    netNew,
+    paying,
+    payingCount,
+    testCount: entries.filter((e) => e.status === "test").length,
+    freeCount: entries.filter((e) => e.status === "free").length,
+    mrrInr,
+    remainingMrr,
+    remainingCustomers,
     totalWD,
     elapsedWD,
     remWD,
-    sumConv,
-    sumCalls,
-    sumPay,
-    achieved,
-    remaining,
-    currentSubs,
-    mrrInr,
-    mrrUsd,
-    closeRate,
-    perDayConv,
-    perDayCalls,
-    totalCallsRem,
-    expectedByToday,
+    requiredByToday,
     delta,
+    weekWorth,
+    perDayCust,
+    perWeekCust,
     pace,
-    avgRate,
     projDate,
     projOnTime,
   };
 }
-type Metrics = ReturnType<typeof compute>;
+type PlanMetrics = ReturnType<typeof computePlan>;
 
-// cumulative-vs-required series for the burn-up chart
-function buildChart(A: Assumptions, log: LogEntry[], m: Metrics) {
+// cumulative MRR (from paying entries) vs required linear pace
+function buildChart(entries: WatchlistEntry[], m: PlanMetrics) {
   const t0 = m.start.getTime();
-  const t1 = m.target.getTime();
-  const nowT = clampD(m.now, m.start, m.target).getTime();
+  const t1 = m.goal.getTime();
+  const nowT = clampD(m.now, m.start, m.goal).getTime();
+
   const byDate: Record<string, number> = {};
-  for (const e of log) {
-    if (!e.date) continue;
-    byDate[e.date] = (byDate[e.date] || 0) + (+e.conv || 0);
+  for (const e of m.paying) {
+    const d = isoD(new Date(e.createdAt));
+    byDate[d] = (byDate[d] || 0) + (e.planInr || 0);
   }
-  // x anchors: month starts + log dates + endpoints + today
+
   const set = new Set<number>([t0, t1, nowT]);
   const cur = new Date(m.start.getFullYear(), m.start.getMonth(), 1);
   while (cur.getTime() <= t1) {
@@ -236,159 +234,126 @@ function buildChart(A: Assumptions, log: LogEntry[], m: Metrics) {
     if (t > t1) t = t1;
     set.add(t);
   });
+
   const xs = Array.from(set).sort((a, b) => a - b);
-  const req = (t: number) =>
-    A.existing + (m.targetSubs - A.existing) * ((t - t0) / Math.max(1, t1 - t0));
+  const required = (t: number) => MONTHLY_TARGET_INR * ((t - t0) / Math.max(1, t1 - t0));
   const actualAt = (t: number) => {
-    let v = A.existing;
-    Object.keys(byDate)
-      .sort()
-      .forEach((d) => {
-        if (parseD(d).getTime() <= t) v += byDate[d];
-      });
+    let v = 0;
+    Object.keys(byDate).forEach((d) => {
+      let dt = parseD(d).getTime();
+      if (dt < t0) dt = t0;
+      if (dt <= t) v += byDate[d];
+    });
     return v;
   };
   return xs.map((t) => ({
     t,
-    required: Math.round(req(t) * 10) / 10,
+    required: Math.round(required(t)),
     actual: t <= nowT ? actualAt(t) : null,
   }));
 }
 
 // ---------------------------------------------------------------- component
 export default function TargetSection() {
-  const [A, setA] = useState<Assumptions>(defaults);
-  const [log, setLog] = useState<LogEntry[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [showAssume, setShowAssume] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [entries, setEntries] = useState<WatchlistEntry[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [sort, setSort] = useState<SortKey>("total_desc");
 
-  // form
-  const [fDate, setFDate] = useState(() => isoD(midnight(new Date())));
-  const [fCalls, setFCalls] = useState("");
-  const [fConv, setFConv] = useState("");
-  const [fPay, setFPay] = useState("");
-  const [fNote, setFNote] = useState("");
-
-  // load once (client only → no hydration mismatch)
-  useEffect(() => {
+  const load = useCallback(async (soft = false) => {
+    if (soft) setRefreshing(true);
     try {
-      const a = localStorage.getItem(LS_A);
-      const l = localStorage.getItem(LS_L);
-      if (a) setA({ ...defaults(), ...JSON.parse(a) });
-      if (l) setLog(JSON.parse(l));
-    } catch {
-      /* ignore */
+      const r = await fetch("/api/stats/watchlist", { cache: "no-store" });
+      const d = await r.json();
+      setEntries(d.entries ?? []);
+    } catch (e) {
+      console.error("watchlist load failed", e);
+      if (!soft) setEntries([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoaded(true);
   }, []);
 
-  // persist
   useEffect(() => {
-    if (!loaded) return;
-    try {
-      localStorage.setItem(LS_A, JSON.stringify(A));
-    } catch {
-      /* ignore */
-    }
-  }, [A, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    try {
-      localStorage.setItem(LS_L, JSON.stringify(log));
-    } catch {
-      /* ignore */
-    }
-  }, [log, loaded]);
+    load();
+    const id = setInterval(() => load(true), REFRESH_MS);
+    return () => clearInterval(id);
+  }, [load]);
 
-  const m = useMemo(() => compute(A, log), [A, log]);
-  const chart = useMemo(() => buildChart(A, log, m), [A, log, m]);
+  const list = entries ?? [];
+  const m = useMemo(() => computePlan(list), [list]);
+  const chart = useMemo(() => buildChart(list, m), [list, m]);
 
-  const setAField = (k: keyof Assumptions, v: number | string) =>
-    setA((p) => ({ ...p, [k]: v }));
+  const existingIds = useMemo(
+    () => new Set(list.map((e) => e.partnerId)),
+    [list]
+  );
 
-  const resetForm = () => {
-    setFCalls("");
-    setFConv("");
-    setFPay("");
-    setFNote("");
-  };
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fDate) return;
-    const entry: LogEntry = {
-      id: editId ?? Date.now(),
-      date: fDate,
-      calls: clampNum(fCalls, 0, 0),
-      conv: clampNum(fConv, 0, 0),
-      pay: clampNum(fPay, 0, 0),
-      note: fNote.trim(),
-    };
-    if (editId != null) {
-      setLog((p) => p.map((x) => (x.id === editId ? entry : x)));
-      setEditId(null);
-    } else {
-      setLog((p) => [...p, entry]);
-    }
-    resetForm();
-  };
-  const startEdit = (e: LogEntry) => {
-    setEditId(e.id);
-    setFDate(e.date);
-    setFCalls(e.calls ? String(e.calls) : "");
-    setFConv(e.conv ? String(e.conv) : "");
-    setFPay(e.pay ? String(e.pay) : "");
-    setFNote(e.note || "");
-  };
-  const del = (id: number) => {
-    setLog((p) => p.filter((x) => x.id !== id));
-    if (editId === id) {
-      setEditId(null);
-      resetForm();
-    }
-  };
-
-  const exportData = () => {
-    const blob = new Blob(
-      [JSON.stringify({ assumptions: A, log, exportedAt: new Date().toISOString() }, null, 2)],
-      { type: "application/json" }
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `growth-plan-${isoD(new Date())}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 500);
-  };
-  const importData = (file: File) => {
-    const rd = new FileReader();
-    rd.onload = () => {
-      try {
-        const o = JSON.parse(String(rd.result));
-        if (o.assumptions) setA({ ...defaults(), ...o.assumptions });
-        if (Array.isArray(o.log)) setLog(o.log);
-      } catch {
-        alert("Couldn't read that file — make sure it's a growth-plan export.");
+  // ---- mutations
+  const addEntry = useCallback(
+    async (
+      partnerId: string,
+      planInr: number,
+      status: WatchlistStatus,
+      note: string | null
+    ) => {
+      const r = await fetch("/api/stats/watchlist", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ partnerId, planInr, status, note }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast.error(d.error ?? "Couldn't add restaurant");
+        return false;
       }
-    };
-    rd.readAsText(file);
-  };
+      toast.success("Added to watchlist");
+      await load(true);
+      return true;
+    },
+    [load]
+  );
 
-  if (!loaded) {
-    return <div className="h-96 rounded-xl border bg-white animate-pulse" />;
-  }
+  const patchEntry = useCallback(
+    async (id: string, patch: Partial<Pick<WatchlistEntry, "planInr" | "status" | "note">>) => {
+      setEntries((prev) =>
+        prev ? prev.map((e) => (e.id === id ? { ...e, ...patch } : e)) : prev
+      );
+      const r = await fetch("/api/stats/watchlist", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, ...patch }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        toast.error(d.error ?? "Update failed");
+        await load(true);
+      }
+    },
+    [load]
+  );
 
-  const started = m.now >= m.start && m.now <= m.target;
-  const pct = Math.min(100, Math.round((m.achieved / Math.max(1, m.netNew)) * 100));
-  const mrrPct = Math.min(100, Math.round((m.mrrUsd / Math.max(1, A.goalUsd)) * 100));
-  const sorted = [...log].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id));
-  let run = A.existing;
-  const rows = sorted.map((e) => {
-    run += +e.conv || 0;
-    return { e, cum: run };
-  });
-  rows.reverse();
+  const removeEntry = useCallback(
+    async (id: string, name: string) => {
+      if (!confirm(`Remove ${name} from the watchlist?`)) return;
+      setEntries((prev) => (prev ? prev.filter((e) => e.id !== id) : prev));
+      const r = await fetch(`/api/stats/watchlist?id=${id}`, { method: "DELETE" });
+      if (!r.ok) {
+        toast.error("Remove failed");
+        await load(true);
+      } else {
+        toast.success("Removed from watchlist");
+      }
+    },
+    [load]
+  );
+
+  const sortedRows = useMemo(() => sortRows(list, sort), [list, sort]);
+
+  const mrrPct = Math.min(100, Math.round((m.mrrInr / MONTHLY_TARGET_INR) * 100));
+  const custPct = Math.min(100, Math.round((m.payingCount / TARGET_CUSTOMERS) * 100));
+  const ordersToday = list.reduce((s, e) => s + e.today, 0);
 
   return (
     <div className="space-y-6">
@@ -398,25 +363,25 @@ export default function TargetSection() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-primary">
               <TargetIcon className="size-3.5" />
-              Revenue growth plan
+              Revenue target
             </div>
             <h2 className="mt-1.5 text-xl font-semibold tracking-tight sm:text-2xl">
-              The road to {usdFull(A.goalUsd)} / month
+              The road to {inr(MONTHLY_TARGET_INR)} / month
             </h2>
             <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
-              Reach <b className="text-foreground">{usdFull(A.goalUsd)}/mo</b> by {fmtD(m.target)} —
-              about <b className="text-foreground">{nf(m.targetSubs)} paying customers</b> at{" "}
-              {inrFull(A.priceInr)}/mo. You have <b className="text-foreground">{nf(A.existing)}</b>,
-              so the plan closes the gap of{" "}
-              <b className="text-foreground">{nf(m.netNew)} new customers</b>.
+              Reach <b className="text-foreground">{inr(MONTHLY_TARGET_INR)}/mo</b> by {fmtD(m.goal)} —
+              about <b className="text-foreground">{nf(TARGET_CUSTOMERS)} paying customers</b> if everyone
+              is on the {inr(BASE_PLAN_INR)} plan. You have{" "}
+              <b className="text-foreground">{nf(m.payingCount)} paying</b> now, so the gap is{" "}
+              <b className="text-foreground">{nf(m.remainingCustomers)} more</b> ({inr(m.remainingMrr)}/mo).
             </p>
           </div>
           <div className="shrink-0 rounded-xl border bg-muted/40 px-4 py-3 text-right">
             <div className="text-2xl font-semibold tabular-nums leading-none">
-              {m.now > m.target ? 0 : nf(m.remWD)}
+              {m.now > m.goal ? 0 : nf(m.remWD)}
             </div>
             <div className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-              working days left · {fmtDShort(m.target)}, {m.target.getFullYear()}
+              working days left · {fmtDShort(m.goal)}, {m.goal.getFullYear()}
             </div>
           </div>
         </div>
@@ -425,17 +390,17 @@ export default function TargetSection() {
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
-          label="New customers won"
-          value={nf(m.achieved)}
-          unit={`/ ${nf(m.netNew)}`}
-          sub={`${nf(m.remaining)} still to go`}
-          progress={pct}
+          label="Paying customers"
+          value={nf(m.payingCount)}
+          unit={`/ ${nf(TARGET_CUSTOMERS)}`}
+          sub={`${nf(m.remainingCustomers)} more at ${inr(BASE_PLAN_INR)}`}
+          progress={custPct}
         />
         <StatCard
           label="Current MRR"
-          value={usdFull(m.mrrUsd)}
-          unit={`/ ${usdFull(A.goalUsd)}`}
-          sub={`${inrFull(m.mrrInr)} · ${nf(m.currentSubs)} customers`}
+          value={inr(m.mrrInr)}
+          unit={`/ ${inr(MONTHLY_TARGET_INR)}`}
+          sub={`${mrrPct}% of monthly target`}
           progress={mrrPct}
         />
         <Card className="relative overflow-hidden border bg-white p-4">
@@ -446,9 +411,9 @@ export default function TargetSection() {
             <PacePill cls={m.pace.cls} label={m.pace.label} />
           </div>
           <div className="mt-2 text-[11px] text-muted-foreground">
-            Target by today <b className="text-foreground">{nf(m.expectedByToday)}</b> · you&rsquo;re at{" "}
-            <b className="text-foreground">{nf(m.achieved)}</b> ({m.delta >= 0 ? "+" : ""}
-            {nf(m.delta)})
+            Target by today <b className="text-foreground">{inr(m.requiredByToday)}</b> · at{" "}
+            <b className="text-foreground">{inr(m.mrrInr)}</b> ({m.delta >= 0 ? "+" : "−"}
+            {inr(Math.abs(m.delta))})
           </div>
         </Card>
         <Card className="relative overflow-hidden border bg-white p-4">
@@ -456,7 +421,11 @@ export default function TargetSection() {
             Projected finish
           </div>
           <div className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
-            {m.projDate ? fmtDShort(m.projDate) : m.remaining <= 0 ? "Done" : "—"}
+            {m.projDate
+              ? fmtDShort(m.projDate)
+              : m.remainingMrr <= 0
+                ? "Done"
+                : "—"}
             {m.projDate && (
               <span className="text-base font-medium text-muted-foreground">
                 , {m.projDate.getFullYear()}
@@ -465,7 +434,7 @@ export default function TargetSection() {
           </div>
           <div className="mt-1.5 text-[11px] text-muted-foreground">
             {m.projOnTime === null ? (
-              "Log a few days to project"
+              "Add paying customers to project"
             ) : m.projOnTime ? (
               <span className="text-emerald-600">On time ✓</span>
             ) : (
@@ -476,39 +445,35 @@ export default function TargetSection() {
         </Card>
       </div>
 
-      {/* Today's targets */}
+      {/* What it takes */}
       <Card className="border bg-white p-5">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">Today&rsquo;s targets</h3>
+          <h3 className="text-sm font-semibold">What it takes from here</h3>
           <span className="text-xs text-muted-foreground">
-            {m.remaining <= 0
-              ? "Goal reached — keep them paying!"
-              : started
-                ? "To finish on time, each working day from today needs:"
-                : m.now < m.start
-                  ? `Plan hasn't started yet — starts ${fmtD(m.start)}`
-                  : "Past the goal date."}
+            {m.remainingMrr <= 0
+              ? "Target reached — keep them paying!"
+              : `To finish by ${fmtDShort(m.goal)}, each working day needs:`}
           </span>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Focus
             icon={<Users className="size-4" />}
-            label="New customers / day"
-            big={Math.max(0, m.perDayConv).toFixed(1)}
-            note={`${nf(m.remaining)} left ÷ ${nf(m.remWD)} working days`}
+            label="New paying / day"
+            big={nf1(Math.max(0, m.perDayCust))}
+            note={`${nf(m.remainingCustomers)} left ÷ ${nf(m.remWD)} working days`}
             accent
           />
           <Focus
-            icon={<Phone className="size-4" />}
-            label="Calls / day"
-            big={nf(Math.ceil(m.perDayCalls))}
-            note={`at ${A.closePct}% close rate (${nf(Math.round(1 / m.closeRate))} calls / customer)`}
+            icon={<CalendarClock className="size-4" />}
+            label="New paying / week"
+            big={nf1(Math.max(0, m.perWeekCust))}
+            note={`${DPW} working days / week`}
           />
           <Focus
-            icon={<CalendarClock className="size-4" />}
-            label="Calls still to make"
-            big={nf(Math.ceil(m.totalCallsRem))}
-            note={`total, to land the remaining ${nf(m.remaining)}`}
+            icon={<IndianRupee className="size-4" />}
+            label="MRR still to add"
+            big={inr(m.remainingMrr)}
+            note={`on top of ${inr(m.mrrInr)} today`}
           />
         </div>
       </Card>
@@ -516,14 +481,14 @@ export default function TargetSection() {
       {/* Burn-up chart */}
       <Card className="border bg-white p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">Paying customers vs. required pace</h3>
+          <h3 className="text-sm font-semibold">MRR vs. required pace</h3>
           <span className="text-xs text-muted-foreground">
-            Start {nf(A.existing)} → Goal {nf(m.targetSubs)}
+            {inr(0)} → {inr(MONTHLY_TARGET_INR)}
           </span>
         </div>
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chart} margin={{ top: 12, right: 16, bottom: 4, left: -8 }}>
+            <ComposedChart data={chart} margin={{ top: 12, right: 16, bottom: 4, left: 4 }}>
               <defs>
                 <linearGradient id="tgt-actual" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#4f46e5" stopOpacity={0.22} />
@@ -535,7 +500,7 @@ export default function TargetSection() {
                 dataKey="t"
                 type="number"
                 scale="time"
-                domain={[m.start.getTime(), m.target.getTime()]}
+                domain={[m.start.getTime(), m.goal.getTime()]}
                 tickFormatter={(t: number) =>
                   new Date(t).toLocaleDateString("en-US", { month: "short" })
                 }
@@ -548,8 +513,9 @@ export default function TargetSection() {
                 tick={{ fontSize: 11, fill: "#6a7180" }}
                 tickLine={false}
                 axisLine={false}
-                width={44}
-                domain={[0, Math.ceil((m.targetSubs * 1.05) / 50) * 50]}
+                width={52}
+                tickFormatter={(v: number) => rupees(v)}
+                domain={[0, Math.ceil((MONTHLY_TARGET_INR * 1.05) / 100000) * 100000]}
               />
               <Tooltip
                 content={(p: any) => {
@@ -557,16 +523,14 @@ export default function TargetSection() {
                   const d = p.payload[0]?.payload;
                   return (
                     <div className="rounded-lg border bg-white px-3 py-2 text-xs shadow-sm">
-                      <div className="mb-1 text-muted-foreground">
-                        {fmtD(new Date(d.t))}
-                      </div>
+                      <div className="mb-1 text-muted-foreground">{fmtD(new Date(d.t))}</div>
                       {d.actual != null && (
                         <div className="flex items-center justify-between gap-4">
                           <span className="flex items-center gap-1.5">
                             <span className="inline-block size-2 rounded-full bg-[#4f46e5]" />
-                            Actual
+                            Actual MRR
                           </span>
-                          <b className="tabular-nums">{nf(d.actual)}</b>
+                          <b className="tabular-nums">{inr(d.actual)}</b>
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-4">
@@ -574,27 +538,27 @@ export default function TargetSection() {
                           <span className="inline-block size-2 rounded-full bg-[#94a3b8]" />
                           Required
                         </span>
-                        <b className="tabular-nums">{nf(d.required)}</b>
+                        <b className="tabular-nums">{inr(d.required)}</b>
                       </div>
                     </div>
                   );
                 }}
               />
               <ReferenceLine
-                y={m.targetSubs}
+                y={MONTHLY_TARGET_INR}
                 stroke="#10b981"
                 strokeDasharray="2 4"
                 label={{
-                  value: `Goal ${nf(m.targetSubs)}`,
+                  value: `Goal ${rupees(MONTHLY_TARGET_INR)}`,
                   position: "insideTopRight",
                   fill: "#059669",
                   fontSize: 11,
                   fontWeight: 700,
                 }}
               />
-              {started && (
+              {m.now >= m.start && m.now <= m.goal && (
                 <ReferenceLine
-                  x={clampD(m.now, m.start, m.target).getTime()}
+                  x={clampD(m.now, m.start, m.goal).getTime()}
                   stroke="#94a3b8"
                   strokeDasharray="2 3"
                   label={{ value: "today", position: "top", fill: "#94a3b8", fontSize: 10 }}
@@ -624,8 +588,8 @@ export default function TargetSection() {
         </div>
         <div className="mt-2 flex flex-wrap gap-4 text-xs text-foreground/80">
           <span className="inline-flex items-center gap-2">
-            <span className="inline-block h-[3px] w-3.5 rounded bg-[#4f46e5]" /> Actual paying
-            customers
+            <span className="inline-block h-[3px] w-3.5 rounded bg-[#4f46e5]" /> Actual MRR (paying
+            customers)
           </span>
           <span className="inline-flex items-center gap-2">
             <span
@@ -640,271 +604,652 @@ export default function TargetSection() {
         </div>
       </Card>
 
-      {/* Daily log */}
-      <Card className="border bg-white p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">Daily log</h3>
-          <span className="text-xs text-muted-foreground">
-            Record calls made, new customers &amp; payments.
-          </span>
-        </div>
-        <form
-          onSubmit={submit}
-          className="grid grid-cols-2 items-end gap-3 sm:grid-cols-3 lg:grid-cols-[auto_1fr_1fr_1fr_1.4fr_auto]"
-        >
-          <Field label="Date">
-            <Input type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} required />
-          </Field>
-          <Field label="Calls made">
-            <Input
-              type="number"
-              min={0}
-              inputMode="numeric"
-              placeholder="0"
-              value={fCalls}
-              onChange={(e) => setFCalls(e.target.value)}
-            />
-          </Field>
-          <Field label="New customers">
-            <Input
-              type="number"
-              min={0}
-              inputMode="numeric"
-              placeholder="0"
-              value={fConv}
-              onChange={(e) => setFConv(e.target.value)}
-            />
-          </Field>
-          <Field label="Payments received">
-            <Input
-              type="number"
-              min={0}
-              inputMode="numeric"
-              placeholder="0"
-              value={fPay}
-              onChange={(e) => setFPay(e.target.value)}
-            />
-          </Field>
-          <Field label="Note (optional)">
-            <Input
-              type="text"
-              maxLength={80}
-              placeholder="e.g. Kavaratti market visit"
-              value={fNote}
-              onChange={(e) => setFNote(e.target.value)}
-            />
-          </Field>
-          <div className="flex gap-2">
-            <Button type="submit" className="w-full">
-              {editId != null ? "Update" : "Add"}
-            </Button>
-            {editId != null && (
-              <Button
+      {/* Watchlist */}
+      <div className="space-y-4">
+        <SectionHeader
+          title="Restaurant watchlist"
+          subtitle="Shared, saved in the database — track orders for the restaurants we onboard (paying, test or free)"
+          right={
+            <div className="flex items-center gap-3">
+              <SortSelect value={sort} onChange={setSort} />
+              <AddRestaurant existingIds={existingIds} onAdd={addEntry} />
+              <button
                 type="button"
-                variant="outline"
-                onClick={() => {
-                  setEditId(null);
-                  resetForm();
-                }}
+                onClick={() => load(true)}
+                className="inline-flex size-8 items-center justify-center rounded-md border bg-white text-muted-foreground shadow-sm hover:bg-neutral-50"
+                title="Refresh stats"
               >
-                Cancel
-              </Button>
-            )}
-          </div>
-        </form>
-
-        <div className="mt-4 -mx-1 overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
-            <thead>
-              <tr className="border-b text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th className="px-3 py-2 text-left font-medium">Date</th>
-                <th className="px-3 py-2 text-right font-medium">Calls</th>
-                <th className="px-3 py-2 text-right font-medium">New cust.</th>
-                <th className="px-3 py-2 text-right font-medium">Payments</th>
-                <th className="px-3 py-2 text-right font-medium">Cumulative</th>
-                <th className="px-3 py-2 text-left font-medium">Note</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
-                    No entries yet. Log your first day above — even a few calls counts.
-                  </td>
-                </tr>
-              ) : (
-                rows.map(({ e, cum }) => (
-                  <tr key={e.id} className="border-b border-muted hover:bg-muted/40">
-                    <td className="whitespace-nowrap px-3 py-2 text-left">
-                      {fmtDShort(parseD(e.date))}, {parseD(e.date).getFullYear()}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{nf(+e.calls || 0)}</td>
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-primary">
-                      {nf(+e.conv || 0)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{nf(+e.pay || 0)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                      {nf(cum)}
-                    </td>
-                    <td className="px-3 py-2 text-left text-muted-foreground">{e.note}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right">
-                      <button
-                        type="button"
-                        onClick={() => startEdit(e)}
-                        className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                        title="Edit"
-                      >
-                        <Pencil className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => del(e.id)}
-                        className="rounded p-1 text-muted-foreground hover:bg-rose-50 hover:text-rose-600"
-                        title="Delete"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            {rows.length > 0 && (
-              <tfoot>
-                <tr className="border-t font-semibold">
-                  <td className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Totals
-                  </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{nf(m.sumCalls)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-primary">
-                    {nf(m.sumConv)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{nf(m.sumPay)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{nf(m.currentSubs)}</td>
-                  <td
-                    className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground"
-                    colSpan={2}
-                  >
-                    ≈ {inrFull(m.sumPay * A.priceInr)} collected
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </Card>
-
-      {/* Assumptions */}
-      <Card className="border bg-white p-5">
-        <button
-          type="button"
-          onClick={() => setShowAssume((s) => !s)}
-          className="flex w-full items-center justify-between gap-2 text-left"
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            <Flag className="size-4 text-muted-foreground" /> Plan assumptions &amp; targets
-          </span>
-          <span className="text-xs text-muted-foreground">{showAssume ? "Hide" : "Edit"}</span>
-        </button>
-        {showAssume && (
-          <>
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Field label="Plan start date">
-                <Input type="date" value={A.start} onChange={(e) => setAField("start", e.target.value)} />
-              </Field>
-              <Field label="Goal date">
-                <Input type="date" value={A.target} onChange={(e) => setAField("target", e.target.value)} />
-              </Field>
-              <Field label="Monthly goal ($)">
-                <Input type="number" min={0} step={500} value={A.goalUsd}
-                  onChange={(e) => setAField("goalUsd", clampNum(e.target.value, 0, 10000))} />
-              </Field>
-              <Field label="Exchange rate (₹ / $)">
-                <Input type="number" min={1} step={0.5} value={A.fx}
-                  onChange={(e) => setAField("fx", clampNum(e.target.value, 1, 105))} />
-              </Field>
-              <Field label="Subscription (₹ / mo)">
-                <Input type="number" min={1} step={100} value={A.priceInr}
-                  onChange={(e) => setAField("priceInr", clampNum(e.target.value, 1, 3000))} />
-              </Field>
-              <Field label="Existing customers">
-                <Input type="number" min={0} step={1} value={A.existing}
-                  onChange={(e) => setAField("existing", clampNum(e.target.value, 0, 20))} />
-              </Field>
-              <Field label="Working days / week">
-                <select
-                  value={A.dpw}
-                  onChange={(e) => setAField("dpw", parseInt(e.target.value, 10) || 6)}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-                >
-                  <option value={5}>5 (Mon–Fri)</option>
-                  <option value={6}>6 (Mon–Sat)</option>
-                  <option value={7}>7 (all days)</option>
-                </select>
-              </Field>
-              <Field label="Close rate (per 100 calls)">
-                <Input type="number" min={0.1} step={0.5} value={A.closePct}
-                  onChange={(e) => setAField("closePct", clampNum(e.target.value, 0.1, 10))} />
-              </Field>
+                <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
+              </button>
             </div>
-            <p className="mt-4 border-t pt-4 text-xs text-muted-foreground">
-              Goal needs <b className="text-foreground">{nf(m.targetSubs)}</b> customers ({usdFull(A.goalUsd)}{" "}
-              × ₹{A.fx} ÷ ₹{A.priceInr}). Gap after your {nf(A.existing)} existing ={" "}
-              <b className="text-foreground">{nf(m.netNew)}</b>.{" "}
-              <b className="text-foreground">{nf(m.totalWD)}</b> total working days ({A.dpw}/week).
-            </p>
-          </>
-        )}
-        <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
-          <Button variant="outline" size="sm" onClick={exportData}>
-            <Download className="mr-1.5 size-3.5" /> Export data
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-            <Upload className="mr-1.5 size-3.5" /> Import
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) importData(f);
-              e.target.value = "";
-            }}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto text-muted-foreground hover:text-rose-600"
-            onClick={() => {
-              if (
-                confirm(
-                  "Reset all assumptions and delete every logged day? This can't be undone (export first if unsure)."
-                )
-              ) {
-                setA(defaults());
-                setLog([]);
-                setEditId(null);
-                resetForm();
-              }
-            }}
-          >
-            <RotateCcw className="mr-1.5 size-3.5" /> Reset everything
-          </Button>
-        </div>
-      </Card>
+          }
+        />
 
-      <p className="text-center text-xs text-muted-foreground">
-        Saved in this browser only. Export regularly to back up or move to another device — a
-        shared, team-wide version can be added later.
-      </p>
+        {/* summary chips */}
+        <div className="flex flex-wrap gap-2">
+          <Chip label="Tracked" value={nf(list.length)} />
+          <Chip label="Paying" value={nf(m.payingCount)} tone="emerald" />
+          <Chip label="Test" value={nf(m.testCount)} tone="amber" />
+          <Chip label="Free" value={nf(m.freeCount)} tone="sky" />
+          <Chip label="Orders today" value={nf(ordersToday)} />
+        </div>
+
+        <Card className="border bg-white p-0 overflow-hidden">
+          {loading ? (
+            <div className="p-10 text-center text-sm text-muted-foreground">
+              <Loader2 className="mx-auto mb-2 size-5 animate-spin" />
+              Loading watchlist…
+            </div>
+          ) : sortedRows.length === 0 ? (
+            <WatchlistEmpty />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <th className="px-3 py-2.5 text-left font-medium">Restaurant</th>
+                    <th className="px-3 py-2.5 text-left font-medium">Plan</th>
+                    <th className="px-3 py-2.5 text-left font-medium">Status</th>
+                    <th className="px-3 py-2.5 text-right font-medium">Total orders</th>
+                    <th className="px-3 py-2.5 text-right font-medium">Avg / day</th>
+                    <th className="px-3 py-2.5 text-right font-medium">Avg / week</th>
+                    <th className="px-3 py-2.5 text-right font-medium" title="Today vs yesterday">
+                      Today
+                    </th>
+                    <th className="px-3 py-2.5 text-right font-medium" title="Last 7 days vs the 7 days before">
+                      Last 7d
+                    </th>
+                    <th className="px-3 py-2.5 text-right font-medium" title="Last 30 days vs the 30 days before">
+                      Last 30d
+                    </th>
+                    <th className="px-3 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedRows.map((e) => (
+                    <WatchRow
+                      key={e.id}
+                      e={e}
+                      onPatch={patchEntry}
+                      onRemove={removeEntry}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
+        <p className="text-center text-xs text-muted-foreground">
+          The selection (restaurant + plan + status) is stored in the database and shared with
+          everyone. Order totals and trends are calculated live each time — nothing is cached or kept
+          on this device.
+        </p>
+      </div>
     </div>
   );
 }
 
+// ---------------------------------------------------------------- watchlist row
+function WatchRow({
+  e,
+  onPatch,
+  onRemove,
+}: {
+  e: WatchlistEntry;
+  onPatch: (
+    id: string,
+    patch: Partial<Pick<WatchlistEntry, "planInr" | "status" | "note">>
+  ) => void;
+  onRemove: (id: string, name: string) => void;
+}) {
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteVal, setNoteVal] = useState(e.note ?? "");
+  const planOptions = PLAN_OPTIONS.includes(e.planInr)
+    ? PLAN_OPTIONS
+    : [...PLAN_OPTIONS, e.planInr].sort((a, b) => a - b);
+
+  const saveNote = () => {
+    setEditingNote(false);
+    const v = noteVal.trim();
+    if ((e.note ?? "") !== v) onPatch(e.id, { note: v || null });
+  };
+
+  return (
+    <tr className="border-b border-muted last:border-0 hover:bg-muted/30 align-top">
+      {/* restaurant */}
+      <td className="px-3 py-2.5">
+        <div className="flex items-start gap-2.5">
+          <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <Building2 className="size-3.5" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              {e.username ? (
+                <a
+                  href={`/${e.username}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="truncate font-medium hover:text-primary hover:underline"
+                >
+                  {e.name}
+                </a>
+              ) : (
+                <span className="truncate font-medium">{e.name}</span>
+              )}
+            </div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {e.district ?? "—"}
+            </div>
+            {editingNote ? (
+              <div className="mt-1 flex items-center gap-1">
+                <Input
+                  value={noteVal}
+                  autoFocus
+                  maxLength={200}
+                  onChange={(ev) => setNoteVal(ev.target.value)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter") saveNote();
+                    if (ev.key === "Escape") {
+                      setNoteVal(e.note ?? "");
+                      setEditingNote(false);
+                    }
+                  }}
+                  onBlur={saveNote}
+                  placeholder="Add a note…"
+                  className="h-6 w-44 px-2 text-[11px]"
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setNoteVal(e.note ?? "");
+                  setEditingNote(true);
+                }}
+                className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground/80 hover:text-primary"
+              >
+                <Pencil className="size-2.5" />
+                {e.note ? e.note : "note"}
+              </button>
+            )}
+          </div>
+        </div>
+      </td>
+
+      {/* plan */}
+      <td className="px-3 py-2.5">
+        <select
+          value={e.planInr}
+          onChange={(ev) => onPatch(e.id, { planInr: Number(ev.target.value) })}
+          className="h-8 rounded-md border border-input bg-background px-2 text-xs shadow-sm tabular-nums"
+        >
+          {planOptions.map((p) => (
+            <option key={p} value={p}>
+              {inr(p)}
+            </option>
+          ))}
+        </select>
+      </td>
+
+      {/* status */}
+      <td className="px-3 py-2.5">
+        <div className="relative inline-flex">
+          <select
+            value={e.status}
+            onChange={(ev) => onPatch(e.id, { status: ev.target.value as WatchlistStatus })}
+            className={cn(
+              "h-8 appearance-none rounded-full border px-3 pr-6 text-xs font-medium shadow-sm outline-none",
+              STATUS_META[e.status].badge
+            )}
+          >
+            {STATUS_ORDER.map((s) => (
+              <option key={s} value={s} className="bg-white text-foreground">
+                {STATUS_META[s].label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </td>
+
+      {/* total */}
+      <td className="px-3 py-2.5 text-right font-semibold tabular-nums">
+        {nf(e.totalOrders)}
+      </td>
+
+      {/* avg/day, avg/week */}
+      <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+        {nf1(e.avgDaily)}
+      </td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+        {nf1(e.avgWeekly)}
+      </td>
+
+      {/* trends */}
+      <td className="px-3 py-2.5 text-right">
+        <Trend curr={e.today} prev={e.yesterday} currLabel="today" prevLabel="yesterday" />
+      </td>
+      <td className="px-3 py-2.5 text-right">
+        <Trend curr={e.week} prev={e.prevWeek} currLabel="last 7d" prevLabel="prev 7d" />
+      </td>
+      <td className="px-3 py-2.5 text-right">
+        <Trend curr={e.month} prev={e.prevMonth} currLabel="last 30d" prevLabel="prev 30d" />
+      </td>
+
+      {/* actions */}
+      <td className="px-3 py-2.5 text-right">
+        <button
+          type="button"
+          onClick={() => onRemove(e.id, e.name)}
+          className="rounded p-1 text-muted-foreground hover:bg-rose-50 hover:text-rose-600"
+          title="Remove from watchlist"
+        >
+          <X className="size-3.5" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// ---------------------------------------------------------------- trend cell
+function Trend({
+  curr,
+  prev,
+  currLabel,
+  prevLabel,
+}: {
+  curr: number;
+  prev: number;
+  currLabel: string;
+  prevLabel: string;
+}) {
+  const delta = curr - prev;
+  const pctv = prev > 0 ? (delta / prev) * 100 : curr > 0 ? 100 : 0;
+  const tone = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const Icon = tone === "up" ? TrendingUp : tone === "down" ? TrendingDown : Minus;
+  const toneCls =
+    tone === "up"
+      ? "text-emerald-600"
+      : tone === "down"
+        ? "text-rose-600"
+        : "text-muted-foreground";
+  const label =
+    prev > 0
+      ? `${delta > 0 ? "+" : ""}${Math.round(pctv)}%`
+      : curr > 0
+        ? "new"
+        : "—";
+  return (
+    <div
+      className="inline-flex flex-col items-end leading-tight"
+      title={`${currLabel} ${nf(curr)} · ${prevLabel} ${nf(prev)}`}
+    >
+      <span className="font-medium tabular-nums">{nf(curr)}</span>
+      <span className={cn("inline-flex items-center gap-0.5 text-[11px]", toneCls)}>
+        <Icon className="size-3" />
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- sorting
+type SortKey =
+  | "total_desc"
+  | "day_desc"
+  | "week_desc"
+  | "month_desc"
+  | "status"
+  | "name_asc";
+
+const SORT_OPTIONS: { id: SortKey; label: string }[] = [
+  { id: "total_desc", label: "Total orders" },
+  { id: "day_desc", label: "Orders today" },
+  { id: "week_desc", label: "This week" },
+  { id: "month_desc", label: "This month" },
+  { id: "status", label: "Status" },
+  { id: "name_asc", label: "Name (A–Z)" },
+];
+
+function sortRows(rows: WatchlistEntry[], sort: SortKey): WatchlistEntry[] {
+  const statusRank: Record<WatchlistStatus, number> = { paying: 0, test: 1, free: 2 };
+  const cmp: Record<SortKey, (a: WatchlistEntry, b: WatchlistEntry) => number> = {
+    total_desc: (a, b) => b.totalOrders - a.totalOrders,
+    day_desc: (a, b) => b.today - a.today,
+    week_desc: (a, b) => b.week - a.week,
+    month_desc: (a, b) => b.month - a.month,
+    status: (a, b) =>
+      statusRank[a.status] - statusRank[b.status] || b.totalOrders - a.totalOrders,
+    name_asc: (a, b) => a.name.localeCompare(b.name),
+  };
+  return [...rows].sort(cmp[sort]);
+}
+
+function SortSelect({ value, onChange }: { value: SortKey; onChange: (s: SortKey) => void }) {
+  const active = SORT_OPTIONS.find((o) => o.id === value);
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-3 text-xs shadow-sm hover:bg-neutral-50"
+        >
+          <ArrowUpDown className="size-3.5 text-muted-foreground" />
+          <span className="hidden sm:inline">Sort:</span> {active?.label ?? "—"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[180px] p-1 bg-white">
+        {SORT_OPTIONS.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => onChange(o.id)}
+            className={cn(
+              "w-full rounded-md px-2.5 py-1.5 text-left text-xs hover:bg-neutral-100",
+              o.id === value && "bg-neutral-100 font-medium"
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ---------------------------------------------------------------- add restaurant
+type SearchResult = { id: string; name: string; district: string | null };
+
+function AddRestaurant({
+  existingIds,
+  onAdd,
+}: {
+  existingIds: Set<string>;
+  onAdd: (
+    partnerId: string,
+    planInr: number,
+    status: WatchlistStatus,
+    note: string | null
+  ) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<"search" | "form">("search");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState<SearchResult | null>(null);
+  const [plan, setPlan] = useState(BASE_PLAN_INR);
+  const [status, setStatus] = useState<WatchlistStatus>("test");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const reset = () => {
+    setStep("search");
+    setQuery("");
+    setResults([]);
+    setPicked(null);
+    setPlan(BASE_PLAN_INR);
+    setStatus("test");
+    setNote("");
+  };
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!query || query.trim().length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const r = await fetch(
+          `/api/stats/partner-search?q=${encodeURIComponent(query.trim())}`,
+          { cache: "no-store" }
+        );
+        const d = await r.json();
+        setResults(d.partners ?? []);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query]);
+
+  const choose = (p: SearchResult) => {
+    setPicked(p);
+    setPlan(BASE_PLAN_INR);
+    setStatus("test");
+    setNote("");
+    setStep("form");
+  };
+
+  const submit = async () => {
+    if (!picked) return;
+    setSubmitting(true);
+    const ok = await onAdd(picked.id, plan, status, note.trim() || null);
+    setSubmitting(false);
+    if (ok) {
+      setOpen(false);
+      reset();
+    }
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          reset();
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs text-primary-foreground shadow-sm transition-colors hover:opacity-90"
+        >
+          <Plus className="size-3.5" />
+          Add restaurant
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-[320px] p-0 bg-white"
+        onOpenAutoFocus={(ev) => ev.preventDefault()}
+      >
+        {step === "search" ? (
+          <>
+            <div className="flex items-center gap-2 border-b px-2 py-1.5">
+              <Search className="size-3.5 text-muted-foreground" />
+              <Input
+                ref={inputRef}
+                value={query}
+                onChange={(ev) => setQuery(ev.target.value)}
+                placeholder="Search by name, store or city…"
+                className="h-7 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+              />
+              {searching && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+            </div>
+            <ul className="max-h-[280px] overflow-y-auto py-1">
+              {query.trim().length < 2 && (
+                <li className="px-3 py-3 text-center text-[11px] text-muted-foreground">
+                  Type at least 2 characters to search
+                </li>
+              )}
+              {query.trim().length >= 2 && !searching && results.length === 0 && (
+                <li className="px-3 py-3 text-center text-[11px] text-muted-foreground">
+                  No restaurants match "{query}"
+                </li>
+              )}
+              {results.map((p) => {
+                const already = existingIds.has(p.id);
+                return (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      disabled={already}
+                      onClick={() => choose(p)}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs",
+                        already
+                          ? "cursor-not-allowed text-muted-foreground"
+                          : "hover:bg-neutral-100"
+                      )}
+                    >
+                      <span className="truncate">
+                        {p.name}
+                        {p.district && (
+                          <span className="text-muted-foreground"> · {p.district}</span>
+                        )}
+                      </span>
+                      {already && (
+                        <span className="text-[10px] text-muted-foreground">added</span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        ) : (
+          <div className="p-3">
+            <button
+              type="button"
+              onClick={() => setStep("search")}
+              className="mb-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="size-3" /> Back to search
+            </button>
+            <div className="mb-3 rounded-lg border bg-muted/30 px-3 py-2">
+              <div className="truncate text-sm font-medium">{picked?.name}</div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {picked?.district ?? "—"}
+              </div>
+            </div>
+
+            <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+              Plan (₹ / month)
+            </label>
+            <div className="mb-3 flex gap-2">
+              {PLAN_OPTIONS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPlan(p)}
+                  className={cn(
+                    "flex-1 rounded-md border px-2 py-1.5 text-xs font-medium tabular-nums transition-colors",
+                    plan === p
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "hover:bg-neutral-50"
+                  )}
+                >
+                  {inr(p)}
+                </button>
+              ))}
+            </div>
+
+            <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+              Status
+            </label>
+            <div className="mb-3 flex gap-2">
+              {STATUS_ORDER.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatus(s)}
+                  className={cn(
+                    "flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
+                    status === s
+                      ? STATUS_META[s].badge
+                      : "hover:bg-neutral-50 text-muted-foreground"
+                  )}
+                >
+                  {STATUS_META[s].label}
+                </button>
+              ))}
+            </div>
+
+            <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+              Note (optional)
+            </label>
+            <Input
+              value={note}
+              maxLength={200}
+              onChange={(ev) => setNote(ev.target.value)}
+              placeholder="e.g. onboarded via Kavaratti visit"
+              className="mb-3 h-8 text-xs"
+            />
+
+            <Button onClick={submit} disabled={submitting} className="w-full">
+              {submitting ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Check className="mr-1.5 size-3.5" />
+              )}
+              Add to watchlist
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // ---------------------------------------------------------------- small pieces
+function WatchlistEmpty() {
+  return (
+    <div className="p-10 text-center">
+      <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Building2 className="size-5" />
+      </div>
+      <div className="text-base font-semibold">No restaurants tracked yet</div>
+      <div className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+        Use "Add restaurant" to start your watchlist. Pick their plan and whether they're paying,
+        testing or on free — the list is saved for everyone.
+      </div>
+    </div>
+  );
+}
+
+function Chip({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "emerald" | "amber" | "sky";
+}) {
+  const toneCls =
+    tone === "emerald"
+      ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+      : tone === "amber"
+        ? "text-amber-700 bg-amber-50 border-amber-200"
+        : tone === "sky"
+          ? "text-sky-700 bg-sky-50 border-sky-200"
+          : "text-foreground bg-white";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium",
+        toneCls
+      )}
+    >
+      {label}
+      <b className="tabular-nums">{value}</b>
+    </span>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -931,14 +1276,23 @@ function StatCard({
       <div className="mt-1.5 text-[11px] text-muted-foreground">{sub}</div>
       {progress != null && (
         <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+          <div
+            className="h-full rounded-full bg-primary transition-all"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       )}
     </Card>
   );
 }
 
-function PacePill({ cls, label }: { cls: "good" | "warn" | "bad" | "neutral"; label: string }) {
+function PacePill({
+  cls,
+  label,
+}: {
+  cls: "good" | "warn" | "bad" | "neutral";
+  label: string;
+}) {
   const styles: Record<string, string> = {
     good: "text-emerald-700 bg-emerald-50",
     warn: "text-amber-700 bg-amber-50",
@@ -988,14 +1342,5 @@ function Focus({
       </div>
       <div className="mt-1 text-[11px] text-muted-foreground">{note}</div>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex min-w-0 flex-col gap-1.5">
-      <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
-      {children}
-    </label>
   );
 }

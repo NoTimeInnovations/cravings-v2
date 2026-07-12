@@ -226,6 +226,36 @@ export type PublicStats = {
   syncedAt: string;
 };
 
+export type WatchlistStatus = "paying" | "test" | "free";
+
+export type WatchlistEntry = {
+  id: string; // analytics_watchlist row id
+  partnerId: string;
+  name: string;
+  district: string | null;
+  username: string | null;
+  planInr: number;
+  status: WatchlistStatus;
+  note: string | null;
+  createdAt: string;
+  // live order stats (computed on read, never stored)
+  totalOrders: number;
+  gmvTotal: number;
+  avgDaily: number;
+  avgWeekly: number;
+  today: number;
+  yesterday: number;
+  week: number; // last 7 days
+  prevWeek: number; // the 7 days before that
+  month: number; // last 30 days
+  prevMonth: number; // the 30 days before that
+};
+
+export type WatchlistResponse = {
+  entries: WatchlistEntry[];
+  syncedAt: string;
+};
+
 export type UsageRow = {
   partnerId: string | null;
   username: string;
