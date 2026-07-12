@@ -15,7 +15,17 @@ import plans from "@/data/plans.json";
 export function FeatureSettings() {
     const { userData, setState } = useAuthStore();
     const [features, setFeatures] = useState<any>(null);
+    const [showOrderTypeScreen, setShowOrderTypeScreen] = useState(true);
     const router = useRouter();
+
+    const parseStorefront = (raw: any): any => {
+        if (!raw) return {};
+        try {
+            return typeof raw === "string" ? JSON.parse(raw) : raw;
+        } catch {
+            return {};
+        }
+    };
 
     useEffect(() => {
         if (userData?.role === "partner") {
@@ -40,8 +50,32 @@ export function FeatureSettings() {
             }
 
             setFeatures(currentFeatures);
+            const sf = parseStorefront((userData as any).storefront_settings);
+            setShowOrderTypeScreen(sf?.showOrderTypeScreen !== false);
         }
     }, [userData]);
+
+    // Onboarding order-type screen is a per-partner storefront_settings flag (not
+    // a plan feature), so it toggles independently and defaults to shown.
+    const handleOrderTypeScreenToggle = async (enabled: boolean) => {
+        if (!userData) return;
+        setShowOrderTypeScreen(enabled);
+        try {
+            const sf = parseStorefront((userData as any).storefront_settings);
+            const payload = JSON.stringify({ ...sf, showOrderTypeScreen: enabled });
+            await updatePartner(userData.id, { storefront_settings: payload } as any);
+            revalidateTag(userData.id);
+            setState({ storefront_settings: payload } as any);
+            toast.success(`Order-type screen ${enabled ? "shown" : "hidden"}`, {
+                description: "Reload to apply changes",
+                action: { label: "Reload", onClick: () => window.location.reload() },
+            });
+        } catch (error) {
+            console.error("Error updating order-type screen setting:", error);
+            toast.error("Failed to update setting");
+            setShowOrderTypeScreen(!enabled);
+        }
+    };
 
     const handleFeatureToggle = async (key: string, enabled: boolean) => {
         if (!userData || !features) return;
@@ -391,6 +425,30 @@ export function FeatureSettings() {
                     )}
                 </CardContent>
             </Card>
+
+            {features.newonboarding?.enabled && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Onboarding</CardTitle>
+                        <CardDescription>Control the screens customers see when they open your store.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="space-y-0.5 pr-4">
+                                <div className="font-medium">Order-type screen</div>
+                                <div className="text-sm text-muted-foreground">
+                                    Ask delivery / takeaway before the menu. Turn off to send customers
+                                    straight to the menu (or outlet list) and let them choose at checkout.
+                                </div>
+                            </div>
+                            <Switch
+                                checked={showOrderTypeScreen}
+                                onCheckedChange={handleOrderTypeScreenToggle}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

@@ -218,6 +218,27 @@ const HotelMenuPage = ({
   const [isReorderMode] = useState(
     () => searchParams?.get("ro") != null || searchParams?.get("reorder") === "1",
   );
+  // Did we land on this outlet by picking it from its brand parent's outlet
+  // picker? (?fromBrand=1 is set by that navigation.) If so, the in-menu back
+  // arrow should return to the PARENT's picker — where the user actually chose —
+  // instead of reopening this outlet's own onboarding. Latched at mount so it
+  // survives any later URL cleanup; read from the live URL to dodge stale
+  // router-cache search params.
+  const [cameFromBrand] = useState(() => {
+    if (typeof window === "undefined") {
+      return searchParams?.get("fromBrand") === "1";
+    }
+    // Primary signal: the ?fromBrand=1 URL param. Fallback: a per-tab marker set
+    // when the brand picker navigated here, in case the param was cleaned by a
+    // later navigation (that URL churn is the intermittent "back went to the
+    // order-type screen" bug).
+    if (new URLSearchParams(window.location.search).get("fromBrand") === "1") return true;
+    try {
+      return sessionStorage.getItem(`mt_from_brand_${hoteldata?.id ?? ""}`) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [onboardingDismissed, setOnboardingDismissed] = useState(
     () =>
       !showOnboarding ||
@@ -489,6 +510,13 @@ const HotelMenuPage = ({
     allMenus: hoteldata?.menus || [],
   }), [hoteldata, filteredMenus]);
 
+  // Return to the brand parent's outlet picker (the screen the user picked this
+  // outlet from). ?pickOutlet=1 forces the picker step even for single-outlet
+  // brands; the chosen order type is restored there from the session cookie.
+  const backToBrandPicker = useCallback(() => {
+    if (brandLink) router.push(`/${brandLink.parentUsername}?pickOutlet=1`);
+  }, [brandLink, router]);
+
   const reopenOutletPicker = useCallback(() => {
     if (typeof window !== "undefined") {
       // For brand parents, keep ?pickOutlet=1 so OnboardingFlow forces the
@@ -552,11 +580,18 @@ const HotelMenuPage = ({
     pathname: pathname,
     isOnFreePlan: isHotelOnFreePlan,
     hideOtherCategories: !!lockedCategory,
-    // The menu back arrow must re-open THIS store's onboarding/storefront. For a
-    // child outlet, always provide the in-place re-open handler so the arrow does
-    // NOT fall through to brandHeader.onChange (which navigates to the brand
-    // parent / "first store"). reopenOutletPicker force-mounts the overlay below.
-    onShowStorefront: (showOnboarding || !!brandLink) ? reopenOutletPicker : undefined,
+    // The menu back arrow: if the user reached this outlet FROM its brand
+    // parent's picker (?fromBrand=1), go back there — that's where they chose —
+    // instead of reopening this outlet's own onboarding. Otherwise (direct visit
+    // / brand parent), re-open THIS store's onboarding in place. For a child
+    // outlet we always pass a handler so the arrow never falls through to
+    // brandHeader.onChange.
+    onShowStorefront:
+      cameFromBrand && brandLink
+        ? backToBrandPicker
+        : (showOnboarding || !!brandLink)
+          ? reopenOutletPicker
+          : undefined,
     brandHeader,
   };
 

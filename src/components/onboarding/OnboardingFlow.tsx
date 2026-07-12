@@ -143,14 +143,18 @@ export default function OnboardingFlow({
   // Dine-in table reservation: offered + prebooking feature on.
   const slotBookingEnabled = parsePrebookingSettings(hotelData?.prebooking_settings)?.slot_booking_enabled !== false;
   const hasDineIn = offered.dine_in && features.prebooking.enabled && slotBookingEnabled;
+  // Partner opt-out: some stores don't want the delivery/takeaway question up
+  // front (order type is then chosen at checkout instead). Stored in
+  // storefront_settings.showOrderTypeScreen; absent/true = show (back-compat).
+  const showOrderTypeScreen = rawStorefront?.showOrderTypeScreen !== false;
   const needsAddress =
-    !isBrandParent && hasNewOnboarding && hasDelivery && tableNumber === 0;
-  // Show the order-type screen whenever new onboarding is on (at table 0), even
-  // if only one — or zero — order types currently qualify. The screen adapts:
-  // it renders the available type(s), or an "Explore Menu" CTA when none are
-  // open. (Previously this was gated on hasDelivery/hasOrdering/hasDineIn, so a
-  // partner whose order_types_enabled excluded those types skipped the screen.)
-  const needsOrderType = hasNewOnboarding && tableNumber === 0;
+    !isBrandParent && hasNewOnboarding && hasDelivery && tableNumber === 0 && showOrderTypeScreen;
+  // Show the order-type screen whenever new onboarding is on (at table 0) AND
+  // the partner hasn't turned it off, even if only one — or zero — order types
+  // currently qualify. The screen adapts: it renders the available type(s), or
+  // an "Explore Menu" CTA when none are open. Turning it off decouples it from
+  // the outlet picker — a brand parent then goes straight to the outlet list.
+  const needsOrderType = hasNewOnboarding && tableNumber === 0 && showOrderTypeScreen;
   const needsOutletPicker = isBrandParent && tableNumber === 0;
 
   const getInitialStep = (): OnboardingStep => {
@@ -340,6 +344,14 @@ export default function OnboardingFlow({
     // splash/onboarding entirely — the user has already gone through it on
     // the brand parent, so re-showing it would feel like a regression.
     qs.set("back", "true");
+    // Also record the "arrived via the brand picker" fact per-tab, keyed by the
+    // destination outlet. The ?fromBrand=1 URL param can be cleaned by later
+    // navigations, which would make the outlet's back arrow fall back to its own
+    // onboarding (order-type screen). This marker keeps the back arrow reliably
+    // pointing at the brand's outlet picker regardless of URL churn.
+    try {
+      sessionStorage.setItem(`mt_from_brand_${outlet.id}`, "1");
+    } catch {}
     setClosing(true);
     setTimeout(() => {
       router.push(`/${outlet.username}?${qs.toString()}`);
