@@ -70,7 +70,8 @@ C:\Users\thris\Desktop\startup\11 product\Claude Skills\
 | Superadmin partner CRUD / QR / subscriptions | `src/components/superAdmin/EditPartners.tsx`, `QrManagement_v2.tsx`, `SubscriptionManagementV2.tsx` |
 | Payments (webhooks / verify) | `src/app/api/cashfree/`, `src/app/api/fhc/`, actions `src/app/actions/cashfree.ts`, `razorpay_payments.ts` |
 | Analytics dashboards | `src/app/analytics/` (network), `src/app/my-earnings/` (partner), API `src/app/api/stats/` |
-| Analytics **Target** tab (₹10L/mo goal + restaurant watchlist) | `src/app/analytics/_components/sections/TargetSection.tsx` + API `src/app/api/stats/watchlist/route.ts` (DB table `analytics_watchlist` — only the selection is stored; order stats/trends computed live) |
+| Analytics **Target** tab (₹10L/mo goal + restaurant watchlist) | `src/app/analytics/_components/sections/TargetSection.tsx` + API `src/app/api/stats/watchlist/route.ts` (DB table `analytics_watchlist`, statuses `paid`/`free_trial` — only the selection is stored; order stats/trends computed live, rolling 24h/7d/30d) |
+| Analytics **Daily progress** tab (log calls/free-trials/paid + shared summary) | `src/app/analytics/_components/sections/ProgressSection.tsx` + shared table/rounding in `src/app/analytics/_components/progressShared.tsx` + API `src/app/api/stats/daily-log/route.ts` (DB table `analytics_daily_log`) |
 | Cron / scheduled jobs | `src/app/api/cron/` (dispatch notifications, auto-progress, reconcile) |
 | A shared UI primitive (button/input/dialog/select) | `src/components/ui/` |
 | Feature-flag logic | `src/lib/getFeatures.ts` |

@@ -226,7 +226,7 @@ export type PublicStats = {
   syncedAt: string;
 };
 
-export type WatchlistStatus = "paying" | "test" | "free";
+export type WatchlistStatus = "paid" | "free_trial";
 
 export type WatchlistEntry = {
   id: string; // analytics_watchlist row id
@@ -243,8 +243,8 @@ export type WatchlistEntry = {
   gmvTotal: number;
   avgDaily: number;
   avgWeekly: number;
-  today: number;
-  yesterday: number;
+  last24h: number; // rolling last 24 hours
+  prev24h: number; // the 24 hours before that
   week: number; // last 7 days
   prevWeek: number; // the 7 days before that
   month: number; // last 30 days
@@ -253,6 +253,32 @@ export type WatchlistEntry = {
 
 export type WatchlistResponse = {
   entries: WatchlistEntry[];
+  syncedAt: string;
+};
+
+// current vs previous equal period
+export type TrendPair = { curr: number; prev: number };
+
+export type DailyLogEntry = {
+  id: string; // analytics_daily_log row id
+  logDate: string; // YYYY-MM-DD (IST)
+  calls: number;
+  freeTrials: number;
+  paidCustomers: number;
+  note: string | null;
+  createdAt: string;
+};
+
+// each metric summarised over last-24h / last-7d / last-30d vs the prior period
+export type DailyLogSummary = {
+  calls: { d1: TrendPair; d7: TrendPair; d30: TrendPair };
+  freeTrials: { d1: TrendPair; d7: TrendPair; d30: TrendPair };
+  paidCustomers: { d1: TrendPair; d7: TrendPair; d30: TrendPair };
+};
+
+export type DailyLogResponse = {
+  entries: DailyLogEntry[];
+  summary: DailyLogSummary;
   syncedAt: string;
 };
 

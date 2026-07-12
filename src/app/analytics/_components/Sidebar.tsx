@@ -14,11 +14,13 @@ import {
   Gauge,
   ReceiptText,
   Target,
+  NotebookPen,
 } from "lucide-react";
 
 export type Tab =
   | "overview"
   | "target"
+  | "progress"
   | "live"
   | "orders"
   | "selected"
@@ -44,6 +46,12 @@ export const TABS: Array<{
     label: "Target",
     icon: Target,
     description: "Growth plan to the revenue goal",
+  },
+  {
+    id: "progress",
+    label: "Daily progress",
+    icon: NotebookPen,
+    description: "Log calls, free trials & paid customers",
   },
   {
     id: "live",

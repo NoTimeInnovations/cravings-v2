@@ -22,7 +22,7 @@ export const revalidate = 0;
 export const dynamic = "force-dynamic";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const VALID_STATUSES = new Set(["paying", "test", "free"]);
+const VALID_STATUSES = new Set(["paid", "free_trial"]);
 
 // "Real order" filter — counts a restaurant's actual order activity across ALL
 // channels (customer app/web, POS/in-store, captain, WhatsApp, etc.). We only
@@ -42,7 +42,7 @@ const bucket = (alias: string, range: string, withGmv = false) => `
 const STATS_QUERY = `
   query WatchlistStats(
     $ids: [uuid!]!, $excludedUsers: [uuid!]!,
-    $today: timestamptz!, $yStart: timestamptz!,
+    $h24: timestamptz!, $h48: timestamptz!,
     $d7: timestamptz!, $d14: timestamptz!,
     $d30: timestamptz!, $d60: timestamptz!
   ) {
@@ -53,8 +53,8 @@ const STATS_QUERY = `
       district
       username
       ${bucket("total", "", true)}
-      ${bucket("today", ", { created_at: { _gte: $today } }")}
-      ${bucket("yest", ", { created_at: { _gte: $yStart, _lt: $today } }")}
+      ${bucket("last24h", ", { created_at: { _gte: $h24 } }")}
+      ${bucket("prev24h", ", { created_at: { _gte: $h48, _lt: $h24 } }")}
       ${bucket("last7", ", { created_at: { _gte: $d7 } }")}
       ${bucket("prev7", ", { created_at: { _gte: $d14, _lt: $d7 } }")}
       ${bucket("last30", ", { created_at: { _gte: $d30 } }")}
@@ -90,37 +90,22 @@ async function hasura(query: string, variables: Record<string, unknown>) {
   return json;
 }
 
-const pad = (n: number) => (n < 10 ? "0" + n : "" + n);
-
 /**
- * Time boundaries. "today"/"yesterday" use the IST calendar day (India has no
- * DST, so ±24h math is safe); the week/month trends use rolling windows
- * (last 7d vs prior 7d, last 30d vs prior 30d) so they're a fair
- * improving/degrading signal at any point in the month.
+ * All windows are rolling from "now": last 24h vs the 24h before, last 7d vs
+ * the 7d before, last 30d vs the 30d before — a fair improving/degrading
+ * signal at any moment (no calendar-boundary artefacts).
  */
 function boundaries() {
-  const now = new Date();
-  const s = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-  const [y, m, d] = s.split("-").map(Number);
-  const istMidnight = (yy: number, mm: number, dd: number) =>
-    new Date(`${yy}-${pad(mm)}-${pad(dd)}T00:00:00.000+05:30`);
-
-  const today = istMidnight(y, m, d);
-  const yStart = new Date(today.getTime() - 86_400_000);
+  const now = Date.now();
+  const h = 3_600_000;
   const day = 86_400_000;
-
   return {
-    today: today.toISOString(),
-    yStart: yStart.toISOString(),
-    d7: new Date(now.getTime() - 7 * day).toISOString(),
-    d14: new Date(now.getTime() - 14 * day).toISOString(),
-    d30: new Date(now.getTime() - 30 * day).toISOString(),
-    d60: new Date(now.getTime() - 60 * day).toISOString(),
+    h24: new Date(now - 24 * h).toISOString(),
+    h48: new Date(now - 48 * h).toISOString(),
+    d7: new Date(now - 7 * day).toISOString(),
+    d14: new Date(now - 14 * day).toISOString(),
+    d30: new Date(now - 30 * day).toISOString(),
+    d60: new Date(now - 60 * day).toISOString(),
   };
 }
 
@@ -172,8 +157,8 @@ export async function GET() {
         gmvTotal: gmv(p?.total),
         avgDaily: last30 / 30,
         avgWeekly: (last30 * 7) / 30,
-        today: cnt(p?.today),
-        yesterday: cnt(p?.yest),
+        last24h: cnt(p?.last24h), // rolling last 24 hours
+        prev24h: cnt(p?.prev24h), // the 24 hours before that
         week: cnt(p?.last7), // last 7 days
         prevWeek: cnt(p?.prev7), // the 7 days before that
         month: last30, // last 30 days
@@ -194,7 +179,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const partnerId = String(body.partnerId ?? "").trim();
     const planInr = Math.round(Number(body.planInr));
-    const status = String(body.status ?? "test").trim();
+    const status = String(body.status ?? "free_trial").trim();
     const note = body.note ? String(body.note).trim().slice(0, 200) : null;
 
     if (!UUID_RE.test(partnerId))

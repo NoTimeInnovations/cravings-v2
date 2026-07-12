@@ -58,6 +58,12 @@ import {
 import { cn } from "@/lib/utils";
 import { rupees } from "../format";
 import { SectionHeader } from "./OverviewSection";
+import {
+  ProgressSummaryTable,
+  useDailyLogSummary,
+  roundOrders,
+  roundCustomers,
+} from "../progressShared";
 import type { WatchlistEntry, WatchlistStatus } from "../types";
 import { toast } from "sonner";
 
@@ -77,23 +83,18 @@ const STATUS_META: Record<
   WatchlistStatus,
   { label: string; badge: string; dot: string }
 > = {
-  paying: {
-    label: "Paying",
+  paid: {
+    label: "Paid",
     badge: "text-emerald-700 bg-emerald-50 border-emerald-200",
     dot: "bg-emerald-500",
   },
-  test: {
-    label: "Test",
+  free_trial: {
+    label: "Free trial",
     badge: "text-amber-700 bg-amber-50 border-amber-200",
     dot: "bg-amber-500",
   },
-  free: {
-    label: "Free",
-    badge: "text-sky-700 bg-sky-50 border-sky-200",
-    dot: "bg-sky-500",
-  },
 };
-const STATUS_ORDER: WatchlistStatus[] = ["paying", "test", "free"];
+const STATUS_ORDER: WatchlistStatus[] = ["paid", "free_trial"];
 
 // ---------------------------------------------------------------- utils
 const pad = (n: number) => (n < 10 ? "0" + n : "" + n);
@@ -135,7 +136,6 @@ const addWork = (a: Date, n: number, dpw: number) => {
   return d;
 };
 const nf = (n: number) => Math.round(n).toLocaleString("en-IN");
-const nf1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString("en-IN");
 const inr = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 const fmtD = (d: Date) =>
   d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -143,11 +143,11 @@ const fmtDShort = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", m
 
 // ---------------------------------------------------------------- plan metrics
 function computePlan(entries: WatchlistEntry[]) {
-  const paying = entries.filter((e) => e.status === "paying");
-  const payingCount = paying.length;
-  const mrrInr = paying.reduce((s, e) => s + (e.planInr || 0), 0);
+  const paid = entries.filter((e) => e.status === "paid");
+  const paidCount = paid.length;
+  const mrrInr = paid.reduce((s, e) => s + (e.planInr || 0), 0);
   const remainingMrr = Math.max(0, MONTHLY_TARGET_INR - mrrInr);
-  const remainingCustomers = Math.ceil(remainingMrr / BASE_PLAN_INR);
+  const remainingCustomers = roundCustomers(remainingMrr / BASE_PLAN_INR);
 
   const start = parseD(PLAN_START);
   const goal = parseD(GOAL_DATE);
@@ -169,7 +169,7 @@ function computePlan(entries: WatchlistEntry[]) {
   let pace: Pace;
   if (now < start) pace = { cls: "neutral", label: "Not started" };
   else if (remainingMrr <= 0) pace = { cls: "good", label: "Goal reached 🎉" };
-  else if (payingCount === 0) pace = { cls: "bad", label: "No paying customers yet" };
+  else if (paidCount === 0) pace = { cls: "bad", label: "No paid customers yet" };
   else if (delta >= 0) pace = { cls: "good", label: "On / ahead of pace" };
   else if (delta >= -weekWorth) pace = { cls: "warn", label: "Slightly behind" };
   else pace = { cls: "bad", label: "Behind pace" };
@@ -187,10 +187,9 @@ function computePlan(entries: WatchlistEntry[]) {
     start,
     goal,
     now,
-    paying,
-    payingCount,
-    testCount: entries.filter((e) => e.status === "test").length,
-    freeCount: entries.filter((e) => e.status === "free").length,
+    paid,
+    paidCount,
+    freeTrialCount: entries.filter((e) => e.status === "free_trial").length,
     mrrInr,
     remainingMrr,
     remainingCustomers,
@@ -216,7 +215,7 @@ function buildChart(entries: WatchlistEntry[], m: PlanMetrics) {
   const nowT = clampD(m.now, m.start, m.goal).getTime();
 
   const byDate: Record<string, number> = {};
-  for (const e of m.paying) {
+  for (const e of m.paid) {
     const d = isoD(new Date(e.createdAt));
     byDate[d] = (byDate[d] || 0) + (e.planInr || 0);
   }
@@ -351,9 +350,12 @@ export default function TargetSection() {
 
   const sortedRows = useMemo(() => sortRows(list, sort), [list, sort]);
 
+  // shared daily-progress summary (calls / free trials / paid customers)
+  const { summary: progressSummary, loading: progressLoading } = useDailyLogSummary();
+
   const mrrPct = Math.min(100, Math.round((m.mrrInr / MONTHLY_TARGET_INR) * 100));
-  const custPct = Math.min(100, Math.round((m.payingCount / TARGET_CUSTOMERS) * 100));
-  const ordersToday = list.reduce((s, e) => s + e.today, 0);
+  const custPct = Math.min(100, Math.round((m.paidCount / TARGET_CUSTOMERS) * 100));
+  const ordersLast24h = list.reduce((s, e) => s + e.last24h, 0);
 
   return (
     <div className="space-y-6">
@@ -370,9 +372,9 @@ export default function TargetSection() {
             </h2>
             <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
               Reach <b className="text-foreground">{inr(MONTHLY_TARGET_INR)}/mo</b> by {fmtD(m.goal)} —
-              about <b className="text-foreground">{nf(TARGET_CUSTOMERS)} paying customers</b> if everyone
+              about <b className="text-foreground">{nf(TARGET_CUSTOMERS)} paid customers</b> if everyone
               is on the {inr(BASE_PLAN_INR)} plan. You have{" "}
-              <b className="text-foreground">{nf(m.payingCount)} paying</b> now, so the gap is{" "}
+              <b className="text-foreground">{nf(m.paidCount)} paid</b> now, so the gap is{" "}
               <b className="text-foreground">{nf(m.remainingCustomers)} more</b> ({inr(m.remainingMrr)}/mo).
             </p>
           </div>
@@ -390,8 +392,8 @@ export default function TargetSection() {
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
-          label="Paying customers"
-          value={nf(m.payingCount)}
+          label="Paid customers"
+          value={nf(m.paidCount)}
           unit={`/ ${nf(TARGET_CUSTOMERS)}`}
           sub={`${nf(m.remainingCustomers)} more at ${inr(BASE_PLAN_INR)}`}
           progress={custPct}
@@ -434,7 +436,7 @@ export default function TargetSection() {
           </div>
           <div className="mt-1.5 text-[11px] text-muted-foreground">
             {m.projOnTime === null ? (
-              "Add paying customers to project"
+              "Add paid customers to project"
             ) : m.projOnTime ? (
               <span className="text-emerald-600">On time ✓</span>
             ) : (
@@ -451,22 +453,22 @@ export default function TargetSection() {
           <h3 className="text-sm font-semibold">What it takes from here</h3>
           <span className="text-xs text-muted-foreground">
             {m.remainingMrr <= 0
-              ? "Target reached — keep them paying!"
+              ? "Target reached — keep them paid!"
               : `To finish by ${fmtDShort(m.goal)}, each working day needs:`}
           </span>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Focus
             icon={<Users className="size-4" />}
-            label="New paying / day"
-            big={nf1(Math.max(0, m.perDayCust))}
+            label="New paid / day"
+            big={nf(roundCustomers(Math.max(0, m.perDayCust)))}
             note={`${nf(m.remainingCustomers)} left ÷ ${nf(m.remWD)} working days`}
             accent
           />
           <Focus
             icon={<CalendarClock className="size-4" />}
-            label="New paying / week"
-            big={nf1(Math.max(0, m.perWeekCust))}
+            label="New paid / week"
+            big={nf(roundCustomers(Math.max(0, m.perWeekCust)))}
             note={`${DPW} working days / week`}
           />
           <Focus
@@ -588,7 +590,7 @@ export default function TargetSection() {
         </div>
         <div className="mt-2 flex flex-wrap gap-4 text-xs text-foreground/80">
           <span className="inline-flex items-center gap-2">
-            <span className="inline-block h-[3px] w-3.5 rounded bg-[#4f46e5]" /> Actual MRR (paying
+            <span className="inline-block h-[3px] w-3.5 rounded bg-[#4f46e5]" /> Actual MRR (paid
             customers)
           </span>
           <span className="inline-flex items-center gap-2">
@@ -604,11 +606,22 @@ export default function TargetSection() {
         </div>
       </Card>
 
+      {/* Our progress (from the Daily progress log) */}
+      <div className="space-y-4">
+        <SectionHeader
+          title="Our progress"
+          subtitle="Calls done, new free trials and new paid customers — logged in the Daily progress tab"
+        />
+        <Card className="border bg-white p-0 overflow-hidden">
+          <ProgressSummaryTable summary={progressSummary} loading={progressLoading} />
+        </Card>
+      </div>
+
       {/* Watchlist */}
       <div className="space-y-4">
         <SectionHeader
           title="Restaurant watchlist"
-          subtitle="Shared, saved in the database — track orders for the restaurants we onboard (paying, test or free)"
+          subtitle="Shared, saved in the database — track orders for the restaurants we onboard (paid or free trial)"
           right={
             <div className="flex items-center gap-3">
               <SortSelect value={sort} onChange={setSort} />
@@ -628,10 +641,9 @@ export default function TargetSection() {
         {/* summary chips */}
         <div className="flex flex-wrap gap-2">
           <Chip label="Tracked" value={nf(list.length)} />
-          <Chip label="Paying" value={nf(m.payingCount)} tone="emerald" />
-          <Chip label="Test" value={nf(m.testCount)} tone="amber" />
-          <Chip label="Free" value={nf(m.freeCount)} tone="sky" />
-          <Chip label="Orders today" value={nf(ordersToday)} />
+          <Chip label="Paid" value={nf(m.paidCount)} tone="emerald" />
+          <Chip label="Free trial" value={nf(m.freeTrialCount)} tone="amber" />
+          <Chip label="Orders · 24h" value={nf(ordersLast24h)} />
         </div>
 
         <Card className="border bg-white p-0 overflow-hidden">
@@ -653,8 +665,8 @@ export default function TargetSection() {
                     <th className="px-3 py-2.5 text-right font-medium">Total orders</th>
                     <th className="px-3 py-2.5 text-right font-medium">Avg / day</th>
                     <th className="px-3 py-2.5 text-right font-medium">Avg / week</th>
-                    <th className="px-3 py-2.5 text-right font-medium" title="Today vs yesterday">
-                      Today
+                    <th className="px-3 py-2.5 text-right font-medium" title="Last 24 hours vs the 24 hours before">
+                      Last 24h
                     </th>
                     <th className="px-3 py-2.5 text-right font-medium" title="Last 7 days vs the 7 days before">
                       Last 7d
@@ -817,17 +829,17 @@ function WatchRow({
         {nf(e.totalOrders)}
       </td>
 
-      {/* avg/day, avg/week */}
+      {/* avg/day, avg/week (orders — half-up rounding) */}
       <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-        {nf1(e.avgDaily)}
+        {nf(roundOrders(e.avgDaily))}
       </td>
       <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-        {nf1(e.avgWeekly)}
+        {nf(roundOrders(e.avgWeekly))}
       </td>
 
       {/* trends */}
       <td className="px-3 py-2.5 text-right">
-        <Trend curr={e.today} prev={e.yesterday} currLabel="today" prevLabel="yesterday" />
+        <Trend curr={e.last24h} prev={e.prev24h} currLabel="last 24h" prevLabel="prev 24h" />
       </td>
       <td className="px-3 py-2.5 text-right">
         <Trend curr={e.week} prev={e.prevWeek} currLabel="last 7d" prevLabel="prev 7d" />
@@ -904,18 +916,18 @@ type SortKey =
 
 const SORT_OPTIONS: { id: SortKey; label: string }[] = [
   { id: "total_desc", label: "Total orders" },
-  { id: "day_desc", label: "Orders today" },
-  { id: "week_desc", label: "This week" },
-  { id: "month_desc", label: "This month" },
+  { id: "day_desc", label: "Last 24h" },
+  { id: "week_desc", label: "Last 7 days" },
+  { id: "month_desc", label: "Last 30 days" },
   { id: "status", label: "Status" },
   { id: "name_asc", label: "Name (A–Z)" },
 ];
 
 function sortRows(rows: WatchlistEntry[], sort: SortKey): WatchlistEntry[] {
-  const statusRank: Record<WatchlistStatus, number> = { paying: 0, test: 1, free: 2 };
+  const statusRank: Record<WatchlistStatus, number> = { paid: 0, free_trial: 1 };
   const cmp: Record<SortKey, (a: WatchlistEntry, b: WatchlistEntry) => number> = {
     total_desc: (a, b) => b.totalOrders - a.totalOrders,
-    day_desc: (a, b) => b.today - a.today,
+    day_desc: (a, b) => b.last24h - a.last24h,
     week_desc: (a, b) => b.week - a.week,
     month_desc: (a, b) => b.month - a.month,
     status: (a, b) =>
@@ -979,7 +991,7 @@ function AddRestaurant({
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<SearchResult | null>(null);
   const [plan, setPlan] = useState(BASE_PLAN_INR);
-  const [status, setStatus] = useState<WatchlistStatus>("test");
+  const [status, setStatus] = useState<WatchlistStatus>("free_trial");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -991,7 +1003,7 @@ function AddRestaurant({
     setResults([]);
     setPicked(null);
     setPlan(BASE_PLAN_INR);
-    setStatus("test");
+    setStatus("free_trial");
     setNote("");
   };
 
@@ -1025,7 +1037,7 @@ function AddRestaurant({
   const choose = (p: SearchResult) => {
     setPicked(p);
     setPlan(BASE_PLAN_INR);
-    setStatus("test");
+    setStatus("free_trial");
     setNote("");
     setStep("form");
   };
@@ -1213,8 +1225,8 @@ function WatchlistEmpty() {
       </div>
       <div className="text-base font-semibold">No restaurants tracked yet</div>
       <div className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-        Use "Add restaurant" to start your watchlist. Pick their plan and whether they're paying,
-        testing or on free — the list is saved for everyone.
+        Use "Add restaurant" to start your watchlist. Pick their plan and whether they're paid or on
+        a free trial — the list is saved for everyone.
       </div>
     </div>
   );
