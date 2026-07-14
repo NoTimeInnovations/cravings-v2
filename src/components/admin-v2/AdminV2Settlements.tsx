@@ -29,30 +29,68 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { getPartnerSettlementLedger, type LedgerRow } from "@/app/actions/cfSettlements";
 
-type FilterKey = "today" | "7d" | "month";
+type FilterKey = "today" | "yesterday" | "7d" | "month" | "custom";
+type PresetKey = Exclude<FilterKey, "custom">;
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
   { key: "7d", label: "Last 7 days" },
   { key: "month", label: "This month" },
+  { key: "custom", label: "Custom" },
 ];
 const PAGE_SIZE = 25;
+/** Widest custom range we'll query in one go — keeps orders/settlement paging sane. */
+const MAX_CUSTOM_DAYS = 366;
 
 function pad(n: number) {
   return n < 10 ? "0" + n : "" + n;
 }
-function iso(d: Date) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function isoUTC(d: Date) {
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
-function rangeFor(key: FilterKey): { startDate: string; endDate: string } {
-  const now = new Date();
-  const end = iso(now);
+/**
+ * Today's calendar date in IST. Settlements and orders are bucketed by IST day
+ * on the server (+05:30), so every preset must be anchored to IST — not the
+ * browser's local day, which can be a day off on a non-IST device.
+ */
+function istNowParts() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  return { y: get("year"), m: get("month"), d: get("day") };
+}
+/** UTC-midnight Date standing in for today's IST calendar day — a safe base for date math. */
+function istTodayDate() {
+  const { y, m, d } = istNowParts();
+  return new Date(Date.UTC(y, m - 1, d));
+}
+function istTodayStr() {
+  return isoUTC(istTodayDate());
+}
+function addDays(d: Date, days: number) {
+  const c = new Date(d.getTime());
+  c.setUTCDate(c.getUTCDate() + days);
+  return c;
+}
+/** Whole days covered by [start, end] inclusive (both YYYY-MM-DD). */
+function spanDays(start: string, end: string) {
+  return Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000) + 1;
+}
+function presetRange(key: PresetKey): { startDate: string; endDate: string } {
+  const today = istTodayDate();
+  const end = isoUTC(today);
   if (key === "today") return { startDate: end, endDate: end };
-  if (key === "7d") {
-    const s = new Date(now);
-    s.setDate(s.getDate() - 6);
-    return { startDate: iso(s), endDate: end };
+  if (key === "yesterday") {
+    const y = isoUTC(addDays(today, -1));
+    return { startDate: y, endDate: y };
   }
-  return { startDate: iso(new Date(now.getFullYear(), now.getMonth(), 1)), endDate: end };
+  if (key === "7d") return { startDate: isoUTC(addDays(today, -6)), endDate: end };
+  const { y, m } = istNowParts();
+  return { startDate: isoUTC(new Date(Date.UTC(y, m - 1, 1))), endDate: end };
 }
 const feeOf = (r: LedgerRow) => (r.serviceCharge || 0) + (r.serviceTax || 0);
 const basePctOf = (r: LedgerRow) =>
@@ -66,13 +104,30 @@ export function AdminV2Settlements() {
   const enabled =
     !!(userData as any)?.accept_payments_via_cashfree && !!(userData as any)?.cashfree_merchant_id;
 
+  const today = useMemo(istTodayStr, []);
+  const initialCustom = useMemo(() => presetRange("7d"), []);
+
   const [filter, setFilter] = useState<FilterKey>("today");
+  // Applied custom range (drives the query) vs. draft inputs (what's being typed).
+  const [customStart, setCustomStart] = useState(initialCustom.startDate);
+  const [customEnd, setCustomEnd] = useState(initialCustom.endDate);
+  const [draftStart, setDraftStart] = useState(initialCustom.startDate);
+  const [draftEnd, setDraftEnd] = useState(initialCustom.endDate);
+  const [customError, setCustomError] = useState<string | null>(null);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [settlementsDown, setSettlementsDown] = useState(false);
   const [page, setPage] = useState(0);
+
+  const currentRange = useMemo<{ startDate: string; endDate: string } | null>(() => {
+    if (filter === "custom") {
+      if (!customStart || !customEnd) return null;
+      return { startDate: customStart, endDate: customEnd };
+    }
+    return presetRange(filter);
+  }, [filter, customStart, customEnd]);
 
   const money = useCallback(
     (n: number) =>
@@ -81,12 +136,12 @@ export function AdminV2Settlements() {
   );
 
   const load = useCallback(async () => {
-    if (!partnerId || !enabled) return;
+    if (!partnerId || !enabled || !currentRange) return;
     setLoading(true);
     setError(null);
     setPage(0);
     try {
-      const res = await getPartnerSettlementLedger(partnerId, rangeFor(filter));
+      const res = await getPartnerSettlementLedger(partnerId, currentRange);
       if (res.success) {
         setRows(res.rows);
         setTruncated(res.settlementsTruncated);
@@ -100,11 +155,44 @@ export function AdminV2Settlements() {
     } finally {
       setLoading(false);
     }
-  }, [partnerId, enabled, filter]);
+  }, [partnerId, enabled, currentRange]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const selectPreset = useCallback((key: FilterKey) => {
+    setCustomError(null);
+    setFilter(key);
+  }, []);
+
+  // Validate + commit the draft dates: tolerate a reversed range, block future
+  // days, and cap the span so a huge window can't hammer orders/settlement paging.
+  const applyCustom = useCallback(() => {
+    let s = draftStart;
+    let e = draftEnd;
+    if (!s || !e) {
+      setCustomError("Pick both a start and end date.");
+      return;
+    }
+    if (s > e) {
+      const t = s;
+      s = e;
+      e = t;
+    }
+    if (s > today) s = today;
+    if (e > today) e = today;
+    if (spanDays(s, e) > MAX_CUSTOM_DAYS) {
+      setCustomError(`Choose a range of ${MAX_CUSTOM_DAYS} days or fewer.`);
+      return;
+    }
+    setCustomError(null);
+    setDraftStart(s);
+    setDraftEnd(e);
+    setCustomStart(s);
+    setCustomEnd(e);
+    setFilter("custom");
+  }, [draftStart, draftEnd, today]);
 
   const totals = useMemo(() => {
     let gross = 0,
@@ -173,7 +261,7 @@ export function AdminV2Settlements() {
         .map(esc)
         .join(","),
     );
-    const rr = rangeFor(filter);
+    const rr = currentRange ?? { startDate: today, endDate: today };
     const csv = [head.join(","), ...lines].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -219,11 +307,11 @@ export function AdminV2Settlements() {
 
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-lg border bg-white p-1">
+        <div className="flex flex-wrap gap-1 rounded-lg border bg-white p-1">
           {FILTERS.map((f) => (
             <button
               key={f.key}
-              onClick={() => setFilter(f.key)}
+              onClick={() => selectPreset(f.key)}
               className={cn(
                 "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 filter === f.key
@@ -246,6 +334,57 @@ export function AdminV2Settlements() {
           </Button>
         </div>
       </div>
+
+      {/* Custom date range */}
+      {filter === "custom" && (
+        <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-3">
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="cf-from"
+              className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              From
+            </label>
+            <input
+              id="cf-from"
+              type="date"
+              value={draftStart}
+              max={draftEnd || today}
+              onChange={(e) => setDraftStart(e.target.value)}
+              className="rounded-md border bg-white px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="cf-to"
+              className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              To
+            </label>
+            <input
+              id="cf-to"
+              type="date"
+              value={draftEnd}
+              min={draftStart || undefined}
+              max={today}
+              onChange={(e) => setDraftEnd(e.target.value)}
+              className="rounded-md border bg-white px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <Button size="sm" onClick={applyCustom} disabled={loading}>
+            Apply
+          </Button>
+          {customError ? (
+            <span className="flex items-center gap-1 text-xs text-red-600">
+              <AlertCircle className="size-3.5 shrink-0" /> {customError}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Showing {customStart} &rarr; {customEnd}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

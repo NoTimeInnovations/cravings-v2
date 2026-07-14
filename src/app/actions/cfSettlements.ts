@@ -28,6 +28,18 @@ const resolveMerchantId = (partnerMerchantId: string | undefined | null) =>
     ? partnerMerchantId || ""
     : process.env.TEST_MERCHANT_ID || partnerMerchantId || "";
 
+/** Extra days past the requested end to catch late (T+1/T+2, longer over weekends/holidays) settlements. */
+const SETTLEMENT_LOOKAHEAD_DAYS = 10;
+
+/** Add `days` to a YYYY-MM-DD date, returning YYYY-MM-DD (UTC-safe, no local-tz drift). */
+function addDaysToDate(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  const p = (n: number) => (n < 10 ? "0" + n : "" + n);
+  return `${dt.getUTCFullYear()}-${p(dt.getUTCMonth() + 1)}-${p(dt.getUTCDate())}`;
+}
+
 const getPartnerCashfreeId = `
   query GetPartnerCashfreeId($id: uuid!) {
     partners_by_pk(id: $id) {
@@ -220,8 +232,14 @@ export async function getPartnerSettlementLedger(
       "x-partner-apikey": partnerApiKey,
       "x-partner-merchantid": merchantId,
     };
+    // Settlements land T+1/T+2 (later across weekends/holidays), i.e. AFTER the
+    // order. Fetching only within [startDate, endDate] would miss settlements
+    // for orders near the end of a past window, leaving fully-settled ranges
+    // reading "awaiting". So we look a few days PAST endDate. Matching is by
+    // payment/order id, so a wider settlement pool never mis-attaches — it only
+    // fills in rows we already have.
     const startISO = `${range.startDate}T00:00:00Z`;
-    const endISO = `${range.endDate}T23:59:59Z`;
+    const endISO = `${addDaysToDate(range.endDate, SETTLEMENT_LOOKAHEAD_DAYS)}T23:59:59Z`;
     const s = await fetchAllSettlements(headers, startISO, endISO);
     settlements = s.rows;
     settlementsTruncated = s.truncated;
