@@ -1,15 +1,24 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { CallLoggerApi, type PartnerConfig, type PartnerRow } from '@/lib/callLogger';
-import CallLogsTab from './CallLogsTab';
-import SchedulesTab from './SchedulesTab';
-import FlowBuilder from './FlowBuilder';
+import { useEffect, useState, type ReactNode } from "react";
+import { CallLoggerApi, type PartnerConfig, type PartnerRow } from "@/lib/callLogger";
+import CallLogsTab from "./CallLogsTab";
+import SchedulesTab from "./SchedulesTab";
+import FlowBuilder from "./FlowBuilder";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft } from "lucide-react";
 
-type Tab = 'config' | 'calls' | 'flow' | 'scheduled';
-
-export default function PartnerDetail({ partner, onBack }: { partner: PartnerRow; onBack: () => void }) {
-  const [tab, setTab] = useState<Tab>('config');
+export default function PartnerDetail({
+  partner,
+  onBack,
+}: {
+  partner: PartnerRow;
+  onBack: () => void;
+}) {
   const [cfg, setCfg] = useState<PartnerConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   const partnerId = partner.partnerId;
@@ -19,71 +28,96 @@ export default function PartnerDetail({ partner, onBack }: { partner: PartnerRow
     CallLoggerApi.partnerConfig(partnerId).then(setCfg).catch((e) => setError(e.message));
   }, [partnerId]);
 
-  const tabs: [Tab, string][] = [
-    ['config', 'Config'],
-    ['calls', 'Call logs'],
-    ['flow', 'Flow'],
-    ['scheduled', 'Scheduled'],
-  ];
-
   return (
-    <div className="p-6">
-      <button onClick={onBack} className="text-sm text-blue-600 mb-3">← All partners</button>
-      <h1 className="text-xl font-semibold">{partner.accountEmail}</h1>
-      {cfg?.storeName && <p className="text-sm text-gray-500">{cfg.storeName}</p>}
+    <div className="mx-auto max-w-5xl space-y-6">
+      <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 text-muted-foreground">
+        <ArrowLeft className="mr-1 h-4 w-4" /> All partners
+      </Button>
+
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">{partner.accountEmail}</h1>
+        {cfg?.storeName && <p className="text-sm text-muted-foreground">{cfg.storeName}</p>}
+      </div>
 
       {!partnerId && (
-        <p className="text-amber-600 mt-4">
-          This account isn't linked to a cravings-v2 partner, so flows and messaging are unavailable.
-        </p>
+        <Card>
+          <CardContent className="py-4 text-sm text-amber-600">
+            This account isn&apos;t linked to a Cravings partner, so flows and messaging are unavailable.
+          </CardContent>
+        </Card>
       )}
 
       {partnerId && (
-        <>
-          <div className="flex gap-2 mt-4 border-b">
-            {tabs.map(([id, label]) => (
-              <button
-                key={id}
-                onClick={() => setTab(id)}
-                className={`px-3 py-2 text-sm -mb-px border-b-2 ${
-                  tab === id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        <Tabs defaultValue="config" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="config">Config</TabsTrigger>
+            <TabsTrigger value="calls">Call logs</TabsTrigger>
+            <TabsTrigger value="flow">Flow</TabsTrigger>
+            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
+          </TabsList>
 
-          <div className="mt-4">
-            {tab === 'config' && <ConfigTab cfg={cfg} error={error} />}
-            {tab === 'calls' && <CallLogsTab partnerId={partnerId} />}
-            {tab === 'flow' && <FlowBuilder partnerId={partnerId} accountEmail={partner.accountEmail} />}
-            {tab === 'scheduled' && <SchedulesTab partnerId={partnerId} />}
-          </div>
-        </>
+          <TabsContent value="config">
+            <ConfigCards cfg={cfg} error={error} />
+          </TabsContent>
+          <TabsContent value="calls">
+            <CallLogsTab partnerId={partnerId} />
+          </TabsContent>
+          <TabsContent value="flow">
+            <FlowBuilder partnerId={partnerId} accountEmail={partner.accountEmail} />
+          </TabsContent>
+          <TabsContent value="scheduled">
+            <SchedulesTab partnerId={partnerId} />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
 }
 
-function ConfigTab({ cfg, error }: { cfg: PartnerConfig | null; error: string | null }) {
-  if (error) return <p className="text-red-600">{error}</p>;
-  if (!cfg) return <p>Loading…</p>;
+function ConfigCards({ cfg, error }: { cfg: PartnerConfig | null; error: string | null }) {
+  if (error) return <p className="text-sm text-destructive">{error}</p>;
+  if (!cfg) {
+    return (
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    );
+  }
   return (
-    <div className="grid grid-cols-2 gap-4 max-w-lg">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       <Stat label="Total calls" value={String(cfg.totalCalls)} />
-      <Stat label="WhatsApp ready" value={cfg.whatsappReady ? 'Yes' : 'No'} />
-      <Stat label="Flow" value={cfg.flow?.enabled ? 'Enabled' : 'Disabled'} />
+      <Stat
+        label="WhatsApp"
+        value={
+          <Badge variant={cfg.whatsappReady ? "default" : "secondary"}>
+            {cfg.whatsappReady ? "Ready" : "Not set"}
+          </Badge>
+        }
+      />
+      <Stat
+        label="Flow"
+        value={
+          <Badge variant={cfg.flow?.enabled ? "default" : "secondary"}>
+            {cfg.flow?.enabled ? "Enabled" : "Disabled"}
+          </Badge>
+        }
+      />
       <Stat label="Flow steps" value={String(cfg.flow?.graph?.nodes?.length ?? 0)} />
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="border rounded p-3">
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-lg font-medium">{value}</div>
-    </div>
+    <Card>
+      <CardHeader className="pb-2">
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-semibold">{value}</div>
+      </CardContent>
+    </Card>
   );
 }

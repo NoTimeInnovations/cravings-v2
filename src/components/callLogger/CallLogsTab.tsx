@@ -1,26 +1,44 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { CallLoggerApi, type CallRow } from '@/lib/callLogger';
+import { useEffect, useMemo, useState } from "react";
+import { CallLoggerApi, type CallRow } from "@/lib/callLogger";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-type Range = 'today' | 'yesterday' | 'custom';
+type Range = "today" | "yesterday" | "custom";
 
-function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
 
 export default function CallLogsTab({ partnerId }: { partnerId: string }) {
-  const [range, setRange] = useState<Range>('today');
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo] = useState('');
+  const [range, setRange] = useState<Range>("today");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [rows, setRows] = useState<CallRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { from, to } = useMemo(() => {
     const now = new Date();
-    if (range === 'today') return { from: startOfDay(now).toISOString(), to: now.toISOString() };
-    if (range === 'yesterday') {
+    if (range === "today") return { from: startOfDay(now).toISOString(), to: now.toISOString() };
+    if (range === "yesterday") {
       const startToday = startOfDay(now);
-      const startYest = new Date(startToday); startYest.setDate(startYest.getDate() - 1);
+      const startYest = new Date(startToday);
+      startYest.setDate(startYest.getDate() - 1);
       return { from: startYest.toISOString(), to: startToday.toISOString() };
     }
     const f = customFrom ? startOfDay(new Date(customFrom)) : new Date(0);
@@ -29,7 +47,7 @@ export default function CallLogsTab({ partnerId }: { partnerId: string }) {
   }, [range, customFrom, customTo]);
 
   useEffect(() => {
-    if (range === 'custom' && (!customFrom || !customTo)) return;
+    if (range === "custom" && (!customFrom || !customTo)) return;
     setLoading(true);
     CallLoggerApi.calls(partnerId, from, to)
       .then((r) => setRows(r.items))
@@ -38,49 +56,88 @@ export default function CallLogsTab({ partnerId }: { partnerId: string }) {
   }, [partnerId, from, to, range, customFrom, customTo]);
 
   return (
-    <div>
-      <div className="flex gap-2 items-center mb-3">
-        {(['today', 'yesterday', 'custom'] as Range[]).map((r) => (
-          <button
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {(["today", "yesterday", "custom"] as Range[]).map((r) => (
+          <Button
             key={r}
+            size="sm"
+            variant={range === r ? "default" : "outline"}
             onClick={() => setRange(r)}
-            className={`px-3 py-1 rounded text-sm border ${range === r ? 'bg-blue-600 text-white' : ''}`}
           >
             {r[0].toUpperCase() + r.slice(1)}
-          </button>
+          </Button>
         ))}
-        {range === 'custom' && (
-          <>
-            <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="border rounded px-2 py-1 text-sm" />
-            <span>→</span>
-            <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="border rounded px-2 py-1 text-sm" />
-          </>
+        {range === "custom" && (
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="h-9 w-auto"
+            />
+            <span className="text-muted-foreground">→</span>
+            <Input
+              type="date"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="h-9 w-auto"
+            />
+          </div>
         )}
-        <span className="text-sm text-gray-500 ml-auto">{rows.length} calls</span>
+        <span className="ml-auto text-sm text-muted-foreground">{rows.length} calls</span>
       </div>
 
-      {loading && <p>Loading…</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <table className="w-full text-sm">
-        <thead className="text-left text-gray-500 border-b">
-          <tr><th className="py-2">Number</th><th>Name</th><th>Type</th><th>Duration</th><th>When</th></tr>
-        </thead>
-        <tbody>
-          {rows.map((c) => (
-            <tr key={c.id} className="border-b">
-              <td className="py-2">{c.number_e164 || c.number_raw}</td>
-              <td>{c.cached_name || '—'}</td>
-              <td>
-                <span className={c.direction === 'inbound' ? 'text-green-700' : 'text-gray-600'}>{c.call_type}</span>
-              </td>
-              <td>{c.duration_seconds}s</td>
-              <td>{new Date(c.started_at).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {!loading && rows.length === 0 && <p className="text-gray-500 py-4">No calls in this range.</p>}
+      <Card className="overflow-hidden p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Number</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead className="text-right">When</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading &&
+              Array.from({ length: 6 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: 5 }).map((__, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            {!loading &&
+              rows.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.number_e164 || c.number_raw}</TableCell>
+                  <TableCell className="text-muted-foreground">{c.cached_name || "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant={c.direction === "inbound" ? "default" : "secondary"}>
+                      {c.call_type}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="tabular-nums">{c.duration_seconds}s</TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {new Date(c.started_at).toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            {!loading && rows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  No calls in this range.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }
