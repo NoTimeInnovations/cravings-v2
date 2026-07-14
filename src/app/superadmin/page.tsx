@@ -35,6 +35,12 @@ const page = async (props: { searchParams: SearchParams }) => {
       href: "/analytics",
     },
     {
+      name: "Android Call Logger",
+      component: null,
+      id: "android-call-logger",
+      href: "/superadmin/android-call-logger",
+    },
+    {
       name: "Create PetPooja Partner",
       component: null,
       id: "create-pp-partner",
