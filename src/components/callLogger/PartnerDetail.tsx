@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { CallLoggerApi, type PartnerConfig, type PartnerRow } from "@/lib/callLogger";
 import CallLogsTab from "./CallLogsTab";
 import SchedulesTab from "./SchedulesTab";
+import MessagesTab from "./MessagesTab";
 import FlowBuilder from "./FlowBuilder";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -54,6 +55,7 @@ export default function PartnerDetail({
             <TabsTrigger value="calls">Call logs</TabsTrigger>
             <TabsTrigger value="flow">Flow</TabsTrigger>
             <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
+            <TabsTrigger value="messages">Messages</TabsTrigger>
           </TabsList>
 
           <TabsContent value="config">
@@ -67,6 +69,9 @@ export default function PartnerDetail({
           </TabsContent>
           <TabsContent value="scheduled">
             <SchedulesTab partnerId={partnerId} />
+          </TabsContent>
+          <TabsContent value="messages">
+            <MessagesTab partnerId={partnerId} />
           </TabsContent>
         </Tabs>
       )}

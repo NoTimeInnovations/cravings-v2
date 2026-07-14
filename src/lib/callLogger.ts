@@ -26,6 +26,10 @@ export interface TargetRow {
   to_e164: string; contact_name: string | null; status: string;
   wa_message_id: string | null; error: string | null; created_at: string;
 }
+export interface SendRow {
+  to_e164: string; template_name: string; language: string; source: string;
+  status: string; wa_message_id: string | null; error: string | null; created_at: string;
+}
 export interface FlowNode {
   id: string; type: string; position?: { x: number; y: number }; data?: Record<string, unknown>;
 }
@@ -45,4 +49,10 @@ export const CallLoggerApi = {
   createSchedule: (p: string, body: unknown) =>
     req<{ id: string }>(`/schedule?partner=${encodeURIComponent(p)}`, { method: 'POST', body: JSON.stringify(body) }),
   targets: (id: string) => req<{ items: TargetRow[] }>(`/schedule/targets?id=${encodeURIComponent(id)}`),
+  messages: (p: string, opts?: { status?: string; source?: string }) => {
+    const qs = new URLSearchParams({ partner: p });
+    if (opts?.status) qs.set("status", opts.status);
+    if (opts?.source) qs.set("source", opts.source);
+    return req<{ items: SendRow[] }>(`/messages?${qs.toString()}`);
+  },
 };
