@@ -13,7 +13,7 @@ import { finalizeCfOrder } from "./cfOrders";
 //   SLUG_RAZORPAY_WEBHOOK_SECRET — their Razorpay webhook secret
 // (Plus NEXT_PUBLIC_SLUG_PARTNER_ID so the storefront checkout renders the
 // Razorpay path — see src/lib/ownRazorpayPartners.ts.)
-const RZP_PARTNER_SLUGS = ["FLAMIN", "REGU"];
+const RZP_PARTNER_SLUGS = ["FLAMIN", "REGU", "HIGHJOINT"];
 
 // Resolve a partner's Razorpay keys from env. Read per-call (not at module load)
 // so it always sees the current env. Trims to defend against stray whitespace
