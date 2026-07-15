@@ -2357,11 +2357,18 @@ const PlaceOrderModalV2 = ({
   if (orderStatus === "confirming") {
     const confirmTotal = savedOrderTotal ?? payableTotal;
     const isDeliveryOrder = orderType === "delivery";
-    const deliverHeading = isDeliveryOrder
-      ? `Delivering to ${selectedAddressLabel || "your address"}`
-      : orderType === "takeaway"
-        ? `Pickup from ${hotelData?.store_name || "store"}`
-        : `Dine-in at ${hotelData?.store_name || "store"}`;
+    const storeNameNode = (
+      <span translate="no" className="notranslate">
+        {hotelData?.store_name || "store"}
+      </span>
+    );
+    const deliverHeading = isDeliveryOrder ? (
+      `Delivering to ${selectedAddressLabel || "your address"}`
+    ) : orderType === "takeaway" ? (
+      <>Pickup from {storeNameNode}</>
+    ) : (
+      <>Dine-in at {storeNameNode}</>
+    );
     return (
       <div className="fixed inset-0 z-[500] flex flex-col justify-end bg-black/40">
         <div
@@ -2722,7 +2729,7 @@ const PlaceOrderModalV2 = ({
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
                     Pickup from
                   </p>
-                  <p className="truncate text-sm font-bold" style={{ color: accent }}>
+                  <p translate="no" className="truncate text-sm font-bold notranslate" style={{ color: accent }}>
                     {restaurantName || "Checkout"}
                   </p>
                 </div>

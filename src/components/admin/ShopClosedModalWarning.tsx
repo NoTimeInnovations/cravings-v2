@@ -65,7 +65,7 @@ const ShopClosedModalWarning = ({
                     Call {partnerPhone}
                   </a>
                   <p className="text-xs text-white/90 mt-2">
-                    This is {ownerLabel} phone number
+                    This is <span translate="no" className="notranslate">{ownerLabel}</span> phone number
                   </p>
                 </div>
               )}

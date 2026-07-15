@@ -411,7 +411,7 @@ const LocationHeader = ({
             <h3 className="text-lg font-bold text-gray-900 mb-3">Delivery Not Available</h3>
             <div className="border-t mb-4" />
             <p className="text-sm text-gray-600 leading-relaxed mb-6">
-              We are currently serving within {deliveryRadius} km from {storeLocation || storeName}. Your selected location is outside our delivery area.
+              We are currently serving within {deliveryRadius} km from <span translate="no" className="notranslate">{storeLocation || storeName}</span>. Your selected location is outside our delivery area.
             </p>
             <button
               onClick={() => {

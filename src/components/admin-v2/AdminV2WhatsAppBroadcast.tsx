@@ -253,6 +253,7 @@ export function AdminV2WhatsAppBroadcast() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [blocklistOpen, setBlocklistOpen] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
 
   const loadStatus = async () => {
     if (!partnerId) return;
@@ -337,6 +338,148 @@ export function AdminV2WhatsAppBroadcast() {
     }
   };
 
+  // One combined Excel across every broadcast: an "Overview" sheet with the
+  // grand totals only (no per-broadcast breakdown), plus a "Broadcasts" sheet
+  // with one totals row per broadcast (no per-recipient rows). Built entirely
+  // from the already-loaded list — no extra network calls.
+  const downloadAllReports = async () => {
+    if (!broadcasts.length) {
+      toast.error("No broadcasts to export yet");
+      return;
+    }
+    setDownloadingAll(true);
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+
+      const pendingOf = (b: BroadcastRow) =>
+        Math.max(
+          0,
+          (b.total_recipients || 0) -
+            b.sent_count -
+            b.delivered_count -
+            b.read_count -
+            b.failed_count,
+        );
+
+      // Grand totals across all broadcasts.
+      const totals = broadcasts.reduce(
+        (acc, b) => {
+          acc.recipients += b.total_recipients || 0;
+          acc.sent += b.sent_count || 0;
+          acc.delivered += b.delivered_count || 0;
+          acc.read += b.read_count || 0;
+          acc.failed += b.failed_count || 0;
+          acc.pending += pendingOf(b);
+          return acc;
+        },
+        { recipients: 0, sent: 0, delivered: 0, read: 0, failed: 0, pending: 0 },
+      );
+
+      // Costs can span currencies — sum per currency so the total is never wrong.
+      const costByCurrency = new Map<string, number>();
+      for (const b of broadcasts) {
+        if (!b.total_cost) continue;
+        const cur = (b.cost_currency || "INR").toUpperCase();
+        costByCurrency.set(cur, (costByCurrency.get(cur) || 0) + b.total_cost);
+      }
+      const costLines = [...costByCurrency.entries()].map(([cur, amt]) =>
+        formatMoney(amt, cur),
+      );
+
+      // ── Sheet 1: Overview (totals only) ──
+      const overview: (string | number)[][] = [
+        ["WhatsApp broadcasts — overall report"],
+        ["Generated", fmtTime(new Date().toISOString())],
+        [],
+        ["Total broadcasts", broadcasts.length],
+        ["Total recipients", totals.recipients],
+        ["Sent", totals.sent],
+        ["Delivered", totals.delivered],
+        ["Read", totals.read],
+        ["Failed", totals.failed],
+        ["Pending", totals.pending],
+        [],
+        ["Total cost (est.)", costLines.length ? costLines.join("  |  ") : "—"],
+      ];
+      const wsOverview = XLSX.utils.aoa_to_sheet(overview);
+      wsOverview["!cols"] = [{ wch: 22 }, { wch: 34 }];
+      XLSX.utils.book_append_sheet(wb, wsOverview, "Overview");
+
+      // ── Sheet 2: Broadcasts (one totals row each) ──
+      const header = [
+        "Template",
+        "Language",
+        "Category",
+        "Status",
+        "Created",
+        "Recipients",
+        "Sent",
+        "Delivered",
+        "Read",
+        "Failed",
+        "Pending",
+        "Total cost",
+        "Currency",
+      ];
+      const rows = broadcasts.map((b) => [
+        b.template_name || "",
+        b.language || "",
+        b.category || "",
+        broadcastStatusLabel(b.status, b.scheduled_at),
+        fmtTime(b.created_at),
+        b.total_recipients || 0,
+        b.sent_count || 0,
+        b.delivered_count || 0,
+        b.read_count || 0,
+        b.failed_count || 0,
+        pendingOf(b),
+        b.total_cost || 0,
+        (b.cost_currency || "").toUpperCase(),
+      ]);
+      const totalRow = [
+        "TOTAL",
+        "",
+        "",
+        "",
+        "",
+        totals.recipients,
+        totals.sent,
+        totals.delivered,
+        totals.read,
+        totals.failed,
+        totals.pending,
+        costByCurrency.size === 1 ? [...costByCurrency.values()][0] : "",
+        costByCurrency.size === 1 ? [...costByCurrency.keys()][0] : "mixed",
+      ];
+      const wsList = XLSX.utils.aoa_to_sheet([header, ...rows, [], totalRow]);
+      wsList["!cols"] = [
+        { wch: 26 },
+        { wch: 10 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 8 },
+        { wch: 10 },
+        { wch: 8 },
+        { wch: 8 },
+        { wch: 9 },
+        { wch: 12 },
+        { wch: 9 },
+      ];
+      XLSX.utils.book_append_sheet(wb, wsList, "Broadcasts");
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `whatsapp_broadcasts_report_${stamp}.xlsx`);
+      toast.success("All-broadcasts report downloaded");
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't generate the report");
+    } finally {
+      setDownloadingAll(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-6xl">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -355,6 +498,19 @@ export function AdminV2WhatsAppBroadcast() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadBroadcasts} title="Refresh">
             <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={downloadAllReports}
+            disabled={downloadingAll || broadcasts.length === 0}
+            title="Download one Excel with the overall totals + every broadcast's totals"
+          >
+            {downloadingAll ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            Download all
           </Button>
           <Button
             variant="outline"

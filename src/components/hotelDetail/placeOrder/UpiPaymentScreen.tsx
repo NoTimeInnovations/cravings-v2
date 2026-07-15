@@ -92,7 +92,7 @@ export const UpiPaymentScreen = ({
           </button>
           <div>
             <h1 className="font-bold text-base text-gray-900">Complete Payment</h1>
-            <p className="text-xs text-gray-500">{storeName}</p>
+            <p translate="no" className="text-xs text-gray-500 notranslate">{storeName}</p>
           </div>
         </div>
       </div>

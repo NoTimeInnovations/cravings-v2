@@ -182,11 +182,12 @@ const Default = ({
               <HotelBanner hoteldata={hoteldata} styles={styles} />
 
               <h1
+                translate="no"
                 style={{
                   textAlign:
                     theme?.infoAlignment === "center" ? "center" : "left",
                 }}
-                className={`font-black text-3xl max-w-[250px]${
+                className={`notranslate font-black text-3xl max-w-[250px]${
                   (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
                 }`}
                 dangerouslySetInnerHTML={{

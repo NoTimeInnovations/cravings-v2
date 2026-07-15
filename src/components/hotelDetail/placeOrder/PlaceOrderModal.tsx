@@ -3732,7 +3732,7 @@ const PlaceOrderModal = ({
             <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
               {/* Restaurant / Hotel Name + Order Type */}
               <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
-                <h2 className="font-bold text-base">{hotelData?.store_name || hotelData?.name}</h2>
+                <h2 translate="no" className="font-bold text-base notranslate">{hotelData?.store_name || hotelData?.name}</h2>
                 {(hotelData?.location_details || hotelData?.district || hotelData?.country) && (
                   <p className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
                     {hotelData.location_details || [hotelData.district, hotelData.country].filter(Boolean).join(", ")}

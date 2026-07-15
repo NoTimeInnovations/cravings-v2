@@ -25,6 +25,7 @@ import V3 from "@/components/hotelDetail/styles/V3/V3";
 import V4 from "@/components/hotelDetail/styles/V4/V4";
 import V5 from "@/components/hotelDetail/styles/V5/V5";
 import { LanguageSwitcher } from "@/components/hotelDetail/LanguageSwitcher";
+import { shortCurrencySymbol } from "@/lib/currencyDisplay";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { applyVisibilityState } from "@/lib/visibility";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
@@ -372,7 +373,7 @@ const HotelMenuPage = ({
 
   useEffect(() => {
     if (hoteldata?.id) {
-      setHotelId(hoteldata.id, hoteldata.currency);
+      setHotelId(hoteldata.id, shortCurrencySymbol((hoteldata as any)?.currency));
       genOrderId();
       addToRecent(hoteldata.id);
     }
@@ -506,9 +507,20 @@ const HotelMenuPage = ({
   // Keep allMenus (unfiltered) for checkout cart validation
   const filteredHotelData = useMemo(() => ({
     ...hoteldata,
+    // Show the shortest native currency symbol (e.g. QAR → "ر.ق") so the menu
+    // language switcher's translation can't expand it into words. Applies in
+    // every language, including English.
+    currency: shortCurrencySymbol((hoteldata as any)?.currency),
     menus: filteredMenus,
     allMenus: hoteldata?.menus || [],
   }), [hoteldata, filteredMenus]);
+
+  // Same native-symbol currency for the cart drawer + checkout modals, but keep
+  // the FULL menu list (the modals look items up by id for discounts/freebies).
+  const checkoutHotelData = useMemo(() => ({
+    ...hoteldata,
+    currency: shortCurrencySymbol((hoteldata as any)?.currency),
+  }), [hoteldata]);
 
   // Return to the brand parent's outlet picker (the screen the user picked this
   // outlet from). ?pickOutlet=1 forces the picker step even for single-outlet
@@ -688,7 +700,7 @@ const HotelMenuPage = ({
                 qrGroup={qrGroup}
                 styles={styles}
                 qrId={qrId || undefined}
-                hotelData={hoteldata}
+                hotelData={checkoutHotelData}
                 tableNumber={tableNumber}
               />
             </section>

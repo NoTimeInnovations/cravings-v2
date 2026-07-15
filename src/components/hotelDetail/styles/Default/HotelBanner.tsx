@@ -116,7 +116,7 @@ const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelDa
       </DialogTrigger>
 
       <DialogContent className="w-full max-w-4xl h-[90vh] bg-transparent border-none">
-        <DialogTitle className="hidden">
+        <DialogTitle translate="no" className="hidden notranslate">
           {hoteldata?.store_name}
         </DialogTitle>
         <div className="relative w-full h-full flex items-center justify-center">

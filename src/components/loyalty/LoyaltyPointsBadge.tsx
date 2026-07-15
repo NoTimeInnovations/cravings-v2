@@ -78,7 +78,11 @@ export function LoyaltyHistorySheet({
         <SheetHeader className="px-5 pt-5 pb-2">
           <SheetTitle className="flex items-center gap-2 text-left">
             <Gift className="h-5 w-5 text-orange-600" />
-            {storeName ? `${storeName} Rewards` : "Loyalty Points"}
+            {storeName ? (
+              <><span translate="no" className="notranslate">{storeName}</span> Rewards</>
+            ) : (
+              "Loyalty Points"
+            )}
           </SheetTitle>
         </SheetHeader>
 

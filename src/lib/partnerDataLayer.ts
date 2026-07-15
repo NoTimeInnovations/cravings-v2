@@ -5,6 +5,7 @@
 // zustand order store and React components can import it. No-op on the server.
 
 import currencies from "@/data/currencies.json";
+import { currencyIsoFromSymbol } from "@/lib/currencyDisplay";
 
 export type EcommerceItem = {
   item_id: string;
@@ -39,7 +40,9 @@ const SYMBOL_TO_CODE: Record<string, string> = Object.fromEntries(
 
 export function resolveCurrencyCode(symbol?: string | null): string {
   if (!symbol || symbol === "🚫") return "INR";
-  return SYMBOL_TO_CODE[symbol] ?? "INR";
+  // Prefer the bundled reverse map, then the full native-symbol resolver (which
+  // also handles short native glyphs like "ر.ق" / "د.إ" and bare ISO codes).
+  return SYMBOL_TO_CODE[symbol] ?? currencyIsoFromSymbol(symbol) ?? "INR";
 }
 
 // A menu item's category may be a Hasura relationship object ({ id, name }) or a

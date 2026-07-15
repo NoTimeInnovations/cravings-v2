@@ -366,7 +366,7 @@ const V5 = ({
         {hoteldata?.store_name && (
           <div className="px-4 pt-4 pb-3">
             <div className="flex items-center gap-2">
-              <h1 className="text-[26px] font-extrabold leading-none tracking-[-0.02em] text-gray-900">
+              <h1 translate="no" className="text-[26px] font-extrabold leading-none tracking-[-0.02em] text-gray-900 notranslate">
                 {hoteldata?.store_name}
               </h1>
               <Info className="h-[18px] w-[18px] shrink-0 text-gray-400" strokeWidth={1.9} />
@@ -518,7 +518,7 @@ const V5 = ({
               );
             })}
 
-            <p className="py-6 text-center text-[10px] text-gray-400">{hoteldata?.store_name}</p>
+            <p translate="no" className="py-6 text-center text-[10px] text-gray-400 notranslate">{hoteldata?.store_name}</p>
           </div>
         )}
 

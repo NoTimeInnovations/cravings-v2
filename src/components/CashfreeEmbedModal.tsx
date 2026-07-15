@@ -37,7 +37,7 @@ const CashfreeEmbedModal = forwardRef<HTMLDivElement, Props>(
           </div>
           <div className="flex-1 min-w-0 text-white">
             <p className="text-[11px] uppercase tracking-wide opacity-80">Pay to</p>
-            <p className="text-sm font-semibold truncate">{partnerName}</p>
+            <p translate="no" className="text-sm font-semibold truncate notranslate">{partnerName}</p>
           </div>
           <button
             onClick={onClose}

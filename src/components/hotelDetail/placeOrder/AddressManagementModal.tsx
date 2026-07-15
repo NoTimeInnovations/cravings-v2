@@ -1013,7 +1013,7 @@ const AddressManagementModal = ({
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                   <path d="M14 4L8 16h12L14 4z" fill="#16a34a" stroke="#fff" strokeWidth="1.5" />
                 </svg>
-                <span className="text-[10px] font-bold rounded px-1.5 py-0.5 mt-0.5 shadow-sm whitespace-nowrap"
+                <span translate="no" className="notranslate text-[10px] font-bold rounded px-1.5 py-0.5 mt-0.5 shadow-sm whitespace-nowrap"
                   style={{ transform: `rotate(${-hotelDirection.angle}deg)`, color: "#16a34a", backgroundColor: `${themeBg}E6` }}
                 >
                   {hotelData?.store_name || "Restaurant"}
@@ -1111,7 +1111,7 @@ const AddressManagementModal = ({
                   Outside delivery range
                 </p>
                 <p className="text-xs mt-0.5 text-red-600">
-                  This location is {pinDistanceKm?.toFixed(1)} km away. {hotelData?.store_name || "This store"} delivers within {radiusKm} km.
+                  This location is {pinDistanceKm?.toFixed(1)} km away. <span translate="no" className="notranslate">{hotelData?.store_name || "This store"}</span> delivers within {radiusKm} km.
                 </p>
               </div>
             </div>

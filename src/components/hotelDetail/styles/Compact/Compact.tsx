@@ -246,7 +246,7 @@ const BannerCarousel = ({
           style={{ backgroundColor: accent }}
         >
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(#fff 2px, transparent 2px)", backgroundSize: "20px 20px" }} />
-          <h2 className="font-handwriting text-white text-3xl font-bold drop-shadow-md text-center px-4 relative z-10">{slide.title}</h2>
+          <h2 translate="no" className="font-handwriting text-white text-3xl font-bold drop-shadow-md text-center px-4 relative z-10 notranslate">{slide.title}</h2>
         </div>
       )}
     </div>
@@ -945,7 +945,8 @@ const Compact = ({
             <div className="px-4 pt-4 pb-1 flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <h1
-                  className={`text-[22px] font-bold${
+                  translate="no"
+                  className={`text-[22px] font-bold notranslate${
                     (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
                   }`}
                 >

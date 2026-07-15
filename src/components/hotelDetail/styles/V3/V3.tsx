@@ -355,7 +355,11 @@ const V3 = ({
                     className="truncate text-sm font-bold"
                     style={{ color: isPickupMode ? "#111827" : styles.accent }}
                   >
-                    {isPickupMode ? outletName : userAddress || "Add delivery address"}
+                    {isPickupMode ? (
+                      <span translate="no" className="notranslate">{outletName}</span>
+                    ) : (
+                      userAddress || "Add delivery address"
+                    )}
                   </p>
                 </div>
                 <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
@@ -465,7 +469,8 @@ const V3 = ({
             {/* Name + tagline */}
             <div className="min-w-0 flex-1">
               <h1
-                className={`truncate text-lg font-extrabold tracking-tight text-gray-900${
+                translate="no"
+                className={`notranslate truncate text-lg font-extrabold tracking-tight text-gray-900${
                   (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
                 }`}
                 style={
@@ -663,7 +668,7 @@ const V3 = ({
             );
           })}
 
-          <p className="py-4 text-center text-[10px] text-gray-400">{hoteldata?.store_name}</p>
+          <p translate="no" className="notranslate py-4 text-center text-[10px] text-gray-400">{hoteldata?.store_name}</p>
         </div>
 
         {/* Order Drawer only - single floating cart button */}

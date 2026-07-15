@@ -577,7 +577,8 @@ const V4 = ({
             <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 px-5 pb-12">
               <div className="min-w-0 flex-1">
                 <h1
-                  className={`truncate font-extrabold leading-tight text-white drop-shadow-md${
+                  translate="no"
+                  className={`notranslate truncate font-extrabold leading-tight text-white drop-shadow-md${
                     (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
                   }`}
                   style={
@@ -662,7 +663,11 @@ const V4 = ({
                   className="truncate text-xs font-bold"
                   style={{ color: isPickupMode ? "#111827" : accent }}
                 >
-                  {isPickupMode ? outletName : userAddress || "Add delivery address"}
+                  {isPickupMode ? (
+                    <span translate="no" className="notranslate">{outletName}</span>
+                  ) : (
+                    userAddress || "Add delivery address"
+                  )}
                 </p>
               </div>
               {!isPickupMode && <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />}
@@ -856,7 +861,7 @@ const V4 = ({
                 </section>
               ))}
 
-              <p className="py-6 text-center text-[10px] text-gray-400">{hoteldata?.store_name}</p>
+              <p translate="no" className="notranslate py-6 text-center text-[10px] text-gray-400">{hoteldata?.store_name}</p>
             </div>
           </div>
         )}

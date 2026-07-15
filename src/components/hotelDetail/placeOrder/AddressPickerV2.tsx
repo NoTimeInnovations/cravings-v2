@@ -980,7 +980,7 @@ const AddressPickerV2 = ({
                     Delivery not available
                   </p>
                   <p className="text-xs mt-0.5 text-red-600">
-                    {pinDistanceKm.toFixed(1)} km away · {hotelData?.store_name || "This store"} delivers within {radiusKm} km
+                    {pinDistanceKm.toFixed(1)} km away · <span translate="no" className="notranslate">{hotelData?.store_name || "This store"}</span> delivers within {radiusKm} km
                   </p>
                 </div>
               </div>

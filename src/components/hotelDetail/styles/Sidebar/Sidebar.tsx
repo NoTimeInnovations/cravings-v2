@@ -404,7 +404,7 @@ const Sidebar = ({
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-white text-[13px] font-medium opacity-80">Pickup from</span>
-                  <p className="text-white text-[14px] font-semibold truncate">
+                  <p translate="no" className="text-white text-[14px] font-semibold truncate notranslate">
                     {hoteldata?.location_details || hoteldata?.district || hoteldata?.store_name || "Store"}
                   </p>
                 </div>
@@ -469,7 +469,7 @@ const Sidebar = ({
                           backgroundSize: "20px 20px",
                         }}
                       />
-                      <h1 className="font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full text-4xl z-10 p-4">
+                      <h1 translate="no" className="font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full text-4xl z-10 p-4 notranslate">
                         {hoteldata?.store_name}
                       </h1>
                     </div>
@@ -602,7 +602,7 @@ const Sidebar = ({
               style={{ borderBottom: `1px solid ${styles.border.borderColor}` }}
             >
               <div>
-                <h1 className="text-xl font-bold tracking-tight">
+                <h1 translate="no" className="text-xl font-bold tracking-tight notranslate">
                   {hoteldata?.store_name}
                 </h1>
                 {(hoteldata?.location_details || hoteldata?.district || hoteldata?.country) && (
