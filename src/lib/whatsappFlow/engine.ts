@@ -562,13 +562,22 @@ function executeForward(
         nodeId = firstEdgeTarget(graph, node.id);
         break;
       }
-      case "buttons":
+      case "buttons": {
         outbound.push({
           kind: "buttons",
           text: interpolate(data.text || "", state.variables),
           items: (data.items as ButtonItem[]) || [],
         });
+        // A buttons node with NO outgoing edge is a terminal notification whose
+        // buttons are quick-reply SHORTCUTS handed off to keyword flows (e.g. the
+        // "Order completed" flow's "Reorder"), not a real question. Parking it
+        // would leave the run active for run_ttl_hours; then any unrelated inbound
+        // message resumes it, fails to match a choice, and RE-SENDS the whole
+        // message (resumeRun). Only park when a choice actually branches the graph.
+        const hasBranch = (graph.edges || []).some((e) => e.source === node.id);
+        if (!hasBranch) return { parkedNodeId: null, completed: true };
         return { parkedNodeId: node.id, completed: false }; // park awaiting choice
+      }
       case "wait_for_reply":
         return { parkedNodeId: node.id, completed: false }; // park awaiting reply
       case "end": {
