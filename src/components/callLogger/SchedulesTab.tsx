@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChevronDown, Plus } from "lucide-react";
+import TemplatePicker from "./TemplatePicker";
 
 export default function SchedulesTab({ partnerId }: { partnerId: string }) {
   const [items, setItems] = useState<ScheduleRow[]>([]);
@@ -186,12 +187,17 @@ function NewSchedule({ partnerId, onCreated }: { partnerId: string; onCreated: (
     <Card>
       <CardContent className="grid max-w-lg gap-4 py-5">
         <div className="grid gap-1.5">
-          <Label>Approved template name</Label>
-          <Input value={template} onChange={(e) => setTemplate(e.target.value)} placeholder="e.g. reengage_offer" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Language</Label>
-          <Input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="en" />
+          <Label>Template</Label>
+          <TemplatePicker
+            partnerId={partnerId}
+            template={template}
+            language={language}
+            params={params.split("\n").map((p) => p.trim()).filter(Boolean)}
+            onChange={({ template: t, language: l }) => {
+              setTemplate(t);
+              setLanguage(l);
+            }}
+          />
         </div>
         <div className="grid gap-1.5">
           <Label>Audience</Label>

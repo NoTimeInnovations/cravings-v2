@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Clock, GitBranch, Phone, Plus, Save, Send, Trash2 } from "lucide-react";
+import TemplatePicker from "./TemplatePicker";
 
 type Kind = "trigger" | "send" | "wait" | "condition";
 
@@ -271,7 +272,7 @@ export default function FlowBuilder({
             </p>
           )}
           {selected && (
-            <Inspector node={selected} patch={patch} onDelete={deleteSelected} />
+            <Inspector node={selected} patch={patch} onDelete={deleteSelected} partnerId={partnerId} />
           )}
         </Card>
       </div>
@@ -283,10 +284,12 @@ function Inspector({
   node,
   patch,
   onDelete,
+  partnerId,
 }: {
   node: Node;
   patch: (d: Record<string, unknown>) => void;
   onDelete: () => void;
+  partnerId: string;
 }) {
   const d = node.data as Record<string, unknown>;
   const kind = d.kind as Kind;
@@ -314,12 +317,14 @@ function Inspector({
       {kind === "send" && (
         <div className="space-y-3">
           <div className="grid gap-1.5">
-            <Label>Template name</Label>
-            <Input value={String(d.template ?? "")} onChange={(e) => patch({ template: e.target.value })} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Language</Label>
-            <Input value={String(d.language ?? "en")} onChange={(e) => patch({ language: e.target.value })} />
+            <Label>Template</Label>
+            <TemplatePicker
+              partnerId={partnerId}
+              template={String(d.template ?? "")}
+              language={String(d.language ?? "en")}
+              params={(d.params as string[]) ?? []}
+              onChange={({ template, language }) => patch({ template, language })}
+            />
           </div>
           <div className="grid gap-1.5">
             <Label>Body params (one per line)</Label>
