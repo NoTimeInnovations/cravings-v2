@@ -3,11 +3,15 @@
 /**
  * Cashfree online-payment ledger for a partner (sub-merchant).
  *
- * The list is driven by OUR paid Cashfree orders (so today's transactions show
- * immediately), enriched with Cashfree's settlement data where it exists. A
+ * The list is driven by OUR collected Cashfree orders (so today's transactions
+ * show immediately), enriched with Cashfree's settlement data where it exists. A
  * payment only gets a settlement row AFTER Cashfree pays it out to the bank
  * (~T+1/T+2), so recent rows read "awaiting settlement" and gain their
- * settlement amount + fee once settled.
+ * settlement amount + fee once settled. Every order type (delivery / takeaway /
+ * dine-in) is included. To stay consistent with the Cashfree dashboard we also
+ * fold in any settled payment we can't tie to a "paid" order — a real payment
+ * whose order status was left non-"paid" (e.g. a late DROPPED/FAILED webhook) is
+ * still money collected, so it must show.
  *
  * We are a Cashfree PARTNER: one platform key (CASHFREE_PARTNER_API_KEY, header
  * x-partner-apikey) acts on behalf of each restaurant via cashfree_merchant_id
@@ -49,12 +53,19 @@ const getPartnerCashfreeId = `
   }
 `;
 
+// Every Cashfree order we created in the window (regardless of order type —
+// delivery / takeaway / dine-in all live in `orders`). We intentionally do NOT
+// filter on payment_status here: a genuine payment can be left non-"paid" when a
+// late PAYMENT_FAILED/USER_DROPPED webhook overwrites the status after the order
+// was already finalized (leaving is_paid=true, payment_status="dropped"). We
+// decide "collected" in code from is_paid OR payment_status, and additionally
+// reconcile against Cashfree's own settlement rows below, so no collected
+// payment is hidden.
 const getPartnerCfOrders = `
   query PartnerCfOrders($pid: uuid!, $start: timestamptz!, $end: timestamptz!) {
     orders(
       where: {
         partner_id: { _eq: $pid }
-        payment_status: { _eq: "paid" }
         cashfree_order_id: { _is_null: false }
         created_at: { _gte: $start, _lte: $end }
       }
@@ -64,6 +75,8 @@ const getPartnerCfOrders = `
       short_id
       cashfree_order_id
       cashfree_payment_id
+      payment_status
+      is_paid
       total_price
       created_at
     }
@@ -192,9 +205,11 @@ async function fetchAllSettlements(
 }
 
 /**
- * Transaction ledger for [startDate, endDate] (YYYY-MM-DD, IST). Every paid
- * Cashfree order in the window is a row; settlement fields are attached when a
- * matching settlement exists.
+ * Transaction ledger for [startDate, endDate] (YYYY-MM-DD, IST). Every collected
+ * Cashfree order in the window (any order type) is a row; settlement fields are
+ * attached when a matching settlement exists. Cashfree settlements with no
+ * matching "paid" order are folded in too, so the ledger can't hide money the
+ * Cashfree dashboard shows.
  */
 export async function getPartnerSettlementLedger(
   partnerId: string,
@@ -207,17 +222,34 @@ export async function getPartnerSettlementLedger(
     return { success: false, configured: false, error: "Cashfree payments not enabled for this restaurant" };
   }
 
-  // Our paid Cashfree orders in the window (IST day bounds) — the source of truth
-  // for "what transactions happened", available immediately.
+  // Our Cashfree orders in the window (IST day bounds). These give immediate
+  // visibility ("what transactions happened") before Cashfree settles them.
   const startTs = `${range.startDate}T00:00:00+05:30`;
   const endTs = `${range.endDate}T23:59:59+05:30`;
-  let orders: any[] = [];
+  let allOrders: any[] = [];
   try {
     const data = await fetchFromHasura(getPartnerCfOrders, { pid: partnerId, start: startTs, end: endTs });
-    orders = data?.orders || [];
+    allOrders = data?.orders || [];
   } catch (e: any) {
     console.error("[cf-ledger] orders query failed:", e?.message || e);
     return { success: false, configured: true, error: "Failed to load transactions" };
+  }
+
+  // An order is "collected" (money actually taken) when we finalized it
+  // (is_paid) OR the status says paid. We trust is_paid too because a late
+  // FAILED/DROPPED webhook can overwrite a genuinely-paid order's status. We do
+  // NOT filter by payment_method: this page already lists whatever paid through
+  // the provider-order-id column (some partners route their own Razorpay through
+  // it), and the settlement reconciliation below only ever adds real Cashfree
+  // settlements, so no other gateway can be pulled in wrongly.
+  const orders = allOrders.filter((o) => o.is_paid === true || o.payment_status === "paid");
+
+  // Lookup of every Cashfree order in the window by its merchant order id, used
+  // to attach an order ref to any settlement row whose order we didn't already
+  // list above (e.g. status was clobbered to "dropped" after a real payment).
+  const orderByCfId = new Map<string, any>();
+  for (const o of allOrders) {
+    if (o.cashfree_order_id) orderByCfId.set(String(o.cashfree_order_id), o);
   }
 
   // Settlement enrichment (best-effort — transactions still show if this fails).
@@ -278,6 +310,40 @@ export async function getPartnerSettlementLedger(
       transferTime: match ? match.transferTime : null,
     };
   });
+
+  // Reconcile against Cashfree's own settlements: any payment Cashfree settled
+  // that we didn't list above (order status was never marked paid) is still real
+  // collected money — surface it so the ledger matches the Cashfree dashboard.
+  const represented = new Set<string>();
+  for (const o of orders) {
+    if (o.cashfree_payment_id) represented.add(`p:${o.cashfree_payment_id}`);
+    if (o.cashfree_order_id) represented.add(`o:${o.cashfree_order_id}`);
+  }
+  for (const s of settlements) {
+    const pKey = s.cfPaymentId ? `p:${s.cfPaymentId}` : null;
+    const oKey = s.orderId ? `o:${s.orderId}` : null;
+    if ((pKey && represented.has(pKey)) || (oKey && represented.has(oKey))) continue;
+    if (pKey) represented.add(pKey);
+    if (oKey) represented.add(oKey);
+    const o = s.orderId ? orderByCfId.get(String(s.orderId)) : null;
+    rows.push({
+      orderRef: o ? str(o.short_id ?? o.id) : s.orderId,
+      orderPk: o ? str(o.id) : null,
+      cfOrderId: s.orderId,
+      cfPaymentId: s.cfPaymentId,
+      amount: o ? num(o.total_price) : s.orderAmount,
+      paymentTime: (o ? str(o.created_at) : s.paymentTime) || s.transferTime || "",
+      settled: true,
+      settlementAmount: s.settlementAmount,
+      serviceCharge: s.serviceCharge,
+      serviceTax: s.serviceTax,
+      transferUtr: s.transferUtr,
+      transferTime: s.transferTime,
+    });
+  }
+
+  // Newest first — settlement-only rows were appended out of order above.
+  rows.sort((a, b) => (b.paymentTime || "").localeCompare(a.paymentTime || ""));
 
   return { success: true, configured: true, rows, settlementsTruncated, settlementsUnavailable };
 }

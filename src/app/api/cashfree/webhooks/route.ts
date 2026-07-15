@@ -22,6 +22,36 @@ const updateOrderPaymentStatus = `
   }
 `;
 
+// FAILED / USER_DROPPED updates must never downgrade an order that has already
+// been finalized as paid. Cashfree can deliver a DROPPED/FAILED event for an
+// earlier abandoned attempt AFTER the customer's successful payment finalized
+// the order — without this guard that late event overwrote payment_status to
+// "dropped" (leaving is_paid=true), which then hid the real payment from the
+// settlements ledger. Guarding on cf_finalized_at (set only by finalizeCfOrder)
+// keeps a genuinely-paid order paid.
+const updateOrderPaymentStatusIfUnfinalized = `
+  mutation UpdateOrderPaymentStatusIfUnfinalized($cashfree_order_id: String!, $payment_status: String!, $payment_details: jsonb, $cashfree_payment_id: String) {
+    update_orders(
+      where: {
+        cashfree_order_id: { _eq: $cashfree_order_id },
+        cf_finalized_at: { _is_null: true },
+        payment_status: { _neq: "paid" }
+      },
+      _set: { payment_status: $payment_status, payment_details: $payment_details, cashfree_payment_id: $cashfree_payment_id }
+    ) {
+      affected_rows
+      returning {
+        id
+        short_id
+        partner_id
+        total_price
+        status
+        payment_status
+      }
+    }
+  }
+`;
+
 const lookupOrderByCashfreeId = `
   query LookupOrderByCashfreeId($cashfree_order_id: String!) {
     orders(where: { cashfree_order_id: { _eq: $cashfree_order_id } }, limit: 1) {
@@ -172,7 +202,11 @@ export async function POST(req: NextRequest) {
       paymentDetails: Record<string, unknown>,
       cashfreePaymentIdStr: string | null,
     ) => {
-      const result = await fetchFromHasura(updateOrderPaymentStatus, {
+      // A downgrade (failed/dropped) must not clobber an already-paid/finalized
+      // order — a late abandoned-attempt event otherwise hides a real payment.
+      const mutation =
+        newStatus === "paid" ? updateOrderPaymentStatus : updateOrderPaymentStatusIfUnfinalized;
+      const result = await fetchFromHasura(mutation, {
         cashfree_order_id: cfOrderId,
         payment_status: newStatus,
         payment_details: paymentDetails,
@@ -181,9 +215,15 @@ export async function POST(req: NextRequest) {
       const affected = result?.update_orders?.affected_rows ?? 0;
       const updated = result?.update_orders?.returning?.[0];
       if (affected === 0) {
-        console.warn(
-          `[Cashfree Webhook] ${newStatus.toUpperCase()} update affected 0 rows (cf_order_id=${cfOrderId}). Order may not exist yet — Cashfree should retry.`,
-        );
+        if (newStatus !== "paid") {
+          console.log(
+            `[Cashfree Webhook] ${newStatus.toUpperCase()} ignored (cf_order_id=${cfOrderId}) — order already finalized/paid, not downgrading.`,
+          );
+        } else {
+          console.warn(
+            `[Cashfree Webhook] ${newStatus.toUpperCase()} update affected 0 rows (cf_order_id=${cfOrderId}). Order may not exist yet — Cashfree should retry.`,
+          );
+        }
       } else {
         console.log(
           `[Cashfree Webhook] ${newStatus.toUpperCase()} -> order id=${updated?.id} short_id=${updated?.short_id} partner_id=${updated?.partner_id} total=${updated?.total_price} (affected_rows=${affected})`,
