@@ -114,6 +114,7 @@ function toGraph(nodes: Node[], edges: Edge[]): FlowGraph {
         data.template = nd.template ?? "";
         data.language = nd.language ?? "en";
         data.params = nd.params ?? [];
+        data.headerImage = nd.headerImage ?? "";
       }
       if (kind === "wait") data.seconds = Number(nd.seconds) || 0;
       if (kind === "condition") data.check = nd.check ?? "not_replied";
@@ -323,7 +324,9 @@ function Inspector({
               template={String(d.template ?? "")}
               language={String(d.language ?? "en")}
               params={(d.params as string[]) ?? []}
+              headerImage={String(d.headerImage ?? "")}
               onChange={({ template, language }) => patch({ template, language })}
+              onHeaderImageChange={(url) => patch({ headerImage: url })}
             />
           </div>
           <div className="grid gap-1.5">

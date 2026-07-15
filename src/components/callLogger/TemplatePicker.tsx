@@ -121,7 +121,15 @@ export function useTemplates(partnerId: string) {
 }
 
 /** WhatsApp-style rendering of a template's header/body/footer/buttons. */
-export function TemplatePreview({ template, params = [] }: { template: TemplateRow; params?: string[] }) {
+export function TemplatePreview({
+  template,
+  params = [],
+  headerImage,
+}: {
+  template: TemplateRow;
+  params?: string[];
+  headerImage?: string;
+}) {
   const list = comps(template);
   const header = list.find((c) => c.type === "HEADER");
   const body = list.find((c) => c.type === "BODY");
@@ -133,6 +141,9 @@ export function TemplatePreview({ template, params = [] }: { template: TemplateR
       <div className="max-w-[240px] space-y-1.5 rounded-lg bg-white px-3 py-2 text-sm text-gray-800 shadow-sm">
         {header?.format === "TEXT" && header.text ? (
           <div className="font-semibold">{header.text}</div>
+        ) : header?.format === "IMAGE" && headerImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={headerImage} alt="" className="h-24 w-full rounded object-cover" />
         ) : header?.format && header.format !== "TEXT" ? (
           <div className="flex h-20 items-center justify-center rounded bg-gray-100 text-[10px] font-medium uppercase tracking-wide text-gray-400">
             {header.format}
@@ -175,13 +186,19 @@ export default function TemplatePicker({
   template,
   language,
   params = [],
+  headerImage,
   onChange,
+  onHeaderImageChange,
 }: {
   partnerId: string;
   template: string;
   language: string;
   params?: string[];
+  headerImage?: string;
   onChange: (next: { template: string; language: string }) => void;
+  // When provided, a header-media URL input is shown for templates whose header
+  // is an image/video/document (Meta requires the media at send time).
+  onHeaderImageChange?: (url: string) => void;
 }) {
   const { templates, loading, error } = useTemplates(partnerId);
   const [manual, setManual] = useState(false);
@@ -208,6 +225,10 @@ export default function TemplatePicker({
 
   const useManual = manual || (!loading && templates.length === 0) || !!error;
   const varsNeeded = selected ? variableCount(bodyOf(selected)) : 0;
+  const headerFormat = selected
+    ? comps(selected).find((c) => c.type === "HEADER")?.format
+    : undefined;
+  const needsHeaderMedia = !!headerFormat && headerFormat !== "TEXT";
 
   return (
     <div className="space-y-2">
@@ -253,7 +274,21 @@ export default function TemplatePicker({
         )}
       </div>
 
-      {selected && <TemplatePreview template={selected} params={params} />}
+      {needsHeaderMedia && onHeaderImageChange && (
+        <div className="grid gap-1.5">
+          <Input
+            value={headerImage ?? ""}
+            onChange={(e) => onHeaderImageChange(e.target.value)}
+            placeholder={`${headerFormat} header URL (https://…)`}
+          />
+          <p className="text-xs text-muted-foreground">
+            This template has {headerFormat === "IMAGE" ? "an" : "a"} {String(headerFormat).toLowerCase()} header
+            — paste the media URL to send with it.
+          </p>
+        </div>
+      )}
+
+      {selected && <TemplatePreview template={selected} params={params} headerImage={headerImage} />}
 
       {selected && varsNeeded > 0 && (
         <p className="text-xs text-muted-foreground">
