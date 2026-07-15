@@ -645,7 +645,7 @@ interface PartnerDispatchCfg {
    *  the bridge never falls back to trying every provider. */
   priority: string[];
   /** Booking method: "bike" (normal 2-wheeler ride) or "parcel" (courier class). */
-  vehicleMode: "bike" | "parcel";
+  vehicleMode: "bike" | "parcel" | "scooty";
   /** Per-provider payment mode override (e.g. Porter:wallet). Sent to the bridge
    *  as `paymentModes`; unset providers default to cash. */
   paymentModes: Partial<Record<"porter" | "uber" | "rapido", "cash" | "wallet">>;
@@ -728,8 +728,9 @@ async function loadPartnerDispatchCfg(
   };
   const mobiles: Partial<Record<Provider, string>> = {};
   for (const prov of priority) mobiles[prov] = perProviderMobile[prov];
-  const vehicleMode: "bike" | "parcel" =
-    p.delivery_rules?.delivery_vehicle_mode === "parcel" ? "parcel" : "bike";
+  const rawMode = p.delivery_rules?.delivery_vehicle_mode;
+  const vehicleMode: "bike" | "parcel" | "scooty" =
+    rawMode === "parcel" ? "parcel" : rawMode === "scooty" ? "scooty" : "bike";
   // Per-provider payment modes — keep only valid "cash"/"wallet" values.
   const pm = p.delivery_rules?.delivery_payment_modes ?? null;
   const paymentModes: Partial<Record<"porter" | "uber" | "rapido", "cash" | "wallet">> = {};
