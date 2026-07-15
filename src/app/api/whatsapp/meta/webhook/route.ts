@@ -331,6 +331,25 @@ const UPDATE_INBOX_STATUS = `
   }
 `;
 
+// Android Call Logger send logs — flow follow-ups (wa_sends) and scheduled bulk
+// messages (scheduled_message_targets). Both carry the Meta message id in
+// `wa_message_id`; the Cloudflare worker only ever writes `sent`, so these rows
+// need the same delivered/read/failed advance to reflect real delivery.
+const UPDATE_WA_SENDS = `
+  mutation UpdWaSends($where: wa_sends_bool_exp!, $set: wa_sends_set_input!) {
+    update_wa_sends(where: $where, _set: $set) { affected_rows }
+  }
+`;
+
+const UPDATE_SCHED_TARGETS = `
+  mutation UpdSchedTargets(
+    $where: scheduled_message_targets_bool_exp!
+    $set: scheduled_message_targets_set_input!
+  ) {
+    update_scheduled_message_targets(where: $where, _set: $set) { affected_rows }
+  }
+`;
+
 // Statuses that a given delivery state is allowed to advance FROM (forward-only).
 const ADVANCE_FROM: Record<string, string[]> = {
   delivered: ["pending", "queued", "sent"],
@@ -574,6 +593,42 @@ async function applyInboxStatus(st: any): Promise<void> {
   }
 }
 
+// Android Call Logger sends (flow follow-ups + scheduled bulk messages). These
+// live in their own tables, matched by wa_message_id. The worker records only
+// `sent` (Meta accepted the API call); advance them the same forward-only way so
+// the call-logger log shows real delivery — and, on `failed`, the actual reason
+// (e.g. a marketing-frequency drop) instead of a misleading "sent".
+async function applyCallLoggerStatus(st: any): Promise<void> {
+  const mid = st.id;
+  if (!mid) return;
+  const status = String(st.status || "").toLowerCase();
+  const allowedFrom = ADVANCE_FROM[status];
+  if (!allowedFrom) return; // only delivered / read / failed advance a row
+
+  const err = Array.isArray(st.errors) ? st.errors[0] : null;
+  const set: Record<string, unknown> =
+    status === "failed"
+      ? {
+          status: "failed",
+          error: `${err?.code != null ? `(#${err.code}) ` : ""}${
+            err?.error_data?.details || err?.title || err?.message || "delivery failed"
+          }`.slice(0, 500),
+        }
+      : { status };
+  const where = { wa_message_id: { _eq: mid }, status: { _in: allowedFrom } };
+
+  // A given message id lives in only one of these tables; running both is cheap
+  // and keeps flow + scheduled logs truthful. Never let one 500 the webhook.
+  await Promise.all([
+    fetchFromHasura(UPDATE_WA_SENDS, { where, set }).catch((e) =>
+      console.error("status: wa_sends advance failed", e),
+    ),
+    fetchFromHasura(UPDATE_SCHED_TARGETS, { where, set }).catch((e) =>
+      console.error("status: scheduled_message_targets advance failed", e),
+    ),
+  ]);
+}
+
 async function processStatuses(value: any): Promise<void> {
   const statuses: any[] = value?.statuses || [];
   if (!statuses.length) return;
@@ -600,11 +655,12 @@ async function processStatuses(value: any): Promise<void> {
         (a, b) => Number(a?.timestamp || 0) - Number(b?.timestamp || 0),
       );
       for (const st of group) {
-        // The three targets hit different tables — safe to run together.
+        // These targets hit different tables — safe to run together.
         const [bres] = await Promise.all([
           applyBroadcastStatus(st),
           applyLedgerStatus(st),
           applyInboxStatus(st),
+          applyCallLoggerStatus(st),
         ]);
         if (bres) affected.set(bres.broadcastId, bres.partnerId);
       }

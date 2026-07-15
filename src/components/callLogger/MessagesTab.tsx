@@ -15,7 +15,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type Status = "all" | "sent" | "failed" | "pending";
+type Status = "all" | "sent" | "delivered" | "read" | "failed" | "pending";
+
+// "sent" = Meta accepted the API call (not yet confirmed on the phone);
+// delivered/read come from Meta's status webhook; failed carries the reason.
+function statusVariant(s: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (s) {
+    case "read":
+    case "delivered":
+      return "default";
+    case "failed":
+      return "destructive";
+    case "sent":
+      return "outline";
+    default:
+      return "secondary";
+  }
+}
 
 export default function MessagesTab({ partnerId }: { partnerId: string }) {
   const [status, setStatus] = useState<Status>("all");
@@ -34,7 +50,7 @@ export default function MessagesTab({ partnerId }: { partnerId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        {(["all", "sent", "failed", "pending"] as Status[]).map((s) => (
+        {(["all", "sent", "delivered", "read", "failed", "pending"] as Status[]).map((s) => (
           <Button
             key={s}
             size="sm"
@@ -80,13 +96,7 @@ export default function MessagesTab({ partnerId }: { partnerId: string }) {
                     <Badge variant="outline">{m.source}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={
-                        m.status === "sent" ? "default" : m.status === "failed" ? "destructive" : "secondary"
-                      }
-                    >
-                      {m.status}
-                    </Badge>
+                    <Badge variant={statusVariant(m.status)}>{m.status}</Badge>
                     {m.error && <span className="ml-2 text-xs text-muted-foreground">{m.error}</span>}
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground">
