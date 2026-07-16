@@ -8,14 +8,44 @@
 export type LatLng = { lat: number; lng: number };
 
 /**
- * Driving distance in km from `from` to `to` via Mapbox Directions, or null if
- * Mapbox is unreachable / no token / no route (caller falls back to straight-line).
+ * Driving distance in km from `from` to `to` via Google Maps Distance Matrix
+ * API (preferred — matches what users see in Google Maps) or Mapbox Directions
+ * (fallback when the Google Maps JS SDK isn't loaded yet).
+ * Returns null when neither service is reachable (caller falls back to haversine).
  * For delivery, call as roadDistanceKm(address, store).
  */
 export async function roadDistanceKm(
   from: LatLng,
   to: LatLng,
 ): Promise<number | null> {
+  // Prefer Google Maps Distance Matrix API — its road distance matches what
+  // users see in Google Maps, avoiding the Mapbox-vs-Google discrepancy.
+  if (
+    typeof google !== "undefined" &&
+    google.maps?.DistanceMatrixService
+  ) {
+    try {
+      const service = new google.maps.DistanceMatrixService();
+      const resp = await service.getDistanceMatrix({
+        origins: [{ lat: from.lat, lng: from.lng }],
+        destinations: [{ lat: to.lat, lng: to.lng }],
+        travelMode: google.maps.TravelMode.DRIVING,
+      });
+      const el = resp.rows?.[0]?.elements?.[0];
+      if (
+        el?.status ===
+          google.maps.DistanceMatrixElementStatus.OK &&
+        el.distance?.value != null
+      ) {
+        return el.distance.value / 1000; // metres → km
+      }
+      return null;
+    } catch {
+      // Fall through to Mapbox
+    }
+  }
+
+  // Fallback: Mapbox Directions API (e.g. server-side or SDK not yet loaded)
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   if (!token) return null;
   try {
