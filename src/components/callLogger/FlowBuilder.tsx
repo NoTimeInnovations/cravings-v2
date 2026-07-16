@@ -333,8 +333,8 @@ export default function FlowBuilder({
         {runMsg && <span className="text-sm text-muted-foreground">{runMsg}</span>}
       </div>
 
-      <div className="flex gap-4">
-        <Card className="h-[520px] flex-1 overflow-hidden p-0">
+      <div className="flex flex-col gap-4 md:flex-row">
+        <Card className="h-[55vh] min-h-[340px] flex-1 overflow-hidden p-0 md:h-[520px]">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -350,7 +350,7 @@ export default function FlowBuilder({
           </ReactFlow>
         </Card>
 
-        <Card className="w-72 p-4">
+        <Card className="w-full p-4 md:w-72">
           {!selected && (
             <p className="text-sm text-muted-foreground">
               Select a node to edit it. Drag from a node&apos;s bottom dot to connect steps.
