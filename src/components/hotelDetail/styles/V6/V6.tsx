@@ -10,6 +10,7 @@ import { applyVisibilityState, getItemDisplayState } from "@/lib/visibility";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import V6ItemCard from "./V6ItemCard";
 import V6CategoryTile from "./V6CategoryTile";
+import V6BannerCarousel from "./V6BannerCarousel";
 import { V6_FONT } from "./v6utils";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
@@ -120,6 +121,8 @@ const V6 = ({
   const openCart = useCallback(() => {
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("open-cart-drawer"));
   }, []);
+  // Promo banners uploaded in the dashboard Branding section.
+  const carouselBanners = ((hoteldata as any)?.delivery_rules?.carousel_banners as string[] | undefined) || [];
 
   const showBottomNav =
     !open_place_order_modal &&
@@ -371,6 +374,13 @@ const V6 = ({
                   {(hoteldata as any).delivery_rules.announcement}
                 </p>
               </div>
+            )}
+
+            {/* Promo banners (Branding section) — shown above Categories */}
+            {carouselBanners.length > 0 && (
+              <section className="px-4 pb-1 pt-1">
+                <V6BannerCarousel banners={carouselBanners} accent={accent} />
+              </section>
             )}
 
             {/* Categories rail */}
