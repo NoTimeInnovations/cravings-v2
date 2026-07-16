@@ -15,6 +15,7 @@ import { useAuthStore, Partner } from "@/store/authStore";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import Link from "next/link";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -483,8 +484,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                         {item.quantity} × {item.name}
                       </span>
                       <span className="font-medium text-gray-900">
-                        <span translate="no" className="notranslate">{order.partner?.currency || "₹"}</span>
-                        {(item.price * item.quantity).toFixed(2)}
+                        <MenuPrice currency={order.partner?.currency || "₹"} amount={(item.price * item.quantity).toFixed(2)} />
                       </span>
                     </div>
                   ))}
@@ -501,8 +501,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                       >
                         <span>{charge.name}</span>
                         <span>
-                          <span translate="no" className="notranslate">{currency}</span>
-                          {chargeAmount.toFixed(2)}
+                          <MenuPrice currency={currency} amount={chargeAmount.toFixed(2)} />
                         </span>
                       </div>
                     ) : null;
@@ -513,8 +512,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                         {isUAE ? "VAT" : "GST"} ({gstPercentage}%)
                       </span>
                       <span>
-                        <span translate="no" className="notranslate">{currency}</span>
-                        {gstAmount.toFixed(2)}
+                        <MenuPrice currency={currency} amount={gstAmount.toFixed(2)} />
                       </span>
                     </div>
                   )}
@@ -527,8 +525,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                           : ""}
                       </span>
                       <span className="font-medium">
-                        -<span translate="no" className="notranslate">{currency}</span>
-                        {discountSavings.toFixed(2)}
+                        -<MenuPrice currency={currency} amount={discountSavings.toFixed(2)} />
                       </span>
                     </div>
                   )}
@@ -537,8 +534,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                 <div className="border-t border-gray-200 pt-3 flex justify-between items-center font-bold text-gray-900">
                   <span>Total</span>
                   <span>
-                    <span translate="no" className="notranslate">{order.partner?.currency || "₹"}</span>
-                    {grandTotal.toFixed(2)}
+                    <MenuPrice currency={order.partner?.currency || "₹"} amount={grandTotal.toFixed(2)} />
                   </span>
                 </div>
               </Link>

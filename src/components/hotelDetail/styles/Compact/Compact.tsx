@@ -9,6 +9,7 @@ import { Utensils, ShoppingBag, User, Heart, ChevronDown, Home, Tag } from "luci
 import { DefaultHotelPageProps } from "../Default/Default";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import ItemCard from "./ItemCard";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import {
   MapPin,
   Palette,
@@ -419,11 +420,11 @@ const CompactOffersTab = ({
                     )}
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-sm font-bold" style={{ color: styles?.accent }}>
-                        <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{offerPrice}
+                        <MenuPrice currency={hoteldata?.currency || "₹"} amount={offerPrice} />
                       </span>
                       {originalPrice > 0 && originalPrice !== offerPrice && (
                         <span className="text-[10px] line-through opacity-40">
-                          <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{originalPrice}
+                          <MenuPrice currency={hoteldata?.currency || "₹"} amount={originalPrice} />
                         </span>
                       )}
                     </div>

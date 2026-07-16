@@ -27,6 +27,7 @@ import CompactOrders from "../Compact/CompactOrders";
 import { getFeatures } from "@/lib/getFeatures";
 import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 import DiscountBanner from "../../DiscountBanner";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 
 export interface SidebarHotelPageProps {
   styles: Styles;
@@ -747,11 +748,11 @@ const Sidebar = ({
                             <div className="flex items-center gap-1.5 mt-0.5">
                               {originalPrice > 0 && offer.offer_price != null && originalPrice !== offer.offer_price && (
                                 <span className="text-[11px] line-through opacity-40">
-                                  <span translate="no" className="notranslate">{hoteldata?.currency}</span>{originalPrice}
+                                  <MenuPrice currency={hoteldata?.currency} amount={originalPrice} />
                                 </span>
                               )}
                               <span className="text-[12px] font-bold" style={{ color: styles.accent }}>
-                                <span translate="no" className="notranslate">{hoteldata?.currency}</span>{offer.offer_price ?? originalPrice}
+                                <MenuPrice currency={hoteldata?.currency} amount={offer.offer_price ?? originalPrice} />
                               </span>
                             </div>
 

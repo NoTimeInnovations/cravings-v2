@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
 import { MENU_LANGUAGES } from "@/lib/menuLanguages";
+import { useMenuLanguageStore } from "@/store/menuLanguageStore";
 
 declare global {
     interface Window {
@@ -53,6 +54,8 @@ export function LanguageSwitcher({
         if (!enabled || initedRef.current || typeof window === "undefined") return;
         initedRef.current = true;
         setCurrent(currentLangFromCookie());
+        // Let menu prices know the active language (Latin vs native symbol).
+        useMenuLanguageStore.getState().syncFromCookie();
 
         // Google Translate rewrites text nodes into <font> wrappers; React can then
         // throw on removeChild/insertBefore when it re-renders those nodes. Guard the
@@ -114,6 +117,9 @@ export function LanguageSwitcher({
     const setLang = (code: string) => {
         setOpen(false);
         setCurrent(code);
+        // Update menu prices immediately (Google translates in place without a
+        // reload for non-English, so prices must re-render off this store).
+        useMenuLanguageStore.getState().setLang(code);
         // Mark the URL so the storefront splash won't reappear if the switch (or a
         // later reload) re-mounts the page.
         try {

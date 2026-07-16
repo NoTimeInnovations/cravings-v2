@@ -1,6 +1,7 @@
 "use client";
 
 import { Coins, Check } from "lucide-react";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 
 interface LoyaltyRedeemCardProps {
   currency: string;
@@ -63,8 +64,7 @@ export function LoyaltyRedeemCard({
             <div className="font-semibold text-inherit text-[15px] leading-tight">Loyalty Points</div>
             <div className="text-xs" style={{ color: "var(--pom-text-muted)" }}>
               You have <span className="font-semibold">{balance.toLocaleString()}</span> pts
-              {" "}(<span translate="no" className="notranslate">{currency}</span>
-              {Math.round(balance * pointValue)})
+              {" "}(<MenuPrice currency={currency} amount={Math.round(balance * pointValue)} />)
             </div>
             {onViewHistory && (
               <button
@@ -123,8 +123,7 @@ export function LoyaltyRedeemCard({
               Using {points.toLocaleString()} pts
             </div>
             <div className="text-sm font-bold" style={{ color: "var(--pom-accent, #ea580c)" }}>
-              − <span translate="no" className="notranslate">{currency}</span>
-              {value.toFixed(2)}
+              − <MenuPrice currency={currency} amount={value.toFixed(2)} />
             </div>
           </div>
         </div>

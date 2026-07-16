@@ -13,6 +13,7 @@ import { X } from "lucide-react";
 // import Img from "@/components/Img";
 
 import { formatPrice } from "@/lib/constants";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 
 const ItemDetailsModal = ({
   open,
@@ -64,7 +65,7 @@ const ItemDetailsModal = ({
                     }}
                     className={`font-black text-2xl`}
                   >
-                    <span translate="no" className="notranslate">{currency}</span> {formatPrice(item.price, hotelData?.id)}
+                    <MenuPrice currency={currency} amount={formatPrice(item.price, hotelData?.id)} />
                   </div>
                 )}
               </div>
@@ -100,7 +101,7 @@ const ItemDetailsModal = ({
                       }}
                       className="text-xl font-black"
                     >
-                      <span translate="no" className="notranslate">{currency}</span> {formatPrice(variant.price, hotelData?.id)}
+                      <MenuPrice currency={currency} amount={formatPrice(variant.price, hotelData?.id)} />
                     </div>
                   </div>
                 </div>

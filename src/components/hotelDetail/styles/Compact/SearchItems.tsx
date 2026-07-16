@@ -5,6 +5,7 @@ import {
 import { Search, X } from "lucide-react";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import ItemCard from "./ItemCard";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import { DefaultHotelPageProps } from "../Default/Default";
 import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
@@ -85,7 +86,7 @@ const SearchResultItem = ({
         )}
         <p className="text-sm font-bold mt-1" style={{ color: styles?.accent }}>
           {hasVariants && <span className="text-xs font-normal">From </span>}
-          <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span> {price}
+          <MenuPrice currency={hoteldata?.currency || "₹"} amount={price} />
         </p>
       </div>
       <div className="flex flex-col items-center flex-shrink-0">

@@ -16,6 +16,7 @@ import { createCashfreeOrderForPartner, markOrderAsPaid, setOrderCashfreeId } fr
 import { verifyCashfreePaymentSettled } from "@/lib/cashfreeVerify";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 
 interface V3OrdersProps {
   hotelId: string;
@@ -256,7 +257,7 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
                               {item.quantity} × {item.name}
                             </span>
                             <span className="text-xs font-bold text-gray-900">
-                              <span translate="no" className="notranslate">{currency}</span>{(item.price * item.quantity).toFixed(0)}
+                              <MenuPrice currency={currency} amount={(item.price * item.quantity).toFixed(0)} />
                             </span>
                           </div>
                         ))}
@@ -265,7 +266,7 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
                             <span className="text-xs text-emerald-600">
                               Discount {(discounts[0] as any)?.code ? `(${(discounts[0] as any).code})` : ""}
                             </span>
-                            <span className="text-xs font-bold text-emerald-600">-<span translate="no" className="notranslate">{currency}</span>{discountSavings.toFixed(0)}</span>
+                            <span className="text-xs font-bold text-emerald-600">-<MenuPrice currency={currency} amount={discountSavings.toFixed(0)} /></span>
                           </div>
                         )}
                       </div>
@@ -273,7 +274,7 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
                       {/* Total */}
                       <div className="border-t border-gray-100 mt-2.5 pt-2.5 flex justify-between items-center">
                         <span className="text-sm font-bold text-gray-900">Total</span>
-                        <span className="text-sm font-extrabold text-gray-900"><span translate="no" className="notranslate">{currency}</span>{grandTotal.toFixed(0)}</span>
+                        <span className="text-sm font-extrabold text-gray-900"><MenuPrice currency={currency} amount={grandTotal.toFixed(0)} /></span>
                       </div>
                     </Link>
 

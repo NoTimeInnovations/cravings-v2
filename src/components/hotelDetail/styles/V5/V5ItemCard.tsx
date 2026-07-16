@@ -15,6 +15,7 @@ import { getItemDisplayState } from "@/lib/visibility";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { X, Plus, Minus } from "lucide-react";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 
 // V5 ("Zomato") list row — a large food image on the right with the ADD button
 // floating over its bottom edge, and the textual content (veg mark, name,
@@ -130,7 +131,7 @@ const BottomSheetAddButton = ({
       style={{ backgroundColor: accent, color: onAccent }}
     >
       <span>Add to cart</span>
-      <span><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(total, hoteldata?.id)}</span>
+      <span><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(total, hoteldata?.id)} /></span>
     </button>
   );
 };
@@ -292,7 +293,7 @@ function V5RecCard({
       {shouldShowPrice && hasPrice && priceToShow > 0 && (
         <p className="mt-0.5 text-[13px] font-bold text-gray-900">
           {hasVariants && <span className="text-[11px] font-normal text-gray-500">From </span>}
-          <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(priceToShow, hoteldata?.id)}
+          <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(priceToShow, hoteldata?.id)} />
         </p>
       )}
     </div>
@@ -668,11 +669,11 @@ const V5ItemCard = ({
                   <>
                     <div className="flex items-center gap-2">
                       <span className="text-[15px] font-bold text-gray-900">
-                        <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(mainOfferPrice, hoteldata?.id)}
+                        <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(mainOfferPrice, hoteldata?.id)} />
                       </span>
                       {!hasMultipleVariantsOnOffer && hasValidMainOriginalPrice && mainOriginalPrice! > mainOfferPrice! && (
                         <span className="text-[13px] font-normal text-gray-400 line-through">
-                          <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(mainOriginalPrice, hoteldata?.id)}
+                          <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(mainOriginalPrice, hoteldata?.id)} />
                         </span>
                       )}
                     </div>
@@ -687,7 +688,7 @@ const V5ItemCard = ({
                     {baseItemPrice > 0 ? (
                       <>
                         {hasVariants && <span className="text-[12px] font-normal text-gray-500">From </span>}
-                        <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(baseItemPrice, hoteldata?.id)}
+                        <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(baseItemPrice, hoteldata?.id)} />
                       </>
                     ) : ""}
                   </span>
@@ -809,13 +810,13 @@ const V5ItemCard = ({
               <div className="mt-1 flex items-center gap-2">
                 {hasValidMainOffer && !isUpcomingOffer ? (
                   <>
-                    <span className="text-base font-extrabold text-gray-900"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(offerData!.offer_price!, hoteldata?.id)}</span>
+                    <span className="text-base font-extrabold text-gray-900"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(offerData!.offer_price!, hoteldata?.id)} /></span>
                     {hasValidMainOriginalPrice && mainOriginalPrice! > offerData!.offer_price! && (
-                      <span className="text-sm text-gray-400 line-through"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(mainOriginalPrice, hoteldata?.id)}</span>
+                      <span className="text-sm text-gray-400 line-through"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(mainOriginalPrice, hoteldata?.id)} /></span>
                     )}
                   </>
                 ) : hasValidBasePrice && baseItemPrice > 0 ? (
-                  <span className="text-base font-extrabold text-gray-900"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(baseItemPrice, hoteldata?.id)}</span>
+                  <span className="text-base font-extrabold text-gray-900"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(baseItemPrice, hoteldata?.id)} /></span>
                 ) : null}
               </div>
             )}
@@ -833,7 +834,7 @@ const V5ItemCard = ({
                     style={{ backgroundColor: accent, color: onAccent }}
                   >
                     <span>Add to cart</span>
-                    <span><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice, hoteldata?.id || "")}</span>
+                    <span><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice, hoteldata?.id || "")} /></span>
                   </button>
                 ) : (
                   <div className="flex items-center justify-between gap-3">
@@ -860,7 +861,7 @@ const V5ItemCard = ({
                     <div className="text-right">
                       <p className="text-[10px] text-gray-400">Total</p>
                       <p className="text-base font-extrabold text-gray-900">
-                        <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice((hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice) * itemQuantity, hoteldata?.id || "")}
+                        <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice((hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice) * itemQuantity, hoteldata?.id || "")} />
                       </p>
                     </div>
                   </div>
@@ -958,13 +959,13 @@ const V5ItemCard = ({
                         <div className="text-sm font-semibold flex-shrink-0">
                           {hasValidVariantOffer ? (
                             <div className="flex items-center gap-1.5">
-                              <span className="text-gray-900"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(variantOffer.offer_price!, hoteldata?.id)}</span>
+                              <span className="text-gray-900"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(variantOffer.offer_price!, hoteldata?.id)} /></span>
                               {hasValidOriginalPrice && originalVariantPrice > variantOffer.offer_price! && (
-                                <span className="line-through text-gray-400 text-xs font-normal"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(originalVariantPrice, hoteldata?.id)}</span>
+                                <span className="line-through text-gray-400 text-xs font-normal"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(originalVariantPrice, hoteldata?.id)} /></span>
                               )}
                             </div>
                           ) : hasValidOriginalPrice && originalVariantPrice > 0 ? (
-                            <span className="text-gray-700"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(originalVariantPrice, hoteldata?.id)}</span>
+                            <span className="text-gray-700"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(originalVariantPrice, hoteldata?.id)} /></span>
                           ) : null}
                         </div>
                       )}

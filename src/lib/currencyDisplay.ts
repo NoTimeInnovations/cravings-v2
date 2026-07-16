@@ -212,3 +212,65 @@ export function shortCurrencySymbol(stored?: string | null): string {
   if (iso && CURRENCY_NATIVE_SYMBOL[iso]) return CURRENCY_NATIVE_SYMBOL[iso];
   return stored;
 }
+
+// ISO code → the Latin / international short symbol via Intl "narrowSymbol"
+// (USD → "$", INR → "₹", THB → "฿"; currencies with no narrow glyph fall back to
+// the code itself, e.g. QAR → "QAR", SAR → "SAR"). Computed lazily + memoised.
+const narrowSymbolCache: Record<string, string> = {};
+function narrowSymbolForIso(iso: string): string {
+  if (iso in narrowSymbolCache) return narrowSymbolCache[iso];
+  let sym = iso;
+  try {
+    const parts = new Intl.NumberFormat("en", {
+      style: "currency",
+      currency: iso,
+      currencyDisplay: "narrowSymbol",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).formatToParts(0);
+    sym = parts.find((p) => p.type === "currency")?.value || iso;
+  } catch {
+    /* keep the code */
+  }
+  narrowSymbolCache[iso] = sym;
+  return sym;
+}
+
+/**
+ * The Latin / international symbol for a stored currency value (QAR → "QAR",
+ * USD → "$", INR → "₹"). Used for every language EXCEPT the currency's native
+ * script. Preserves the hide-price sentinel and unknown values.
+ */
+export function latinCurrencySymbol(stored?: string | null): string {
+  if (stored == null) return "";
+  const s = stored.trim();
+  if (!s || s === HIDE_PRICE) return stored;
+  const iso = currencyIsoFromSymbol(s);
+  if (iso) return narrowSymbolForIso(iso);
+  return stored;
+}
+
+// Languages that should render the currency's NATIVE (Arabic-script) symbol.
+// Every other language uses the Latin/international form. The menu language
+// switcher currently only offers Arabic among RTL/native-symbol scripts.
+function usesNativeCurrencySymbol(lang?: string | null): boolean {
+  return (lang || "").toLowerCase().startsWith("ar");
+}
+
+/**
+ * Currency symbol to display for a given menu language:
+ *  - Arabic  → the native short symbol (QAR → "ر.ق")
+ *  - others  → the Latin/international symbol (QAR → "QAR", USD → "$")
+ * Preserves the hide-price sentinel and empty values.
+ */
+export function currencySymbolForLang(
+  stored?: string | null,
+  lang?: string | null,
+): string {
+  if (stored == null) return "";
+  const s = stored.trim();
+  if (!s || s === HIDE_PRICE) return stored;
+  return usesNativeCurrencySymbol(lang)
+    ? shortCurrencySymbol(s)
+    : latinCurrencySymbol(s);
+}

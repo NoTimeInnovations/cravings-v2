@@ -6,6 +6,7 @@ import React, { useEffect, useState, useRef } from "react";
 // import Img from "../../../Img";
 
 import ItemDetailsModal from "./ItemDetailsModal";
+import { MenuPrice } from "../../MenuPrice";
 import DescriptionWithTextBreak from "../../../DescriptionWithTextBreak";
 import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
@@ -316,27 +317,29 @@ const ItemCard = ({
                             <span className="text-sm font-bold">From </span>
                           ) : (
                             <span className="line-through text-gray-400 mr-2 text-sm font-medium">
-                              <span translate="no" className="notranslate">{currency}</span> {parseInt(String(oldPrice ?? item.price))}
+                              <MenuPrice currency={currency} amount={parseInt(String(oldPrice ?? item.price))} />
                             </span>
                           )}
                           <span className="text-accent font-bold text-2xl" style={{ color: styles.accent }}>
-                            <span translate="no" className="notranslate">{currency}</span> {parseInt(String(offerPrice))}
+                            <MenuPrice currency={currency} amount={parseInt(String(offerPrice))} />
                           </span>
                         </span>
                       ) : hasVariants ? (
                         <span className="">
                           <span className="text-sm font-bold">From </span>
                           <span>
-                            <span translate="no" className="notranslate">{currency}</span>{" "}
-                            {formatPrice(
-                              item.variants?.sort((a, b) => a?.price - b?.price)[0]?.price || item.price,
-                              hotelData?.id
-                            )}
+                            <MenuPrice
+                              currency={currency}
+                              amount={formatPrice(
+                                item.variants?.sort((a, b) => a?.price - b?.price)[0]?.price || item.price,
+                                hotelData?.id
+                              )}
+                            />
                           </span>
                         </span>
                       ) : (
                         <span>
-                          <span translate="no" className="notranslate">{currency}</span> {formatPrice(item.price, hotelData?.id)}
+                          <MenuPrice currency={currency} amount={formatPrice(item.price, hotelData?.id)} />
                         </span>
                       )}
                     </>
@@ -469,16 +472,14 @@ const ItemCard = ({
                               {hasVariantOffer ? (
                                 <div className="flex flex-col items-end">
                                   <span className="line-through text-gray-400 text-sm font-normal">
-                                    <span translate="no" className="notranslate">{currency}</span> {variantOriginalPrice}
+                                    <MenuPrice currency={currency} amount={variantOriginalPrice} />
                                   </span>
                                   <span className="text-accent font-bold" style={{ color: styles.accent }}>
-                                    <span translate="no" className="notranslate">{currency}</span> {variantOfferPrice}
+                                    <MenuPrice currency={currency} amount={variantOfferPrice} />
                                   </span>
                                 </div>
                               ) : (
-                                <>
-                                  <span translate="no" className="notranslate">{currency}</span> {formatPrice(variant.price, hotelData?.id)}
-                                </>
+                                <MenuPrice currency={currency} amount={formatPrice(variant.price, hotelData?.id)} />
                               )}
                             </>
                           )}

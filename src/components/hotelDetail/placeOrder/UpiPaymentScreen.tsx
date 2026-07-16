@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { ArrowLeft, MessageCircle, Copy, Check } from "lucide-react";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 
 interface UPIApp {
   name: string;
@@ -102,7 +103,7 @@ export const UpiPaymentScreen = ({
         <div className="text-center">
           <p className="text-xs text-gray-500">Total Amount</p>
           <p className="text-3xl font-bold text-gray-900">
-            <span translate="no" className="notranslate">{currency}</span>{" "}{amount.toFixed(2)}
+            <MenuPrice currency={currency} amount={amount.toFixed(2)} />
           </p>
         </div>
 

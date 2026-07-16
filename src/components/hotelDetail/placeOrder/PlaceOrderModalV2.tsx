@@ -38,6 +38,7 @@ import {
 } from "@/lib/localAddresses";
 import AddressPickerV2 from "./AddressPickerV2";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
+import { MenuPrice } from "../MenuPrice";
 import { updateUserAddressesMutation, updateUserFullNameMutation } from "@/api/auth";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
@@ -2384,7 +2385,7 @@ const PlaceOrderModalV2 = ({
               <Wallet className="h-6 w-6 text-gray-700" />
             </div>
             <p className="text-[17px] font-medium text-gray-900">
-              Pay <span translate="no" className="notranslate">{currency}</span>{confirmTotal.toFixed(0)} {isDeliveryOrder ? "on delivery" : "at store"} (UPI/cash)
+              Pay <MenuPrice currency={currency} amount={confirmTotal.toFixed(0)} /> {isDeliveryOrder ? "on delivery" : "at store"} (UPI/cash)
             </p>
           </div>
 
@@ -2593,7 +2594,7 @@ const PlaceOrderModalV2 = ({
             </div>
             <div>
               <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Order Placed!</h2>
-              <p className="mt-2 text-sm text-gray-400">Your order of <span translate="no" className="notranslate">{currency}</span>{(savedOrderTotal ?? 0).toFixed(0)} has been placed.</p>
+              <p className="mt-2 text-sm text-gray-400">Your order of <MenuPrice currency={currency} amount={(savedOrderTotal ?? 0).toFixed(0)} /> has been placed.</p>
               <p className="mt-1 text-xs text-gray-400">You will be notified when it&apos;s ready.</p>
             </div>
             <div className="mt-4 flex w-full max-w-xs flex-col gap-2 sm:flex-row">
@@ -2906,7 +2907,7 @@ const PlaceOrderModalV2 = ({
               <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-2.5">
                 <ShoppingBag className="h-4 w-4 text-amber-600 flex-shrink-0" />
                 <p className="text-sm text-amber-700">
-                  Minimum order of <span className="font-bold"><span translate="no" className="notranslate">{currency}</span>{minimumOrderAmount}</span> required for delivery. Add <span translate="no" className="notranslate">{currency}</span>{(minimumOrderAmount - subtotal).toFixed(0)} more.
+                  Minimum order of <span className="font-bold"><MenuPrice currency={currency} amount={minimumOrderAmount} /></span> required for delivery. Add <MenuPrice currency={currency} amount={(minimumOrderAmount - subtotal).toFixed(0)} /> more.
                 </p>
               </div>
             )}
@@ -3009,8 +3010,7 @@ const PlaceOrderModalV2 = ({
                     </button>
                   </div>
                   <div className="text-xs font-bold text-gray-900 min-w-[60px] text-right">
-                    <span translate="no" className="notranslate">{currency}</span>
-                    {(Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)) * item.quantity).toFixed(0)}
+                    <MenuPrice currency={currency} amount={(Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)) * item.quantity).toFixed(0)} />
                   </div>
                 </div>
               ))}
@@ -3113,7 +3113,7 @@ const PlaceOrderModalV2 = ({
                   </div>
                   {appliedDiscount && discountSavings > 0 && (
                     <div className="text-xs font-medium mt-0.5" style={{ color: accent }}>
-                      You save <span translate="no" className="notranslate">{currency}</span>{discountSavings.toFixed(0)}
+                      You save <MenuPrice currency={currency} amount={discountSavings.toFixed(0)} />
                     </div>
                   )}
                 </div>
@@ -3138,7 +3138,7 @@ const PlaceOrderModalV2 = ({
                         {appliedDiscount.description && discountSavings > 0 ? " · " : ""}
                         {discountSavings > 0 ? (
                           <span style={{ color: accent }} className="font-semibold">
-                            Saved <span translate="no" className="notranslate">{currency}</span>{discountSavings.toFixed(0)}
+                            Saved <MenuPrice currency={currency} amount={discountSavings.toFixed(0)} />
                           </span>
                         ) : null}
                       </div>
@@ -3154,7 +3154,7 @@ const PlaceOrderModalV2 = ({
               {appliedDiscount?.has_coupon && discountIneligibleReason && (
                 <div className="px-4 pb-2 -mt-1 text-xs font-medium text-red-600">
                   {discountIneligibleReason === "min"
-                    ? <>Add <span translate="no" className="notranslate">{currency}</span>{Math.max(0, Number(appliedDiscount.min_order_value || 0) - subtotal).toFixed(0)} more to use {appliedDiscount.code}</>
+                    ? <>Add <MenuPrice currency={currency} amount={Math.max(0, Number(appliedDiscount.min_order_value || 0) - subtotal).toFixed(0)} /> more to use {appliedDiscount.code}</>
                     : discountIneligibleReason === "ordertype"
                       ? `${appliedDiscount.code} isn't valid for this order type`
                       : discountIneligibleReason === "day"
@@ -3214,8 +3214,7 @@ const PlaceOrderModalV2 = ({
                   <ClipboardList className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1 text-left text-sm font-bold text-gray-900">
-                  To Pay <span translate="no" className="notranslate">{currency}</span>
-                  {payableTotal.toFixed(0)}
+                  To Pay <MenuPrice currency={currency} amount={payableTotal.toFixed(0)} />
                 </div>
                 {showBreakdown ? (
                   <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -3228,12 +3227,12 @@ const PlaceOrderModalV2 = ({
                 <div className="px-4 pb-4 space-y-2 border-t border-gray-100 pt-3">
                   <Row
                     label="Item Total"
-                    value={`${currency}${(subtotal + discountSavings).toFixed(0)}`}
+                    value={<MenuPrice currency={currency} amount={(subtotal + discountSavings).toFixed(0)} />}
                   />
                   {discountSavings > 0 && (
                     <Row
                       label={`Discount (${appliedDiscount?.code || ""})`}
-                      value={`-${currency}${discountSavings.toFixed(0)}`}
+                      value={<MenuPrice currency={currency} amount={`-${discountSavings.toFixed(0)}`} />}
                       accent={accent}
                     />
                   )}
@@ -3245,7 +3244,7 @@ const PlaceOrderModalV2 = ({
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Delivery Charges</span>
                           {deliveryCharge > 0 ? (
-                            <span translate="no" className="text-gray-900 notranslate">{`${currency}${deliveryCharge.toFixed(0)}`}</span>
+                            <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
                           ) : (
                             <span className="font-semibold" style={{ color: accent }}>
                               Free
@@ -3269,7 +3268,7 @@ const PlaceOrderModalV2 = ({
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Delivery Charges</span>
                           {deliveryCharge > 0 ? (
-                            <span translate="no" className="text-gray-900 notranslate">{`${currency}${deliveryCharge.toFixed(0)}`}</span>
+                            <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
                           ) : (
                             <span className="font-semibold" style={{ color: accent }}>
                               Free
@@ -3296,7 +3295,7 @@ const PlaceOrderModalV2 = ({
                             Calculating…
                           </span>
                         ) : porterQuote.available && typeof porterQuote.fare === "number" ? (
-                          <span translate="no" className="text-gray-900 notranslate">{`${currency}${porterQuote.fare.toFixed(0)}`}</span>
+                          <span className="text-gray-900"><MenuPrice currency={currency} amount={porterQuote.fare.toFixed(0)} /></span>
                         ) : (
                           <span className="text-rose-600 text-xs">
                             Not serviceable
@@ -3317,21 +3316,21 @@ const PlaceOrderModalV2 = ({
                     </div>
                   )}
                   {parcelCharge > 0 && (
-                    <Row label="Packaging Charge" value={`${currency}${parcelCharge.toFixed(0)}`} />
+                    <Row label="Packaging Charge" value={<MenuPrice currency={currency} amount={parcelCharge.toFixed(0)} />} />
                   )}
                   {qrExtraCharge > 0 && qrGroup?.name && (
-                    <Row label={qrGroup.name} value={`${currency}${qrExtraCharge.toFixed(0)}`} />
+                    <Row label={qrGroup.name} value={<MenuPrice currency={currency} amount={qrExtraCharge.toFixed(0)} />} />
                   )}
                   {additionalGst > 0 && (
-                    <Row label="GST & Other Charges" value={`${currency}${additionalGst.toFixed(0)}`} />
+                    <Row label="GST & Other Charges" value={<MenuPrice currency={currency} amount={additionalGst.toFixed(0)} />} />
                   )}
                   {roundOff > 0 && (
-                    <Row label="Round Off" value={`${currency}${roundOff.toFixed(2)}`} />
+                    <Row label="Round Off" value={<MenuPrice currency={currency} amount={roundOff.toFixed(2)} />} />
                   )}
                   {loyaltyRedeemValue > 0 && (
                     <Row
                       label={`Loyalty Points (${effectiveRedeemPoints} pts)`}
-                      value={`-${currency}${loyaltyRedeemValue.toFixed(0)}`}
+                      value={<MenuPrice currency={currency} amount={`-${loyaltyRedeemValue.toFixed(0)}`} />}
                       accent={accent}
                     />
                   )}
@@ -3339,8 +3338,7 @@ const PlaceOrderModalV2 = ({
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-gray-900">To Pay</span>
                     <span className="text-sm font-bold text-gray-900">
-                      <span translate="no" className="notranslate">{currency}</span>
-                      {payableTotal.toFixed(0)}
+                      <MenuPrice currency={currency} amount={payableTotal.toFixed(0)} />
                     </span>
                   </div>
                 </div>
@@ -3413,7 +3411,7 @@ const PlaceOrderModalV2 = ({
             style={{ backgroundColor: accent }}
           >
             <span className="text-left shrink-0">
-              <span className="block text-[15px] font-extrabold leading-tight"><span translate="no" className="notranslate">{currency}</span>{payableTotal.toFixed(0)}</span>
+              <span className="block text-[15px] font-extrabold leading-tight"><MenuPrice currency={currency} amount={payableTotal.toFixed(0)} /></span>
               <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
             </span>
             <span className="flex items-center gap-1 text-[15px] font-bold whitespace-nowrap">
@@ -3587,12 +3585,12 @@ const Row = ({
   accent,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   accent?: string;
 }) => (
   <div className="flex items-center justify-between text-sm">
     <span className="text-gray-600">{label}</span>
-    <span translate="no" className="text-gray-900 font-medium notranslate" style={accent ? { color: accent } : undefined}>
+    <span className="text-gray-900 font-medium" style={accent ? { color: accent } : undefined}>
       {value}
     </span>
   </div>
@@ -3634,8 +3632,7 @@ const DiscountsView = ({
             Apply Discounts
           </div>
           <div className="text-xs text-gray-500">
-            Your cart: <span translate="no" className="notranslate">{currency}</span>
-            {cartTotal.toFixed(0)}
+            Your cart: <MenuPrice currency={currency} amount={cartTotal.toFixed(0)} />
           </div>
         </div>
       </div>
@@ -3680,8 +3677,7 @@ const DiscountsView = ({
                       ? "FREEBIE"
                       : (
                         <>
-                          <span translate="no" className="notranslate">{currency}</span>
-                          {Number(d.discount_value).toFixed(0)} OFF
+                          <MenuPrice currency={currency} amount={Number(d.discount_value).toFixed(0)} /> OFF
                         </>
                       );
                 return (
@@ -3723,8 +3719,7 @@ const DiscountsView = ({
                       </div>
                       {d.min_order_value && (
                         <div className="mt-1 text-xs text-gray-400">
-                          Min order: <span translate="no" className="notranslate">{currency}</span>
-                          {Number(d.min_order_value).toFixed(0)}
+                          Min order: <MenuPrice currency={currency} amount={Number(d.min_order_value).toFixed(0)} />
                         </div>
                       )}
                     </div>

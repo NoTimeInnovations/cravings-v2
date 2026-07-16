@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { filterMenuByQuery } from "@/lib/menuSearch";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 
 function useInView() {
   const ref = useRef<HTMLDivElement>(null);
@@ -104,7 +105,7 @@ const V3SearchResultItem = ({
         {shouldShowPrice && (
           <div className="mt-0.5 flex items-center gap-2 text-xs font-bold text-gray-900">
             {hasVariants && <span className="text-[10px] font-normal">From </span>}
-            <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(price, hoteldata?.id)}
+            <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(price, hoteldata?.id)} />
           </div>
         )}
         {item.description && (

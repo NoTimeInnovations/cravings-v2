@@ -7,6 +7,7 @@ import Fuse from "fuse.js";
 import useOrderStore from "@/store/orderStore";
 import { toast } from "sonner";
 import ItemDetailsModal from "./styles/Default/ItemDetailsModal";
+import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice } from "@/lib/constants";
@@ -355,17 +356,19 @@ const SearchMenu = ({
                                 ) : hasVariants ? (
                                   <>
                                     <span className="text-xs font-normal opacity-50">From </span>
-                                    <span translate="no" className="notranslate">{currency}</span>
-                                    {formatPrice(
-                                      item.variants!.sort((a, b) => a?.price - b?.price)[0]?.price || item.price,
-                                      hotelData?.id
-                                    )}
+                                    <MenuPrice
+                                      currency={currency}
+                                      amount={formatPrice(
+                                        item.variants!.sort((a, b) => a?.price - b?.price)[0]?.price || item.price,
+                                        hotelData?.id
+                                      )}
+                                    />
                                   </>
                                 ) : (
-                                  <>
-                                    <span translate="no" className="notranslate">{currency}</span>
-                                    {formatPrice(item.price, hotelData?.id)}
-                                  </>
+                                  <MenuPrice
+                                    currency={currency}
+                                    amount={formatPrice(item.price, hotelData?.id)}
+                                  />
                                 )}
                               </span>
                               {item.description && (
@@ -466,8 +469,7 @@ const SearchMenu = ({
                                     className="block text-sm font-black"
                                     style={{ color: styles.accent }}
                                   >
-                                    <span translate="no" className="notranslate">{currency}</span>
-                                    {variant.price}
+                                    <MenuPrice currency={currency} amount={variant.price} />
                                   </span>
                                 </div>
                                 {showAddButton &&
