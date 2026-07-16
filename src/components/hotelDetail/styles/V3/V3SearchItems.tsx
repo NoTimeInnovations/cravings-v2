@@ -1,6 +1,7 @@
 "use client";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
-import { Search, X, Plus, Minus } from "lucide-react";
+import { Search, X, Plus, Minus, ArrowLeft, ShoppingBag } from "lucide-react";
+import { readableTextColor } from "@/lib/brandColor";
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { getFeatures } from "@/lib/getFeatures";
 import useOrderStore from "@/store/orderStore";
@@ -166,9 +167,13 @@ interface V3SearchItemsProps {
   hoteldata: HotelData;
   tableNumber: number;
   onClose: () => void;
+  /** When provided, renders a left back arrow + a floating cart button (V6). */
+  onCartClick?: () => void;
+  cartCount?: number;
+  accent?: string;
 }
 
-const V3SearchItems = ({ menu, hoteldata, tableNumber, onClose }: V3SearchItemsProps) => {
+const V3SearchItems = ({ menu, hoteldata, tableNumber, onClose, onCartClick, cartCount = 0, accent }: V3SearchItemsProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [closing, setClosing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -213,6 +218,15 @@ const V3SearchItems = ({ menu, hoteldata, tableNumber, onClose }: V3SearchItemsP
         }
       `}</style>
       <div className="flex items-center p-2 border-b border-gray-200/60">
+        {onCartClick && (
+          <button
+            onClick={closeModal}
+            aria-label="Back"
+            className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-900 transition hover:bg-gray-100"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
         <div className="flex-grow flex items-center gap-2">
           <Search className="ml-3 h-5 w-5 text-gray-400" />
           <Input
@@ -223,9 +237,11 @@ const V3SearchItems = ({ menu, hoteldata, tableNumber, onClose }: V3SearchItemsP
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="ghost" size="icon" onClick={closeModal} className="mr-2">
-          <X className="h-5 w-5 text-gray-900" />
-        </Button>
+        {!onCartClick && (
+          <Button variant="ghost" size="icon" onClick={closeModal} className="mr-2">
+            <X className="h-5 w-5 text-gray-900" />
+          </Button>
+        )}
       </div>
 
       <ScrollArea className="flex-grow">
@@ -246,6 +262,25 @@ const V3SearchItems = ({ menu, hoteldata, tableNumber, onClose }: V3SearchItemsP
           )}
         </div>
       </ScrollArea>
+
+      {onCartClick && (
+        <button
+          onClick={onCartClick}
+          aria-label={`Cart: ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+          className="fixed bottom-6 right-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.28)] transition active:scale-90"
+          style={{ backgroundColor: accent || "#16a34a", color: readableTextColor(accent || "#16a34a") }}
+        >
+          <ShoppingBag className="h-6 w-6" strokeWidth={2.2} />
+          {cartCount > 0 && (
+            <span
+              className="absolute -right-1 -top-1 flex h-6 min-w-[24px] items-center justify-center rounded-full border-2 border-white bg-white px-1 text-[12px] font-extrabold tabular-nums"
+              style={{ color: accent || "#16a34a" }}
+            >
+              {cartCount}
+            </span>
+          )}
+        </button>
+      )}
     </div>
   );
 };
