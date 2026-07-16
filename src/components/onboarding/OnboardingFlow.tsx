@@ -200,18 +200,21 @@ export default function OnboardingFlow({
     // SERVER (from cookies) so this matches the SSR HTML and never flashes; the
     // client check is a fallback for soft navigations. The mount effect below
     // restores the saved order type + address into the store.
-    if (
-      !forceStart &&
-      !forceShowPicker &&
-      (initialSkipOnboarding ||
-        canSkipOnboarding({
-          partnerId,
-          featureFlags,
-          orderTypesEnabled: hotelData?.order_types_enabled,
-          tableNumber,
-          isBrandParent,
-        }))
-    ) {
+    const clientCanSkip = canSkipOnboarding({
+      partnerId,
+      featureFlags,
+      orderTypesEnabled: hotelData?.order_types_enabled,
+      tableNumber,
+      isBrandParent,
+    });
+    // Sheet mode (V6) is delivery-first: the location prompt must appear on load
+    // until a delivery address is confirmed. A prior takeaway/dine-in choice must
+    // NOT skip it (so it isn't sticky). Other variants keep the standard skip.
+    const skipAllowed =
+      variant === "sheet"
+        ? getSessionOrderType(partnerId) === "delivery" && clientCanSkip
+        : initialSkipOnboarding || clientCanSkip;
+    if (!forceStart && !forceShowPicker && skipAllowed) {
       return true;
     }
     return false;
@@ -493,7 +496,8 @@ export default function OnboardingFlow({
           void handleAddressContinue(addr, coords);
         }}
         onConfirm={(t) => { void handleOrderTypeSelect(t); }}
-        onClose={handleSkip}
+        /* No onClose: on load the customer must pick a delivery address or an
+           order type before reaching the menu (no backdrop dismiss). */
       />
     );
   }
