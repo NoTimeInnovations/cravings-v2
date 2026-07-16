@@ -675,6 +675,16 @@ export function DeliverySettings() {
         !!features?.porter_bridge?.access &&
         !!features?.porter_bridge?.enabled;
 
+    // A porter partner bills the LIVE bridge quote UNLESS they picked "custom"
+    // pricing — in which case the distance/fixed-rate pricing UI below must be
+    // shown so they can configure their own charge. So hide that pricing UI only
+    // when a live-quote charge (delivery_agent, or porter on third-party price)
+    // is actually active.
+    const porterUsesLiveQuote =
+        porterChargeEnabled &&
+        (deliveryRules.porter_pricing_mode || "porter") !== "custom";
+    const liveQuoteCharge = agentChargeEnabled || porterUsesLiveQuote;
+
     return (
         <div className="space-y-6">
             {features?.delivery_pool?.enabled && (
@@ -929,12 +939,12 @@ export function DeliverySettings() {
                             <div className="border-t border-orange-100 pt-3">
                                 <Label className="text-base">Delivery fee charged to customer</Label>
                                 <p className="text-xs text-muted-foreground mb-2">
-                                    <strong>Custom</strong> uses your own delivery pricing (the distance / fixed rate above). <strong>Porter price</strong> charges the customer the live bridge quote for the trip.
+                                    <strong>Custom</strong> uses your own delivery pricing (the distance / fixed rate below). <strong>Third-party price</strong> charges the customer the live bridge quote (Porter / Uber / Rapido) for the trip.
                                 </p>
                                 <div className="inline-flex rounded-md border bg-white p-0.5">
                                     {([
                                         { v: "custom", label: "Custom (your pricing)" },
-                                        { v: "porter", label: "Porter price" },
+                                        { v: "porter", label: "Third-party price" },
                                     ] as const).map(({ v, label }) => (
                                         <button
                                             key={v}
@@ -1114,7 +1124,7 @@ export function DeliverySettings() {
                         </div>
                     )}
 
-                    {!agentChargeEnabled && !porterChargeEnabled && (
+                    {!liveQuoteCharge && (
                         <div className="flex items-center justify-between">
                             <div className="space-y-0.5">
                                 <Label className="text-base">Don&apos;t show delivery charge</Label>
@@ -1162,7 +1172,7 @@ export function DeliverySettings() {
                         </div>
                     </div>
 
-                    {deliveryRules.needDeliveryLocation && !porterChargeEnabled && (
+                    {deliveryRules.needDeliveryLocation && !porterUsesLiveQuote && (
                         <div className="space-y-2">
                             <Label>Delivery Radius (km)</Label>
                             <Input
@@ -1174,7 +1184,7 @@ export function DeliverySettings() {
                         </div>
                     )}
 
-                    {deliveryRules.needDeliveryLocation && !agentChargeEnabled && !porterChargeEnabled && (
+                    {deliveryRules.needDeliveryLocation && !liveQuoteCharge && (
                         <>
                             <div className="space-y-2">
                                 <Label>Pricing Type</Label>
