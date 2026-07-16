@@ -97,7 +97,6 @@ const V6 = ({
 
   const [view, setView] = useState<View>("home");
   const [activeCatId, setActiveCatId] = useState<string | null>(null);
-  const [homeTab, setHomeTab] = useState<string>("popular");
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
@@ -215,29 +214,15 @@ const V6 = ({
     [groupById],
   );
 
-  // Home "section" tabs — Popular (bestsellers), All, and Offers (when present).
-  const popularItems = useMemo(() => {
+  // The Home grid always shows POPULAR dishes: the partner's curated bestsellers
+  // (must-try) when there are a couple, otherwise the full menu so the grid is
+  // never sparse. The "Flash Sale · Popular · New Arrivals" strip above it is
+  // purely decorative (not tabs).
+  const gridItems = useMemo(() => {
     const mustTry = groupById.get("must-try")?.items || [];
-    if (mustTry.length > 0) return mustTry;
-    return menuCategories.flatMap((g) => g.items).slice(0, 8);
+    if (mustTry.length >= 2) return mustTry;
+    return menuCategories.flatMap((g) => g.items);
   }, [groupById, menuCategories]);
-
-  const allItems = useMemo(() => menuCategories.flatMap((g) => g.items), [menuCategories]);
-  const offerItems = useMemo(() => groupById.get("offers")?.items || [], [groupById]);
-
-  // Flash Sale (offers) · Popular (bestsellers) · New Arrivals (full menu).
-  // Always the same three so Popular stays centred (matches the reference);
-  // an empty Flash Sale shows a friendly empty state.
-  const homeTabs = useMemo(
-    () => [
-      { key: "flash", label: "Flash Sale", items: offerItems },
-      { key: "popular", label: "Popular", items: popularItems },
-      { key: "new", label: "New Arrivals", items: allItems },
-    ],
-    [popularItems, allItems, offerItems],
-  );
-
-  const activeHomeTab = homeTabs.find((t) => t.key === homeTab) || homeTabs[0];
 
   const searchableMenu = useMemo(() => {
     const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
@@ -261,23 +246,6 @@ const V6 = ({
   const backAction = onShowStorefront || brandHeader?.onChange;
 
   // ===== Reusable pieces =====
-  // The cart pill doubles as the fly-to-cart animation target (id) and opens
-  // checkout directly (no floating "View Cart" bar).
-  const CartBadge = () => (
-    <button
-      id="v6-cart-target"
-      onClick={openCart}
-      className="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 shadow-sm transition active:scale-95"
-      style={{ backgroundColor: `${accent}1f`, color: accent }}
-      aria-label={`Cart: ${cartCount} item${cartCount === 1 ? "" : "s"}`}
-    >
-      <ShoppingBag className="h-[18px] w-[18px]" strokeWidth={2.2} />
-      <span className="text-[15px] font-extrabold tabular-nums">
-        {String(cartCount).padStart(2, "0")}
-      </span>
-    </button>
-  );
-
   const SearchPill = () => (
     <button
       onClick={() => setSearchOpen(true)}
@@ -340,20 +308,20 @@ const V6 = ({
 
         {/* ============ HEADER ============ */}
         {view === "items" ? (
-          <div className="sticky top-0 z-40 flex items-center justify-between gap-2 bg-[#f2f1ec]/95 px-4 py-3 backdrop-blur">
+          <div className="sticky top-0 z-40 flex items-center gap-2 bg-[#f2f1ec]/95 px-4 py-3 backdrop-blur">
             <button
               onClick={() => setView(activeCatId ? "categories" : "home")}
-              className="flex h-10 items-center gap-1.5 rounded-full px-3 font-bold ring-1 ring-black/[0.06] transition hover:bg-white"
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 font-bold ring-1 ring-black/[0.06] transition hover:bg-white"
               style={{ color: accent }}
               aria-label="Back"
             >
               <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2.4} />
               <span className="text-[14px]">Back</span>
             </button>
-            <h1 className="truncate text-[17px] font-extrabold tracking-tight text-gray-900">
+            <h1 className="flex-1 truncate text-center text-[17px] font-extrabold tracking-tight text-gray-900">
               {activeCategoryForCard ? formatDisplayName(activeCategoryForCard.name) : "Items"}
             </h1>
-            <CartBadge />
+            <span className="w-[74px] shrink-0" aria-hidden="true" />
           </div>
         ) : (
           <div className="sticky top-0 z-40 bg-[#f2f1ec]/95 px-4 pt-3 pb-2 backdrop-blur">
@@ -390,7 +358,6 @@ const V6 = ({
                   storeName={(hoteldata as any)?.store_name}
                 />
               )}
-              <CartBadge />
             </div>
           </div>
         )}
@@ -442,33 +409,16 @@ const V6 = ({
               </section>
             )}
 
-            {/* Section tab strip — Flash Sale · Popular · New Arrivals (active
-                centred + bold, neighbours faded). */}
-            {homeTabs.length > 0 && (
-              <div className="sticky top-[64px] z-30 mt-4 bg-[#f2f1ec]/95 backdrop-blur">
-                <div className="flex items-center justify-center gap-7 overflow-x-auto scrollbar-hide px-6 py-3">
-                  {homeTabs.map((t) => {
-                    const active = t.key === activeHomeTab.key;
-                    return (
-                      <button
-                        key={t.key}
-                        onClick={() => setHomeTab(t.key)}
-                        aria-selected={active}
-                        className={`shrink-0 whitespace-nowrap transition-all duration-200 ${
-                          active
-                            ? "text-[23px] font-extrabold tracking-tight text-gray-900"
-                            : "text-[18px] font-bold text-gray-300"
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* Decorative strip — Flash Sale · Popular · New Arrivals. NOT tabs:
+                purely a fancy heading with Popular centred + bold. The grid
+                below always shows the popular dishes. */}
+            <div aria-hidden="true" className="mt-4 flex select-none items-baseline justify-center gap-7 px-6 py-3">
+              <span className="shrink-0 whitespace-nowrap text-[18px] font-bold text-gray-300">Flash Sale</span>
+              <span className="shrink-0 whitespace-nowrap text-[23px] font-extrabold tracking-tight text-gray-900">Popular</span>
+              <span className="shrink-0 whitespace-nowrap text-[18px] font-bold text-gray-300">New Arrivals</span>
+            </div>
 
-            <div className="pt-1">{renderGrid(activeHomeTab?.items || [], activeHomeTab?.key === "flash" ? { id: "offers" } : undefined)}</div>
+            <div className="pt-1">{renderGrid(gridItems)}</div>
 
             <p translate="no" className="py-6 text-center text-[10px] text-gray-300 notranslate">
               {hoteldata?.store_name}
@@ -638,6 +588,29 @@ const V6 = ({
           <V3Orders hotelId={hoteldata?.id || ""} onClose={() => setOrdersOpen(false)} />
         )}
       </main>
+
+      {/* ============ FLOATING CART ============ */}
+      {/* Always mounted while ordering is possible so the fly-to-cart animation
+          (which targets this id) has somewhere to land — even on the first add. */}
+      {showBottomNav && (
+        <button
+          id="v6-cart-target"
+          onClick={openCart}
+          className="fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.28)] transition active:scale-90"
+          style={{ backgroundColor: accent, color: onAccent }}
+          aria-label={`Cart: ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+        >
+          <ShoppingBag className="h-6 w-6" strokeWidth={2.2} />
+          {cartCount > 0 && (
+            <span
+              className="absolute -right-1 -top-1 flex h-6 min-w-[24px] items-center justify-center rounded-full border-2 px-1 text-[12px] font-extrabold tabular-nums"
+              style={{ borderColor: "#f2f1ec", backgroundColor: "#ffffff", color: accent }}
+            >
+              {cartCount}
+            </span>
+          )}
+        </button>
+      )}
 
       {/* ============ FLOATING BOTTOM NAV ============ */}
       {showBottomNav && !open_place_order_modal && (
