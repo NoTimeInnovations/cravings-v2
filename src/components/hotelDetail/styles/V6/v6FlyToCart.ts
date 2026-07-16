@@ -40,6 +40,9 @@ export function flyToCart(sourceImg: HTMLElement | null | undefined) {
   if (!s.width || !s.height) return;
 
   const clone = document.createElement("div");
+  // Initial state — NO transition yet, explicit identity transform. The
+  // transition is added only AFTER a forced reflow commits this state, so the
+  // very first animation fires (rAF-only nudges intermittently skip frame 1).
   clone.style.cssText = [
     "position:fixed",
     `left:${s.left}px`,
@@ -52,7 +55,8 @@ export function flyToCart(sourceImg: HTMLElement | null | undefined) {
     "pointer-events:none",
     "will-change:transform,opacity",
     "box-shadow:0 10px 30px rgba(0,0,0,.22)",
-    "transition:transform .72s cubic-bezier(.35,.8,.25,1),opacity .72s ease-in",
+    "transform:translate(0px,0px) scale(1)",
+    "opacity:1",
   ].join(";");
   if (src) {
     const im = document.createElement("img");
@@ -75,13 +79,15 @@ export function flyToCart(sourceImg: HTMLElement | null | undefined) {
     bumpCart(target);
   };
 
-  requestAnimationFrame(() => {
-    // Two-frame nudge so the initial styles are committed before transitioning.
-    requestAnimationFrame(() => {
-      clone.style.transform = `translate(${tx}px, ${ty}px) scale(0.1)`;
-      clone.style.opacity = "0.35";
-    });
-  });
+  // Force a synchronous reflow so the initial transform is committed to the
+  // rendering, THEN enable the transition and set the target transform — this
+  // guarantees the animation runs on the first invocation too.
+  void clone.getBoundingClientRect();
+  clone.style.transition =
+    "transform .72s cubic-bezier(.35,.8,.25,1), opacity .72s ease-in";
+  clone.style.transform = `translate(${tx}px, ${ty}px) scale(0.1)`;
+  clone.style.opacity = "0.35";
+
   clone.addEventListener("transitionend", finish, { once: true });
   window.setTimeout(finish, 900); // fallback if transitionend never fires
 }

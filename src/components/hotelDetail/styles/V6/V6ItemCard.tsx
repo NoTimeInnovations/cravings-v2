@@ -416,7 +416,7 @@ const V6ItemCard = ({
 
     return (
       <button
-        onClick={(e) => { e.stopPropagation(); handleAddItem(); }}
+        onClick={(e) => { e.stopPropagation(); addWithFly(); }}
         className="flex items-center justify-center rounded-full shadow-md transition active:scale-90"
         style={{ height: CTRL_H, width: CTRL_H, backgroundColor: accent, color: onAccent }}
         aria-label={`Add ${item.name}`}
