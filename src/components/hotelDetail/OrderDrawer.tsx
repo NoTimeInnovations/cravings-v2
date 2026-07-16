@@ -820,7 +820,7 @@ const OrderDrawer = ({
                     </span>
                   </div>
                   <span className="text-sm font-bold">
-                    {totalQty} item{totalQty > 1 ? "s" : ""} · {hotelData?.currency || "₹"}{totalPrice.toFixed(2)}
+                    {totalQty} item{totalQty > 1 ? "s" : ""} · <span translate="no" className="notranslate">{hotelData?.currency || "₹"}</span>{totalPrice.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex items-center gap-0.5 text-sm font-bold">
@@ -845,7 +845,7 @@ const OrderDrawer = ({
             } ${hasBottomNav ? "bottom-20" : "bottom-6"}`}
           >
             <span className="font-semibold text-sm whitespace-nowrap">
-              {totalQty} {totalQty === 1 ? "item" : "items"} | {hotelData?.currency || "₹"}{totalPrice.toFixed(2)}
+              {totalQty} {totalQty === 1 ? "item" : "items"} | <span translate="no" className="notranslate">{hotelData?.currency || "₹"}</span>{totalPrice.toFixed(2)}
             </span>
             <span className="font-bold text-sm whitespace-nowrap">View Cart</span>
           </div>

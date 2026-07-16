@@ -2384,7 +2384,7 @@ const PlaceOrderModalV2 = ({
               <Wallet className="h-6 w-6 text-gray-700" />
             </div>
             <p className="text-[17px] font-medium text-gray-900">
-              Pay {currency}{confirmTotal.toFixed(0)} {isDeliveryOrder ? "on delivery" : "at store"} (UPI/cash)
+              Pay <span translate="no" className="notranslate">{currency}</span>{confirmTotal.toFixed(0)} {isDeliveryOrder ? "on delivery" : "at store"} (UPI/cash)
             </p>
           </div>
 
@@ -2593,7 +2593,7 @@ const PlaceOrderModalV2 = ({
             </div>
             <div>
               <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Order Placed!</h2>
-              <p className="mt-2 text-sm text-gray-400">Your order of {currency}{(savedOrderTotal ?? 0).toFixed(0)} has been placed.</p>
+              <p className="mt-2 text-sm text-gray-400">Your order of <span translate="no" className="notranslate">{currency}</span>{(savedOrderTotal ?? 0).toFixed(0)} has been placed.</p>
               <p className="mt-1 text-xs text-gray-400">You will be notified when it&apos;s ready.</p>
             </div>
             <div className="mt-4 flex w-full max-w-xs flex-col gap-2 sm:flex-row">
@@ -2906,7 +2906,7 @@ const PlaceOrderModalV2 = ({
               <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-2.5">
                 <ShoppingBag className="h-4 w-4 text-amber-600 flex-shrink-0" />
                 <p className="text-sm text-amber-700">
-                  Minimum order of <span className="font-bold">{currency}{minimumOrderAmount}</span> required for delivery. Add {currency}{(minimumOrderAmount - subtotal).toFixed(0)} more.
+                  Minimum order of <span className="font-bold"><span translate="no" className="notranslate">{currency}</span>{minimumOrderAmount}</span> required for delivery. Add <span translate="no" className="notranslate">{currency}</span>{(minimumOrderAmount - subtotal).toFixed(0)} more.
                 </p>
               </div>
             )}
@@ -3009,7 +3009,7 @@ const PlaceOrderModalV2 = ({
                     </button>
                   </div>
                   <div className="text-xs font-bold text-gray-900 min-w-[60px] text-right">
-                    {currency}
+                    <span translate="no" className="notranslate">{currency}</span>
                     {(Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)) * item.quantity).toFixed(0)}
                   </div>
                 </div>
@@ -3113,7 +3113,7 @@ const PlaceOrderModalV2 = ({
                   </div>
                   {appliedDiscount && discountSavings > 0 && (
                     <div className="text-xs font-medium mt-0.5" style={{ color: accent }}>
-                      You save {currency}{discountSavings.toFixed(0)}
+                      You save <span translate="no" className="notranslate">{currency}</span>{discountSavings.toFixed(0)}
                     </div>
                   )}
                 </div>
@@ -3138,7 +3138,7 @@ const PlaceOrderModalV2 = ({
                         {appliedDiscount.description && discountSavings > 0 ? " · " : ""}
                         {discountSavings > 0 ? (
                           <span style={{ color: accent }} className="font-semibold">
-                            Saved {currency}{discountSavings.toFixed(0)}
+                            Saved <span translate="no" className="notranslate">{currency}</span>{discountSavings.toFixed(0)}
                           </span>
                         ) : null}
                       </div>
@@ -3154,7 +3154,7 @@ const PlaceOrderModalV2 = ({
               {appliedDiscount?.has_coupon && discountIneligibleReason && (
                 <div className="px-4 pb-2 -mt-1 text-xs font-medium text-red-600">
                   {discountIneligibleReason === "min"
-                    ? `Add ${currency}${Math.max(0, Number(appliedDiscount.min_order_value || 0) - subtotal).toFixed(0)} more to use ${appliedDiscount.code}`
+                    ? <>Add <span translate="no" className="notranslate">{currency}</span>{Math.max(0, Number(appliedDiscount.min_order_value || 0) - subtotal).toFixed(0)} more to use {appliedDiscount.code}</>
                     : discountIneligibleReason === "ordertype"
                       ? `${appliedDiscount.code} isn't valid for this order type`
                       : discountIneligibleReason === "day"
@@ -3214,7 +3214,7 @@ const PlaceOrderModalV2 = ({
                   <ClipboardList className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1 text-left text-sm font-bold text-gray-900">
-                  To Pay {currency}
+                  To Pay <span translate="no" className="notranslate">{currency}</span>
                   {payableTotal.toFixed(0)}
                 </div>
                 {showBreakdown ? (
@@ -3245,7 +3245,7 @@ const PlaceOrderModalV2 = ({
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Delivery Charges</span>
                           {deliveryCharge > 0 ? (
-                            <span className="text-gray-900">{`${currency}${deliveryCharge.toFixed(0)}`}</span>
+                            <span translate="no" className="text-gray-900 notranslate">{`${currency}${deliveryCharge.toFixed(0)}`}</span>
                           ) : (
                             <span className="font-semibold" style={{ color: accent }}>
                               Free
@@ -3269,7 +3269,7 @@ const PlaceOrderModalV2 = ({
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Delivery Charges</span>
                           {deliveryCharge > 0 ? (
-                            <span className="text-gray-900">{`${currency}${deliveryCharge.toFixed(0)}`}</span>
+                            <span translate="no" className="text-gray-900 notranslate">{`${currency}${deliveryCharge.toFixed(0)}`}</span>
                           ) : (
                             <span className="font-semibold" style={{ color: accent }}>
                               Free
@@ -3296,7 +3296,7 @@ const PlaceOrderModalV2 = ({
                             Calculating…
                           </span>
                         ) : porterQuote.available && typeof porterQuote.fare === "number" ? (
-                          <span className="text-gray-900">{`${currency}${porterQuote.fare.toFixed(0)}`}</span>
+                          <span translate="no" className="text-gray-900 notranslate">{`${currency}${porterQuote.fare.toFixed(0)}`}</span>
                         ) : (
                           <span className="text-rose-600 text-xs">
                             Not serviceable
@@ -3339,7 +3339,7 @@ const PlaceOrderModalV2 = ({
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-gray-900">To Pay</span>
                     <span className="text-sm font-bold text-gray-900">
-                      {currency}
+                      <span translate="no" className="notranslate">{currency}</span>
                       {payableTotal.toFixed(0)}
                     </span>
                   </div>
@@ -3413,7 +3413,7 @@ const PlaceOrderModalV2 = ({
             style={{ backgroundColor: accent }}
           >
             <span className="text-left shrink-0">
-              <span className="block text-[15px] font-extrabold leading-tight">{currency}{payableTotal.toFixed(0)}</span>
+              <span className="block text-[15px] font-extrabold leading-tight"><span translate="no" className="notranslate">{currency}</span>{payableTotal.toFixed(0)}</span>
               <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
             </span>
             <span className="flex items-center gap-1 text-[15px] font-bold whitespace-nowrap">
@@ -3592,7 +3592,7 @@ const Row = ({
 }) => (
   <div className="flex items-center justify-between text-sm">
     <span className="text-gray-600">{label}</span>
-    <span className="text-gray-900 font-medium" style={accent ? { color: accent } : undefined}>
+    <span translate="no" className="text-gray-900 font-medium notranslate" style={accent ? { color: accent } : undefined}>
       {value}
     </span>
   </div>
@@ -3634,7 +3634,7 @@ const DiscountsView = ({
             Apply Discounts
           </div>
           <div className="text-xs text-gray-500">
-            Your cart: {currency}
+            Your cart: <span translate="no" className="notranslate">{currency}</span>
             {cartTotal.toFixed(0)}
           </div>
         </div>
@@ -3678,7 +3678,12 @@ const DiscountsView = ({
                     ? `${Number(d.discount_value).toFixed(0)}% OFF`
                     : d.discount_type === "freebie"
                       ? "FREEBIE"
-                      : `${currency}${Number(d.discount_value).toFixed(0)} OFF`;
+                      : (
+                        <>
+                          <span translate="no" className="notranslate">{currency}</span>
+                          {Number(d.discount_value).toFixed(0)} OFF
+                        </>
+                      );
                 return (
                   <div
                     key={d.id}
@@ -3718,7 +3723,7 @@ const DiscountsView = ({
                       </div>
                       {d.min_order_value && (
                         <div className="mt-1 text-xs text-gray-400">
-                          Min order: {currency}
+                          Min order: <span translate="no" className="notranslate">{currency}</span>
                           {Number(d.min_order_value).toFixed(0)}
                         </div>
                       )}

@@ -584,7 +584,7 @@ const ItemsCard = ({
               {item.name}
             </DescriptionWithTextBreak>
             <p className="text-[13px] mt-1 font-medium" style={{ color: "var(--pom-text-muted)" }}>
-              {currency}{" "}{(Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)) * item.quantity).toFixed(2)}
+              <span translate="no" className="notranslate">{currency}</span>{" "}{(Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)) * item.quantity).toFixed(2)}
             </p>
           </div>
           {/* Right: Quantity control */}
@@ -772,7 +772,7 @@ const BillCard = ({
       <div className="space-y-2.5">
         <div className="flex justify-between text-sm">
           <span style={{ color: "var(--pom-text-muted)" }}>Item Total</span>
-          <span className="text-inherit">{currency}{" "}{(subtotal + freebieTotalPrice).toFixed(2)}</span>
+          <span className="text-inherit"><span translate="no" className="notranslate">{currency}</span>{" "}{(subtotal + freebieTotalPrice).toFixed(2)}</span>
         </div>
 
         {qrGroup && qrExtraCharges > 0 && (
@@ -781,7 +781,7 @@ const BillCard = ({
               {qrGroup.name || "Service Charge"}
               {qrGroup.charge_type === "PER_ITEM" && <span className="text-xs ml-1">(Per item)</span>}
             </span>
-            <span className="text-inherit">{currency}{" "}{qrExtraCharges.toFixed(2)}</span>
+            <span className="text-inherit"><span translate="no" className="notranslate">{currency}</span>{" "}{qrExtraCharges.toFixed(2)}</span>
           </div>
         )}
 
@@ -799,7 +799,7 @@ const BillCard = ({
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
               {agentPrice > 0 ? (
-                <span className="text-inherit">{currency}{" "}{agentPrice.toFixed(0)}</span>
+                <span className="text-inherit"><span translate="no" className="notranslate">{currency}</span>{" "}{agentPrice.toFixed(0)}</span>
               ) : (
                 <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
                   Free
@@ -819,7 +819,7 @@ const BillCard = ({
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
               {(deliveryInfo?.cost ?? 0) > 0 ? (
-                <span className="text-inherit">{currency}{" "}{deliveryInfo.cost.toFixed(0)}</span>
+                <span className="text-inherit"><span translate="no" className="notranslate">{currency}</span>{" "}{deliveryInfo.cost.toFixed(0)}</span>
               ) : (
                 <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
                   Free
@@ -844,7 +844,7 @@ const BillCard = ({
                   Calculating…
                 </span>
               ) : porterQuote.available && typeof porterQuote.fare === "number" ? (
-                <span className="text-inherit">{currency}{" "}{porterQuote.fare.toFixed(0)}</span>
+                <span className="text-inherit"><span translate="no" className="notranslate">{currency}</span>{" "}{porterQuote.fare.toFixed(0)}</span>
               ) : (
                 <span className="text-rose-600 text-xs">Not serviceable</span>
               )}
@@ -864,7 +864,7 @@ const BillCard = ({
               Packaging Charge
               {parcelChargeType === "variable" && <span className="text-xs ml-1">({totalItemCount} items)</span>}
             </span>
-            <span className="text-inherit">{currency}{" "}{parcelCharge.toFixed(2)}</span>
+            <span className="text-inherit"><span translate="no" className="notranslate">{currency}</span>{" "}{parcelCharge.toFixed(2)}</span>
           </div>
         )}
 
@@ -875,7 +875,7 @@ const BillCard = ({
               <span style={{ color: "var(--pom-text-muted)" }}>
                 {hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} &amp; Other Charges ({gstPercentage}%)
               </span>
-              <span className="text-inherit">{currency}{" "}{gstAmount.toFixed(2)}</span>
+              <span className="text-inherit"><span translate="no" className="notranslate">{currency}</span>{" "}{gstAmount.toFixed(2)}</span>
             </div>
           </>
         ) : null}
@@ -887,7 +887,7 @@ const BillCard = ({
               {discount?.code ? ` (${discount.code})` : ""}
             </span>
             <span style={{ color: "var(--pom-accent, #ea580c)" }}>
-              -{currency}{" "}{discountSavings.toFixed(2)}
+              -<span translate="no" className="notranslate">{currency}</span>{" "}{discountSavings.toFixed(2)}
             </span>
           </div>
         )}
@@ -895,7 +895,7 @@ const BillCard = ({
         {billRoundOff > 0 && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--pom-text-muted)" }}>Round Off</span>
-            <span className="text-inherit">{currency}{" "}{billRoundOff.toFixed(2)}</span>
+            <span className="text-inherit"><span translate="no" className="notranslate">{currency}</span>{" "}{billRoundOff.toFixed(2)}</span>
           </div>
         )}
 
@@ -903,7 +903,7 @@ const BillCard = ({
           <div className="flex justify-between text-sm opacity-80">
             <span className="font-medium">Loyalty Points</span>
             <span style={{ color: "var(--pom-accent, #ea580c)" }}>
-              -{currency}{" "}{loyaltyApplied.toFixed(2)}
+              -<span translate="no" className="notranslate">{currency}</span>{" "}{loyaltyApplied.toFixed(2)}
             </span>
           </div>
         )}
@@ -912,7 +912,7 @@ const BillCard = ({
           <div className="flex justify-between items-center">
             <span className="font-extrabold text-inherit text-[15px]">Grand Total</span>
             <span className="font-extrabold text-inherit text-lg">
-              {currency}{" "}{grandTotal.toFixed(2)}
+              <span translate="no" className="notranslate">{currency}</span>{" "}{grandTotal.toFixed(2)}
             </span>
           </div>
         </div>
@@ -3829,7 +3829,7 @@ const PlaceOrderModal = ({
                         <div key={id} className="flex items-center justify-between py-2 px-1 rounded-lg opacity-80" style={{ backgroundColor: "var(--pom-card-bg, #fff)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                           <div>
                             <p className="text-sm font-semibold">{item.name}</p>
-                            <p className="text-xs opacity-60">{hotelData?.currency || "₹"}{item.price.toFixed(2)} <span className="font-bold">FREE</span></p>
+                            <p className="text-xs opacity-60"><span translate="no" className="notranslate">{hotelData?.currency || "₹"}</span>{item.price.toFixed(2)} <span className="font-bold">FREE</span></p>
                           </div>
                           <span className="text-xs font-bold px-2 py-1 rounded-md opacity-70">x{appliedDiscount.freebie_item_count || 1}</span>
                         </div>
@@ -3980,8 +3980,8 @@ const PlaceOrderModal = ({
                                 ? "Free item"
                                 : disc.discount_type === "percentage"
                                 ? `${disc.discount_value}% off`
-                                : `${hotelData?.currency || "₹"}${disc.discount_value} off`}
-                              {disc.min_order_value ? ` above ${hotelData?.currency || "₹"}${disc.min_order_value}` : ""}
+                                : <><span translate="no" className="notranslate">{hotelData?.currency || "₹"}</span>{`${disc.discount_value} off`}</>}
+                              {disc.min_order_value ? <>{` above `}<span translate="no" className="notranslate">{hotelData?.currency || "₹"}</span>{disc.min_order_value}</> : ""}
                             </span>
                           </div>
                           <span className="text-[10px] font-semibold text-[var(--pom-accent,#ea580c)] shrink-0">APPLY</span>
@@ -4003,7 +4003,7 @@ const PlaceOrderModal = ({
                                 }).filter(Boolean);
                                 return names?.length ? `Free: ${names.join(", ")}` : "Free item included!";
                               })()
-                            : `You save ${hotelData?.currency || "₹"}${computeDiscountSavings(appliedDiscount).toFixed(2)}`}
+                            : <>{`You save `}<span translate="no" className="notranslate">{hotelData?.currency || "₹"}</span>{computeDiscountSavings(appliedDiscount).toFixed(2)}</>}
                         </p>
                       </div>
                       <button onClick={handleRemoveDiscount} className="p-1 rounded-full opacity-60">
@@ -4131,7 +4131,7 @@ const PlaceOrderModal = ({
 
               {(items?.length === 0 || (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)) && (
                 <div className="text-sm p-3 rounded-xl text-center" style={{ backgroundColor: "rgba(245,158,11,0.15)", color: "#fcd34d" }}>
-                  Minimum order amount: {hotelData?.currency || "₹"}{deliveryInfo?.minimumOrderAmount.toFixed(2)}
+                  Minimum order amount: <span translate="no" className="notranslate">{hotelData?.currency || "₹"}</span>{deliveryInfo?.minimumOrderAmount.toFixed(2)}
                 </div>
               )}
 
@@ -4285,7 +4285,7 @@ const PlaceOrderModal = ({
                     ) : (
                       <>
                         <span className="text-left shrink-0">
-                          <span className="block text-[14px] font-bold leading-tight">{hotelData?.currency || "₹"}{payableTotal.toFixed(2)}</span>
+                          <span className="block text-[14px] font-bold leading-tight"><span translate="no" className="notranslate">{hotelData?.currency || "₹"}</span>{payableTotal.toFixed(2)}</span>
                           <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
                         </span>
                         <span className="flex items-center gap-1 text-[14px] font-bold whitespace-nowrap">

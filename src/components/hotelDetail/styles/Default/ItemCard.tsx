@@ -316,18 +316,18 @@ const ItemCard = ({
                             <span className="text-sm font-bold">From </span>
                           ) : (
                             <span className="line-through text-gray-400 mr-2 text-sm font-medium">
-                              {currency} {parseInt(String(oldPrice ?? item.price))}
+                              <span translate="no" className="notranslate">{currency}</span> {parseInt(String(oldPrice ?? item.price))}
                             </span>
                           )}
                           <span className="text-accent font-bold text-2xl" style={{ color: styles.accent }}>
-                            {currency} {parseInt(String(offerPrice))}
+                            <span translate="no" className="notranslate">{currency}</span> {parseInt(String(offerPrice))}
                           </span>
                         </span>
                       ) : hasVariants ? (
                         <span className="">
                           <span className="text-sm font-bold">From </span>
                           <span>
-                            {currency}{" "}
+                            <span translate="no" className="notranslate">{currency}</span>{" "}
                             {formatPrice(
                               item.variants?.sort((a, b) => a?.price - b?.price)[0]?.price || item.price,
                               hotelData?.id
@@ -336,7 +336,7 @@ const ItemCard = ({
                         </span>
                       ) : (
                         <span>
-                          {currency} {formatPrice(item.price, hotelData?.id)}
+                          <span translate="no" className="notranslate">{currency}</span> {formatPrice(item.price, hotelData?.id)}
                         </span>
                       )}
                     </>
@@ -469,15 +469,15 @@ const ItemCard = ({
                               {hasVariantOffer ? (
                                 <div className="flex flex-col items-end">
                                   <span className="line-through text-gray-400 text-sm font-normal">
-                                    {currency} {variantOriginalPrice}
+                                    <span translate="no" className="notranslate">{currency}</span> {variantOriginalPrice}
                                   </span>
                                   <span className="text-accent font-bold" style={{ color: styles.accent }}>
-                                    {currency} {variantOfferPrice}
+                                    <span translate="no" className="notranslate">{currency}</span> {variantOfferPrice}
                                   </span>
                                 </div>
                               ) : (
                                 <>
-                                  {currency} {formatPrice(variant.price, hotelData?.id)}
+                                  <span translate="no" className="notranslate">{currency}</span> {formatPrice(variant.price, hotelData?.id)}
                                 </>
                               )}
                             </>

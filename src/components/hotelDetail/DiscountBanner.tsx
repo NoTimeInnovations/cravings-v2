@@ -305,7 +305,7 @@ const DiscountBanner = ({
                           })()
                         : disc.discount_type === "percentage"
                         ? `${disc.discount_value}% OFF`
-                        : `${currency}${disc.discount_value} OFF`}
+                        : <><span translate="no" className="notranslate">{currency}</span>{`${disc.discount_value} OFF`}</>}
                     </p>
                     {daysLeft && (
                       <span
@@ -319,12 +319,12 @@ const DiscountBanner = ({
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     {disc.min_order_value && (
                       <span className="text-[10px] opacity-60">
-                        Purchase above {currency}{disc.min_order_value} to apply
+                        Purchase above <span translate="no" className="notranslate">{currency}</span>{disc.min_order_value} to apply
                       </span>
                     )}
                     {disc.max_discount_amount && disc.discount_type === "percentage" && (
                       <span className="text-[10px] opacity-60">
-                        · Max {currency}{disc.max_discount_amount}
+                        · Max <span translate="no" className="notranslate">{currency}</span>{disc.max_discount_amount}
                       </span>
                     )}
                     {!disc.has_coupon && (
@@ -462,10 +462,10 @@ const DiscountBanner = ({
                           </span>
                         )}
                         {disc.min_order_value && (
-                          <span>Min order {currency}{disc.min_order_value}</span>
+                          <span>Min order <span translate="no" className="notranslate">{currency}</span>{disc.min_order_value}</span>
                         )}
                         {disc.max_discount_amount && disc.discount_type === "percentage" && (
-                          <span>· Max {currency}{disc.max_discount_amount}</span>
+                          <span>· Max <span translate="no" className="notranslate">{currency}</span>{disc.max_discount_amount}</span>
                         )}
                         {disc.per_user_usage_limit != null && (user as any)?.id && (
                           <span>· Used {userUsageMap[disc.id] ?? 0}/{disc.per_user_usage_limit}</span>

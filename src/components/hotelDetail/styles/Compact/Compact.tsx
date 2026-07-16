@@ -419,11 +419,11 @@ const CompactOffersTab = ({
                     )}
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-sm font-bold" style={{ color: styles?.accent }}>
-                        {hoteldata?.currency || "₹"}{offerPrice}
+                        <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{offerPrice}
                       </span>
                       {originalPrice > 0 && originalPrice !== offerPrice && (
                         <span className="text-[10px] line-through opacity-40">
-                          {hoteldata?.currency || "₹"}{originalPrice}
+                          <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{originalPrice}
                         </span>
                       )}
                     </div>

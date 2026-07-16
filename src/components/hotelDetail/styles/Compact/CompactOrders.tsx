@@ -483,7 +483,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                         {item.quantity} × {item.name}
                       </span>
                       <span className="font-medium text-gray-900">
-                        {order.partner?.currency || "₹"}
+                        <span translate="no" className="notranslate">{order.partner?.currency || "₹"}</span>
                         {(item.price * item.quantity).toFixed(2)}
                       </span>
                     </div>
@@ -501,7 +501,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                       >
                         <span>{charge.name}</span>
                         <span>
-                          {currency}
+                          <span translate="no" className="notranslate">{currency}</span>
                           {chargeAmount.toFixed(2)}
                         </span>
                       </div>
@@ -513,7 +513,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                         {isUAE ? "VAT" : "GST"} ({gstPercentage}%)
                       </span>
                       <span>
-                        {currency}
+                        <span translate="no" className="notranslate">{currency}</span>
                         {gstAmount.toFixed(2)}
                       </span>
                     </div>
@@ -527,7 +527,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                           : ""}
                       </span>
                       <span className="font-medium">
-                        -{currency}
+                        -<span translate="no" className="notranslate">{currency}</span>
                         {discountSavings.toFixed(2)}
                       </span>
                     </div>
@@ -537,7 +537,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                 <div className="border-t border-gray-200 pt-3 flex justify-between items-center font-bold text-gray-900">
                   <span>Total</span>
                   <span>
-                    {order.partner?.currency || "₹"}
+                    <span translate="no" className="notranslate">{order.partner?.currency || "₹"}</span>
                     {grandTotal.toFixed(2)}
                   </span>
                 </div>

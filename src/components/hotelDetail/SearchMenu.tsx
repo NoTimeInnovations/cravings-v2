@@ -355,7 +355,7 @@ const SearchMenu = ({
                                 ) : hasVariants ? (
                                   <>
                                     <span className="text-xs font-normal opacity-50">From </span>
-                                    {currency}
+                                    <span translate="no" className="notranslate">{currency}</span>
                                     {formatPrice(
                                       item.variants!.sort((a, b) => a?.price - b?.price)[0]?.price || item.price,
                                       hotelData?.id
@@ -363,7 +363,7 @@ const SearchMenu = ({
                                   </>
                                 ) : (
                                   <>
-                                    {currency}
+                                    <span translate="no" className="notranslate">{currency}</span>
                                     {formatPrice(item.price, hotelData?.id)}
                                   </>
                                 )}
@@ -466,7 +466,7 @@ const SearchMenu = ({
                                     className="block text-sm font-black"
                                     style={{ color: styles.accent }}
                                   >
-                                    {currency}
+                                    <span translate="no" className="notranslate">{currency}</span>
                                     {variant.price}
                                   </span>
                                 </div>

@@ -104,7 +104,7 @@ const V3SearchResultItem = ({
         {shouldShowPrice && (
           <div className="mt-0.5 flex items-center gap-2 text-xs font-bold text-gray-900">
             {hasVariants && <span className="text-[10px] font-normal">From </span>}
-            {hoteldata?.currency || "₹"}{formatPrice(price, hoteldata?.id)}
+            <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(price, hoteldata?.id)}
           </div>
         )}
         {item.description && (

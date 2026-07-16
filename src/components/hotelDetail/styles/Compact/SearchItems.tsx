@@ -85,7 +85,7 @@ const SearchResultItem = ({
         )}
         <p className="text-sm font-bold mt-1" style={{ color: styles?.accent }}>
           {hasVariants && <span className="text-xs font-normal">From </span>}
-          {hoteldata?.currency || "₹"} {price}
+          <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span> {price}
         </p>
       </div>
       <div className="flex flex-col items-center flex-shrink-0">

@@ -64,7 +64,7 @@ const ItemDetailsModal = ({
                     }}
                     className={`font-black text-2xl`}
                   >
-                    {currency} {formatPrice(item.price, hotelData?.id)}
+                    <span translate="no" className="notranslate">{currency}</span> {formatPrice(item.price, hotelData?.id)}
                   </div>
                 )}
               </div>
@@ -100,7 +100,7 @@ const ItemDetailsModal = ({
                       }}
                       className="text-xl font-black"
                     >
-                      {currency} {formatPrice(variant.price, hotelData?.id)}
+                      <span translate="no" className="notranslate">{currency}</span> {formatPrice(variant.price, hotelData?.id)}
                     </div>
                   </div>
                 </div>

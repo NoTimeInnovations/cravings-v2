@@ -63,7 +63,7 @@ export function LoyaltyRedeemCard({
             <div className="font-semibold text-inherit text-[15px] leading-tight">Loyalty Points</div>
             <div className="text-xs" style={{ color: "var(--pom-text-muted)" }}>
               You have <span className="font-semibold">{balance.toLocaleString()}</span> pts
-              {" "}({currency}
+              {" "}(<span translate="no" className="notranslate">{currency}</span>
               {Math.round(balance * pointValue)})
             </div>
             {onViewHistory && (
@@ -123,7 +123,7 @@ export function LoyaltyRedeemCard({
               Using {points.toLocaleString()} pts
             </div>
             <div className="text-sm font-bold" style={{ color: "var(--pom-accent, #ea580c)" }}>
-              − {currency}
+              − <span translate="no" className="notranslate">{currency}</span>
               {value.toFixed(2)}
             </div>
           </div>

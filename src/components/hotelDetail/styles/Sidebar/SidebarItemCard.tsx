@@ -388,7 +388,7 @@ const SidebarItemCard = ({
                 <span className="flex items-center gap-1 flex-wrap">
                   {!hasMultipleVariantsOnOffer && (
                     <span className="line-through text-[10px] font-normal" style={{ opacity: 0.35 }}>
-                      {currency}{" "}
+                      <span translate="no" className="notranslate">{currency}</span>{" "}
                       {parseInt(String(oldPrice ?? item.price))}
                     </span>
                   )}
@@ -397,7 +397,7 @@ const SidebarItemCard = ({
                       From{" "}
                     </span>
                   )}
-                  {currency}{" "}
+                  <span translate="no" className="notranslate">{currency}</span>{" "}
                   {parseInt(String(offerPrice))}
                 </span>
               ) : hasVariants ? (
@@ -405,7 +405,7 @@ const SidebarItemCard = ({
                   <span className="text-[9px] font-normal" style={{ opacity: 0.5 }}>
                     From{" "}
                   </span>
-                  {currency}{" "}
+                  <span translate="no" className="notranslate">{currency}</span>{" "}
                   {formatPrice(
                     item.variants?.sort((a, b) => a?.price - b?.price)[0]
                       ?.price || item.price,
@@ -414,7 +414,7 @@ const SidebarItemCard = ({
                 </span>
               ) : (
                 <span>
-                  {currency}{" "}
+                  <span translate="no" className="notranslate">{currency}</span>{" "}
                   {formatPrice(item.price, hotelData?.id)}
                 </span>
               )}
@@ -511,7 +511,7 @@ const SidebarItemCard = ({
                       <div>
                         {!hasMultipleVariantsOnOffer && (
                           <div className="line-through text-xs">
-                            {currency}{" "}
+                            <span translate="no" className="notranslate">{currency}</span>{" "}
                             {parseInt(String(oldPrice ?? item.price))}
                           </div>
                         )}
@@ -524,7 +524,7 @@ const SidebarItemCard = ({
                               From{" "}
                             </span>
                           )}
-                          {currency}{" "}
+                          <span translate="no" className="notranslate">{currency}</span>{" "}
                           {parseInt(String(offerPrice))}
                         </div>
                         {typeof discountPercent === "number" &&
@@ -543,7 +543,7 @@ const SidebarItemCard = ({
                           className="text-xl font-bold"
                           style={{ color: styles.accent }}
                         >
-                          {currency}{" "}
+                          <span translate="no" className="notranslate">{currency}</span>{" "}
                           {formatPrice(
                             item.variants?.sort(
                               (a, b) => a?.price - b?.price
@@ -557,7 +557,7 @@ const SidebarItemCard = ({
                         className="text-xl font-bold"
                         style={{ color: styles.accent }}
                       >
-                        {currency}{" "}
+                        <span translate="no" className="notranslate">{currency}</span>{" "}
                         {formatPrice(item.price, hotelData?.id)}
                       </div>
                     )}
@@ -607,15 +607,15 @@ const SidebarItemCard = ({
                                 ) : hasVariantOffer ? (
                                   <>
                                     <span className="line-through font-normal mr-1 text-xs">
-                                      {currency}{" "}
+                                      <span translate="no" className="notranslate">{currency}</span>{" "}
                                       {variantOriginalPrice}
                                     </span>
-                                    {currency}{" "}
+                                    <span translate="no" className="notranslate">{currency}</span>{" "}
                                     {variantOfferPrice}
                                   </>
                                 ) : (
                                   <>
-                                    {currency}{" "}
+                                    <span translate="no" className="notranslate">{currency}</span>{" "}
                                     {formatPrice(
                                       variant.price,
                                       hotelData?.id
