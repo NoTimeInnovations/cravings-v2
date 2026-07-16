@@ -150,13 +150,33 @@ const DEFAULT_FLOW_GRAPH: FlowGraph = {
   ],
 };
 
+// How the builder reads/writes the flow. Defaults to the superadmin admin-proxy
+// (CallLoggerApi); the partner-facing web page (menuthere.com/flow/<id>) passes a
+// device-token adapter instead, so it works without a superadmin session.
+export type CallLoggerFlowApi = {
+  getFlow: () => Promise<{ name?: string; enabled?: boolean; graph?: FlowGraph }>;
+  saveFlow: (body: { name: string; enabled: boolean; graph: FlowGraph }) => Promise<unknown>;
+  runFlow: (number: string) => Promise<{ ok: boolean; contact?: string }>;
+};
+
 export default function FlowBuilder({
   partnerId,
   accountEmail: _accountEmail,
+  api,
 }: {
   partnerId: string;
   accountEmail: string;
+  api?: CallLoggerFlowApi;
 }) {
+  const flowApi = useMemo<CallLoggerFlowApi>(
+    () =>
+      api ?? {
+        getFlow: () => CallLoggerApi.getFlow(partnerId),
+        saveFlow: (b) => CallLoggerApi.saveFlow(partnerId, b),
+        runFlow: (n) => CallLoggerApi.runFlow(partnerId, n),
+      },
+    [api, partnerId],
+  );
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [name, setName] = useState("Call follow-up");
@@ -170,7 +190,8 @@ export default function FlowBuilder({
   const [runMsg, setRunMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    CallLoggerApi.getFlow(partnerId)
+    flowApi
+      .getFlow()
       .then((res) => {
         let graph: FlowGraph =
           res.graph && res.graph.nodes?.length ? res.graph : DEFAULT_FLOW_GRAPH;
@@ -189,7 +210,7 @@ export default function FlowBuilder({
       })
       .catch((e) => setMsg(e.message))
       .finally(() => setLoading(false));
-  }, [partnerId]);
+  }, [flowApi]);
 
   const onNodesChange = useCallback((c: NodeChange[]) => setNodes((ns) => applyNodeChanges(c, ns)), []);
   const onEdgesChange = useCallback((c: EdgeChange[]) => setEdges((es) => applyEdgeChanges(c, es)), []);
@@ -241,7 +262,7 @@ export default function FlowBuilder({
       return;
     }
     try {
-      await CallLoggerApi.saveFlow(partnerId, { name, enabled, graph: toGraph(nodes, edges) });
+      await flowApi.saveFlow({ name, enabled, graph: toGraph(nodes, edges) });
       setMsg("Saved");
     } catch (e) {
       setMsg((e as Error).message);
@@ -254,7 +275,7 @@ export default function FlowBuilder({
     setRunning(true);
     setRunMsg(null);
     try {
-      const res = await CallLoggerApi.runFlow(partnerId, number);
+      const res = await flowApi.runFlow(number);
       setRunMsg(res.ok ? `Flow started for ${res.contact ?? number} ✓` : "Could not start the flow.");
     } catch (e) {
       setRunMsg((e as Error).message);

@@ -211,6 +211,8 @@ const HIDDEN_PATHS = [
   "/admin-v2/.*",
   "/admin",
   "/admin/.*",
+  "/flow",
+  "/flow/.*",
   "/order",
   "/order/.*",
   "/my-orders",
