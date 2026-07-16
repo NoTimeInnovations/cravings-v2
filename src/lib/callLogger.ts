@@ -55,4 +55,10 @@ export const CallLoggerApi = {
     if (opts?.source) qs.set("source", opts.source);
     return req<{ items: SendRow[] }>(`/messages?${qs.toString()}`);
   },
+  /** Manually run the partner's configured flow on one number (a synthetic call). */
+  runFlow: (p: string, number: string, name?: string) =>
+    req<{ ok: boolean; runId?: string; contact?: string }>(
+      `/run-flow?partner=${encodeURIComponent(p)}`,
+      { method: "POST", body: JSON.stringify({ number, name }) },
+    ),
 };

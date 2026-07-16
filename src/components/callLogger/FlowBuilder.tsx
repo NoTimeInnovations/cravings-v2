@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Clock, GitBranch, Phone, Plus, Save, Send, Trash2 } from "lucide-react";
+import { Clock, GitBranch, Phone, Play, Plus, Save, Send, Trash2 } from "lucide-react";
 import TemplatePicker from "./TemplatePicker";
 
 type Kind = "trigger" | "send" | "wait" | "condition";
@@ -143,6 +143,9 @@ export default function FlowBuilder({
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const [counter, setCounter] = useState(1);
+  const [runNumber, setRunNumber] = useState("");
+  const [running, setRunning] = useState(false);
+  const [runMsg, setRunMsg] = useState<string | null>(null);
 
   useEffect(() => {
     CallLoggerApi.getFlow(partnerId)
@@ -222,6 +225,21 @@ export default function FlowBuilder({
     }
   };
 
+  const runOnNumber = async () => {
+    const number = runNumber.trim();
+    if (!number) return;
+    setRunning(true);
+    setRunMsg(null);
+    try {
+      const res = await CallLoggerApi.runFlow(partnerId, number);
+      setRunMsg(res.ok ? `Flow started for ${res.contact ?? number} ✓` : "Could not start the flow.");
+    } catch (e) {
+      setRunMsg((e as Error).message);
+    } finally {
+      setRunning(false);
+    }
+  };
+
   const selected = useMemo(() => nodes.find((n) => n.id === selectedId) ?? null, [nodes, selectedId]);
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading flow…</p>;
@@ -247,6 +265,28 @@ export default function FlowBuilder({
           <Save className="mr-1 h-4 w-4" /> Save flow
         </Button>
         {msg && <span className="text-sm text-muted-foreground">{msg}</span>}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
+        <span className="text-sm font-medium">Test on a number</span>
+        <Input
+          value={runNumber}
+          onChange={(e) => setRunNumber(e.target.value)}
+          placeholder="+9198…"
+          className="h-9 w-44"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={running || !runNumber.trim()}
+          onClick={runOnNumber}
+        >
+          <Play className="mr-1 h-4 w-4" /> {running ? "Running…" : "Run flow"}
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          Runs the saved flow on this number now (include country code).
+        </span>
+        {runMsg && <span className="text-sm text-muted-foreground">{runMsg}</span>}
       </div>
 
       <div className="flex gap-4">
