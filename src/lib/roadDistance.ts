@@ -1,63 +1,55 @@
 // Single source of truth for delivery road distance so the address picker, the
-// radius check, and checkout all agree. Direction matters — Mapbox driving
-// distance is asymmetric (one-ways / turn restrictions) — so ALWAYS call it the
-// same way: origin = the delivery address, destination = the store. That mirrors
-// how calculateDeliveryDistanceAndCost builds its request, so the number the
-// picker shows equals the number checkout charges.
+// radius check, and checkout all agree.
+//
+// Mapbox driving distance is DIRECTIONAL: A→B and B→A can differ a lot where the
+// road network has one-ways / turn restrictions (e.g. a hostel inside a campus
+// with one-way roads). A real case: store→customer routed 3.2 km (matching Google
+// Maps) but customer→store routed 7.4 km — so measuring only the "customer→store"
+// leg made the app show 7.4 km for a trip Google Maps calls 3.2 km.
+//
+// For "how far is this address from the store" we want the shorter of the two
+// legs — that's the actual delivery trip the rider drives and it matches what a
+// customer sees in Google Maps. So we query BOTH directions and take the min.
+// (Google Distance Matrix is intentionally not used: the legacy Distance Matrix
+// API is disabled on our Cloud project, and Mapbox already matches Google Maps
+// for a given direction, so the JS SDK path only added a failing round-trip.)
 
 export type LatLng = { lat: number; lng: number };
 
 /**
- * Driving distance in km from `from` to `to` via Google Maps Distance Matrix
- * API (preferred — matches what users see in Google Maps) or Mapbox Directions
- * (fallback when the Google Maps JS SDK isn't loaded yet).
- * Returns null when neither service is reachable (caller falls back to haversine).
+ * Driving distance in km between `from` and `to` via the Mapbox Directions API.
+ * Because driving distance is directional, this measures BOTH directions and
+ * returns the shorter one — the real delivery leg, which matches Google Maps and
+ * is stable regardless of which point the caller passes first.
+ * Returns null when Mapbox is unreachable (caller falls back to haversine).
  * For delivery, call as roadDistanceKm(address, store).
  */
 export async function roadDistanceKm(
   from: LatLng,
   to: LatLng,
 ): Promise<number | null> {
-  // Prefer Google Maps Distance Matrix API — its road distance matches what
-  // users see in Google Maps, avoiding the Mapbox-vs-Google discrepancy.
-  if (
-    typeof google !== "undefined" &&
-    google.maps?.DistanceMatrixService
-  ) {
-    try {
-      const service = new google.maps.DistanceMatrixService();
-      const resp = await service.getDistanceMatrix({
-        origins: [{ lat: from.lat, lng: from.lng }],
-        destinations: [{ lat: to.lat, lng: to.lng }],
-        travelMode: google.maps.TravelMode.DRIVING,
-      });
-      const el = resp.rows?.[0]?.elements?.[0];
-      if (
-        el?.status ===
-          google.maps.DistanceMatrixElementStatus.OK &&
-        el.distance?.value != null
-      ) {
-        return el.distance.value / 1000; // metres → km
-      }
-      return null;
-    } catch {
-      // Fall through to Mapbox
-    }
-  }
-
-  // Fallback: Mapbox Directions API (e.g. server-side or SDK not yet loaded)
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   if (!token) return null;
-  try {
-    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${from.lng},${from.lat};${to.lng},${to.lat}?access_token=${token}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const d = data?.routes?.[0]?.distance;
-    return typeof d === "number" ? d / 1000 : null;
-  } catch {
-    return null;
-  }
+
+  const legKm = async (a: LatLng, b: LatLng): Promise<number | null> => {
+    try {
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${a.lng},${a.lat};${b.lng},${b.lat}?access_token=${token}`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const d = data?.routes?.[0]?.distance;
+      return typeof d === "number" ? d / 1000 : null; // metres → km
+    } catch {
+      return null;
+    }
+  };
+
+  // Query both directions in parallel — same latency as one call — and take the
+  // shorter leg so a one-way detour on the return trip can't inflate the distance.
+  const [ab, ba] = await Promise.all([legKm(from, to), legKm(to, from)]);
+  const legs = [ab, ba].filter((v): v is number => v != null);
+  if (legs.length === 0) return null;
+  return Math.min(...legs);
 }
 
 /** Straight-line (haversine) km — fallback when Mapbox is unavailable. */

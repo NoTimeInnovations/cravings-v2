@@ -19,6 +19,7 @@ import PlaceOrderModalV2 from "./placeOrder/PlaceOrderModalV2";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getTakeawayAdjustment, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { computeParcelCharge } from "@/lib/parcelCharge";
+import { roadDistanceKm, haversineKm, type LatLng } from "@/lib/roadDistance";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { useAuthStore, User } from "@/store/authStore"; // <-- Added
 import { Button } from "@/components/ui/button";
@@ -146,20 +147,19 @@ export const calculateDeliveryDistanceAndCost = async (
     ) {
       distanceInKm = precomputedDistanceKm;
     } else {
-      const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-      if (!mapboxToken) return;
-
-      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${userLocation.join(
-        ",",
-      )};${restaurantCoords.join(",")}?access_token=${mapboxToken}`;
-
-      const response = await fetch(url);
-      if (!response.ok) return;
-      const data = await response.json();
-
-      if (!data.routes || data.routes.length === 0) return;
-
-      distanceInKm = data.routes[0].distance / 1000;
+      // Use the shared roadDistanceKm utility (Google Maps Distance Matrix →
+      // Mapbox fallback) so the checkout distance matches the address picker.
+      const addr: LatLng = { lat: userLat!, lng: userLng! };
+      const store: LatLng = { lat: restaurantCoords[1], lng: restaurantCoords[0] };
+      const km = await roadDistanceKm(addr, store);
+      if (km == null) {
+        // Neither Google Maps nor Mapbox returned a route — fall back to
+        // straight-line so the order isn't silently blocked.
+        const fallback = haversineKm(addr, store);
+        distanceInKm = fallback;
+      } else {
+        distanceInKm = km;
+      }
     }
 
     // Round the measured distance to 1 decimal place so it lines up with the
