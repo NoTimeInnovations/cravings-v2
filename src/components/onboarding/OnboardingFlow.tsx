@@ -12,6 +12,9 @@ import StorefrontScreen from "./StorefrontScreen";
 import DeliveryAddressScreen from "./DeliveryAddressScreen";
 import OrderTypeScreen from "./OrderTypeScreen";
 import OutletPickerScreen from "./OutletPickerScreen";
+import OrderTypeLocationSheet from "./OrderTypeLocationSheet";
+import { useAuthStore } from "@/store/authStore";
+import type { SavedAddress } from "../hotelDetail/placeOrder/AddressManagementModal";
 import { brandColorToHex } from "@/lib/brandColor";
 import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 import type { BranchContext, BranchOutlet } from "@/api/branches";
@@ -57,6 +60,9 @@ interface OnboardingFlowProps {
   /** Server-computed: already chose an order type this session — start dismissed
    * (no SSR flash). */
   initialSkipOnboarding?: boolean;
+  /** "sheet" renders the V6 bottom-sheet order-type + address picker instead of
+   * the full-screen order-type/address screens. */
+  variant?: "screen" | "sheet";
 }
 
 export default function OnboardingFlow({
@@ -85,6 +91,7 @@ export default function OnboardingFlow({
   branchContext,
   preselectedOrderType,
   initialSkipOnboarding = false,
+  variant = "screen",
 }: OnboardingFlowProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -226,7 +233,16 @@ export default function OnboardingFlow({
     }, 300);
   }, [onDismiss]);
 
-  const { setOrderType, setUserAddress, setUserCoordinates } = useOrderStore();
+  const { setOrderType, setUserAddress, setUserCoordinates, userAddress } = useOrderStore();
+  const { userData: onbAuthUser } = useAuthStore();
+  const onbSavedAddresses = (((onbAuthUser as any)?.addresses || []) as SavedAddress[]);
+  const partnerCoords =
+    Array.isArray((hotelData?.geo_location as any)?.coordinates)
+      ? {
+          lat: (hotelData!.geo_location as any).coordinates[1],
+          lng: (hotelData!.geo_location as any).coordinates[0],
+        }
+      : null;
 
   // On mount, restore saved address/coords from cookie and any previously chosen
   // order type from sessionStorage (per-tab only).
@@ -437,6 +453,50 @@ export default function OnboardingFlow({
   }, []);
 
   if (dismissed) return null;
+
+  // V6 bottom-sheet onboarding: a single popup with order-type tabs + the
+  // address picker (delivery) / outlet info (takeaway·dine-in). Only for the
+  // simple order-type/address case — brand parents + storefront splash keep the
+  // full-screen flow.
+  if (
+    variant === "sheet" &&
+    !isBrandParent &&
+    !closing &&
+    (step === "orderType" || step === "address") &&
+    (hasDelivery || hasOrdering || hasDineIn)
+  ) {
+    return (
+      <OrderTypeLocationSheet
+        storeName={brandDisplayName}
+        outletAddress={
+          hotelData?.location_details ||
+          (hotelData as any)?.location ||
+          hotelData?.district ||
+          hotelData?.country ||
+          ""
+        }
+        accent={accent}
+        availableTypes={{ delivery: hasDelivery, takeaway: hasOrdering, dine_in: hasDineIn }}
+        initialType={hasDelivery ? "delivery" : hasOrdering ? "takeaway" : "dine_in"}
+        currentAddress={userAddress || ""}
+        savedAddresses={onbSavedAddresses}
+        partnerCoords={partnerCoords}
+        partnerId={partnerId}
+        hotelData={hotelData}
+        onOrderTypeChange={(t) => {
+          setOrderType(t);
+          if (t !== "dine_in") setSessionOrderType(partnerId, t);
+        }}
+        onDeliveryAddress={(addr, coords) => {
+          setOrderType("delivery");
+          setSessionOrderType(partnerId, "delivery");
+          void handleAddressContinue(addr, coords);
+        }}
+        onConfirm={(t) => { void handleOrderTypeSelect(t); }}
+        onClose={handleSkip}
+      />
+    );
+  }
 
   return (
     <div
