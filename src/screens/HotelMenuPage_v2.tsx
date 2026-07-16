@@ -24,6 +24,7 @@ import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import V3 from "@/components/hotelDetail/styles/V3/V3";
 import V4 from "@/components/hotelDetail/styles/V4/V4";
 import V5 from "@/components/hotelDetail/styles/V5/V5";
+import V6 from "@/components/hotelDetail/styles/V6/V6";
 import { LanguageSwitcher } from "@/components/hotelDetail/LanguageSwitcher";
 import { shortCurrencySymbol } from "@/lib/currencyDisplay";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
@@ -619,6 +620,8 @@ const HotelMenuPage = ({
         return <V4 {...defaultProps} />;
       case "v5":
         return <V5 {...defaultProps} />;
+      case "v6":
+        return <V6 {...defaultProps} />;
       default:
         return <Default {...defaultProps} />;
     }
@@ -657,6 +660,7 @@ const HotelMenuPage = ({
     theme?.menuStyle !== "v3" &&
     theme?.menuStyle !== "v4" &&
     theme?.menuStyle !== "v5" &&
+    theme?.menuStyle !== "v6" &&
     ((pathname.includes("qrScan") && features?.ordering.enabled) ||
       (!pathname.includes("qrScan") &&
         features?.delivery.enabled &&
