@@ -14,6 +14,7 @@ import { readableTextColor } from "@/lib/brandColor";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { V6_FONT } from "./v6utils";
+import { flyToCart } from "./v6FlyToCart";
 import { X, Plus, Minus } from "lucide-react";
 
 /**
@@ -197,6 +198,7 @@ const V6ItemCard = ({
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const liveStockQty = useLiveStock((s) => s.qty);
   const router = useRouter();
+  const imgRef = useRef<HTMLImageElement>(null);
 
   const features = getFeatures(feature_flags || "");
   const deliveryRules = hoteldata?.delivery_rules;
@@ -337,6 +339,14 @@ const V6ItemCard = ({
     else setShowItemSheet(true);
   };
 
+  // Adds immediately (vs opening a sheet) for simple items and single-variant
+  // offers — those are the taps that should fly the image into the cart.
+  const willAddImmediately = !hasMultipleVariantsOnOffer && (!!offerData?.variant || !hasVariants);
+  const addWithFly = () => {
+    if (willAddImmediately) flyToCart(imgRef.current);
+    handleAddItem();
+  };
+
   // A small circular accent ADD button that becomes a compact −/qty/+ pill.
   const renderAddControl = () => {
     if (!isOrderable) return null;
@@ -394,7 +404,7 @@ const V6ItemCard = ({
           </button>
           <span className="min-w-[18px] text-center text-[13px] font-extrabold tabular-nums">{itemQuantity}</span>
           <button
-            onClick={(e) => { e.stopPropagation(); handleAddItem(); }}
+            onClick={(e) => { e.stopPropagation(); addWithFly(); }}
             className="flex h-full w-8 items-center justify-center"
             aria-label="Increase"
           >
@@ -431,6 +441,7 @@ const V6ItemCard = ({
         <div className="relative aspect-square w-full overflow-hidden bg-gray-50">
           {visible && (
             <img
+              ref={imgRef}
               src={item.image_url || "/image_placeholder.png"}
               alt={item.name}
               loading="lazy"
