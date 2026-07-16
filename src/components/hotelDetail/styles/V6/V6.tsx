@@ -10,6 +10,8 @@ import { applyVisibilityState, getItemDisplayState } from "@/lib/visibility";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import V6ItemCard from "./V6ItemCard";
 import V6CategoryTile from "./V6CategoryTile";
+import { DefaultBannerCarousel } from "../Default/HotelBanner";
+import { V6_FONT } from "./v6utils";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { getFeatures } from "@/lib/getFeatures";
@@ -118,6 +120,8 @@ const V6 = ({
 
   const features = getFeatures(hoteldata?.feature_flags as string);
   const cartCount = cartItems?.reduce((sum, i) => sum + i.quantity, 0) || 0;
+  // Promo banners uploaded in the dashboard Branding section (delivery_rules.carousel_banners).
+  const carouselBanners = ((hoteldata as any)?.delivery_rules?.carousel_banners as string[] | undefined) || [];
 
   const showBottomNav =
     !open_place_order_modal &&
@@ -313,7 +317,7 @@ const V6 = ({
 
   return (
     <div
-      style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
+      style={{ fontFamily: V6_FONT }}
       className="no-image-save min-h-screen bg-[#f7f7f5] antialiased"
       onContextMenu={(e) => {
         if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
@@ -469,6 +473,13 @@ const V6 = ({
             )}
 
             <div className="pt-1">{renderGrid(activeHomeTab?.items || [], activeHomeTab?.key === "offers" ? { id: "offers" } : undefined)}</div>
+
+            {/* Promo banners from the Branding section, below the products */}
+            {carouselBanners.length > 0 && (
+              <section className="px-4 pt-5">
+                <DefaultBannerCarousel banners={carouselBanners} accent={accent} />
+              </section>
+            )}
 
             <p translate="no" className="py-6 text-center text-[10px] text-gray-300 notranslate">
               {hoteldata?.store_name}
