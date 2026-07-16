@@ -885,6 +885,48 @@ export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result
   return { ok: true, data: { dispatchId } };
 }
 
+// ── Delayed dispatch (delivery_rules.porter_dispatch_delay_min) ────────────
+// Stamp orders.porter_dispatch_due_at so the dispatch-due-porter cron books the
+// rider `delayMinutes` after the trigger fired (server-computed time avoids
+// client clock skew). clearDelayedDispatch cancels a still-pending stamp (e.g.
+// on order cancel). delay <= 0 falls through to an immediate book.
+const SET_DISPATCH_DUE_MUTATION = `
+  mutation SetPorterDispatchDue($id: uuid!, $due: timestamptz!) {
+    update_orders_by_pk(pk_columns: { id: $id }, _set: { porter_dispatch_due_at: $due }) { id }
+  }
+`;
+const CLEAR_DISPATCH_DUE_MUTATION = `
+  mutation ClearPorterDispatchDue($id: uuid!) {
+    update_orders_by_pk(pk_columns: { id: $id }, _set: { porter_dispatch_due_at: null }) { id }
+  }
+`;
+
+export async function scheduleDelayedDispatch(
+  orderId: string,
+  delayMinutes: number,
+): Promise<Result> {
+  if (!orderId) return { ok: false, message: "orderId required" };
+  const mins = Math.max(0, Math.min(120, Math.round(Number(delayMinutes) || 0)));
+  if (mins <= 0) return dispatchViaDeliveryBridge(orderId);
+  const due = new Date(Date.now() + mins * 60_000).toISOString();
+  try {
+    await fetchFromHasura(SET_DISPATCH_DUE_MUTATION, { id: orderId, due });
+    return { ok: true, data: { due } };
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+}
+
+export async function clearDelayedDispatch(orderId: string): Promise<Result> {
+  if (!orderId) return { ok: false, message: "orderId required" };
+  try {
+    await fetchFromHasura(CLEAR_DISPATCH_DUE_MUTATION, { id: orderId });
+    return { ok: true, data: {} };
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+}
+
 /**
  * Poll the dispatch + reconcile the order. Once a provider wins, flips
  * delivery_provider to that provider (porter/uber/rapido) so the existing

@@ -47,7 +47,7 @@ import {
 } from "@/lib/statusHistory";
 import { Notification } from "@/app/actions/notification";
 import { dispatchDeliveryAgent, cancelDeliveryAgent } from "@/app/actions/deliveryAgent";
-import { dispatchViaDeliveryBridge, cancelDispatch } from "@/app/actions/porterBridge";
+import { dispatchViaDeliveryBridge, cancelDispatch, scheduleDelayedDispatch, clearDelayedDispatch } from "@/app/actions/porterBridge";
 import { dispatchDeliveryPool, cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
 import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 import { linkMapsUsageToOrder } from "@/app/actions/trackGoogleApi";
@@ -134,6 +134,22 @@ export interface DeliveryRules {
     uber?: string;
     rapido?: string;
   };
+  /** Auto-book a rider through the delivery bridge on the trigger below. When
+   *  false the order is NOT auto-dispatched — the operator books it manually
+   *  ("Book Porter now" in the order details). Defaults to true (absent = on). */
+  porter_auto_dispatch?: boolean;
+  /** Which order-status transition auto-books the rider: "accepted" (default —
+   *  fires the moment the order is accepted, today's behavior) or "food_ready"
+   *  (waits until the kitchen marks it ready). */
+  porter_dispatch_trigger?: "accepted" | "food_ready";
+  /** Minutes to wait AFTER the trigger before booking (0 = immediate). Clamped
+   *  0–120. When > 0 the dispatch is deferred via orders.porter_dispatch_due_at,
+   *  swept by the dispatch-due-porter cron. */
+  porter_dispatch_delay_min?: number;
+  /** Delivery fee charged to the customer at checkout: "custom" (the partner's
+   *  own delivery_rules pricing, default) or "porter" (the live Porter/bridge
+   *  quote for the trip). */
+  porter_pricing_mode?: "custom" | "porter";
   /** Menuthere Delivery Pool per-restaurant OTP toggles — rider must enter a
    *  code to confirm pickup (shown to the restaurant) / delivery (sent to the
    *  customer). Read by deliveryPoolDispatch at hand-off. */
@@ -785,11 +801,22 @@ const useOrderStore = create(
             // the partner has two riders incoming — by design unusual, the
             // operator gates this themselves at the feature-flag level.
             if (features.porter_bridge.access && features.porter_bridge.enabled && isRealDelivery) {
-              if (newStatus === "accepted") {
-                dispatchViaDeliveryBridge(orderId).then((r) => {
+              // Config-driven (delivery_rules): auto on/off, trigger status
+              // (accepted | food_ready), and an optional delay in minutes.
+              const rules = (userData as any)?.delivery_rules || {};
+              const autoBook = rules.porter_auto_dispatch !== false; // default on
+              const trigger = rules.porter_dispatch_trigger === "food_ready" ? "food_ready" : "accepted";
+              const delayMin = Math.max(0, Math.min(120, Number(rules.porter_dispatch_delay_min) || 0));
+              if (autoBook && newStatus === trigger) {
+                const book = delayMin > 0
+                  ? scheduleDelayedDispatch(orderId, delayMin) // stamp due_at; cron books
+                  : dispatchViaDeliveryBridge(orderId);        // book immediately
+                book.then((r) => {
                   if (!r.ok) console.warn(`[delivery-bridge] dispatch failed: ${r.message}`);
                 }).catch((e) => console.warn("[delivery-bridge] dispatch threw:", e));
               } else if (newStatus === "cancelled") {
+                // Drop a still-pending delayed booking, then cancel any live dispatch.
+                clearDelayedDispatch(orderId).catch(() => {});
                 cancelDispatch(orderId, "Cancelled from admin dashboard").then((r) => {
                   if (!r.ok && r.status !== 404) console.warn(`[delivery-bridge] cancel failed: ${r.message}`);
                 }).catch((e) => console.warn("[delivery-bridge] cancel threw:", e));

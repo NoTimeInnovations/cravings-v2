@@ -357,6 +357,10 @@ export function DeliverySettings() {
                 delivery_payment_modes: userData.delivery_rules?.delivery_payment_modes || {},
                 delivery_wait_seconds: userData.delivery_rules?.delivery_wait_seconds ?? 90,
                 delivery_provider_groups: userData.delivery_rules?.delivery_provider_groups || {},
+                porter_auto_dispatch: userData.delivery_rules?.porter_auto_dispatch ?? true,
+                porter_dispatch_trigger: userData.delivery_rules?.porter_dispatch_trigger || "accepted",
+                porter_dispatch_delay_min: userData.delivery_rules?.porter_dispatch_delay_min ?? 0,
+                porter_pricing_mode: userData.delivery_rules?.porter_pricing_mode || "custom",
             });
 
             // Initialize WhatsApp numbers. Coalesce a missing/blank area to
@@ -850,6 +854,101 @@ export function DeliverySettings() {
                                         className="w-28"
                                     />
                                     <span className="text-sm text-muted-foreground">seconds per provider</span>
+                                </div>
+                            </div>
+
+                            {/* Auto booking: enable/disable + trigger + delay */}
+                            <div className="border-t border-orange-100 pt-3 space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <Label className="text-base">Auto-book a rider</Label>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            Automatically dispatch through the bridge. Turn off to book each order manually with the &quot;Book rider now&quot; button on the order.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={deliveryRules.porter_auto_dispatch !== false}
+                                        onCheckedChange={(v) => setDeliveryRules((prev) => ({ ...prev, porter_auto_dispatch: v }))}
+                                    />
+                                </div>
+
+                                {deliveryRules.porter_auto_dispatch !== false && (
+                                    <div className="space-y-3 pl-0.5">
+                                        <div>
+                                            <Label className="text-sm">Book when the order is</Label>
+                                            <div className="mt-1 inline-flex rounded-md border bg-white p-0.5">
+                                                {([
+                                                    { v: "accepted", label: "Accepted" },
+                                                    { v: "food_ready", label: "Food ready" },
+                                                ] as const).map(({ v, label }) => (
+                                                    <button
+                                                        key={v}
+                                                        type="button"
+                                                        onClick={() => setDeliveryRules((prev) => ({ ...prev, porter_dispatch_trigger: v }))}
+                                                        className={`rounded px-4 py-1.5 text-sm transition ${
+                                                            (deliveryRules.porter_dispatch_trigger || "accepted") === v
+                                                                ? "bg-orange-500 text-white"
+                                                                : "text-muted-foreground hover:bg-muted"
+                                                        }`}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {deliveryRules.porter_dispatch_trigger === "food_ready" && (
+                                                <p className="text-xs text-amber-600 mt-1">
+                                                    Fires when the order is marked ready. For Petpooja outlets this only works if your POS sends a &quot;food ready&quot; status — otherwise keep &quot;Accepted&quot;.
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <Label className="text-sm">Delay before booking</Label>
+                                            <div className="mt-1 flex items-center gap-2">
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={120}
+                                                    step={1}
+                                                    value={deliveryRules.porter_dispatch_delay_min ?? 0}
+                                                    onChange={(e) =>
+                                                        setDeliveryRules((prev) => ({
+                                                            ...prev,
+                                                            porter_dispatch_delay_min: Math.max(0, Math.min(120, Number(e.target.value) || 0)),
+                                                        }))
+                                                    }
+                                                    className="w-24"
+                                                />
+                                                <span className="text-sm text-muted-foreground">minutes after the trigger (0 = immediate)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Delivery fee charged to the customer: custom vs live Porter quote */}
+                            <div className="border-t border-orange-100 pt-3">
+                                <Label className="text-base">Delivery fee charged to customer</Label>
+                                <p className="text-xs text-muted-foreground mb-2">
+                                    <strong>Custom</strong> uses your own delivery pricing (the distance / fixed rate above). <strong>Porter price</strong> charges the customer the live bridge quote for the trip.
+                                </p>
+                                <div className="inline-flex rounded-md border bg-white p-0.5">
+                                    {([
+                                        { v: "custom", label: "Custom (your pricing)" },
+                                        { v: "porter", label: "Porter price" },
+                                    ] as const).map(({ v, label }) => (
+                                        <button
+                                            key={v}
+                                            type="button"
+                                            onClick={() => setDeliveryRules((prev) => ({ ...prev, porter_pricing_mode: v }))}
+                                            className={`rounded px-4 py-1.5 text-sm transition ${
+                                                (deliveryRules.porter_pricing_mode || "custom") === v
+                                                    ? "bg-orange-500 text-white"
+                                                    : "text-muted-foreground hover:bg-muted"
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 

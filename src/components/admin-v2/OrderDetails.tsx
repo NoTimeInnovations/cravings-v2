@@ -67,6 +67,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
+import ManualPorterBookButton from "./ManualPorterBookButton";
 import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
 import PoolRiderPanel from "@/components/PoolRiderPanel";
 import { checkAllProvidersAvailability } from "@/app/actions/deliveryAgent";
@@ -537,6 +538,16 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     !getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled &&
                     !getFeatures((userData as Partner)?.feature_flags || null).delivery_pool.enabled && (
                         <DeliveryBoyAssignment order={order} />
+                    )}
+
+                {/* Manual porter-bridge booking — for partners who turned off
+                    auto-book (or want to force/re-trigger). Hidden once a
+                    dispatch exists; the tracking panel below takes over then. */}
+                {order.type === "delivery" &&
+                    getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled &&
+                    !!(order as any).delivery_location?.coordinates &&
+                    !(order as any).delivery_provider_meta?.dispatchId && (
+                        <ManualPorterBookButton orderId={order.id} />
                     )}
             </div>
 
