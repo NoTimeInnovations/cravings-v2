@@ -273,6 +273,9 @@ const OrderDrawer = ({
   qrGroup,
   hasBottomNav = false, // Added prop
   v3Style = false,
+  hideCartBar = false, // When true, suppress the floating "View Cart" bar (caller
+  // provides its own cart affordance and opens checkout via the
+  // "open-cart-drawer" window event). Opt-in; other styles are unaffected.
 }: {
   styles: Styles;
   hotelData: HotelData;
@@ -281,6 +284,7 @@ const OrderDrawer = ({
   qrGroup?: QrGroup | null;
   hasBottomNav?: boolean; // Added type
   v3Style?: boolean;
+  hideCartBar?: boolean;
 }) => {
   const {
     userAddress,
@@ -660,6 +664,18 @@ const OrderDrawer = ({
     }
   };
 
+  // Allow a caller (e.g. the V6 top cart pill) to open checkout via a window
+  // event instead of the floating bar. Runs the same login-gated flow. Opt-in:
+  // only styles that dispatch "open-cart-drawer" trigger this.
+  useEffect(() => {
+    const onOpen = () => {
+      const totalQty = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+      if (totalQty > 0) handlePlaceOrder();
+    };
+    window.addEventListener("open-cart-drawer", onOpen);
+    return () => window.removeEventListener("open-cart-drawer", onOpen);
+  }, [user, items]);
+
   // Close the login modal without logging in. Restore the floating
   // View Cart button if there are still items — handlePlaceOrder hides it
   // when opening the modal, and the items effect won't re-run on cancel.
@@ -799,6 +815,7 @@ const OrderDrawer = ({
 
       {/* Bottom Drawer */}
       {(() => {
+        if (hideCartBar) return null;
         const totalQty = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
         const totalPrice = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
         if (totalQty === 0) return null;

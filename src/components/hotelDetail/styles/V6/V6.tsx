@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
-  MapPin, ShoppingBag, Search, ArrowLeft, User,
+  ShoppingBag, Search, ArrowLeft, User,
   Home as HomeIcon, LayoutGrid, ClipboardList,
 } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -10,13 +10,11 @@ import { applyVisibilityState, getItemDisplayState } from "@/lib/visibility";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import V6ItemCard from "./V6ItemCard";
 import V6CategoryTile from "./V6CategoryTile";
-import { DefaultBannerCarousel } from "../Default/HotelBanner";
 import { V6_FONT } from "./v6utils";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
-import DiscountBanner from "../../DiscountBanner";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
 // V6 reuses V3's search / orders / address sheets verbatim — they are
@@ -120,8 +118,9 @@ const V6 = ({
 
   const features = getFeatures(hoteldata?.feature_flags as string);
   const cartCount = cartItems?.reduce((sum, i) => sum + i.quantity, 0) || 0;
-  // Promo banners uploaded in the dashboard Branding section (delivery_rules.carousel_banners).
-  const carouselBanners = ((hoteldata as any)?.delivery_rules?.carousel_banners as string[] | undefined) || [];
+  const openCart = useCallback(() => {
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("open-cart-drawer"));
+  }, []);
 
   const showBottomNav =
     !open_place_order_modal &&
@@ -226,14 +225,17 @@ const V6 = ({
   const allItems = useMemo(() => menuCategories.flatMap((g) => g.items), [menuCategories]);
   const offerItems = useMemo(() => groupById.get("offers")?.items || [], [groupById]);
 
-  const homeTabs = useMemo(() => {
-    const tabs: { key: string; label: string; items: any[] }[] = [
+  // Flash Sale (offers) · Popular (bestsellers) · New Arrivals (full menu).
+  // Always the same three so Popular stays centred (matches the reference);
+  // an empty Flash Sale shows a friendly empty state.
+  const homeTabs = useMemo(
+    () => [
+      { key: "flash", label: "Flash Sale", items: offerItems },
       { key: "popular", label: "Popular", items: popularItems },
-      { key: "all", label: "All Items", items: allItems },
-    ];
-    if (offerItems.length > 0) tabs.push({ key: "offers", label: "Offers", items: offerItems });
-    return tabs;
-  }, [popularItems, allItems, offerItems]);
+      { key: "new", label: "New Arrivals", items: allItems },
+    ],
+    [popularItems, allItems, offerItems],
+  );
 
   const activeHomeTab = homeTabs.find((t) => t.key === homeTab) || homeTabs[0];
 
@@ -259,27 +261,31 @@ const V6 = ({
   const backAction = onShowStorefront || brandHeader?.onChange;
 
   // ===== Reusable pieces =====
+  // The cart pill doubles as the fly-to-cart animation target (id) and opens
+  // checkout directly (no floating "View Cart" bar).
   const CartBadge = () => (
-    <div
-      className="flex h-10 items-center gap-1.5 rounded-full px-3.5 shadow-sm"
-      style={{ backgroundColor: `${accent}14`, color: accent }}
+    <button
+      id="v6-cart-target"
+      onClick={openCart}
+      className="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 shadow-sm transition active:scale-95"
+      style={{ backgroundColor: `${accent}1f`, color: accent }}
       aria-label={`Cart: ${cartCount} item${cartCount === 1 ? "" : "s"}`}
     >
       <ShoppingBag className="h-[18px] w-[18px]" strokeWidth={2.2} />
       <span className="text-[15px] font-extrabold tabular-nums">
         {String(cartCount).padStart(2, "0")}
       </span>
-    </div>
+    </button>
   );
 
   const SearchPill = () => (
     <button
       onClick={() => setSearchOpen(true)}
-      className="flex w-full items-center gap-2.5 rounded-2xl bg-gray-100/80 px-4 py-3 text-left ring-1 ring-black/[0.04] transition hover:bg-gray-100"
+      className="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3.5 text-left shadow-sm ring-1 ring-black/[0.03] transition hover:shadow"
       aria-label="Search"
     >
-      <Search className="h-[18px] w-[18px] text-gray-500" strokeWidth={2.2} />
-      <span className="text-[14px] font-medium text-gray-400">Search for dishes…</span>
+      <span className="text-[15px] font-medium text-gray-400">Search</span>
+      <Search className="h-[19px] w-[19px] text-gray-400" strokeWidth={2.2} />
     </button>
   );
 
@@ -318,7 +324,7 @@ const V6 = ({
   return (
     <div
       style={{ fontFamily: V6_FONT }}
-      className="no-image-save min-h-screen bg-[#f7f7f5] antialiased"
+      className="no-image-save min-h-screen bg-[#f2f1ec] antialiased"
       onContextMenu={(e) => {
         if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
       }}
@@ -334,7 +340,7 @@ const V6 = ({
 
         {/* ============ HEADER ============ */}
         {view === "items" ? (
-          <div className="sticky top-0 z-40 flex items-center justify-between gap-2 bg-[#f7f7f5]/95 px-4 py-3 backdrop-blur">
+          <div className="sticky top-0 z-40 flex items-center justify-between gap-2 bg-[#f2f1ec]/95 px-4 py-3 backdrop-blur">
             <button
               onClick={() => setView(activeCatId ? "categories" : "home")}
               className="flex h-10 items-center gap-1.5 rounded-full px-3 font-bold ring-1 ring-black/[0.06] transition hover:bg-white"
@@ -350,36 +356,33 @@ const V6 = ({
             <CartBadge />
           </div>
         ) : (
-          <div className="sticky top-0 z-40 flex items-center justify-between gap-3 bg-[#f7f7f5]/95 px-4 py-3 backdrop-blur">
-            <button
-              onClick={backAction ? backAction : () => setAddressSheetOpen(true)}
-              disabled={!backAction && features?.delivery.enabled !== true}
-              className="flex min-w-0 items-center gap-2 text-left"
-            >
-              {backAction ? (
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-800 ring-1 ring-black/[0.06]">
-                  <ArrowLeft className="h-[19px] w-[19px]" />
-                </span>
-              ) : (
-                <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `${accent}14`, color: accent }}
+          <div className="sticky top-0 z-40 bg-[#f2f1ec]/95 px-4 pt-3 pb-2 backdrop-blur">
+            <div className="flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-black/[0.03]">
+              {backAction && (
+                <button
+                  onClick={backAction}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-800 ring-1 ring-black/[0.06] transition hover:bg-gray-50"
+                  aria-label="Back"
                 >
-                  <MapPin className="h-[19px] w-[19px]" strokeWidth={2.2} />
-                </span>
+                  <ArrowLeft className="h-[18px] w-[18px]" />
+                </button>
               )}
-              <span className="min-w-0">
-                <span className="block truncate text-[15px] font-extrabold leading-tight text-gray-900">
+              <button
+                onClick={features?.delivery.enabled ? () => setAddressSheetOpen(true) : undefined}
+                disabled={features?.delivery.enabled !== true}
+                className="flex min-w-0 flex-1 flex-col text-left"
+              >
+                <span className="truncate text-[15px] font-extrabold leading-tight text-gray-900">
                   {features?.delivery.enabled && userAddress ? userAddress : outletName}
                 </span>
-                <span className="block truncate text-[11px] font-medium text-gray-400">
-                  {features?.delivery.enabled && userAddress
-                    ? "Deliver here"
+                <span className="truncate text-[11px] font-medium text-gray-400">
+                  {features?.delivery.enabled
+                    ? userAddress
+                      ? "Your address"
+                      : "Add your address"
                     : locationText || "Your store"}
                 </span>
-              </span>
-            </button>
-            <div className="flex shrink-0 items-center gap-2">
+              </button>
               {(authUser as any)?.role === "user" && (
                 <LoyaltyPointsBadge
                   partnerId={(hoteldata as any)?.id}
@@ -408,15 +411,6 @@ const V6 = ({
                 </p>
               </div>
             )}
-
-            <div className="px-4">
-              <DiscountBanner
-                partnerId={hoteldata?.id || ""}
-                currency={hoteldata?.currency || "₹"}
-                accent={accent}
-                variant="summary"
-              />
-            </div>
 
             {/* Categories rail */}
             {menuCategories.length > 0 && (
@@ -448,20 +442,22 @@ const V6 = ({
               </section>
             )}
 
-            {/* Section tab strip (Popular / All / Offers) */}
+            {/* Section tab strip — Flash Sale · Popular · New Arrivals (active
+                centred + bold, neighbours faded). */}
             {homeTabs.length > 0 && (
-              <div className="sticky top-[64px] z-30 mt-4 bg-[#f7f7f5]/95 backdrop-blur">
-                <div className="flex items-center gap-5 overflow-x-auto scrollbar-hide px-4 py-2.5">
+              <div className="sticky top-[64px] z-30 mt-4 bg-[#f2f1ec]/95 backdrop-blur">
+                <div className="flex items-center justify-center gap-7 overflow-x-auto scrollbar-hide px-6 py-3">
                   {homeTabs.map((t) => {
                     const active = t.key === activeHomeTab.key;
                     return (
                       <button
                         key={t.key}
                         onClick={() => setHomeTab(t.key)}
-                        className={`shrink-0 whitespace-nowrap transition-all ${
+                        aria-selected={active}
+                        className={`shrink-0 whitespace-nowrap transition-all duration-200 ${
                           active
-                            ? "text-[22px] font-extrabold tracking-tight text-gray-900"
-                            : "text-[17px] font-bold text-gray-300"
+                            ? "text-[23px] font-extrabold tracking-tight text-gray-900"
+                            : "text-[18px] font-bold text-gray-300"
                         }`}
                       >
                         {t.label}
@@ -472,14 +468,7 @@ const V6 = ({
               </div>
             )}
 
-            <div className="pt-1">{renderGrid(activeHomeTab?.items || [], activeHomeTab?.key === "offers" ? { id: "offers" } : undefined)}</div>
-
-            {/* Promo banners from the Branding section, below the products */}
-            {carouselBanners.length > 0 && (
-              <section className="px-4 pt-5">
-                <DefaultBannerCarousel banners={carouselBanners} accent={accent} />
-              </section>
-            )}
+            <div className="pt-1">{renderGrid(activeHomeTab?.items || [], activeHomeTab?.key === "flash" ? { id: "offers" } : undefined)}</div>
 
             <p translate="no" className="py-6 text-center text-[10px] text-gray-300 notranslate">
               {hoteldata?.store_name}
@@ -518,7 +507,7 @@ const V6 = ({
           <>
             {/* Horizontal category tab selector (active bold, neighbours faded) */}
             {menuCategories.length > 1 && (
-              <div className="sticky top-[64px] z-30 bg-[#f7f7f5]/95 backdrop-blur">
+              <div className="sticky top-[64px] z-30 bg-[#f2f1ec]/95 backdrop-blur">
                 <div className="flex items-center gap-5 overflow-x-auto scrollbar-hide px-4 py-3">
                   {menuCategories.map((g) => {
                     const active = g.category.id === activeCatId;
@@ -575,6 +564,7 @@ const V6 = ({
             qrGroup={qrGroup}
             hasBottomNav={showBottomNav}
             v3Style
+            hideCartBar
           />
         )}
 
