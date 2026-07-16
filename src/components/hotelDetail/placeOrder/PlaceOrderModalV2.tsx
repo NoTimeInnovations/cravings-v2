@@ -732,12 +732,15 @@ const PlaceOrderModalV2 = ({
   ]);
 
   // ── Porter bridge live quote ──────────────────────────────────────────
-  // When the partner has porter_bridge on, the 2-wheeler fare from
-  // porter-bridge is the delivery charge. Mirrors the delivery_agent flow
-  // above. Porter takes precedence over delivery_agent if both are on.
+  // When the partner has porter_bridge on AND their delivery pricing is set to
+  // "porter" (the default), the live 2-wheeler fare from porter-bridge is the
+  // delivery charge. If they chose "custom", we skip the quote and fall through
+  // to their own delivery_rules pricing (deliveryInfo.cost). Mirrors the
+  // delivery_agent flow; Porter takes precedence over delivery_agent if both on.
   const usePorterForCharge =
     partnerFeatures.porter_bridge.access &&
-    partnerFeatures.porter_bridge.enabled;
+    partnerFeatures.porter_bridge.enabled &&
+    (hotelData?.delivery_rules as any)?.porter_pricing_mode !== "custom";
 
   const [porterQuote, setPorterQuote] = useState<{
     available: boolean;

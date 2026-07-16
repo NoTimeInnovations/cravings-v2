@@ -360,7 +360,7 @@ export function DeliverySettings() {
                 porter_auto_dispatch: userData.delivery_rules?.porter_auto_dispatch ?? true,
                 porter_dispatch_trigger: userData.delivery_rules?.porter_dispatch_trigger || "accepted",
                 porter_dispatch_delay_min: userData.delivery_rules?.porter_dispatch_delay_min ?? 0,
-                porter_pricing_mode: userData.delivery_rules?.porter_pricing_mode || "custom",
+                porter_pricing_mode: userData.delivery_rules?.porter_pricing_mode || "porter",
             });
 
             // Initialize WhatsApp numbers. Coalesce a missing/blank area to

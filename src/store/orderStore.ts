@@ -146,9 +146,10 @@ export interface DeliveryRules {
    *  0–120. When > 0 the dispatch is deferred via orders.porter_dispatch_due_at,
    *  swept by the dispatch-due-porter cron. */
   porter_dispatch_delay_min?: number;
-  /** Delivery fee charged to the customer at checkout: "custom" (the partner's
-   *  own delivery_rules pricing, default) or "porter" (the live Porter/bridge
-   *  quote for the trip). */
+  /** Delivery fee charged to the customer at checkout: "porter" (the live
+   *  Porter/bridge quote for the trip — the default, and today's behavior for
+   *  porter_bridge partners) or "custom" (the partner's own delivery_rules
+   *  pricing). Absent = "porter". */
   porter_pricing_mode?: "custom" | "porter";
   /** Menuthere Delivery Pool per-restaurant OTP toggles — rider must enter a
    *  code to confirm pickup (shown to the restaurant) / delivery (sent to the
