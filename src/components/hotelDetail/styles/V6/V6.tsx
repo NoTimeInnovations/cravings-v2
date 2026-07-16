@@ -1,0 +1,715 @@
+"use client";
+import React, { useState, useMemo, useCallback } from "react";
+import Link from "next/link";
+import {
+  MapPin, ShoppingBag, Search, ArrowLeft, User,
+  Home as HomeIcon, LayoutGrid, ClipboardList,
+} from "lucide-react";
+import { DefaultHotelPageProps } from "../Default/Default";
+import { applyVisibilityState, getItemDisplayState } from "@/lib/visibility";
+import { formatDisplayName } from "@/store/categoryStore_hasura";
+import V6ItemCard from "./V6ItemCard";
+import V6CategoryTile from "./V6CategoryTile";
+import OrderDrawer from "../../OrderDrawer";
+import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
+import { getFeatures } from "@/lib/getFeatures";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
+import DiscountBanner from "../../DiscountBanner";
+import useOrderStore from "@/store/orderStore";
+import { useAuthStore } from "@/store/authStore";
+// V6 reuses V3's search / orders / address sheets verbatim — they are
+// layout-agnostic overlays, so there is no need to fork them.
+import V3SearchItems from "../V3/V3SearchItems";
+import V3Orders from "../V3/V3Orders";
+import V3AddressSheet from "../V3/V3AddressSheet";
+import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
+import AddressPickerV2 from "../../placeOrder/AddressPickerV2";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { updateUserAddressesMutation } from "@/api/auth";
+import { upsertLocalAddress } from "@/lib/localAddresses";
+import { toast } from "sonner";
+import { useLocationStore } from "@/store/geolocationStore";
+import PullToRefresh from "@/components/PullToRefresh";
+import { LoyaltyPointsBadge } from "@/components/loyalty/LoyaltyPointsBadge";
+import { readableTextColor } from "@/lib/brandColor";
+
+type View = "home" | "categories" | "items";
+
+// Resolve the active-offer / upcoming-offer metadata for one item — mirrors the
+// per-item offer computation used by V5 so pricing + variant behaviour match.
+function getOfferMeta(item: any, offers: any[]) {
+  const itemOffers = offers?.filter((offer) => offer.menu.id === item.id) || [];
+  let offerData: any = undefined;
+  let hasMultipleVariantsOnOffer = false;
+  let isUpcomingOffer = false;
+
+  if (itemOffers.length > 0) {
+    const now = new Date();
+    const upcoming = itemOffers.filter((o) => new Date(o.start_time) > now);
+    const active = itemOffers.filter((o) => new Date(o.start_time) <= now);
+    if (upcoming.length > 0) isUpcomingOffer = true;
+
+    if (isUpcomingOffer) {
+      if (upcoming.length > 1) {
+        hasMultipleVariantsOnOffer = true;
+        const lowestOfferPrice = Math.min(...upcoming.map((o) => o.offer_price || 0));
+        const lowestOriginalPrice = Math.min(...upcoming.map((o) => (o.variant ? o.variant.price : o.menu?.price || 0)));
+        offerData = { ...upcoming[0], offer_price: lowestOriginalPrice, menu: { ...upcoming[0].menu, price: lowestOfferPrice } };
+      } else {
+        const offer = upcoming[0];
+        const originalPrice = offer?.variant ? offer.variant.price : offer?.menu?.price || item.price;
+        const futureOfferPrice = typeof offer?.offer_price === "number" ? offer.offer_price : item.price;
+        offerData = { ...offer, offer_price: originalPrice, menu: { ...offer.menu, price: futureOfferPrice } };
+      }
+    } else if (active.length > 1) {
+      hasMultipleVariantsOnOffer = true;
+      const lowestOfferPrice = Math.min(...active.map((o) => o.offer_price || 0));
+      offerData = { ...active[0], offer_price: lowestOfferPrice };
+    } else if (active.length === 1) {
+      offerData = active[0];
+    }
+  }
+
+  return {
+    offerData,
+    hasMultipleVariantsOnOffer,
+    allItemOffers: hasMultipleVariantsOnOffer ? itemOffers : undefined,
+    isUpcomingOffer,
+  };
+}
+
+const V6 = ({
+  styles,
+  hoteldata,
+  offers,
+  tableNumber,
+  auth,
+  topItems,
+  categories,
+  qrGroup,
+  qrId,
+  onShowStorefront,
+  brandHeader,
+  open_place_order_modal,
+}: DefaultHotelPageProps) => {
+  const accent = styles.accent || "#16a34a";
+  const onAccent = readableTextColor(accent);
+
+  const [view, setView] = useState<View>("home");
+  const [activeCatId, setActiveCatId] = useState<string | null>(null);
+  const [homeTab, setHomeTab] = useState<string>("popular");
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [ordersOpen, setOrdersOpen] = useState(false);
+  const [addressSheetOpen, setAddressSheetOpen] = useState(false);
+  const [addressPickerOpen, setAddressPickerOpen] = useState(false);
+  const [pickerInitial, setPickerInitial] = useState<
+    { address?: string; coords: { lat: number; lng: number } } | null
+  >(null);
+
+  const hasOffers = offers && offers.length > 0;
+  const { items: cartItems, userAddress } = useOrderStore();
+  const { userData: authUser } = useAuthStore();
+  const username = (hoteldata as any)?.username as string | undefined;
+  const savedAddresses = useMemo(
+    () => ((authUser as any)?.addresses || []) as SavedAddress[],
+    [(authUser as any)?.addresses],
+  );
+
+  const features = getFeatures(hoteldata?.feature_flags as string);
+  const cartCount = cartItems?.reduce((sum, i) => sum + i.quantity, 0) || 0;
+
+  const showBottomNav =
+    !open_place_order_modal &&
+    (features?.ordering.enabled === true || features?.delivery.enabled === true);
+
+  const persistDeliveryAddress = useCallback(async (saved: SavedAddress) => {
+    const fullAddress =
+      saved.address ||
+      [saved.flat_no, saved.house_no, saved.area, saved.city].filter(Boolean).join(", ");
+    useOrderStore.getState().setUserAddress(fullAddress);
+    if (saved.latitude != null && saved.longitude != null) {
+      const c = { lat: saved.latitude, lng: saved.longitude };
+      useOrderStore.getState().setUserCoordinates(c);
+      useLocationStore.getState().setCoords(c);
+    }
+    const stamped = { ...saved, savedAt: Date.now() };
+    upsertLocalAddress(stamped, Date.now());
+    if (authUser && (authUser as any).role === "user") {
+      const existing = [...savedAddresses];
+      const idx = existing.findIndex((x) => x.id === stamped.id);
+      if (idx >= 0) existing[idx] = stamped;
+      else existing.push(stamped);
+      try {
+        await fetchFromHasura(updateUserAddressesMutation, { id: authUser.id, addresses: existing });
+        useAuthStore.setState({ userData: { ...(authUser as any), addresses: existing } as any });
+        toast.success("Address saved");
+      } catch {
+        toast.error("Failed to save address");
+      }
+    }
+  }, [authUser, savedAddresses]);
+
+  // Category list, offers pseudo-category, and a "Recommended" group from
+  // topItems — mirrors V5's grouping so the same items surface.
+  const allCategoriesUnfiltered = useMemo(() => {
+    let cats = [...categories];
+    if (hasOffers) {
+      cats = cats.filter((c) => {
+        const name = c.name.toLowerCase().trim();
+        return name !== "offer" && name !== "offers";
+      });
+      cats.push({ id: "offers", name: "Offers", priority: -2 } as any);
+    }
+    if (topItems && topItems.length > 0) {
+      cats.push({ id: "must-try", name: "Recommended", priority: -3 } as any);
+    }
+    return cats.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+  }, [categories, hasOffers, topItems]);
+
+  const baseGroups = useMemo(() => {
+    const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+    const offerMenuIdSet = new Set(offers.map((offer) => offer.menu.id));
+    const hideUnav = hoteldata?.hide_unavailable;
+    const result: { category: any; items: any[] }[] = [];
+    for (const category of allCategoriesUnfiltered) {
+      let pool: any[] = [];
+      if (category.id === "offers") {
+        pool = (hoteldata?.menus || []).filter((item) => offerMenuIdSet.has(item.id as string));
+      } else if (category.id === "must-try") {
+        pool = topItems;
+      } else {
+        pool = (hoteldata?.menus || []).filter((item) => item.category.id === category.id);
+      }
+      const catItems = pool
+        .map((item) => {
+          const state = getItemDisplayState(item as any, tz, undefined, hideUnav);
+          if (state === "hidden") return null;
+          return state === "unavailable" ? { ...item, is_available: false } : item;
+        })
+        .filter(Boolean) as any[];
+      catItems.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+      if (catItems.length > 0) result.push({ category, items: catItems });
+    }
+    return result;
+  }, [allCategoriesUnfiltered, hoteldata, offers, topItems]);
+
+  // Real menu categories (excludes the Offers / Recommended pseudo groups) — the
+  // ones shown in the rail, the Categories grid and the Items tab selector.
+  const menuCategories = useMemo(
+    () => baseGroups.filter((g) => g.category.id !== "must-try" && g.category.id !== "offers"),
+    [baseGroups],
+  );
+
+  const groupById = useMemo(() => {
+    const m = new Map<string, { category: any; items: any[] }>();
+    for (const g of baseGroups) m.set(g.category.id, g);
+    return m;
+  }, [baseGroups]);
+
+  const catImage = useCallback(
+    (catId: string) => groupById.get(catId)?.items.find((i) => i.image_url)?.image_url || null,
+    [groupById],
+  );
+
+  // Home "section" tabs — Popular (bestsellers), All, and Offers (when present).
+  const popularItems = useMemo(() => {
+    const mustTry = groupById.get("must-try")?.items || [];
+    if (mustTry.length > 0) return mustTry;
+    return menuCategories.flatMap((g) => g.items).slice(0, 8);
+  }, [groupById, menuCategories]);
+
+  const allItems = useMemo(() => menuCategories.flatMap((g) => g.items), [menuCategories]);
+  const offerItems = useMemo(() => groupById.get("offers")?.items || [], [groupById]);
+
+  const homeTabs = useMemo(() => {
+    const tabs: { key: string; label: string; items: any[] }[] = [
+      { key: "popular", label: "Popular", items: popularItems },
+      { key: "all", label: "All Items", items: allItems },
+    ];
+    if (offerItems.length > 0) tabs.push({ key: "offers", label: "Offers", items: offerItems });
+    return tabs;
+  }, [popularItems, allItems, offerItems]);
+
+  const activeHomeTab = homeTabs.find((t) => t.key === homeTab) || homeTabs[0];
+
+  const searchableMenu = useMemo(() => {
+    const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+    const hideUnav = hoteldata?.hide_unavailable;
+    return (hoteldata?.menus || [])
+      .map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav))
+      .filter(Boolean) as any[];
+  }, [hoteldata]);
+
+  const openCategory = useCallback((catId: string) => {
+    setActiveCatId(catId);
+    setView("items");
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  const activeGroup = activeCatId ? groupById.get(activeCatId) : null;
+  const activeCategoryForCard = activeGroup?.category;
+
+  const outletName = hoteldata?.store_name || "Menu";
+  const locationText = hoteldata?.location_details || hoteldata?.district || hoteldata?.country || "";
+  const backAction = onShowStorefront || brandHeader?.onChange;
+
+  // ===== Reusable pieces =====
+  const CartBadge = () => (
+    <div
+      className="flex h-10 items-center gap-1.5 rounded-full px-3.5 shadow-sm"
+      style={{ backgroundColor: `${accent}14`, color: accent }}
+      aria-label={`Cart: ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+    >
+      <ShoppingBag className="h-[18px] w-[18px]" strokeWidth={2.2} />
+      <span className="text-[15px] font-extrabold tabular-nums">
+        {String(cartCount).padStart(2, "0")}
+      </span>
+    </div>
+  );
+
+  const SearchPill = () => (
+    <button
+      onClick={() => setSearchOpen(true)}
+      className="flex w-full items-center gap-2.5 rounded-2xl bg-gray-100/80 px-4 py-3 text-left ring-1 ring-black/[0.04] transition hover:bg-gray-100"
+      aria-label="Search"
+    >
+      <Search className="h-[18px] w-[18px] text-gray-500" strokeWidth={2.2} />
+      <span className="text-[14px] font-medium text-gray-400">Search for dishes…</span>
+    </button>
+  );
+
+  const renderGrid = (list: any[], categoryForCard?: any) => {
+    if (!list || list.length === 0) {
+      return (
+        <p className="px-4 py-16 text-center text-sm text-gray-400">No items available.</p>
+      );
+    }
+    return (
+      <div className="grid grid-cols-2 gap-3 px-4">
+        {list.map((item) => {
+          const meta = getOfferMeta(item, offers);
+          return (
+            <V6ItemCard
+              key={item.id}
+              item={item}
+              styles={styles}
+              hoteldata={hoteldata}
+              offerData={meta.offerData}
+              feature_flags={hoteldata?.feature_flags}
+              tableNumber={tableNumber}
+              hasMultipleVariantsOnOffer={meta.hasMultipleVariantsOnOffer}
+              allItemOffers={meta.allItemOffers}
+              currentCategory={categoryForCard?.id}
+              isOfferCategory={categoryForCard?.id === "offers"}
+              isUpcomingOffer={meta.isUpcomingOffer}
+              auth={auth}
+            />
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div
+      style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
+      className="no-image-save min-h-screen bg-[#f7f7f5] antialiased"
+      onContextMenu={(e) => {
+        if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
+      }}
+    >
+      <PullToRefresh />
+      <main className="relative mx-auto max-w-2xl pb-28">
+        <ShopClosedModalWarning
+          hotelId={hoteldata?.id}
+          isShopOpen={hoteldata?.is_shop_open}
+          partnerPhone={hoteldata?.phone ?? null}
+          partnerName={hoteldata?.store_name ?? null}
+        />
+
+        {/* ============ HEADER ============ */}
+        {view === "items" ? (
+          <div className="sticky top-0 z-40 flex items-center justify-between gap-2 bg-[#f7f7f5]/95 px-4 py-3 backdrop-blur">
+            <button
+              onClick={() => setView(activeCatId ? "categories" : "home")}
+              className="flex h-10 items-center gap-1.5 rounded-full px-3 font-bold ring-1 ring-black/[0.06] transition hover:bg-white"
+              style={{ color: accent }}
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2.4} />
+              <span className="text-[14px]">Back</span>
+            </button>
+            <h1 className="truncate text-[17px] font-extrabold tracking-tight text-gray-900">
+              {activeCategoryForCard ? formatDisplayName(activeCategoryForCard.name) : "Items"}
+            </h1>
+            <CartBadge />
+          </div>
+        ) : (
+          <div className="sticky top-0 z-40 flex items-center justify-between gap-3 bg-[#f7f7f5]/95 px-4 py-3 backdrop-blur">
+            <button
+              onClick={backAction ? backAction : () => setAddressSheetOpen(true)}
+              disabled={!backAction && features?.delivery.enabled !== true}
+              className="flex min-w-0 items-center gap-2 text-left"
+            >
+              {backAction ? (
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-800 ring-1 ring-black/[0.06]">
+                  <ArrowLeft className="h-[19px] w-[19px]" />
+                </span>
+              ) : (
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `${accent}14`, color: accent }}
+                >
+                  <MapPin className="h-[19px] w-[19px]" strokeWidth={2.2} />
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className="block truncate text-[15px] font-extrabold leading-tight text-gray-900">
+                  {features?.delivery.enabled && userAddress ? userAddress : outletName}
+                </span>
+                <span className="block truncate text-[11px] font-medium text-gray-400">
+                  {features?.delivery.enabled && userAddress
+                    ? "Deliver here"
+                    : locationText || "Your store"}
+                </span>
+              </span>
+            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              {(authUser as any)?.role === "user" && (
+                <LoyaltyPointsBadge
+                  partnerId={(hoteldata as any)?.id}
+                  currency={(hoteldata as any)?.currency || "₹"}
+                  storeName={(hoteldata as any)?.store_name}
+                />
+              )}
+              <CartBadge />
+            </div>
+          </div>
+        )}
+
+        {/* ============ HOME ============ */}
+        {view === "home" && (
+          <>
+            <div className="px-4 pt-1 pb-3">
+              <SearchPill />
+            </div>
+
+            {/* Announcement */}
+            {(hoteldata as any)?.delivery_rules?.announcement && (
+              <div className="mx-4 mb-3 flex items-center gap-2.5 rounded-2xl bg-blue-50 px-3 py-2 ring-1 ring-blue-100">
+                <span className="text-base">📢</span>
+                <p className="flex-1 truncate text-[12px] font-semibold text-blue-800">
+                  {(hoteldata as any).delivery_rules.announcement}
+                </p>
+              </div>
+            )}
+
+            <div className="px-4">
+              <DiscountBanner
+                partnerId={hoteldata?.id || ""}
+                currency={hoteldata?.currency || "₹"}
+                accent={accent}
+                variant="summary"
+              />
+            </div>
+
+            {/* Categories rail */}
+            {menuCategories.length > 0 && (
+              <section className="pt-3">
+                <div className="flex items-center justify-between px-4 pb-2.5">
+                  <h2 className="text-[18px] font-extrabold tracking-tight text-gray-900">Categories</h2>
+                  {menuCategories.length > 4 && (
+                    <button
+                      onClick={() => setView("categories")}
+                      className="text-[13px] font-bold"
+                      style={{ color: accent }}
+                    >
+                      View All
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4 pb-1">
+                  {menuCategories.map((g) => (
+                    <V6CategoryTile
+                      key={g.category.id}
+                      name={formatDisplayName(g.category.name)}
+                      imageUrl={catImage(g.category.id)}
+                      accent={accent}
+                      variant="rail"
+                      onClick={() => openCategory(g.category.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Section tab strip (Popular / All / Offers) */}
+            {homeTabs.length > 0 && (
+              <div className="sticky top-[64px] z-30 mt-4 bg-[#f7f7f5]/95 backdrop-blur">
+                <div className="flex items-center gap-5 overflow-x-auto scrollbar-hide px-4 py-2.5">
+                  {homeTabs.map((t) => {
+                    const active = t.key === activeHomeTab.key;
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => setHomeTab(t.key)}
+                        className={`shrink-0 whitespace-nowrap transition-all ${
+                          active
+                            ? "text-[22px] font-extrabold tracking-tight text-gray-900"
+                            : "text-[17px] font-bold text-gray-300"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-1">{renderGrid(activeHomeTab?.items || [], activeHomeTab?.key === "offers" ? { id: "offers" } : undefined)}</div>
+
+            <p translate="no" className="py-6 text-center text-[10px] text-gray-300 notranslate">
+              {hoteldata?.store_name}
+            </p>
+          </>
+        )}
+
+        {/* ============ CATEGORIES GRID ============ */}
+        {view === "categories" && (
+          <>
+            <div className="px-4 pt-1 pb-3">
+              <SearchPill />
+            </div>
+            <h2 className="px-4 pb-3 text-[22px] font-extrabold tracking-tight text-gray-900">Categories</h2>
+            {menuCategories.length === 0 ? (
+              <p className="px-4 py-16 text-center text-sm text-gray-400">No categories available.</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-3.5 px-4">
+                {menuCategories.map((g) => (
+                  <V6CategoryTile
+                    key={g.category.id}
+                    name={formatDisplayName(g.category.name)}
+                    imageUrl={catImage(g.category.id)}
+                    accent={accent}
+                    variant="grid"
+                    onClick={() => openCategory(g.category.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ============ ITEMS (category-scoped) ============ */}
+        {view === "items" && (
+          <>
+            {/* Horizontal category tab selector (active bold, neighbours faded) */}
+            {menuCategories.length > 1 && (
+              <div className="sticky top-[64px] z-30 bg-[#f7f7f5]/95 backdrop-blur">
+                <div className="flex items-center gap-5 overflow-x-auto scrollbar-hide px-4 py-3">
+                  {menuCategories.map((g) => {
+                    const active = g.category.id === activeCatId;
+                    return (
+                      <button
+                        key={g.category.id}
+                        onClick={() => { setActiveCatId(g.category.id); window.scrollTo({ top: 0 }); }}
+                        className={`shrink-0 whitespace-nowrap transition-all ${
+                          active
+                            ? "text-[22px] font-extrabold tracking-tight text-gray-900"
+                            : "text-[17px] font-bold text-gray-300"
+                        }`}
+                      >
+                        {formatDisplayName(g.category.name)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2">
+              {renderGrid(activeGroup?.items || [], activeCategoryForCard)}
+            </div>
+            <p translate="no" className="py-6 text-center text-[10px] text-gray-300 notranslate">
+              {hoteldata?.store_name}
+            </p>
+          </>
+        )}
+
+        {/* Search overlay */}
+        {searchOpen && (
+          <V3SearchItems
+            menu={searchableMenu}
+            hoteldata={hoteldata}
+            tableNumber={tableNumber}
+            onClose={() => setSearchOpen(false)}
+          />
+        )}
+
+        {/* Floating cart / order drawer (reused) */}
+        {auth?.role === "partner" &&
+        ((tableNumber !== 0 && getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
+          (tableNumber === 0 && getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) ? (
+          <div className="fixed bottom-24 left-1/2 z-[200] w-[90%] max-w-md -translate-x-1/2 rounded-2xl bg-black px-6 py-4 text-center font-semibold text-white shadow-xl">
+            Login as user to place order
+          </div>
+        ) : (
+          <OrderDrawer
+            styles={styles}
+            hotelData={hoteldata}
+            tableNumber={tableNumber}
+            qrId={qrId || undefined}
+            qrGroup={qrGroup}
+            hasBottomNav={showBottomNav}
+            v3Style
+          />
+        )}
+
+        {/* Address bottom sheet */}
+        {addressSheetOpen && (
+          <V3AddressSheet
+            currentAddress={userAddress || ""}
+            brandHeader={brandHeader}
+            partnerId={hoteldata?.id}
+            savedAddresses={savedAddresses}
+            onDeleteSaved={async (id) => {
+              if (!authUser || (authUser as any).role !== "user") return;
+              const updated = savedAddresses.filter((a) => a.id !== id);
+              try {
+                await fetchFromHasura(updateUserAddressesMutation, { id: authUser.id, addresses: updated });
+                useAuthStore.setState({ userData: { ...(authUser as any), addresses: updated } as any });
+                toast.success("Address deleted");
+              } catch {
+                toast.error("Failed to delete address");
+              }
+            }}
+            onSelect={(addr, coords) => {
+              if (addr) {
+                useOrderStore.getState().setUserAddress(addr);
+                if (coords) useOrderStore.getState().setUserCoordinates(coords);
+              }
+              setAddressSheetOpen(false);
+            }}
+            onPickForMap={(addr, coords) => {
+              setAddressSheetOpen(false);
+              if (coords) setPickerInitial({ address: addr, coords });
+              else setPickerInitial(null);
+              setAddressPickerOpen(true);
+            }}
+            onAddNew={() => {
+              setAddressSheetOpen(false);
+              const coords = useOrderStore.getState().coordinates;
+              if (userAddress?.trim() && coords) setPickerInitial({ address: userAddress, coords });
+              else setPickerInitial(null);
+              setAddressPickerOpen(true);
+            }}
+            onClose={() => setAddressSheetOpen(false)}
+            accent={accent}
+            partnerCoords={
+              Array.isArray((hoteldata?.geo_location as any)?.coordinates)
+                ? {
+                    lat: (hoteldata!.geo_location as any).coordinates[1],
+                    lng: (hoteldata!.geo_location as any).coordinates[0],
+                  }
+                : null
+            }
+          />
+        )}
+
+        {/* Address picker (map + save) */}
+        <AddressPickerV2
+          open={addressPickerOpen}
+          onClose={() => { setAddressPickerOpen(false); setPickerInitial(null); }}
+          onSaved={(saved) => {
+            setAddressPickerOpen(false);
+            setPickerInitial(null);
+            persistDeliveryAddress(saved);
+          }}
+          hotelData={hoteldata}
+          accent={accent}
+          initialPick={pickerInitial}
+        />
+
+        {/* Orders overlay */}
+        {ordersOpen && (
+          <V3Orders hotelId={hoteldata?.id || ""} onClose={() => setOrdersOpen(false)} />
+        )}
+      </main>
+
+      {/* ============ FLOATING BOTTOM NAV ============ */}
+      {showBottomNav && !open_place_order_modal && (
+        <nav className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full bg-white/95 px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.14)] ring-1 ring-black/[0.05] backdrop-blur">
+          <NavBtn
+            icon={<HomeIcon className="h-[20px] w-[20px]" />}
+            label="Home"
+            active={view === "home"}
+            accent={accent}
+            onAccent={onAccent}
+            onClick={() => { setView("home"); window.scrollTo({ top: 0 }); }}
+          />
+          <NavBtn
+            icon={<LayoutGrid className="h-[20px] w-[20px]" />}
+            label="Categories"
+            active={view === "categories" || view === "items"}
+            accent={accent}
+            onAccent={onAccent}
+            onClick={() => { setView("categories"); window.scrollTo({ top: 0 }); }}
+          />
+          {username ? (
+            <Link
+              href={`/${username}/my-orders`}
+              className="flex h-11 items-center justify-center rounded-full px-4 text-gray-500 transition hover:text-gray-800"
+              aria-label="Orders"
+            >
+              <ClipboardList className="h-[20px] w-[20px]" />
+            </Link>
+          ) : (
+            <NavBtn
+              icon={<ClipboardList className="h-[20px] w-[20px]" />}
+              label="Orders"
+              active={false}
+              accent={accent}
+              onAccent={onAccent}
+              onClick={() => setOrdersOpen(true)}
+            />
+          )}
+          <Link
+            href={username ? `/${username}/user-profile` : "/user-profile"}
+            className="flex h-11 items-center justify-center rounded-full px-4 text-gray-500 transition hover:text-gray-800"
+            aria-label="Profile"
+          >
+            <User className="h-[20px] w-[20px]" />
+          </Link>
+        </nav>
+      )}
+    </div>
+  );
+};
+
+function NavBtn({
+  icon, label, active, accent, onAccent, onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  accent: string;
+  onAccent: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex h-11 items-center justify-center gap-1.5 rounded-full px-4 transition-all ${active ? "" : "text-gray-500 hover:text-gray-800"}`}
+      style={active ? { backgroundColor: accent, color: onAccent } : undefined}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+    >
+      {icon}
+      {active && <span className="text-[13px] font-bold">{label}</span>}
+    </button>
+  );
+}
+
+export default V6;

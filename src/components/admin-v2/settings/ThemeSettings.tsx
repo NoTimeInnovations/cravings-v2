@@ -281,8 +281,8 @@ export function ThemeSettings() {
           </CardContent>
         </Card>
 
-        {/* Colors - hidden for V3 / V4 / V5 themes (they use a fixed white theme) */}
-        {menuStyle !== "v3" && menuStyle !== "v4" && menuStyle !== "v5" && <Card>
+        {/* Colors - hidden for V3 / V4 / V5 / V6 themes (they use a fixed white theme) */}
+        {menuStyle !== "v3" && menuStyle !== "v4" && menuStyle !== "v5" && menuStyle !== "v6" && <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Paintbrush className="h-5 w-5" />
