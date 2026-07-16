@@ -325,8 +325,6 @@ const V6ItemCard = ({
   const baseItemPrice = item.variants?.sort((a, b) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price;
   const hasValidBasePrice = typeof baseItemPrice === "number";
 
-  const isCustomisable = hasVariants || hasMultipleVariantsOnOffer;
-
   const { ref: inViewRef, visible } = useInView();
 
   const openSheet = () => {
@@ -535,10 +533,6 @@ const V6ItemCard = ({
 
             {addControl && <div className="shrink-0">{addControl}</div>}
           </div>
-
-          {isCustomisable && addControl && (
-            <span className="mt-1 text-[10px] leading-none text-gray-400">customisable</span>
-          )}
         </div>
       </div>
 
