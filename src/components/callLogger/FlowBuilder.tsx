@@ -128,6 +128,28 @@ function toGraph(nodes: Node[], edges: Edge[]): FlowGraph {
   };
 }
 
+// The default a NEW/empty flow starts with: on an inbound call → if missed, send
+// now; else if incoming (answered), send after 23h; else (rejected/voicemail) send
+// nothing. Outgoing calls never start a flow, so they never send. Partners set the
+// send template via the picker.
+const DEFAULT_FLOW_GRAPH: FlowGraph = {
+  nodes: [
+    { id: "trigger", type: "trigger", position: { x: 80, y: 40 }, data: {} },
+    { id: "c_missed", type: "condition", position: { x: 80, y: 170 }, data: { check: "missed" } },
+    { id: "s_missed", type: "send", position: { x: -110, y: 310 }, data: { template: "call_follow_up", language: "en", params: [], headerImage: "" } },
+    { id: "c_incoming", type: "condition", position: { x: 290, y: 310 }, data: { check: "incoming" } },
+    { id: "w_incoming", type: "wait", position: { x: 230, y: 440 }, data: { seconds: 82800 } },
+    { id: "s_incoming", type: "send", position: { x: 230, y: 570 }, data: { template: "call_follow_up", language: "en", params: [], headerImage: "" } },
+  ],
+  edges: [
+    { from: "trigger", to: "c_missed" },
+    { from: "c_missed", to: "s_missed", branch: "true" },
+    { from: "c_missed", to: "c_incoming", branch: "false" },
+    { from: "c_incoming", to: "w_incoming", branch: "true" },
+    { from: "w_incoming", to: "s_incoming" },
+  ],
+};
+
 export default function FlowBuilder({
   partnerId,
   accountEmail: _accountEmail,
@@ -150,7 +172,8 @@ export default function FlowBuilder({
   useEffect(() => {
     CallLoggerApi.getFlow(partnerId)
       .then((res) => {
-        let graph: FlowGraph = res.graph && res.graph.nodes ? res.graph : { nodes: [], edges: [] };
+        let graph: FlowGraph =
+          res.graph && res.graph.nodes?.length ? res.graph : DEFAULT_FLOW_GRAPH;
         if (!graph.nodes.some((n) => n.type === "trigger")) {
           graph = {
             nodes: [{ id: "trigger", type: "trigger", position: { x: 80, y: 40 }, data: {} }, ...graph.nodes],
