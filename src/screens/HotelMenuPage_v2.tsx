@@ -738,6 +738,7 @@ const HotelMenuPage = ({
           branchContext={branchContext}
           preselectedOrderType={preselectedOrderType}
           initialSkipOnboarding={forceStorefront ? false : initialSkipOnboarding}
+          variant={theme?.menuStyle === "v6" ? "sheet" : "screen"}
           onDismiss={() => { setOnboardingDismissed(true); setForceStorefront(false); }}
         />
       )}
