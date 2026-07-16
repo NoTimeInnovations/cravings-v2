@@ -28,8 +28,8 @@ import {
   ChevronDown,
   Search,
 } from "lucide-react";
-import type { Schema } from "@google/generative-ai";
-import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
+import { fileToBase64 } from "@/lib/ai/generateContent";
+import { extractMenuFromFiles } from "@/lib/menu/menuExtraction";
 import { toast } from "sonner";
 import {
   CompactMenuPreview,
@@ -785,66 +785,26 @@ export default function GetStartedClient({
     setIsExtractingMenu(true);
     setExtractionError(null);
     try {
-      const responseSchema: Schema = {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            name: { type: "string" },
-            price: { type: "number" },
-            description: { type: "string" },
-            category: { type: "string" },
-            variants: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  price: { type: "number" },
-                },
-                required: ["name", "price"],
-              },
-            },
-          },
-          required: ["name", "price", "description", "category"],
-        },
-      } as Schema;
-
-      const basePrompt = `Extract each distinct dish as a separate item from the provided menu files (images or PDFs).
-      For each item, provide:
-      - name: The name of the dish.
-      - price: The minimum price.
-      - description: A short, appetizing description (max 10 words).
-      - category: The main heading.
-      - variants: (Optional) Array of {name, price} for sizes.`;
-
-      // The partner's custom instruction (if any) is given HIGHEST priority: it's
-      // placed first and explicitly told to override any conflicting rule below,
-      // so a directive like "ignore all drinks" or "treat Combos as a category"
-      // wins over the defaults.
+      // Renders every page (incl. multi-page PDFs) and extracts in size-bounded
+      // parallel batches with per-page recovery, so large uploads never overflow
+      // the request limit. The partner's custom instruction (if any) is injected
+      // at the top with highest priority inside extractMenuFromFiles.
       const instruction = menuInstruction.trim();
-      const prompt = instruction
-        ? `USER INSTRUCTION — HIGHEST PRIORITY. Follow this exactly. Whenever it conflicts with any rule in the task below, the USER INSTRUCTION WINS:\n"""\n${instruction}\n"""\n\n--- TASK ---\n${basePrompt}`
-        : basePrompt;
-
-      const files = await Promise.all(
-        menuFiles.map(async (file) => ({
-          data: await fileToBase64(file),
-          mimeType: file.type,
-        })),
-      );
-
-      const text = await aiGenerate({
-        model: "gemini-2.5-flash-lite",
-        prompt,
-        responseMimeType: "application/json",
-        responseSchema,
-        files,
+      const result = await extractMenuFromFiles(menuFiles, {
+        model: "gemini-2.5-flash",
+        extraContext: instruction || undefined,
       });
 
-      const parsedMenu = JSON.parse(text);
+      const parsedMenu = result.items as unknown as MenuItem[];
       console.log("Extracted menu", parsedMenu);
       setExtractedItems(parsedMenu);
+
+      if (parsedMenu.length === 0 && result.failedBatches > 0) {
+        const msg =
+          "We couldn't read your menu. Please try clearer files or add items manually.";
+        setExtractionError(msg);
+        toast.error(msg);
+      }
 
       return parsedMenu;
     } catch (error: any) {

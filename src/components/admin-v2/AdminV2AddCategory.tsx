@@ -35,10 +35,7 @@ import Img from "../Img";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { fillOneItemFromGoogle } from "@/app/actions/googleImageFallback";
 import { runPool } from "@/lib/runPool";
-import type { Schema } from "@google/generative-ai";
-import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
-
-const MAX_RETRIES = 3;
+import { extractMenuFromFiles } from "@/lib/menu/menuExtraction";
 
 interface AdminV2AddCategoryProps {
     onBack: () => void;
@@ -226,74 +223,37 @@ export function AdminV2AddCategory({ onBack }: AdminV2AddCategoryProps) {
         }
     };
 
-    const handleExtractItems = async (retryCount = 0) => {
+    // Digitise ANY number of uploaded pages/PDFs. extractMenuFromFiles renders
+    // every page to an image and sends them to the AI in size-bounded batches
+    // (in parallel, with per-page recovery + retries), so a big multi-page PDF
+    // no longer overflows the request limit and needs no splitting.
+    const handleExtractItems = async () => {
         if (menuImageFiles.length === 0) {
-            toast.error("Please upload at least one image");
+            toast.error("Please upload at least one image or PDF");
             return;
         }
 
         setIsExtracting(true);
+        const toastId = toast.loading("Preparing your menu pages…");
         try {
-            toast.loading(
-                retryCount > 0
-                    ? `Retrying extraction (attempt ${retryCount + 1}/${MAX_RETRIES})...`
-                    : "Extracting menu items..."
-            );
-
-            const responseSchema: Schema = {
-                type: "array",
-                items: {
-                    type: "object",
-                    properties: {
-                        name: { type: "string" },
-                        price: { type: "number" },
-                        description: { type: "string" },
-                        category: { type: "string" },
-                        variants: {
-                            type: "array",
-                            items: {
-                                type: "object",
-                                properties: {
-                                    name: { type: "string" },
-                                    price: { type: "number" },
-                                },
-                                required: ["name", "price"],
-                            },
-                        },
-                    },
-                    required: ["name", "price", "description", "category"],
-                },
-            } as Schema;
-
-            const prompt = `Extract each distinct dish as a separate item from the provided images.
-A 'variant' applies *only* to different sizes (e.g., Quarter, Half, Full, Small, Large, Regular) or quantities of the *same specific menu item*.
-If a menu item does not have these explicit size/quantity options, it should *not* have a 'variants' field.
-For example, 'Fresh Lime' and 'Mint Lime' are separate items, not variants of a general 'Lime Juice'.
-
-For each item, provide:
-- name: The name of the dish.
-- price: The minimum price if variants exist, otherwise the item's price. Price must be a number, greater than zero. Use 1 if no price is found.
-- description: A descriptive sentence for each item, maximum 10 words. Elaborate on the item's name and its category, highlighting key attributes like freshness, flavor, or main ingredients.
-- category: The main heading under which the item is listed.
-- variants: (Optional) An array of objects, each with 'name' and 'price', if the item has different sizes/portions. Variants must be arranged in ascending order of price. Variants should not contain item names or descriptions, only sizes/quantities. If no variants exist, this field should be omitted.`;
-
-            const files = await Promise.all(
-                menuImageFiles.map(async (file) => ({
-                    data: await fileToBase64(file),
-                    mimeType: file.type,
-                }))
-            );
-
-            const text = await aiGenerate({
+            const result = await extractMenuFromFiles(menuImageFiles, {
                 model: "gemini-2.5-flash",
-                prompt,
-                responseMimeType: "application/json",
-                responseSchema,
-                files,
+                onProgress: (p) => {
+                    if (p.phase === "rendering") {
+                        toast.loading(
+                            `Reading your menu… (${p.pagesReady} page${p.pagesReady === 1 ? "" : "s"})`,
+                            { id: toastId },
+                        );
+                    } else {
+                        toast.loading(
+                            `Extracting items… (batch ${Math.min(p.batchesDone + 1, p.totalBatches)}/${p.totalBatches})`,
+                            { id: toastId },
+                        );
+                    }
+                },
             });
-            const parsedMenu = JSON.parse(text);
 
-            const extracted: ExtractedItem[] = parsedMenu.map((item: any) => ({
+            const extracted: ExtractedItem[] = result.items.map((item) => ({
                 name: item.name || "",
                 price: Number(item.price) || 0,
                 description: item.description || "",
@@ -302,20 +262,24 @@ For each item, provide:
             }));
 
             setExtractedItems(extracted);
-            toast.dismiss();
-            toast.success(`Extracted ${extracted.length} items`);
-        } catch (error) {
-            toast.dismiss();
-            console.error("Menu extraction error:", error);
+            toast.dismiss(toastId);
 
-            if (retryCount < MAX_RETRIES - 1) {
-                await new Promise((resolve) =>
-                    setTimeout(resolve, 2000 * (retryCount + 1))
+            if (extracted.length === 0) {
+                toast.error(
+                    result.failedBatches > 0
+                        ? "Couldn't read your menu. Please try clearer images."
+                        : "No menu items found in the uploaded pages.",
                 );
-                return handleExtractItems(retryCount + 1);
+                return;
             }
 
-            toast.error("Failed to extract menu after multiple attempts. Please try again.");
+            let summary = `Extracted ${extracted.length} item${extracted.length === 1 ? "" : "s"} from ${result.totalPages} page${result.totalPages === 1 ? "" : "s"}`;
+            if (result.failedBatches > 0) summary += " — some pages couldn't be read";
+            toast.success(summary);
+        } catch (error) {
+            toast.dismiss(toastId);
+            console.error("Menu extraction error:", error);
+            toast.error("Failed to extract menu. Please try again.");
         } finally {
             setIsExtracting(false);
         }
@@ -931,7 +895,7 @@ For each item, provide:
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept="image/*"
+                                    accept="image/*,application/pdf"
                                     multiple
                                     className="hidden"
                                     onChange={handleMenuImagesChange}

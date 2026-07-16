@@ -59,7 +59,7 @@ export default function SignupFromGoogleClient({
   const [isSending, setIsSending] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
 
-  // Optional menu upload — supports multiple files. Each file <= 10MB.
+  // Optional menu upload — supports multiple files. Each file <= 50MB.
   // Stored in sessionStorage["uploaded_menu_files"] as a JSON array so a
   // future digitisation step can pick them all up.
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
@@ -197,7 +197,7 @@ export default function SignupFromGoogleClient({
       return;
     }
     if (file.size > MAX_MENU_SIZE) {
-      toast.error("Logo must be under 10MB");
+      toast.error("Logo must be under 50MB");
       return;
     }
     const reader = new FileReader();
@@ -554,7 +554,7 @@ export default function SignupFromGoogleClient({
                           {f.name}
                         </span>
                         <span className="block text-xs text-red-500 mt-0.5">
-                          {(f.size / 1024 / 1024).toFixed(1)} MB — over 10MB
+                          {(f.size / 1024 / 1024).toFixed(1)} MB — over 50MB
                           limit
                         </span>
                       </span>

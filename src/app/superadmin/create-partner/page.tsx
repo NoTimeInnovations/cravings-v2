@@ -552,7 +552,7 @@ export default function SuperAdminCreatePartnerPage() {
                     <input
                       type="file"
                       id="menuImagesInput"
-                      accept="image/*"
+                      accept="image/*,application/pdf"
                       multiple
                       onChange={handleMenuImagesChange}
                       className="hidden"

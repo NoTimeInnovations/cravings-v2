@@ -8,8 +8,7 @@ import {
 import { toast } from "sonner";
 import { processImage } from "@/lib/processImage";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
-import type { Schema } from "@google/generative-ai";
-import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
+import { extractMenuFromFiles } from "@/lib/menu/menuExtraction";
 import { Partner } from "./authStore";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getSafeStorage } from "@/lib/safeStorage";
@@ -18,9 +17,6 @@ import {
   NEW_PARTNER_THEME_STRING,
 } from "@/lib/newPartnerDefaults";
 import { useCategoryStore } from "./categoryStore_hasura";
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
 
 interface MenuItem {
   is_price_as_per_size: boolean | undefined;
@@ -308,8 +304,9 @@ export const useSuperAdminPartnerStore = create<SuperAdminPartnerState>()(
         }
       },
 
-      // Menu extraction with retries
-      extractMenuFromImages: async (files, retryCount = 0) => {
+      // Menu extraction — batched + parallel with per-page recovery, so any
+      // number of pages / multi-page PDFs work in one go (no splitting needed).
+      extractMenuFromImages: async (files) => {
         set({
           isExtractingMenu: true,
           extractionError: null,
@@ -317,88 +314,12 @@ export const useSuperAdminPartnerStore = create<SuperAdminPartnerState>()(
         });
 
         try {
-          toast.info(
-            retryCount > 0
-              ? `Retrying menu extraction (attempt ${
-                  retryCount + 1
-                }/${MAX_RETRIES})...`
-              : "Extracting menu items..."
-          );
+          toast.info("Extracting menu items...");
 
-          const responseSchema: Schema = {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                price: { type: "number" },
-                description: { type: "string" },
-                category: { type: "string" },
-                variants: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string" },
-                      price: { type: "number" },
-                    },
-                    required: ["name", "price"],
-                  },
-                },
-              },
-              required: ["name", "price", "description", "category"],
-            },
-          } as Schema;
-
-          const prompt = `Extract each distinct dish as a separate item from the provided images.
-          A 'variant' applies *only* to different sizes (e.g., Quarter, Half, Full, Small, Large, Regular) or quantities of the *same specific menu item*. 
-          If a menu item does not have these explicit size/quantity options, it should *not* have a 'variants' field. 
-          For example, 'Fresh Lime' and 'Mint Lime' are separate items, not variants of a general 'Lime Juice'.
-          
-          For each item, provide:
-          - name: The name of the dish.
-          - price: The minimum price if variants exist, otherwise the item's price. Price must be a number, greater than zero. Use 1 if no price is found.
-          - description: A descriptive sentence for each item, maximum 10 words. Elaborate on the item's name and its category, highlighting key attributes like freshness, flavor, or main ingredients. For example:
-              - For 'Watermelon' under 'Fresh Juice': "A refreshing juice made from ripe, sweet watermelon, perfectly hydrating and a great choice on a hot day."
-              - For 'Carrot' under 'Pure Juice': "Experience the pure, wholesome goodness of freshly extracted carrot juice, packed with vitamins and natural sweetness."
-              - For 'Fresh Lime' under 'Lime Juice': "Enjoy a classic, zesty Fresh Lime juice, perfectly balanced and incredibly invigorating, a timeless favorite."
-          - category: The main heading under which the item is listed.
-          - variants: (Optional) An array of objects, each with 'name' and 'price', if the item has different sizes/portions. Variants must be arranged in ascending order of price. Variants should not contain item names or descriptions, only sizes/quantities. If no variants exist, this field should be omitted.
-          - invalid variants example : Variants:
-          Grilled veg overloaded fries
-          ₹150
-          Scrambled egg overloaded fries
-          ₹180
-          Pulled Chicken overloaded fries
-          ₹240
-          Pulled Mixed loaded fries
-          ₹300
-          - valid variants example : Variants:
-          Variants:
-          2 pieces Combo
-          ₹169
-          4 pieces Combo
-          ₹399
-          8 pieces Combo
-          ₹799
-          -take the largest text above the items as the category name if the variants is aaslo items`;
-
-          
-          const aiFiles = await Promise.all(
-            files.map(async (file) => ({
-              data: await fileToBase64(file),
-              mimeType: file.type,
-            }))
-          );
-
-          const text = await aiGenerate({
-            model: "gemini-1.5-flash",
-            prompt,
-            responseMimeType: "application/json",
-            responseSchema,
-            files: aiFiles,
+          const result = await extractMenuFromFiles(files, {
+            model: "gemini-2.5-flash",
           });
-          const parsedMenu: MenuItem[] = JSON.parse(text);
+          const parsedMenu = result.items as unknown as MenuItem[];
 
           set({
             extractedMenuItems: parsedMenu,
@@ -406,20 +327,23 @@ export const useSuperAdminPartnerStore = create<SuperAdminPartnerState>()(
             extractionError: null,
           });
 
-          toast.success(`Extracted ${parsedMenu.length} menu items`);
+          if (parsedMenu.length === 0) {
+            const errorMsg =
+              result.failedBatches > 0
+                ? "Couldn't read the menu. Please try clearer images."
+                : "No menu items found in the uploaded pages.";
+            set({ extractionError: errorMsg });
+            toast.error(errorMsg);
+            return parsedMenu;
+          }
+
+          let summary = `Extracted ${parsedMenu.length} menu item${parsedMenu.length === 1 ? "" : "s"}`;
+          if (result.failedBatches > 0) summary += " — some pages couldn't be read";
+          toast.success(summary);
           return parsedMenu;
         } catch (error) {
           console.error("Menu extraction error:", error);
-
-          if (retryCount < MAX_RETRIES - 1) {
-            await new Promise((resolve) =>
-              setTimeout(resolve, RETRY_DELAY_MS * (retryCount + 1))
-            );
-            return get().extractMenuFromImages(files, retryCount + 1);
-          }
-
-          const errorMsg =
-            "Failed to extract menu after multiple attempts. Please try again.";
+          const errorMsg = "Failed to extract menu. Please try again.";
           set({
             isExtractingMenu: false,
             extractionError: errorMsg,
