@@ -12,7 +12,6 @@ export default async function Page({
     google_error?: string;
     google_email?: string;
     from_google?: string;
-    dev?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -24,7 +23,6 @@ export default async function Page({
       googleError={params.google_error}
       googleEmail={params.google_email}
       fromGoogle={params.from_google === "1"}
-      dev={params.dev === "1"}
     />
   );
 }

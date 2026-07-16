@@ -39,7 +39,12 @@ export function MenuPrice({
   const showSymbol = !!symbol && symbol !== "🚫";
 
   return (
-    <span dir="ltr" style={{ unicodeBidi: "isolate" }} className={className}>
+    <span
+      dir="ltr"
+      translate="no"
+      className={cn("notranslate", className)}
+      style={{ direction: "ltr", unicodeBidi: "isolate" }}
+    >
       {amount}
       {showSymbol && (
         <>

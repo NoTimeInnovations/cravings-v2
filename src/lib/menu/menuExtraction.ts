@@ -12,14 +12,18 @@ import { aiGenerate, fileToBase64, type AiFile } from "@/lib/ai/generateContent"
  * Why batching: the `/api/ai/generate` proxy is a Next.js route handler; on
  * Vercel a route-handler request body is capped at ~4.5MB. So we can't send many
  * (or large) files in one call. Instead we:
- *   1. Turn every input into a compressed JPEG "page" (images are downscaled;
- *      PDFs are rendered page-by-page with pdfjs) — this both shrinks the payload
- *      and satisfies "if it's a PDF, convert to images".
+ *   1. Turn every input into a high-resolution JPEG "page" (images are
+ *      downscaled to a large long-edge for OCR; PDFs are rendered page-by-page
+ *      with pdfjs at high DPI) — this both bounds the payload and satisfies
+ *      "if it's a PDF, convert it to images".
  *   2. Group pages into batches whose total base64 size stays comfortably under
  *      the request cap (size-based, not just a fixed count).
- *   3. Call the AI once per batch (with retries), then merge + de-dupe the items.
- * A batch that fails after its retries is skipped so the rest still succeed
- * (partial success is reported back).
+ *   3. Call the AI for several batches in parallel (bounded concurrency), each
+ *      with retries + exponential backoff, then merge + de-dupe the items.
+ *   4. If a whole batch still fails, fall back to re-reading its pages one-by-one
+ *      so a single unreadable page can't lose the others.
+ * Whatever succeeds is returned (partial success is reported back), and there is
+ * no practical cap on how many files/pages a partner can upload.
  */
 
 export interface ExtractedMenuItem {
@@ -65,16 +69,28 @@ export interface ExtractResult {
 }
 
 // ---- Tuning ----------------------------------------------------------------
-const IMAGE_MAX_DIM = 1600; // long-edge px — enough for OCR, keeps JPEG small
+// Long-edge px for a rendered page. Higher = the AI can read small prices,
+// variant sizes and dense sections far more reliably (the #1 cause of "it
+// couldn't read my menu" is under-resolution). ~2000px is a strong OCR target
+// while keeping a single JPEG page comfortably under the request budget.
+const IMAGE_MAX_DIM = 2000;
 // Base64 budget per request. base64 ≈ 1.37× bytes, so ~3.4M chars ≈ ~2.5MB of
 // image data; well under the ~4.5MB route-handler body cap (leaves room for the
 // prompt/schema/JSON overhead).
 const MAX_BATCH_B64 = 3_400_000;
-const MAX_BATCH_COUNT = 5; // also cap page count per call for latency/accuracy
-const MAX_PDF_PAGES = 80; // guard against a runaway huge PDF
+// Fewer pages per call = the model stays focused and misses fewer items. We run
+// many such batches in parallel (see CONCURRENCY), so accuracy costs no wall-clock.
+const MAX_BATCH_COUNT = 4;
+// Effectively "no limit" for any real menu; only guards against a pathological
+// thousand-page PDF that would exhaust browser memory while rendering.
+const MAX_PDF_PAGES = 300;
+// How many batches hit the AI at once. Bounded so we don't trip provider
+// rate-limits, but high enough that a big multi-page menu finishes quickly.
+const CONCURRENCY = 4;
 const DEFAULT_MAX_RETRIES = 3;
-const RETRY_BASE_MS = 1500;
-const JPEG_QUALITIES = [0.82, 0.68, 0.55, 0.42];
+const RETRY_BASE_MS = 1200;
+// Start high so text stays crisp; step down only if a page overflows the budget.
+const JPEG_QUALITIES = [0.9, 0.8, 0.7, 0.58, 0.46];
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
 
@@ -103,21 +119,55 @@ const DEFAULT_SCHEMA: Schema = {
   },
 } as Schema;
 
-const DEFAULT_PROMPT = `Extract each distinct dish as a separate item from the provided menu pages (images).
-A 'variant' applies ONLY to different sizes/quantities of the SAME item (e.g., Quarter/Half/Full, Small/Regular/Large, 2pc/4pc). If an item has no such size options, omit the 'variants' field. Different dishes (e.g., 'Fresh Lime' vs 'Mint Lime') are separate items, NOT variants.
-For each item provide:
-- name: the dish name.
-- price: the item's price (the lowest variant price if variants exist). Must be a number greater than zero; use 1 if no price is shown.
-- description: a short appetising sentence (max 10 words).
-- category: the heading/section the item is listed under (use the nearest section title; if none, use "Menu").
-- variants: (optional) array of { name, price } for sizes only, in ascending price order.
-Do not invent items. Return ONLY items you can see on these pages.`;
+const DEFAULT_PROMPT = `You are digitising a restaurant menu from the attached page images. Extract EVERY distinct dish as its own item. Be exhaustive: read the whole page top-to-bottom including small print and multi-column layouts, and never stop early on long or dense pages.
+
+CATEGORIES (get these right — they drive how the menu is grouped)
+- category = the section heading the item sits under, worded as printed on the menu (e.g. "Starters", "Biryani", "Beverages", "Desserts").
+- A section often continues across a page break. If a page begins with items but shows no heading, they still belong to the LAST heading you saw — keep using it.
+- Use the SAME spelling/casing every time you repeat a category so items group together.
+- If an item genuinely has no section, use "Menu".
+
+ITEMS
+- Every distinct dish is a separate item — even when two dishes share a line or a price. "Fresh Lime" and "Mint Lime" are two items, NOT variants of each other.
+- price: a number greater than 0. If the dish has size options, use the LOWEST size's price here. If no price is printed, use 1.
+- description: a short, appetising sentence (max 10 words). Summarise the menu's own description if present, otherwise write a natural one. Never put the price in the description.
+
+VARIANTS (sizes/portions of the SAME dish ONLY)
+- Add 'variants' only for size/quantity options of one dish: Quarter/Half/Full, Small/Regular/Large, 250ml/500ml, 2pc/4pc/8pc, Single/Double, etc.
+- variants = array of { name, price } listed in ascending price order.
+- OMIT 'variants' entirely when a dish has no size options.
+- Different dishes, flavours, toppings or add-ons are NOT variants — make them separate items.
+
+RULES
+- Extract only what is actually printed. Never invent dishes, prices or sizes.
+- Return every item visible across ALL attached pages.`;
 
 // ---- Small helpers ---------------------------------------------------------
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function throwIfAborted(signal?: AbortSignal) {
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+}
+
+/** Run `fn` over `items` with at most `limit` in flight at once, preserving
+ *  result order. Used to fan out batch extraction without hammering the AI. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const worker = async () => {
+    while (true) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i], i);
+    }
+  };
+  const pool = Array.from({ length: Math.min(limit, items.length) }, worker);
+  await Promise.all(pool);
+  return results;
 }
 
 interface PagePart {
@@ -231,9 +281,12 @@ async function pdfFileToParts(
       throwIfAborted(signal);
       const page = await doc.getPage(p);
       const base = page.getViewport({ scale: 1 });
+      // Render at the DPI needed to hit IMAGE_MAX_DIM on the long edge (PDF pages
+      // report ~72dpi at scale 1, so this is ~2.7× for A4/Letter). Cap at 4× so a
+      // tiny page isn't upscaled absurdly; floor at 0.75 to keep text legible.
       const scale = Math.max(
-        0.5,
-        Math.min(2, IMAGE_MAX_DIM / Math.max(base.width, base.height)),
+        0.75,
+        Math.min(4, IMAGE_MAX_DIM / Math.max(base.width, base.height)),
       );
       const viewport = page.getViewport({ scale });
       const canvas = newCanvas(viewport.width, viewport.height);
@@ -293,15 +346,23 @@ async function runBatch(
       return Array.isArray(parsed) ? (parsed as ExtractedMenuItem[]) : [];
     } catch (err) {
       lastErr = err;
-      if (attempt < maxRetries) await sleep(RETRY_BASE_MS * (attempt + 1));
+      // Exponential backoff with jitter — rides out transient failures and
+      // provider rate-limits (429s) without a thundering-herd retry.
+      if (attempt < maxRetries) {
+        await sleep(RETRY_BASE_MS * 2 ** attempt + Math.floor(Math.random() * 400));
+      }
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error("Batch extraction failed");
 }
 
-/** Normalise + de-dupe (same name+price+category across overlapping pages). */
+/** Normalise + de-dupe (same name+price+category across overlapping pages).
+ *  Category display is canonicalised to its first-seen spelling so that
+ *  "Starters"/"STARTERS"/"starters" coming from different parallel batches all
+ *  collapse into one category downstream. */
 function mergeItems(items: ExtractedMenuItem[]): ExtractedMenuItem[] {
   const seen = new Set<string>();
+  const catDisplay = new Map<string, string>(); // lowercased -> first-seen label
   const out: ExtractedMenuItem[] = [];
   for (const it of items) {
     const name = String(it?.name ?? "").trim();
@@ -310,8 +371,11 @@ function mergeItems(items: ExtractedMenuItem[]): ExtractedMenuItem[] {
       typeof it.price === "number" && !isNaN(it.price)
         ? it.price
         : Number(it.price) || 0;
-    const category = String(it?.category ?? "Menu").trim() || "Menu";
-    const key = `${name.toLowerCase()}|${price}|${category.toLowerCase()}`;
+    const rawCategory = String(it?.category ?? "Menu").trim() || "Menu";
+    const catLc = rawCategory.toLowerCase();
+    if (!catDisplay.has(catLc)) catDisplay.set(catLc, rawCategory);
+    const category = catDisplay.get(catLc)!;
+    const key = `${name.toLowerCase()}|${price}|${catLc}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const variants = Array.isArray(it.variants)
@@ -419,35 +483,66 @@ export async function extractMenuFromFiles(
     };
   }
 
-  // ---- Phase 2: batch + extract ----
+  // ---- Phase 2: batch + extract (in parallel, with per-page recovery) ----
   const batches = batchParts(parts);
-  const all: ExtractedMenuItem[] = [];
   let failedBatches = 0;
-
-  for (let i = 0; i < batches.length; i++) {
-    throwIfAborted(signal);
-    onProgress?.({
-      phase: "extracting",
-      pagesReady: parts.length,
-      batchesDone: i,
-      totalBatches: batches.length,
-    });
-    try {
-      const items = await runBatch(batches[i], model, finalPrompt, schema, maxRetries, signal);
-      all.push(...items);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") throw err;
-      console.error(`menu batch ${i + 1}/${batches.length} failed`, err);
-      failedBatches++;
-    }
-  }
+  let batchesDone = 0;
 
   onProgress?.({
     phase: "extracting",
     pagesReady: parts.length,
-    batchesDone: batches.length,
+    batchesDone: 0,
     totalBatches: batches.length,
   });
+
+  const perBatch = await mapWithConcurrency(batches, CONCURRENCY, async (batch) => {
+    try {
+      throwIfAborted(signal);
+      try {
+        const items = await runBatch(batch, model, finalPrompt, schema, maxRetries, signal);
+        return { items, failed: false };
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") throw err;
+        // The whole batch failed its retries. Rather than lose every page,
+        // re-read them one at a time — a single unreadable page then can't
+        // sink the others in the same batch.
+        if (batch.length > 1) {
+          const recovered: ExtractedMenuItem[] = [];
+          let anyPageFailed = false;
+          for (const page of batch) {
+            throwIfAborted(signal);
+            try {
+              recovered.push(
+                ...(await runBatch([page], model, finalPrompt, schema, maxRetries, signal)),
+              );
+            } catch (pageErr) {
+              if (pageErr instanceof DOMException && pageErr.name === "AbortError") throw pageErr;
+              anyPageFailed = true;
+            }
+          }
+          // Only a total loss counts as a failed batch; a partial recovery still
+          // returns whatever pages we could read.
+          return { items: recovered, failed: anyPageFailed && recovered.length === 0 };
+        }
+        console.error("menu batch failed after retries", err);
+        return { items: [] as ExtractedMenuItem[], failed: true };
+      }
+    } finally {
+      batchesDone++;
+      onProgress?.({
+        phase: "extracting",
+        pagesReady: parts.length,
+        batchesDone,
+        totalBatches: batches.length,
+      });
+    }
+  });
+
+  const all: ExtractedMenuItem[] = [];
+  for (const r of perBatch) {
+    all.push(...r.items);
+    if (r.failed) failedBatches++;
+  }
 
   return {
     items: mergeItems(all),

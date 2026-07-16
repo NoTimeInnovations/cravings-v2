@@ -18,15 +18,16 @@ import {
 import { FcGoogle } from "react-icons/fc";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { sendOtp, verifyOtp } from "@/app/actions/sendOtp";
 import {
   quickSignupFromGoogle,
   type ExtractedMenuItem,
 } from "@/app/actions/quickSignupFromGoogle";
-import { isDevModeOn } from "@/lib/devMode";
 import { extractMenuFromFiles } from "@/lib/menu/menuExtraction";
 
-const MAX_MENU_SIZE = 10 * 1024 * 1024; // 10MB per file (downscaled before send)
+// Generous per-file cap. Menu pages are downscaled + re-compressed before they
+// ever reach the AI, so this only bounds the original upload; it's set high so a
+// partner can drop in full multi-page PDFs without hitting a wall.
+const MAX_MENU_SIZE = 50 * 1024 * 1024; // 50MB per file
 
 const STEPS = [
   "Reading your Google listing...",
@@ -35,7 +36,7 @@ const STEPS = [
   "Almost there...",
 ];
 
-type View = "choose" | "email" | "otp" | "building";
+type View = "choose" | "email" | "building";
 
 export default function SignupFromGoogleClient({
   placeId,
@@ -44,7 +45,6 @@ export default function SignupFromGoogleClient({
   googleError,
   googleEmail,
   fromGoogle,
-  dev,
 }: {
   placeId: string;
   placeName: string;
@@ -52,18 +52,10 @@ export default function SignupFromGoogleClient({
   googleError?: string;
   googleEmail?: string;
   fromGoogle?: boolean;
-  dev?: boolean;
 }) {
   const router = useRouter();
-  // Dev mode is ON if the URL said so (?dev=1) OR it's persisted in localStorage.
-  // Resolved on mount to avoid an SSR/client hydration mismatch.
-  const [devMode, setDevModeState] = useState<boolean>(!!dev);
-  useEffect(() => {
-    if (dev || isDevModeOn()) setDevModeState(true);
-  }, [dev]);
   const [view, setView] = useState<View>("choose");
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
 
@@ -101,13 +93,21 @@ export default function SignupFromGoogleClient({
       },
     );
 
+  // Best-effort persistence so the upload survives the Google-OAuth bounce.
+  // Large uploads can exceed the sessionStorage quota — that's fine: on the
+  // email path (no reload) the files still live in React state, so we swallow
+  // the error instead of failing the upload.
   const persistMenuFiles = async (files: File[]) => {
-    if (files.length === 0) {
-      sessionStorage.removeItem("uploaded_menu_files");
-      return;
+    try {
+      if (files.length === 0) {
+        sessionStorage.removeItem("uploaded_menu_files");
+        return;
+      }
+      const items = await Promise.all(files.map(readFileToBase64));
+      sessionStorage.setItem("uploaded_menu_files", JSON.stringify(items));
+    } catch {
+      /* quota exceeded or storage disabled — keep going, state holds the files */
     }
-    const items = await Promise.all(files.map(readFileToBase64));
-    sessionStorage.setItem("uploaded_menu_files", JSON.stringify(items));
   };
 
   const handleMenuInstructionChange = (value: string) => {
@@ -134,12 +134,9 @@ export default function SignupFromGoogleClient({
     if (valid.length) {
       const next = [...menuFiles, ...valid];
       setMenuFiles(next);
-      try {
-        await persistMenuFiles(next);
-      } catch (err) {
-        console.error(err);
-        toast.error("Couldn't read one of your files. Try a smaller one.");
-      }
+      // Persistence is best-effort (see persistMenuFiles); the files are already
+      // in state, so a storage failure never blocks the upload.
+      await persistMenuFiles(next);
     }
     if (menuInputRef.current) menuInputRef.current.value = "";
   };
@@ -323,31 +320,18 @@ export default function SignupFromGoogleClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromGoogle, googleEmail, placeId]);
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  // Email path: no verification code. As soon as a valid email is entered we
+  // digitise the menu and create the account straight away.
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return toast.error("Enter a valid email address");
     }
-    // Dev mode (?dev=1 or persisted): skip OTP verification entirely and build directly.
-    if (devMode) {
-      await buildSite(email);
-      return;
-    }
-    setIsSending(true);
-    try {
-      const res = await sendOtp(email);
-      if (!res.success) throw new Error(res.error || "Could not send code");
-      toast.success(`Code sent to ${email}`);
-      setView("otp");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send code");
-    } finally {
-      setIsSending(false);
-    }
+    await buildSite(email);
   };
 
-  // Run menu extraction + quick signup, then redirect. Shared by the verified
-  // (post-OTP) flow and the dev flow that skips OTP.
+  // Run menu extraction + quick signup, then redirect. Used by the email path
+  // (which now creates the account immediately, with no verification code).
   const buildSite = async (signupEmail: string) => {
     setIsSending(true);
     setView("building");
@@ -439,50 +423,6 @@ export default function SignupFromGoogleClient({
     }
   };
 
-  const handleVerifyAndBuild = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otp.length !== 6) return toast.error("Enter the 6-digit code");
-    setIsSending(true);
-    try {
-      const verify = await verifyOtp(email, otp);
-      if (!verify.success) {
-        throw new Error(verify.error || "Verification failed");
-      }
-      setView("building");
-      const stepTimer = setInterval(() => {
-        setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
-      }, 2500);
-      try {
-        const items = await extractMenuItems();
-        const result = await quickSignupFromGoogle({
-          placeId,
-          sessionToken,
-          email,
-          extractedItems: items,
-          ...readLogoPayload(),
-        });
-        clearInterval(stepTimer);
-        try {
-          sessionStorage.removeItem("gbp_signup_place");
-          sessionStorage.removeItem("uploaded_menu_files");
-          sessionStorage.removeItem("uploaded_menu_instruction");
-          sessionStorage.removeItem("uploaded_logo");
-        } catch {}
-        window.location.assign(result.redirectUrl);
-      } catch (e2) {
-        clearInterval(stepTimer);
-        throw e2;
-      }
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Could not finish signup",
-      );
-      setView("otp");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
   const handleGoogle = () => {
     const params = new URLSearchParams({
       context: "gbp-signup",
@@ -524,7 +464,8 @@ export default function SignupFromGoogleClient({
                 Almost there
               </h1>
               <p className="text-sm text-stone-500 mt-2 mb-5">
-                Add your menu (optional) and verify your identity.
+                Add your menu and logo (optional), then continue to create your
+                site.
               </p>
 
               <input
@@ -558,8 +499,8 @@ export default function SignupFromGoogleClient({
                       </span>
                     </span>
                     <span className="block text-xs text-stone-500 mt-0.5">
-                      PNG, JPG or PDF · up to 10MB each · we&apos;ll digitise
-                      them for you
+                      PNG, JPG or multi-page PDF · as many pages as you like ·
+                      we&apos;ll digitise them for you
                     </span>
                   </span>
                 </label>
@@ -804,7 +745,7 @@ export default function SignupFromGoogleClient({
           )}
 
           {view === "email" && (
-            <form onSubmit={handleSendOtp} className="space-y-4">
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
               <button
                 type="button"
                 onClick={() => setView("choose")}
@@ -815,10 +756,10 @@ export default function SignupFromGoogleClient({
               </button>
               <div>
                 <h1 className="geist-font text-2xl font-semibold text-gray-900 tracking-tight">
-                  Verify your email
+                  What&apos;s your email?
                 </h1>
                 <p className="text-sm text-stone-500 mt-2">
-                  We&apos;ll send you a 6-digit code.
+                  We&apos;ll create your site right away — no code to enter.
                 </p>
               </div>
               <div className="space-y-2">
@@ -842,64 +783,10 @@ export default function SignupFromGoogleClient({
                 {isSending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending code...
+                    Creating your site...
                   </>
                 ) : (
-                  "Send code"
-                )}
-              </button>
-            </form>
-          )}
-
-          {view === "otp" && (
-            <form onSubmit={handleVerifyAndBuild} className="space-y-4">
-              <button
-                type="button"
-                onClick={() => setView("email")}
-                className="inline-flex items-center gap-1 text-xs text-stone-500 hover:text-stone-900"
-              >
-                <ArrowLeft className="h-3 w-3" />
-                Change email
-              </button>
-              <div>
-                <h1 className="geist-font text-2xl font-semibold text-gray-900 tracking-tight">
-                  Enter the code
-                </h1>
-                <p className="text-sm text-stone-500 mt-2">
-                  Sent to{" "}
-                  <span className="font-medium text-stone-900">{email}</span>
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="otp">6-digit code</Label>
-                <Input
-                  id="otp"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\d{6}"
-                  maxLength={6}
-                  required
-                  autoFocus
-                  placeholder="123456"
-                  value={otp}
-                  onChange={(e) =>
-                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-center tracking-[0.4em] text-lg font-medium focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isSending || otp.length !== 6}
-                className="w-full h-11 rounded-xl bg-stone-900 text-white text-sm font-medium hover:bg-stone-800 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isSending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify and build my site"
+                  "Create my site"
                 )}
               </button>
             </form>
