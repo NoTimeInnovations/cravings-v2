@@ -13,6 +13,7 @@ import { formatPrice } from "@/lib/constants";
 import { readableTextColor } from "@/lib/brandColor";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
+import { V6_FONT } from "./v6utils";
 import { X, Plus, Minus } from "lucide-react";
 
 /**
@@ -73,7 +74,7 @@ function V6BottomSheet({ onClose, children }: { onClose: () => void; children: R
       <div
         ref={sheetRef}
         className="relative z-10 mx-auto w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white transition-transform duration-300 ease-out"
-        style={{ transform: "translateY(100%)" }}
+        style={{ transform: "translateY(100%)", fontFamily: V6_FONT }}
         onClick={(e) => e.stopPropagation()}
       >
         <button

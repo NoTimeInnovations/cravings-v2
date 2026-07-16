@@ -96,7 +96,7 @@ const dancingScript = Dancing_Script({
   display: "swap",
 });
 const poppins = Poppins({
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
   subsets: ["latin"],
   variable: "--font-poppins",
   display: "swap",

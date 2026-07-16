@@ -1,5 +1,8 @@
 // Pure helpers for the V6 ("Grocery") style — no React / side effects.
 
+/** The V6 theme font — Poppins (loaded globally as --font-poppins in layout.tsx). */
+export const V6_FONT = "var(--font-poppins), 'Poppins', system-ui, -apple-system, sans-serif";
+
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
   const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
