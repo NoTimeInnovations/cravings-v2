@@ -214,15 +214,9 @@ const V6 = ({
     [groupById],
   );
 
-  // The Home grid always shows POPULAR dishes: the partner's curated bestsellers
-  // (must-try) when there are a couple, otherwise the full menu so the grid is
-  // never sparse. The "Flash Sale · Popular · New Arrivals" strip above it is
-  // purely decorative (not tabs).
-  const gridItems = useMemo(() => {
-    const mustTry = groupById.get("must-try")?.items || [];
-    if (mustTry.length >= 2) return mustTry;
-    return menuCategories.flatMap((g) => g.items);
-  }, [groupById, menuCategories]);
+  // The Home "Popular" grid shows ONLY the partner's Must-Try (top) items. The
+  // "Flash Sale · Popular · New Arrivals" strip above it is purely decorative.
+  const gridItems = useMemo(() => groupById.get("must-try")?.items || [], [groupById]);
 
   const searchableMenu = useMemo(() => {
     const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
