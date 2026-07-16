@@ -354,6 +354,14 @@ const V6ItemCard = ({
     if (willFly) window.setTimeout(() => flyToCart(imgRef.current), 80);
   };
 
+  // Closing the simple-item detail sheet: fly the item into the cart when it's
+  // in the cart, matching the add animation.
+  const closeItemSheetWithFly = () => {
+    const willFly = itemQuantity > 0;
+    setShowItemSheet(false);
+    if (willFly) window.setTimeout(() => flyToCart(imgRef.current), 80);
+  };
+
   // A small circular accent ADD button that becomes a compact −/qty/+ pill.
   const renderAddControl = () => {
     if (!isOrderable) return null;
@@ -538,7 +546,7 @@ const V6ItemCard = ({
 
       {/* Detail sheet (non-variant items) */}
       {showItemSheet && !hasVariants && typeof window !== "undefined" && createPortal(
-        <V6BottomSheet onClose={() => setShowItemSheet(false)}>
+        <V6BottomSheet onClose={closeItemSheetWithFly}>
           <div className="sticky top-0 z-10 flex justify-center bg-white pt-2.5 pb-1">
             <div className="h-1 w-8 rounded-full bg-gray-200" />
           </div>
@@ -595,6 +603,12 @@ const V6ItemCard = ({
                   </button>
                 ) : (
                   <div className="flex items-center justify-between gap-3">
+                    <div className="text-left">
+                      <p className="text-[10px] text-gray-400">Total</p>
+                      <p className="text-base font-extrabold text-gray-900">
+                        <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice((hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice) * itemQuantity, hoteldata?.id || "")}
+                      </p>
+                    </div>
                     <div
                       className="flex items-center gap-1 rounded-2xl border-2 px-1.5 py-1"
                       style={{ borderColor: `${accent}4D`, backgroundColor: `${accent}14` }}
@@ -614,12 +628,6 @@ const V6ItemCard = ({
                       >
                         <Plus className="h-4 w-4" />
                       </button>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-gray-400">Total</p>
-                      <p className="text-base font-extrabold text-gray-900">
-                        <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice((hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice) * itemQuantity, hoteldata?.id || "")}
-                      </p>
                     </div>
                   </div>
                 )}
