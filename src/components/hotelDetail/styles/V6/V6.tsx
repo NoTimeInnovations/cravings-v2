@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
-  ShoppingBag, Search, ArrowLeft, User,
+  ShoppingBag, Search, ArrowLeft, User, ChevronDown,
   Home as HomeIcon, LayoutGrid, ClipboardList,
 } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -22,12 +22,13 @@ import { useAuthStore } from "@/store/authStore";
 // layout-agnostic overlays, so there is no need to fork them.
 import V3SearchItems from "../V3/V3SearchItems";
 import V3Orders from "../V3/V3Orders";
-import V3AddressSheet from "../V3/V3AddressSheet";
 import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
-import AddressPickerV2 from "../../placeOrder/AddressPickerV2";
+import OrderTypeLocationSheet, { type OrderTypeKey } from "@/components/onboarding/OrderTypeLocationSheet";
+import { setSessionOrderType } from "@/lib/onboardingSession";
+import { setOnboardingDataCookie } from "@/app/auth/actions";
+import { parseOrderTypesEnabled, parsePrebookingSettings } from "@/lib/prebooking";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updateUserAddressesMutation } from "@/api/auth";
-import { upsertLocalAddress } from "@/lib/localAddresses";
 import { toast } from "sonner";
 import { useLocationStore } from "@/store/geolocationStore";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -101,14 +102,11 @@ const V6 = ({
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
-  const [addressSheetOpen, setAddressSheetOpen] = useState(false);
-  const [addressPickerOpen, setAddressPickerOpen] = useState(false);
-  const [pickerInitial, setPickerInitial] = useState<
-    { address?: string; coords: { lat: number; lng: number } } | null
-  >(null);
+  // Combined order-type + location sheet (reopened from the header to change).
+  const [orderTypeSheetOpen, setOrderTypeSheetOpen] = useState(false);
 
   const hasOffers = offers && offers.length > 0;
-  const { items: cartItems, userAddress } = useOrderStore();
+  const { items: cartItems, userAddress, orderType, setOrderType } = useOrderStore();
   const { userData: authUser } = useAuthStore();
   const username = (hoteldata as any)?.username as string | undefined;
   const savedAddresses = useMemo(
@@ -128,30 +126,59 @@ const V6 = ({
     !open_place_order_modal &&
     (features?.ordering.enabled === true || features?.delivery.enabled === true);
 
-  const persistDeliveryAddress = useCallback(async (saved: SavedAddress) => {
-    const fullAddress =
-      saved.address ||
-      [saved.flat_no, saved.house_no, saved.area, saved.city].filter(Boolean).join(", ");
-    useOrderStore.getState().setUserAddress(fullAddress);
-    if (saved.latitude != null && saved.longitude != null) {
-      const c = { lat: saved.latitude, lng: saved.longitude };
-      useOrderStore.getState().setUserCoordinates(c);
-      useLocationStore.getState().setCoords(c);
+  const partnerId = (hoteldata?.id || "") as string;
+  const partnerCoords = Array.isArray((hoteldata?.geo_location as any)?.coordinates)
+    ? { lat: (hoteldata!.geo_location as any).coordinates[1], lng: (hoteldata!.geo_location as any).coordinates[0] }
+    : null;
+  const offeredTypes = parseOrderTypesEnabled((hoteldata as any)?.order_types_enabled);
+  const slotBookingEnabled =
+    parsePrebookingSettings((hoteldata as any)?.prebooking_settings)?.slot_booking_enabled !== false;
+  const availableOrderTypes = {
+    delivery: !!features?.delivery.enabled && offeredTypes.delivery,
+    takeaway: !!features?.ordering.enabled && offeredTypes.takeaway,
+    dine_in: offeredTypes.dine_in && !!features?.prebooking?.enabled && slotBookingEnabled,
+  };
+  const hasAnyOrderType = availableOrderTypes.delivery || availableOrderTypes.takeaway || availableOrderTypes.dine_in;
+  const orderTypeLabel =
+    orderType === "takeaway"
+      ? "Takeaway"
+      : orderType === "dine_in"
+        ? "Dine-in"
+        : features?.delivery.enabled
+          ? userAddress
+            ? "Delivery"
+            : "Add your address"
+          : "";
+
+  // Delivery address chosen in the sheet → persist + remember + close.
+  const commitDeliveryFromSheet = useCallback(async (addr: string, coords: { lat: number; lng: number } | null) => {
+    setOrderType("delivery");
+    setSessionOrderType(partnerId, "delivery");
+    useOrderStore.getState().setUserAddress(addr);
+    if (coords) {
+      useOrderStore.getState().setUserCoordinates(coords);
+      useLocationStore.getState().setCoords(coords);
     }
-    const stamped = { ...saved, savedAt: Date.now() };
-    upsertLocalAddress(stamped, Date.now());
-    if (authUser && (authUser as any).role === "user") {
-      const existing = [...savedAddresses];
-      const idx = existing.findIndex((x) => x.id === stamped.id);
-      if (idx >= 0) existing[idx] = stamped;
-      else existing.push(stamped);
-      try {
-        await fetchFromHasura(updateUserAddressesMutation, { id: authUser.id, addresses: existing });
-        useAuthStore.setState({ userData: { ...(authUser as any), addresses: existing } as any });
-        toast.success("Address saved");
-      } catch {
-        toast.error("Failed to save address");
-      }
+    try { await setOnboardingDataCookie(partnerId, { address: addr, coords }); } catch {}
+    setOrderTypeSheetOpen(false);
+  }, [partnerId, setOrderType]);
+
+  // Takeaway / Dine-in confirmed → set type + close.
+  const commitTypeFromSheet = useCallback((t: OrderTypeKey) => {
+    setOrderType(t);
+    if (t !== "dine_in") setSessionOrderType(partnerId, t);
+    setOrderTypeSheetOpen(false);
+  }, [partnerId, setOrderType]);
+
+  const deleteSavedAddress = useCallback(async (id: string) => {
+    if (!authUser || (authUser as any).role !== "user") return;
+    const updated = savedAddresses.filter((a) => a.id !== id);
+    try {
+      await fetchFromHasura(updateUserAddressesMutation, { id: authUser.id, addresses: updated });
+      useAuthStore.setState({ userData: { ...(authUser as any), addresses: updated } as any });
+      toast.success("Address deleted");
+    } catch {
+      toast.error("Failed to delete address");
     }
   }, [authUser, savedAddresses]);
 
@@ -342,19 +369,16 @@ const V6 = ({
                 </button>
               )}
               <button
-                onClick={features?.delivery.enabled ? () => setAddressSheetOpen(true) : undefined}
-                disabled={features?.delivery.enabled !== true}
+                onClick={hasAnyOrderType ? () => setOrderTypeSheetOpen(true) : undefined}
+                disabled={!hasAnyOrderType}
                 className="flex min-w-0 flex-1 flex-col text-left"
               >
                 <span className="truncate text-[15px] font-extrabold leading-tight text-gray-900">
-                  {features?.delivery.enabled && userAddress ? userAddress : outletName}
+                  {orderType === "delivery" && userAddress ? userAddress : outletName}
                 </span>
-                <span className="truncate text-[11px] font-medium text-gray-400">
-                  {features?.delivery.enabled
-                    ? userAddress
-                      ? "Your address"
-                      : "Add your address"
-                    : locationText || "Your store"}
+                <span className="flex items-center gap-0.5 truncate text-[11px] font-medium text-gray-400">
+                  {orderTypeLabel || locationText || "Your store"}
+                  {hasAnyOrderType && <ChevronDown className="h-3 w-3 shrink-0" />}
                 </span>
               </button>
               {(authUser as any)?.role === "user" && (
@@ -531,70 +555,29 @@ const V6 = ({
           />
         )}
 
-        {/* Address bottom sheet */}
-        {addressSheetOpen && (
-          <V3AddressSheet
-            currentAddress={userAddress || ""}
-            brandHeader={brandHeader}
-            partnerId={hoteldata?.id}
-            savedAddresses={savedAddresses}
-            onDeleteSaved={async (id) => {
-              if (!authUser || (authUser as any).role !== "user") return;
-              const updated = savedAddresses.filter((a) => a.id !== id);
-              try {
-                await fetchFromHasura(updateUserAddressesMutation, { id: authUser.id, addresses: updated });
-                useAuthStore.setState({ userData: { ...(authUser as any), addresses: updated } as any });
-                toast.success("Address deleted");
-              } catch {
-                toast.error("Failed to delete address");
-              }
-            }}
-            onSelect={(addr, coords) => {
-              if (addr) {
-                useOrderStore.getState().setUserAddress(addr);
-                if (coords) useOrderStore.getState().setUserCoordinates(coords);
-              }
-              setAddressSheetOpen(false);
-            }}
-            onPickForMap={(addr, coords) => {
-              setAddressSheetOpen(false);
-              if (coords) setPickerInitial({ address: addr, coords });
-              else setPickerInitial(null);
-              setAddressPickerOpen(true);
-            }}
-            onAddNew={() => {
-              setAddressSheetOpen(false);
-              const coords = useOrderStore.getState().coordinates;
-              if (userAddress?.trim() && coords) setPickerInitial({ address: userAddress, coords });
-              else setPickerInitial(null);
-              setAddressPickerOpen(true);
-            }}
-            onClose={() => setAddressSheetOpen(false)}
+        {/* Combined order-type + location sheet (reopened from the header). */}
+        {orderTypeSheetOpen && hasAnyOrderType && (
+          <OrderTypeLocationSheet
+            storeName={outletName}
+            outletAddress={locationText}
             accent={accent}
-            partnerCoords={
-              Array.isArray((hoteldata?.geo_location as any)?.coordinates)
-                ? {
-                    lat: (hoteldata!.geo_location as any).coordinates[1],
-                    lng: (hoteldata!.geo_location as any).coordinates[0],
-                  }
-                : null
-            }
+            availableTypes={availableOrderTypes}
+            initialType={(orderType as OrderTypeKey) || "delivery"}
+            currentAddress={userAddress || ""}
+            savedAddresses={savedAddresses}
+            onDeleteSaved={deleteSavedAddress}
+            partnerCoords={partnerCoords}
+            partnerId={partnerId}
+            hotelData={hoteldata}
+            onOrderTypeChange={(t) => {
+              setOrderType(t);
+              if (t !== "dine_in") setSessionOrderType(partnerId, t);
+            }}
+            onDeliveryAddress={commitDeliveryFromSheet}
+            onConfirm={commitTypeFromSheet}
+            onClose={() => setOrderTypeSheetOpen(false)}
           />
         )}
-
-        {/* Address picker (map + save) */}
-        <AddressPickerV2
-          open={addressPickerOpen}
-          onClose={() => { setAddressPickerOpen(false); setPickerInitial(null); }}
-          onSaved={(saved) => {
-            setAddressPickerOpen(false);
-            setPickerInitial(null);
-            persistDeliveryAddress(saved);
-          }}
-          hotelData={hoteldata}
-          accent={accent}
-          initialPick={pickerInitial}
-        />
 
         {/* Orders overlay */}
         {ordersOpen && (
