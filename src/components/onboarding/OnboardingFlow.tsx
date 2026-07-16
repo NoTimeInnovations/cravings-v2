@@ -200,13 +200,17 @@ export default function OnboardingFlow({
     // SERVER (from cookies) so this matches the SSR HTML and never flashes; the
     // client check is a fallback for soft navigations. The mount effect below
     // restores the saved order type + address into the store.
-    // Sheet mode (V6) is delivery-first: the location/order-type popup ALWAYS
-    // appears on load — the customer confirms their delivery address (or picks
-    // an order type) every visit. Other variants keep the standard skip-after-
-    // selection behaviour.
+    // Sheet mode (V6): the location/order-type popup appears once per browser
+    // session (sessionStorage flag). It persists across reloads within the
+    // session but resets on tab close / new session — so a fresh visit always
+    // re-prompts. Other variants keep the standard skip-after-selection.
+    let sheetSessionDone = false;
+    if (variant === "sheet" && typeof window !== "undefined") {
+      try { sheetSessionDone = sessionStorage.getItem(`mt_v6_onboarded_${partnerId}`) === "1"; } catch {}
+    }
     const skipAllowed =
       variant === "sheet"
-        ? false
+        ? sheetSessionDone
         : initialSkipOnboarding ||
           canSkipOnboarding({
             partnerId,
@@ -230,12 +234,17 @@ export default function OnboardingFlow({
   }, []);
 
   const dismissWithAnimation = useCallback(() => {
+    // V6 sheet: remember (per browser-tab session) that the customer confirmed
+    // their location/order type, so reloads within the session don't re-prompt.
+    if (variant === "sheet" && typeof window !== "undefined") {
+      try { sessionStorage.setItem(`mt_v6_onboarded_${partnerId}`, "1"); } catch {}
+    }
     setClosing(true);
     setTimeout(() => {
       setDismissed(true);
       onDismiss?.();
     }, 300);
-  }, [onDismiss]);
+  }, [onDismiss, variant, partnerId]);
 
   const { setOrderType, setUserAddress, setUserCoordinates, userAddress } = useOrderStore();
   const { userData: onbAuthUser } = useAuthStore();

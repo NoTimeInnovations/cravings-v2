@@ -340,10 +340,10 @@ const V6 = ({
         />
 
         {/* ============ HEADER ============ */}
-        {view === "items" ? (
+        {view !== "home" ? (
           <div className="sticky top-0 z-40 flex items-center gap-2 bg-[#f2f1ec]/95 px-4 py-3 backdrop-blur">
             <button
-              onClick={() => setView(activeCatId ? "categories" : "home")}
+              onClick={() => (view === "items" ? setView(activeCatId ? "categories" : "home") : setView("home"))}
               className="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 font-bold ring-1 ring-black/[0.06] transition hover:bg-white"
               style={{ color: accent }}
               aria-label="Back"
@@ -352,7 +352,11 @@ const V6 = ({
               <span className="text-[14px]">Back</span>
             </button>
             <h1 className="flex-1 truncate text-center text-[17px] font-extrabold tracking-tight text-gray-900">
-              {activeCategoryForCard ? formatDisplayName(activeCategoryForCard.name) : "Items"}
+              {view === "items"
+                ? activeCategoryForCard
+                  ? formatDisplayName(activeCategoryForCard.name)
+                  : "Items"
+                : "Categories"}
             </h1>
             <span className="w-[74px] shrink-0" aria-hidden="true" />
           </div>
@@ -466,10 +470,9 @@ const V6 = ({
         {/* ============ CATEGORIES GRID ============ */}
         {view === "categories" && (
           <>
-            <div className="px-4 pt-1 pb-3">
+            <div className="px-4 pt-2 pb-3">
               <SearchPill />
             </div>
-            <h2 className="px-4 pb-3 text-[22px] font-extrabold tracking-tight text-gray-900">Categories</h2>
             {menuCategories.length === 0 ? (
               <p className="px-4 py-16 text-center text-sm text-gray-400">No categories available.</p>
             ) : (
