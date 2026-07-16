@@ -407,11 +407,16 @@ function Inspector({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="missed">Missed call</SelectItem>
+              <SelectItem value="incoming">Incoming call</SelectItem>
+              <SelectItem value="outgoing">Outgoing call</SelectItem>
               <SelectItem value="not_replied">Not replied</SelectItem>
               <SelectItem value="replied">Replied</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">Green dot = yes, red dot = no.</p>
+          <p className="text-xs text-muted-foreground">
+            Branches on the triggering call&apos;s type (or WhatsApp reply). Green dot = matches, red dot = doesn&apos;t.
+          </p>
         </div>
       )}
     </div>
