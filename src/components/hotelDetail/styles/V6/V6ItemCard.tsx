@@ -347,6 +347,15 @@ const V6ItemCard = ({
     handleAddItem();
   };
 
+  // Variant sheet "Add to cart": variants are already in the cart (added via the
+  // per-variant steppers), so this just dismisses the sheet — then fly the item
+  // into the cart as confirmation, matching the simple-item add animation.
+  const closeVariantSheetWithFly = () => {
+    const willFly = itemQuantity > 0;
+    setShowVariants(false);
+    if (willFly) window.setTimeout(() => flyToCart(imgRef.current), 80);
+  };
+
   // A small circular accent ADD button that becomes a compact −/qty/+ pill.
   const renderAddControl = () => {
     if (!isOrderable) return null;
@@ -763,7 +772,7 @@ const V6ItemCard = ({
                 hoteldata={hoteldata}
                 variantQuantities={variantQuantities}
                 getVariantOffer={getVariantOffer}
-                onClose={() => setShowVariants(false)}
+                onClose={closeVariantSheetWithFly}
                 accent={accent}
                 onAccent={onAccent}
               />
