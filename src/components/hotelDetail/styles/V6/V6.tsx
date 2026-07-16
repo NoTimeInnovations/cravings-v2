@@ -217,9 +217,18 @@ const V6 = ({
     [groupById],
   );
 
-  // The Home "Popular" grid shows ONLY the partner's Must-Try (top) items. The
-  // "Flash Sale · Popular · New Arrivals" strip above it is purely decorative.
-  const gridItems = useMemo(() => groupById.get("must-try")?.items || [], [groupById]);
+  // The Home "Popular" grid: Must-Try (top) items first. If there are none, fall
+  // back to the first category's items; if there are some but fewer than 4, top
+  // them up with the first category's items (de-duped). 4+ Must-Try items stand
+  // on their own. The "Flash Sale · Popular · New Arrivals" strip is decorative.
+  const gridItems = useMemo(() => {
+    const mustTry = groupById.get("must-try")?.items || [];
+    const firstCat = menuCategories[0]?.items || [];
+    if (mustTry.length === 0) return firstCat;
+    if (mustTry.length >= 4) return mustTry;
+    const seen = new Set(mustTry.map((i) => i.id));
+    return [...mustTry, ...firstCat.filter((i) => !seen.has(i.id))];
+  }, [groupById, menuCategories]);
 
   const searchableMenu = useMemo(() => {
     const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
