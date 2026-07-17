@@ -18,9 +18,10 @@ import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
-// V6 reuses V3's search / orders / address sheets verbatim — they are
-// layout-agnostic overlays, so there is no need to fork them.
-import V3SearchItems from "../V3/V3SearchItems";
+// V6 reuses V3's orders / address sheets verbatim — they are layout-agnostic
+// overlays. Search is forked (V6SearchItems) so results get the V6 variant sheet
+// + fly-to-cart animation instead of V3's plain direct-add rows.
+import V6SearchItems from "./V6SearchItems";
 import V3Orders from "../V3/V3Orders";
 import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
 import OrderTypeLocationSheet, { type OrderTypeKey } from "@/components/onboarding/OrderTypeLocationSheet";
@@ -530,7 +531,7 @@ const V6 = ({
 
         {/* Search overlay */}
         {searchOpen && (
-          <V3SearchItems
+          <V6SearchItems
             menu={searchableMenu}
             hoteldata={hoteldata}
             tableNumber={tableNumber}

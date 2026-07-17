@@ -47,7 +47,7 @@ function useInView() {
   return { ref, visible };
 }
 
-function V6BottomSheet({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+export function V6BottomSheet({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -92,7 +92,7 @@ function V6BottomSheet({ onClose, children }: { onClose: () => void; children: R
 }
 
 // Bordered veg / non-veg mark (dot for veg, triangle for non-veg).
-function VegMark({ isVeg }: { isVeg: boolean }) {
+export function VegMark({ isVeg }: { isVeg: boolean }) {
   const color = isVeg ? "#16a34a" : "#dc2626";
   return (
     <div
@@ -116,7 +116,7 @@ function VegMark({ isVeg }: { isVeg: boolean }) {
   );
 }
 
-const BottomSheetAddButton = ({
+export const BottomSheetAddButton = ({
   item,
   hoteldata,
   variantQuantities,

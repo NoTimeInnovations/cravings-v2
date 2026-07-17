@@ -21,10 +21,15 @@ function bumpCart(target: HTMLElement) {
 }
 
 /** Fly a clone of `sourceImg` into the cart pill. `sourceImg` may be the <img> or
- *  a wrapper containing one. Safe to call when the target/source is missing. */
-export function flyToCart(sourceImg: HTMLElement | null | undefined) {
+ *  a wrapper containing one. `targetId` lets callers aim at a different cart pill
+ *  (e.g. the search overlay's own FAB, since the main one is hidden behind it).
+ *  Safe to call when the target/source is missing. */
+export function flyToCart(
+  sourceImg: HTMLElement | null | undefined,
+  targetId: string = CART_TARGET_ID,
+) {
   if (typeof document === "undefined" || !sourceImg) return;
-  const target = document.getElementById(CART_TARGET_ID);
+  const target = document.getElementById(targetId);
   if (!target) return;
 
   if (prefersReducedMotion()) {
