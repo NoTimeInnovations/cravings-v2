@@ -15,6 +15,8 @@ import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { V6_FONT } from "./v6utils";
 import { flyToCart } from "./v6FlyToCart";
+import { MenuPrice } from "../../MenuPrice";
+import { useMenuLanguageStore } from "@/store/menuLanguageStore";
 import { X, Plus, Minus } from "lucide-react";
 
 /**
@@ -157,7 +159,7 @@ export const BottomSheetAddButton = ({
       style={{ backgroundColor: accent, color: onAccent }}
     >
       <span>Add to cart</span>
-      <span><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(total, hoteldata?.id)}</span>
+      <MenuPrice currency={hoteldata?.currency} amount={formatPrice(total, hoteldata?.id)} />
     </button>
   );
 };
@@ -199,6 +201,20 @@ const V6ItemCard = ({
   const liveStockQty = useLiveStock((s) => s.qty);
   const router = useRouter();
   const imgRef = useRef<HTMLImageElement>(null);
+
+  // Language-aware name: when the storefront language is Arabic, show the curated
+  // Arabic name (name_secondary) as the item name; otherwise the primary name.
+  // The bilingual sub-line is dropped — one name per language. Currency is handled
+  // language-aware by <MenuPrice> (en → QAR, ar → ر.ق, correctly ordered/isolated).
+  const menuLang = useMenuLanguageStore((s) => s.lang);
+  const isArabic = (menuLang || "").toLowerCase().startsWith("ar");
+  const showArabicName = isArabic && !!item.name_secondary;
+  const displayName = showArabicName ? item.name_secondary : item.name;
+  const nameDir = showArabicName ? ("rtl" as const) : undefined;
+  // When we render the curated Arabic name, mark it notranslate so Google
+  // Translate (active on the Arabic page) doesn't re-translate it to garbage.
+  const nameTranslate = showArabicName ? ("no" as const) : undefined;
+  const nameNo = showArabicName ? " notranslate" : "";
 
   const features = getFeatures(feature_flags || "");
   const deliveryRules = hoteldata?.delivery_rules;
@@ -488,20 +504,13 @@ const V6ItemCard = ({
 
         {/* Content */}
         <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5">
-          <h3 className="line-clamp-2 text-[14px] font-bold leading-tight tracking-[-0.01em] text-gray-900">
+          <h3 dir={nameDir} translate={nameTranslate} className={`line-clamp-2 text-left text-[14px] font-bold leading-tight tracking-[-0.01em] text-gray-900${nameNo}`}>
             {offerData?.variant && !hasMultipleVariantsOnOffer
-              ? `${item.name} (${offerData.variant.name})`
-              : item.name}
+              ? `${displayName} (${offerData.variant.name})`
+              : displayName}
           </h3>
 
-          {item.name_secondary ? (
-            <p
-              dir={item.name_secondary_rtl ? "rtl" : "ltr"}
-              className="mt-0.5 line-clamp-1 text-[11px] font-medium text-gray-400"
-            >
-              {item.name_secondary}
-            </p>
-          ) : hasVariants ? (
+          {hasVariants ? (
             <p className="mt-0.5 text-[11px] font-medium text-gray-400">Multiple options</p>
           ) : (
             <span className="mt-0.5 block h-[13px]" />
@@ -514,19 +523,23 @@ const V6ItemCard = ({
                 item.is_price_as_per_size !== true ? (
                   hasValidMainOffer ? (
                     <div className="flex flex-col">
-                      <span className="text-[15px] font-extrabold text-gray-900">
-                        <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(mainOfferPrice, hoteldata?.id)}
-                      </span>
+                      <MenuPrice
+                        className="text-[15px] font-extrabold text-gray-900"
+                        currency={hoteldata?.currency}
+                        amount={formatPrice(mainOfferPrice, hoteldata?.id)}
+                      />
                       {!hasMultipleVariantsOnOffer && hasValidMainOriginalPrice && mainOriginalPrice! > mainOfferPrice! && (
-                        <span className="text-[11px] font-normal text-gray-400 line-through">
-                          <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(mainOriginalPrice, hoteldata?.id)}
-                        </span>
+                        <MenuPrice
+                          className="text-[11px] font-normal text-gray-400 line-through"
+                          currency={hoteldata?.currency}
+                          amount={formatPrice(mainOriginalPrice, hoteldata?.id)}
+                        />
                       )}
                     </div>
                   ) : hasValidBasePrice && baseItemPrice > 0 ? (
                     <span className="text-[15px] font-extrabold text-gray-900">
                       {hasVariants && <span className="text-[10px] font-normal text-gray-500">From </span>}
-                      <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(baseItemPrice, hoteldata?.id)}
+                      <MenuPrice currency={hoteldata?.currency} amount={formatPrice(baseItemPrice, hoteldata?.id)} />
                     </span>
                   ) : (
                     <span className="text-[11px] font-medium text-gray-300">&nbsp;</span>
@@ -561,27 +574,19 @@ const V6ItemCard = ({
             <div className="flex items-center gap-1.5">
               {item.is_veg !== null && item.is_veg !== undefined && <VegMark isVeg={item.is_veg} />}
             </div>
-            <h2 className="mt-1.5 text-lg font-extrabold tracking-tight text-gray-900">{item.name}</h2>
-            {item.name_secondary && (
-              <p
-                dir={item.name_secondary_rtl ? "rtl" : "ltr"}
-                className="mt-0.5 text-left text-sm font-medium leading-snug text-gray-500"
-              >
-                {item.name_secondary}
-              </p>
-            )}
+            <h2 dir={nameDir} translate={nameTranslate} className={`mt-1.5 text-left text-lg font-extrabold tracking-tight text-gray-900${nameNo}`}>{displayName}</h2>
 
             {shouldShowPrice && (
               <div className="mt-1 flex items-center gap-2">
                 {hasValidMainOffer && !isUpcomingOffer ? (
                   <>
-                    <span className="text-base font-extrabold text-gray-900"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(offerData!.offer_price!, hoteldata?.id)}</span>
+                    <MenuPrice className="text-base font-extrabold text-gray-900" currency={hoteldata?.currency} amount={formatPrice(offerData!.offer_price!, hoteldata?.id)} />
                     {hasValidMainOriginalPrice && mainOriginalPrice! > offerData!.offer_price! && (
-                      <span className="text-sm text-gray-400 line-through"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(mainOriginalPrice, hoteldata?.id)}</span>
+                      <MenuPrice className="text-sm text-gray-400 line-through" currency={hoteldata?.currency} amount={formatPrice(mainOriginalPrice, hoteldata?.id)} />
                     )}
                   </>
                 ) : hasValidBasePrice && baseItemPrice > 0 ? (
-                  <span className="text-base font-extrabold text-gray-900"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(baseItemPrice, hoteldata?.id)}</span>
+                  <MenuPrice className="text-base font-extrabold text-gray-900" currency={hoteldata?.currency} amount={formatPrice(baseItemPrice, hoteldata?.id)} />
                 ) : null}
               </div>
             )}
@@ -599,14 +604,14 @@ const V6ItemCard = ({
                     style={{ backgroundColor: accent, color: onAccent }}
                   >
                     <span>Add to cart</span>
-                    <span><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice, hoteldata?.id || "")}</span>
+                    <MenuPrice currency={hoteldata?.currency} amount={formatPrice(hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice, hoteldata?.id || "")} />
                   </button>
                 ) : (
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-left">
                       <p className="text-[10px] text-gray-400">Total</p>
                       <p className="text-base font-extrabold text-gray-900">
-                        <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice((hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice) * itemQuantity, hoteldata?.id || "")}
+                        <MenuPrice currency={hoteldata?.currency} amount={formatPrice((hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice) * itemQuantity, hoteldata?.id || "")} />
                       </p>
                     </div>
                     <div
@@ -655,16 +660,8 @@ const V6ItemCard = ({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 {item.is_veg !== null && item.is_veg !== undefined && <VegMark isVeg={item.is_veg} />}
-                <h3 className="font-bold text-lg text-gray-900">{item.name}</h3>
+                <h3 dir={nameDir} translate={nameTranslate} className={`text-left font-bold text-lg text-gray-900${nameNo}`}>{displayName}</h3>
               </div>
-              {item.name_secondary && (
-                <p
-                  dir={item.name_secondary_rtl ? "rtl" : "ltr"}
-                  className="text-left text-sm font-medium leading-snug text-gray-500"
-                >
-                  {item.name_secondary}
-                </p>
-              )}
               {item.description && (
                 <p className="text-sm text-gray-400 mt-1 leading-relaxed whitespace-pre-line">{item.description}</p>
               )}
@@ -724,13 +721,13 @@ const V6ItemCard = ({
                         <div className="text-sm font-semibold flex-shrink-0">
                           {hasValidVariantOffer ? (
                             <div className="flex items-center gap-1.5">
-                              <span className="text-gray-900"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(variantOffer.offer_price!, hoteldata?.id)}</span>
+                              <MenuPrice className="text-gray-900" currency={hoteldata?.currency} amount={formatPrice(variantOffer.offer_price!, hoteldata?.id)} />
                               {hasValidOriginalPrice && originalVariantPrice > variantOffer.offer_price! && (
-                                <span className="line-through text-gray-400 text-xs font-normal"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(originalVariantPrice, hoteldata?.id)}</span>
+                                <MenuPrice className="line-through text-gray-400 text-xs font-normal" currency={hoteldata?.currency} amount={formatPrice(originalVariantPrice, hoteldata?.id)} />
                               )}
                             </div>
                           ) : hasValidOriginalPrice && originalVariantPrice > 0 ? (
-                            <span className="text-gray-700"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(originalVariantPrice, hoteldata?.id)}</span>
+                            <MenuPrice className="text-gray-700" currency={hoteldata?.currency} amount={formatPrice(originalVariantPrice, hoteldata?.id)} />
                           ) : null}
                         </div>
                       )}

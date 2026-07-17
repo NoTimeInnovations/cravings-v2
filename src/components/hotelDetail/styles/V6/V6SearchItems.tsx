@@ -11,6 +11,8 @@ import { filterMenuByQuery } from "@/lib/menuSearch";
 import { V6_FONT } from "./v6utils";
 import { flyToCart } from "./v6FlyToCart";
 import { V6BottomSheet, VegMark, BottomSheetAddButton } from "./V6ItemCard";
+import { MenuPrice } from "../../MenuPrice";
+import { useMenuLanguageStore } from "@/store/menuLanguageStore";
 
 /**
  * V6 ("Grocery") search overlay. A dedicated copy so the results reuse the V6
@@ -53,6 +55,14 @@ const V6SearchRow = ({
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const imgRef = useRef<HTMLImageElement>(null);
   const [showVariants, setShowVariants] = useState(false);
+
+  const menuLang = useMenuLanguageStore((s) => s.lang);
+  const isArabic = (menuLang || "").toLowerCase().startsWith("ar");
+  const showArabicName = isArabic && !!item.name_secondary;
+  const displayName = showArabicName ? item.name_secondary : item.name;
+  const nameDir = showArabicName ? ("rtl" as const) : undefined;
+  const nameTranslate = showArabicName ? ("no" as const) : undefined;
+  const nameNo = showArabicName ? " notranslate" : "";
 
   const features = getFeatures(hoteldata?.feature_flags || "");
   const hasOrderingFeature = features?.ordering.enabled && tableNumber !== 0;
@@ -138,11 +148,11 @@ const V6SearchRow = ({
             </span>
           )}
         </div>
-        <h3 className="mt-1 text-sm font-bold leading-snug text-gray-900">{item.name}</h3>
+        <h3 dir={nameDir} translate={nameTranslate} className={`mt-1 text-left text-sm font-bold leading-snug text-gray-900${nameNo}`}>{displayName}</h3>
         {shouldShowPrice && (
           <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-gray-900">
             {hasVariants && <span className="text-[10px] font-medium text-gray-400">From </span>}
-            <span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(price, hoteldata?.id)}
+            <MenuPrice currency={hoteldata?.currency} amount={formatPrice(price, hoteldata?.id)} />
           </div>
         )}
         {item.description && (
@@ -220,7 +230,7 @@ const V6SearchRow = ({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 {item.is_veg !== null && item.is_veg !== undefined && <VegMark isVeg={item.is_veg} />}
-                <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
+                <h3 dir={nameDir} translate={nameTranslate} className={`text-left text-lg font-bold text-gray-900${nameNo}`}>{displayName}</h3>
               </div>
               {item.description && (
                 <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-gray-400">{item.description}</p>
@@ -267,13 +277,13 @@ const V6SearchRow = ({
                       <div className="flex-shrink-0 text-sm font-semibold">
                         {hasValidVariantOffer ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-gray-900"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(variantOffer!.offer_price!, hoteldata?.id)}</span>
+                            <MenuPrice className="text-gray-900" currency={hoteldata?.currency} amount={formatPrice(variantOffer!.offer_price!, hoteldata?.id)} />
                             {hasValidOriginalPrice && originalVariantPrice! > variantOffer!.offer_price! && (
-                              <span className="text-xs font-normal text-gray-400 line-through"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(originalVariantPrice, hoteldata?.id)}</span>
+                              <MenuPrice className="text-xs font-normal text-gray-400 line-through" currency={hoteldata?.currency} amount={formatPrice(originalVariantPrice, hoteldata?.id)} />
                             )}
                           </div>
                         ) : hasValidOriginalPrice && originalVariantPrice! > 0 ? (
-                          <span className="text-gray-700"><span translate="no" className="notranslate">{hoteldata?.currency || "₹"}</span>{formatPrice(originalVariantPrice, hoteldata?.id)}</span>
+                          <MenuPrice className="text-gray-700" currency={hoteldata?.currency} amount={formatPrice(originalVariantPrice, hoteldata?.id)} />
                         ) : null}
                       </div>
                     )}
