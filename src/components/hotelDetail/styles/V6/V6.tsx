@@ -86,7 +86,6 @@ function getOfferMeta(item: any, offers: any[]) {
 const V6 = ({
   styles,
   hoteldata,
-  socialLinks,
   offers,
   tableNumber,
   auth,
@@ -402,13 +401,21 @@ const V6 = ({
           <div className="px-4 pt-3 pb-1">
             <V6BrandHeader
               hoteldata={hoteldata}
-              socialLinks={socialLinks}
-              accent={accent}
               onBack={backAction || undefined}
               extraIcon={
-                langSwitcherEnabled ? (
-                  <LanguageSwitcher variant="inline" enabled languages={langSwitcherLangs} accent={accent} />
-                ) : undefined
+                <>
+                  {/* Search lives here (row 1) instead of a full-width row. */}
+                  <button
+                    onClick={() => setSearchOpen(true)}
+                    aria-label="Search the menu"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-gray-700 ring-1 ring-black/[0.06] transition hover:bg-gray-50 active:scale-95"
+                  >
+                    <Search className="h-[17px] w-[17px]" strokeWidth={2.3} />
+                  </button>
+                  {langSwitcherEnabled && (
+                    <LanguageSwitcher variant="inline" enabled languages={langSwitcherLangs} accent={accent} />
+                  )}
+                </>
               }
               footer={
                 <div className="flex items-center gap-2">
@@ -435,15 +442,6 @@ const V6 = ({
                       storeName={(hoteldata as any)?.store_name}
                     />
                   )}
-                  {/* Search — compact icon here instead of a full-width row. */}
-                  <button
-                    onClick={() => setSearchOpen(true)}
-                    aria-label="Search the menu"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-95"
-                    style={{ backgroundColor: `${accent}14`, color: accent }}
-                  >
-                    <Search className="h-[18px] w-[18px]" strokeWidth={2.3} />
-                  </button>
                 </div>
               }
             />

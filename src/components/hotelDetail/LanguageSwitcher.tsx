@@ -185,17 +185,21 @@ export function LanguageSwitcher({
                     title={currentLabel}
                     className={
                         isInline
-                            ? "flex h-8 w-8 items-center justify-center rounded-full bg-white ring-1 ring-black/[0.06] transition hover:bg-gray-50 active:scale-95"
+                            ? "flex h-9 w-9 flex-col items-center justify-center rounded-full bg-white ring-1 ring-black/[0.06] transition hover:bg-gray-50 active:scale-95"
                             : "flex h-12 w-12 flex-col items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-black/5 transition active:scale-95"
                     }
                     style={{ color: accent }}
                 >
-                    <Globe className={isInline ? "h-[17px] w-[17px]" : "h-4 w-4"} />
-                    {!isInline && (
-                        <span className="mt-0.5 text-[10px] font-bold uppercase leading-none">
-                            {current}
-                        </span>
-                    )}
+                    <Globe className={isInline ? "h-[15px] w-[15px]" : "h-4 w-4"} />
+                    <span
+                        className={
+                            isInline
+                                ? "mt-[1px] text-[8px] font-bold uppercase leading-none"
+                                : "mt-0.5 text-[10px] font-bold uppercase leading-none"
+                        }
+                    >
+                        {current}
+                    </span>
                 </button>
                 {open && (
                     <>
