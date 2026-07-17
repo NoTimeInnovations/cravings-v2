@@ -3,6 +3,7 @@ import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { Search, X, Plus, Minus, ArrowLeft, ShoppingBag } from "lucide-react";
 import { readableTextColor } from "@/lib/brandColor";
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { getFeatures } from "@/lib/getFeatures";
 import useOrderStore from "@/store/orderStore";
 import { formatPrice } from "@/lib/constants";
@@ -56,7 +57,26 @@ const V3SearchResultItem = ({
   const variantItems = hasVariants ? items?.filter((i) => i.id.startsWith(`${item.id}|`)) || [] : [];
   const quantity = (itemInCart?.quantity || 0) + variantItems.reduce((sum, i) => sum + i.quantity, 0);
 
-  const handleAdd = () => {
+  const [showVariants, setShowVariants] = useState(false);
+
+  const getVariantOffer = (variantName: string) =>
+    hoteldata?.offers?.find(
+      (o: any) => o.menu && o.menu.id === item.id && o.variant?.name === variantName,
+    );
+
+  const variantQuantities = useMemo(() => {
+    const map: Record<string, number> = {};
+    (item.variants || []).forEach((v: any) => {
+      map[v.name] = items?.find((i) => i.id === `${item.id}|${v.name}`)?.quantity || 0;
+    });
+    return map;
+  }, [items, item.variants, item.id]);
+
+  // Non-variant items add directly. Variant items open a size-picker sheet so the
+  // chosen variant's id/name/price is recorded — previously search added the base
+  // item at the cheapest variant's price with NO variant identity (wrong name +
+  // wrong price + can't pick a size).
+  const addSimple = () => {
     if (!item.category?.id) return;
     addItem({
       id: item.id,
@@ -67,13 +87,33 @@ const V3SearchResultItem = ({
       priority: item.priority,
       category_id: item.category.id,
       category: item.category,
-      price: item.variants?.sort((a, b) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price,
+      price: item.price,
       name: item.name,
       quantity: 1,
       variantSelections: [],
       offers: [],
     } as any);
   };
+
+  const handleAdd = () => {
+    if (hasVariants) setShowVariants(true);
+    else addSimple();
+  };
+
+  const handleVariantAdd = (variant: any) => {
+    const variantOffer = getVariantOffer(variant.name);
+    const isUpcoming = !!variantOffer && new Date(variantOffer.start_time) > new Date();
+    const finalPrice = variantOffer && !isUpcoming ? variantOffer.offer_price : variant.price;
+    addItem({
+      ...item,
+      id: `${item.id}|${variant.name}`,
+      name: `${item.name} (${variant.name})`,
+      price: finalPrice,
+      variantSelections: [{ id: variant.id, name: variant.name, price: variant.price ?? 0, quantity: 1 }],
+    } as any);
+  };
+
+  const handleVariantRemove = (variant: any) => decreaseQuantity(`${item.id}|${variant.name}`);
 
   const handleDecrease = () => {
     if (!item.id) return;
@@ -83,6 +123,7 @@ const V3SearchResultItem = ({
 
   const price = item.variants?.sort((a: any, b: any) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price;
   const shouldShowPrice = hoteldata?.currency !== "🚫";
+  const currency = hoteldata?.currency || "₹";
   const { ref: inViewRef, visible } = useInView();
 
   return (
@@ -159,6 +200,111 @@ const V3SearchResultItem = ({
           </div>
         )}
       </div>
+
+      {/* Variant selection sheet — portaled to body at z-[9999] so it sits ABOVE
+          the search overlay (z-[60]) and its cart button (z-[70]). */}
+      {showVariants && hasVariants && typeof window !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex flex-col justify-end">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setShowVariants(false)} />
+            <div className="relative flex max-h-[80vh] flex-col rounded-t-2xl bg-white animate-in slide-in-from-bottom duration-200">
+              <div className="sticky top-0 z-10 flex justify-center rounded-t-2xl bg-white pt-2.5 pb-1">
+                <div className="h-1 w-8 rounded-full bg-gray-200" />
+              </div>
+
+              {item.image_url && (
+                <div className="mx-3 mt-1 flex h-40 items-center justify-center overflow-hidden rounded-2xl">
+                  <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+                </div>
+              )}
+
+              <div className="p-4 pb-2">
+                <div className="flex items-center gap-2">
+                  {item.is_veg !== null && item.is_veg !== undefined && <VegMark isVeg={item.is_veg} />}
+                  <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
+                </div>
+                {item.description && (
+                  <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-gray-400">{item.description}</p>
+                )}
+              </div>
+
+              <div className="mx-4 border-t border-gray-100" />
+
+              <div className="overflow-y-auto p-4">
+                <h4 className="mb-3 text-base font-bold text-gray-900">Choose a size / variant</h4>
+                <div className="divide-y divide-gray-100">
+                  {(item.variants || []).filter(Boolean).map((variant: any) => {
+                    const variantOffer = getVariantOffer(variant.name);
+                    const offerPrice =
+                      variantOffer && typeof variantOffer.offer_price === "number"
+                        ? variantOffer.offer_price
+                        : null;
+                    const original = variant.price;
+                    const qty = variantQuantities[variant.name] || 0;
+                    return (
+                      <div key={variant.name} className="flex items-center justify-between gap-3 py-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                          {item.is_veg !== null && item.is_veg !== undefined && (
+                            <div className="shrink-0"><VegMark isVeg={item.is_veg} /></div>
+                          )}
+                          <span className="min-w-0 flex-1 text-sm font-medium text-gray-900">{variant.name}</span>
+                        </div>
+
+                        {shouldShowPrice && !(item as any).is_price_as_per_size && (
+                          <div className="shrink-0 text-sm font-semibold text-gray-800">
+                            {offerPrice != null ? (
+                              <span className="flex items-center gap-1.5">
+                                <span>{currency}{formatPrice(offerPrice, hoteldata?.id)}</span>
+                                {typeof original === "number" && original > offerPrice && (
+                                  <span className="text-xs font-normal text-gray-400 line-through">{currency}{formatPrice(original, hoteldata?.id)}</span>
+                                )}
+                              </span>
+                            ) : typeof original === "number" && original > 0 ? (
+                              <span>{currency}{formatPrice(original, hoteldata?.id)}</span>
+                            ) : null}
+                          </div>
+                        )}
+
+                        {showAddButton && item.is_available && (
+                          <div className="shrink-0">
+                            {qty > 0 ? (
+                              <div className="flex items-center gap-0.5 rounded-full border border-emerald-600/30 bg-emerald-50 px-0.5 py-0.5">
+                                <button onClick={() => handleVariantRemove(variant)} className="flex h-6 w-6 items-center justify-center rounded-full text-emerald-700">
+                                  <Minus className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="min-w-[16px] text-center text-xs font-extrabold text-emerald-700">{qty}</span>
+                                <button onClick={() => handleVariantAdd(variant)} className="flex h-6 w-6 items-center justify-center rounded-full text-emerald-700">
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleVariantAdd(variant)}
+                                className="rounded-full border border-gray-200 bg-white px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-sm transition active:scale-95"
+                              >
+                                Add
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 border-t border-gray-100 bg-white p-4">
+                <button
+                  onClick={() => setShowVariants(false)}
+                  className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white transition active:scale-[0.99]"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };
