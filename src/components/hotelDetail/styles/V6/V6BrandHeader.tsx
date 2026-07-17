@@ -73,7 +73,7 @@ export default function V6BrandHeader({
             border + padding are always preserved (logo fills the inner circle,
             not edge-to-edge against the border). */}
         <div
-          className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 p-1"
+          className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-full border-[1.5px] p-0.5"
           style={{ borderColor: accent, background: bannerLogo.bgColor || "#ffffff" }}
         >
           <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full">
