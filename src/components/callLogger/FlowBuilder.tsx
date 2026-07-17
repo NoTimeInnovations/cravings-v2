@@ -334,7 +334,7 @@ export default function FlowBuilder({
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row">
-        <Card className="h-[60vh] w-full shrink-0 overflow-hidden p-0 md:h-[520px] md:w-auto md:flex-1 md:shrink">
+        <Card className="h-[70vh] min-h-[460px] w-full shrink-0 overflow-hidden p-0 md:h-[520px] md:min-h-0 md:w-auto md:flex-1 md:shrink">
           <ReactFlow
             nodes={nodes}
             edges={edges}
