@@ -13,6 +13,7 @@ import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save } from "lucide-react";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
+import OwnRazorpayCard from "@/components/OwnRazorpayCard";
 
 const DEFAULT_POST_PAYMENT_MESSAGE = "Send payment screenshot to WhatsApp after payment";
 
@@ -303,6 +304,8 @@ export function PaymentLegalSettings() {
                     )}
                 </CardContent>
             </Card>
+
+            {(userData as any)?.id && <OwnRazorpayCard partnerId={(userData as any).id} />}
 
             <Card>
                 <CardHeader>

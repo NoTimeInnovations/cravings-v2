@@ -29,14 +29,16 @@ import {
 // The payment (customer-facing) actions below are intentionally callable without
 // an admin session — they run during checkout. The CREDENTIAL-MANAGEMENT actions
 // (getOwnRazorpayStatus / saveOwnRazorpayCredentials / setOwnRazorpayEnabled) are
-// gated by requireSuperadmin(), because a "use server" export is a public RPC
-// endpoint and these decide where a partner's money goes.
-async function requireSuperadmin(): Promise<{ id: string }> {
+// gated, because a "use server" export is a public RPC endpoint and these decide
+// where a partner's money goes. A superadmin may manage ANY partner; a partner
+// may manage ONLY their own id (auth.id === partnerId). Returns the acting id for
+// the audit trail (never trusts a client-supplied actor).
+async function requireOwnerOrSuperadmin(partnerId: string): Promise<{ id: string }> {
   const auth = await getAuthCookie();
-  if (!auth?.id || auth.role !== "superadmin") {
-    throw new Error("Not authorized");
-  }
-  return { id: auth.id };
+  if (!auth?.id) throw new Error("Not authorized");
+  if (auth.role === "superadmin") return { id: auth.id };
+  if (auth.role === "partner" && auth.id === partnerId) return { id: auth.id };
+  throw new Error("Not authorized");
 }
 
 export async function createRazorpayOrderForPartner(
@@ -143,9 +145,11 @@ export async function markRazorpayOrderPaid(orderId: string, rzpPaymentId: strin
   return finalizeCfOrder(orderId, rzpPaymentId);
 }
 
-// ── Superadmin: manage a partner's own-Razorpay credentials (encrypted at rest) ──
-// Every call is authorized (requireSuperadmin) and audited with the SERVER-derived
-// actor (never a client-supplied value). The UI never gets stored secrets back.
+// ── Manage a partner's own-Razorpay credentials (encrypted at rest) ──────────
+// Callable by a superadmin (any partner) or the partner themselves (own id only).
+// Every call is authorized (requireOwnerOrSuperadmin) and audited with the
+// SERVER-derived actor (never a client-supplied value). The UI never gets the
+// stored secrets back.
 
 function last4(s: string): string {
   return s.length >= 4 ? s.slice(-4) : s;
@@ -170,7 +174,7 @@ async function auditCredChange(
 }
 
 export async function getOwnRazorpayStatus(partnerId: string) {
-  await requireSuperadmin();
+  await requireOwnerOrSuperadmin(partnerId);
   const base = {
     enabled: false,
     hasCredentials: false,
@@ -207,7 +211,7 @@ export async function saveOwnRazorpayCredentials(
   partnerId: string,
   creds: { keyId: string; keySecret?: string; webhookSecret?: string },
 ): Promise<{ ok: boolean; error?: string }> {
-  const admin = await requireSuperadmin();
+  const admin = await requireOwnerOrSuperadmin(partnerId);
   if (!partnerId) return { ok: false, error: "partnerId required" };
   if (!paymentCryptoConfigured()) {
     return { ok: false, error: "RZP_CREDS_MASTER_KEY is not configured on the server" };
@@ -260,7 +264,7 @@ export async function setOwnRazorpayEnabled(
   partnerId: string,
   enabled: boolean,
 ): Promise<{ ok: boolean; error?: string }> {
-  const admin = await requireSuperadmin();
+  const admin = await requireOwnerOrSuperadmin(partnerId);
   if (!partnerId) return { ok: false, error: "partnerId required" };
   try {
     if (enabled) {

@@ -2,7 +2,7 @@
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner } from "@/store/authStore";
 import PartnerConnectionsCard from "@/components/PartnerConnectionsCard";
-import OwnRazorpayCard from "@/components/superAdmin/OwnRazorpayCard";
+import OwnRazorpayCard from "@/components/OwnRazorpayCard";
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
