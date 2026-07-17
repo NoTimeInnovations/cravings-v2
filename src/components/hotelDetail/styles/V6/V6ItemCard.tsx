@@ -395,13 +395,13 @@ const V6ItemCard = ({
       );
     }
 
-    // View-only (ordering + delivery both off): show a "View" chip.
+    // View-only (ordering + delivery both off): show a borderless "View" text.
     if ((hasVariants || hasMultipleVariantsOnOffer) && !hasOrderingFeature && !hasDeliveryFeature) {
       return (
         <button
           onClick={(e) => { e.stopPropagation(); setShowVariants(true); }}
-          className="flex items-center justify-center rounded-full border px-4 text-[12px] font-extrabold uppercase tracking-wide shadow-sm transition active:scale-95"
-          style={{ height: CTRL_H, borderColor: `${accent}55`, color: accent }}
+          className="flex items-center justify-center px-1 text-[13px] font-extrabold uppercase tracking-wide transition active:scale-95"
+          style={{ height: CTRL_H, color: accent }}
         >
           View
         </button>
@@ -536,7 +536,7 @@ const V6ItemCard = ({
                       )}
                     </div>
                   ) : hasValidBasePrice && baseItemPrice > 0 ? (
-                    <span className="text-[15px] font-extrabold" style={{ color: accent }}>
+                    <span className="whitespace-nowrap text-[15px] font-extrabold" style={{ color: accent }}>
                       {hasVariants && <span className="text-[10px] font-normal text-gray-500">From </span>}
                       <MenuPrice forceSymbolLtr currency={hoteldata?.currency} amount={formatPrice(baseItemPrice, hoteldata?.id)} />
                     </span>
