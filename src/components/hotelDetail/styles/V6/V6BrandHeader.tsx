@@ -15,11 +15,14 @@ import type { HotelData } from "@/app/hotels/[...id]/page";
 
 export default function V6BrandHeader({
   hoteldata,
+  accent,
   onBack,
   footer,
   extraIcon,
 }: {
   hoteldata: HotelData;
+  /** Theme accent — used for the circular logo border. */
+  accent: string;
   onBack?: () => void;
   footer?: React.ReactNode;
   /** Trailing icon cluster on the identity row (search + language switcher). */
@@ -65,34 +68,39 @@ export default function V6BrandHeader({
             <ArrowLeft className="h-[17px] w-[17px]" />
           </button>
         )}
-        {/* Logo — circular border. */}
+        {/* Logo — circular with a theme-colored border and an inner white
+            padding gap. The inner ring clips the partner-scaled logo so the
+            border + padding are always preserved (logo fills the inner circle,
+            not edge-to-edge against the border). */}
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-black/[0.08]"
-          style={{ background: bannerLogo.bgColor || "#ffffff" }}
+          className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 p-1"
+          style={{ borderColor: accent, background: bannerLogo.bgColor || "#ffffff" }}
         >
-          {showBanner ? (
-            isVideoUrl(storeBanner as string) ? (
-              <video
-                src={storeBanner}
-                poster={getVideoThumbnailUrl(storeBanner as string)}
-                preload="metadata"
-                muted
-                playsInline
-                className="h-full w-full object-contain"
-                style={{ transform: `scale(${bannerLogo.scale})` }}
-              />
+          <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full">
+            {showBanner ? (
+              isVideoUrl(storeBanner as string) ? (
+                <video
+                  src={storeBanner}
+                  poster={getVideoThumbnailUrl(storeBanner as string)}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  className="h-full w-full object-contain"
+                  style={{ transform: `scale(${bannerLogo.scale})` }}
+                />
+              ) : (
+                <img
+                  src={storeBanner}
+                  alt={hoteldata?.store_name}
+                  className="h-full w-full object-contain"
+                  style={{ transform: `scale(${bannerLogo.scale})` }}
+                  onError={() => setBannerError(true)}
+                />
+              )
             ) : (
-              <img
-                src={storeBanner}
-                alt={hoteldata?.store_name}
-                className="h-full w-full object-contain"
-                style={{ transform: `scale(${bannerLogo.scale})` }}
-                onError={() => setBannerError(true)}
-              />
-            )
-          ) : (
-            <span className="text-2xl">🍽️</span>
-          )}
+              <span className="text-xl">🍽️</span>
+            )}
+          </div>
         </div>
 
         {/* Store name + subtitle */}

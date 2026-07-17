@@ -401,6 +401,7 @@ const V6 = ({
           <div className="px-4 pt-3 pb-1">
             <V6BrandHeader
               hoteldata={hoteldata}
+              accent={accent}
               onBack={backAction || undefined}
               extraIcon={
                 <>
