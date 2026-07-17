@@ -13,7 +13,7 @@ import V6CategoryTile from "./V6CategoryTile";
 import V6BannerCarousel from "./V6BannerCarousel";
 import V6BrandHeader from "./V6BrandHeader";
 import { LanguageSwitcher } from "../../LanguageSwitcher";
-import { V6_FONT, foodDoodleUrl } from "./v6utils";
+import { V6_FONT } from "./v6utils";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { getFeatures } from "@/lib/getFeatures";
@@ -350,21 +350,11 @@ const V6 = ({
   return (
     <div
       style={{ fontFamily: V6_FONT }}
-      className="no-image-save relative min-h-screen bg-[#f2f1ec] antialiased"
+      className="no-image-save min-h-screen bg-[#f2f1ec] antialiased"
       onContextMenu={(e) => {
         if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
       }}
     >
-      {/* Food-doodle watermark — full-page background, low opacity. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage: foodDoodleUrl("#334155"),
-          backgroundSize: "185px 135px",
-          opacity: 0.05,
-        }}
-      />
       <PullToRefresh />
       <main className="relative mx-auto max-w-2xl pb-28">
         <ShopClosedModalWarning
