@@ -161,24 +161,24 @@ export default function OrderTypeLocationSheet({
           style={{ opacity: !mounted || closing ? 0 : 1, transition: `opacity ${ANIM_MS}ms ease-out` }}
         />
 
-        {/* Sheet */}
+        {/* Sheet — capped at ~half the screen; the address list scrolls inside. */}
         <div
-          className="absolute bottom-0 left-0 right-0 mx-auto flex max-h-[90vh] max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-gray-50 shadow-2xl"
+          className="absolute bottom-0 left-0 right-0 mx-auto flex max-h-[55vh] max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-gray-50 shadow-2xl"
           style={{
             transform: !mounted || closing ? "translateY(100%)" : "translateY(0)",
             transition: `transform ${ANIM_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
           }}
         >
           {/* Handle + title */}
-          <div className="shrink-0 bg-white pt-2.5">
-            <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-gray-200" />
-            <div className="px-4 pb-1">
-              <h2 className="text-[19px] font-extrabold tracking-tight text-gray-900">How would you like your order?</h2>
-              <p className="mt-0.5 truncate text-[12px] font-medium text-gray-400">{storeName}</p>
+          <div className="shrink-0 bg-white pt-2">
+            <div className="mx-auto mb-1.5 h-1 w-9 rounded-full bg-gray-200" />
+            <div className="px-4 pb-0.5">
+              <h2 className="text-[16px] font-extrabold tracking-tight text-gray-900">How would you like your order?</h2>
+              <p className="mt-0.5 truncate text-[11px] font-medium text-gray-400">{storeName}</p>
             </div>
 
             {/* Order-type segmented tabs */}
-            <div className="px-4 pb-3 pt-2.5">
+            <div className="px-4 pb-2.5 pt-2">
               <div className="flex gap-2">
                 {types.map((t) => {
                   const Icon = t.icon;
@@ -188,15 +188,15 @@ export default function OrderTypeLocationSheet({
                       key={t.key}
                       onClick={() => pickType(t.key)}
                       aria-pressed={active}
-                      className="flex flex-1 flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 transition active:scale-[0.98]"
+                      className="flex flex-1 flex-col items-center gap-1 rounded-xl border px-2 py-2.5 transition active:scale-[0.98]"
                       style={
                         active
                           ? { backgroundColor: accent, borderColor: accent, color: onAccent }
                           : { backgroundColor: "#fff", borderColor: "#e5e7eb", color: "#374151" }
                       }
                     >
-                      <Icon className="h-5 w-5" strokeWidth={2.1} />
-                      <span className="text-[13px] font-bold">{t.label}</span>
+                      <Icon className="h-[18px] w-[18px]" strokeWidth={2.1} />
+                      <span className="text-[12px] font-bold">{t.label}</span>
                     </button>
                   );
                 })}

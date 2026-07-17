@@ -235,27 +235,27 @@ export default function AddressPickerBody({
   const hiddenSaved = orderedSaved.length - visibleSaved.length;
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div ref={dummyDivRef} className="hidden" />
 
       {/* Search */}
-      <div className="px-4 pb-4">
-        <div className="flex items-center h-[50px] rounded-xl border border-gray-200 bg-white px-4 gap-2.5 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900/10 transition">
+      <div className="px-4 pb-2.5">
+        <div className="flex items-center h-[44px] rounded-xl border border-gray-200 bg-white px-3.5 gap-2 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900/10 transition">
           <input
             ref={inputRef}
             type="text"
             placeholder="Search an area or address"
             value={address}
             onChange={(e) => handleSearch(e.target.value)}
-            className="flex-1 h-full text-[15px] text-gray-900 placeholder:text-gray-400 outline-none bg-transparent min-w-0"
+            className="flex-1 h-full text-[13px] text-gray-900 placeholder:text-gray-400 outline-none bg-transparent min-w-0"
           />
-          <Search className="w-5 h-5 text-gray-400 shrink-0" />
+          <Search className="w-[18px] h-[18px] text-gray-400 shrink-0" />
         </div>
       </div>
 
       {/* Scrollable body */}
       <div
-        className={`flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-8 overscroll-contain ${className}`}
+        className={`flex-1 min-h-0 overflow-y-auto px-4 pt-2 pb-5 overscroll-contain ${className}`}
         style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
       >
         {suggestions.length > 0 ? (
@@ -264,13 +264,13 @@ export default function AddressPickerBody({
               <button
                 key={s.place_id}
                 onClick={() => selectSuggestion(s)}
-                className="w-full text-left px-4 py-3.5 flex items-start gap-3 border-b border-gray-100 last:border-0 transition active:bg-gray-50"
+                className="w-full text-left px-4 py-3 flex items-start gap-3 border-b border-gray-100 last:border-0 transition active:bg-gray-50"
               >
                 <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
                   <MapPin className="w-4 h-4 text-gray-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-semibold text-gray-900 truncate">
+                  <p className="text-[14px] font-semibold text-gray-900 truncate">
                     {s.structured_formatting?.main_text || s.description}
                   </p>
                   <p className="text-[12px] text-gray-400 mt-0.5 truncate">
@@ -288,24 +288,24 @@ export default function AddressPickerBody({
                 type="button"
                 onClick={useCurrentLocation}
                 disabled={locating}
-                className="rounded-xl border border-gray-200 bg-white p-3.5 flex flex-col items-start gap-2 disabled:opacity-50 transition active:opacity-60"
+                className="rounded-xl border border-gray-200 bg-white p-3 flex flex-col items-start gap-1.5 disabled:opacity-50 transition active:opacity-60"
               >
                 {locating ? (
                   <Loader2 className="w-5 h-5 animate-spin" style={{ color: accent }} />
                 ) : (
                   <LocateFixed className="w-5 h-5" style={{ color: accent }} />
                 )}
-                <span className="text-sm font-semibold text-gray-900 leading-tight text-left">
+                <span className="text-[13px] font-semibold text-gray-900 leading-tight text-left">
                   Use Current Location
                 </span>
               </button>
               <button
                 type="button"
                 onClick={handleAddNew}
-                className="rounded-xl border border-gray-200 bg-white p-3.5 flex flex-col items-start gap-2 transition active:opacity-60"
+                className="rounded-xl border border-gray-200 bg-white p-3 flex flex-col items-start gap-1.5 transition active:opacity-60"
               >
                 <Plus className="w-5 h-5" style={{ color: accent }} />
-                <span className="text-sm font-semibold text-gray-900 leading-tight text-left">
+                <span className="text-[13px] font-semibold text-gray-900 leading-tight text-left">
                   Add New Address
                 </span>
               </button>
@@ -341,19 +341,19 @@ export default function AddressPickerBody({
                             selectSaved(a, text, coords);
                           }
                         }}
-                        className={`w-full text-left flex items-start gap-3 px-4 py-3.5 cursor-pointer transition active:bg-gray-50 ${i !== visibleSaved.length - 1 ? "border-b border-gray-100" : ""}`}
+                        className={`w-full text-left flex items-start gap-3 px-4 py-3 cursor-pointer transition active:bg-gray-50 ${i !== visibleSaved.length - 1 ? "border-b border-gray-100" : ""}`}
                       >
                         <div className="flex flex-col items-center shrink-0 w-12">
-                          <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                          <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center">
                             <Icon className="w-4 h-4" style={{ color: selected ? accent : "#4b5563" }} />
                           </div>
                           {dist && <span className="text-[10px] text-gray-400 mt-1 whitespace-nowrap">{dist}</span>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[15px] font-bold truncate" style={{ color: selected ? accent : "#111827" }}>
+                          <p className="text-[14px] font-bold truncate" style={{ color: selected ? accent : "#111827" }}>
                             {name}
                           </p>
-                          <p className="text-[13px] text-gray-500 mt-0.5 line-clamp-2">{subText}</p>
+                          <p className="text-[12px] text-gray-500 mt-0.5 line-clamp-2">{subText}</p>
                           {a.receiverPhone?.trim() && (
                             <p className="text-[12px] text-gray-400 mt-0.5 truncate">📞 {a.receiverPhone.trim()}</p>
                           )}
@@ -409,19 +409,19 @@ export default function AddressPickerBody({
                             selectRecent(r);
                           }
                         }}
-                        className={`w-full text-left flex items-start gap-3 px-4 py-3.5 cursor-pointer transition active:bg-gray-50 ${i !== recents.length - 1 ? "border-b border-gray-100" : ""}`}
+                        className={`w-full text-left flex items-start gap-3 px-4 py-3 cursor-pointer transition active:bg-gray-50 ${i !== recents.length - 1 ? "border-b border-gray-100" : ""}`}
                       >
                         <div className="flex flex-col items-center shrink-0 w-12">
-                          <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                          <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center">
                             <Clock className="w-4 h-4 text-gray-500" />
                           </div>
                           {dist && <span className="text-[10px] text-gray-400 mt-1 whitespace-nowrap">{dist}</span>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[15px] font-bold text-gray-900 truncate">
+                          <p className="text-[14px] font-bold text-gray-900 truncate">
                             {isPlusCode(r.name) ? extractPlaceName(r.address) || r.name : r.name}
                           </p>
-                          <p className="text-[13px] text-gray-500 mt-0.5 line-clamp-2">{stripPlusCode(r.address)}</p>
+                          <p className="text-[12px] text-gray-500 mt-0.5 line-clamp-2">{stripPlusCode(r.address)}</p>
                         </div>
                         <button
                           type="button"
