@@ -65,9 +65,9 @@ export default function V6BrandHeader({
             <ArrowLeft className="h-[17px] w-[17px]" />
           </button>
         )}
-        {/* Logo */}
+        {/* Logo — circular border. */}
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-black/5"
+          className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-black/[0.08]"
           style={{ background: bannerLogo.bgColor || "#ffffff" }}
         >
           {showBanner ? (
