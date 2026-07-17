@@ -38,6 +38,9 @@ export default function OwnRazorpayCard({ partnerId }: { partnerId: string }) {
   const [webhookSecret, setWebhookSecret] = useState("");
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
+  // When credentials already exist, the input fields stay collapsed behind an
+  // "Edit credentials" button and re-collapse after a save.
+  const [editing, setEditing] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!partnerId) return;
@@ -55,6 +58,7 @@ export default function OwnRazorpayCard({ partnerId }: { partnerId: string }) {
     setKeyId("");
     setKeySecret("");
     setWebhookSecret("");
+    setEditing(false);
     refresh();
   }, [partnerId, refresh]);
 
@@ -81,8 +85,10 @@ export default function OwnRazorpayCard({ partnerId }: { partnerId: string }) {
       });
       if (r.ok) {
         toast.success("Razorpay credentials saved");
+        setKeyId("");
         setKeySecret("");
         setWebhookSecret("");
+        setEditing(false);
         await refresh();
       } else {
         toast.error(r.error || "Failed to save credentials");
@@ -157,44 +163,67 @@ export default function OwnRazorpayCard({ partnerId }: { partnerId: string }) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div>
-                <Label htmlFor="rzp_key_id">Key ID</Label>
-                <Input
-                  id="rzp_key_id"
-                  autoComplete="off"
-                  placeholder="rzp_live_…"
-                  value={keyId}
-                  onChange={(e) => setKeyId(e.target.value)}
-                />
+            {!status?.hasCredentials || editing ? (
+              <div className="space-y-2">
+                <div>
+                  <Label htmlFor="rzp_key_id">Key ID</Label>
+                  <Input
+                    id="rzp_key_id"
+                    autoComplete="off"
+                    placeholder="rzp_live_…"
+                    value={keyId}
+                    onChange={(e) => setKeyId(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="rzp_key_secret">Key Secret</Label>
+                  <Input
+                    id="rzp_key_secret"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder={status?.hasCredentials ? "•••••• (leave blank to keep)" : "Key secret"}
+                    value={keySecret}
+                    onChange={(e) => setKeySecret(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="rzp_webhook_secret">Webhook Secret</Label>
+                  <Input
+                    id="rzp_webhook_secret"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder={status?.hasWebhookSecret ? "•••••• (leave blank to keep)" : "Webhook secret"}
+                    value={webhookSecret}
+                    onChange={(e) => setWebhookSecret(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button onClick={onSave} disabled={saving || !status?.masterKeyConfigured} size="sm">
+                    {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+                    Save credentials
+                  </Button>
+                  {status?.hasCredentials && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditing(false);
+                        setKeyId("");
+                        setKeySecret("");
+                        setWebhookSecret("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div>
-                <Label htmlFor="rzp_key_secret">Key Secret</Label>
-                <Input
-                  id="rzp_key_secret"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder={status?.hasCredentials ? "•••••• (leave blank to keep)" : "Key secret"}
-                  value={keySecret}
-                  onChange={(e) => setKeySecret(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="rzp_webhook_secret">Webhook Secret</Label>
-                <Input
-                  id="rzp_webhook_secret"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder={status?.hasWebhookSecret ? "•••••• (leave blank to keep)" : "Webhook secret"}
-                  value={webhookSecret}
-                  onChange={(e) => setWebhookSecret(e.target.value)}
-                />
-              </div>
-              <Button onClick={onSave} disabled={saving || !status?.masterKeyConfigured} size="sm">
-                {saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-                Save credentials
+            ) : (
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
+                Edit credentials
               </Button>
-            </div>
+            )}
 
             {/* Webhook setup helper — what to configure in the Razorpay dashboard. */}
             <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-sm">
