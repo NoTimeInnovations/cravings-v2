@@ -136,12 +136,25 @@ export function LanguageSwitcher({
             /* ignore */
         }
         if (code === "en") {
-            // Reset to the original: clear Google's cookie and reload.
+            // Reset to the original: clear Google's googtrans cookie and reload.
+            // On a custom subdomain (e.g. furousiya-menu.hotncool.qa) Google can
+            // set the cookie on the REGISTRABLE domain (".hotncool.qa"), so clearing
+            // only the full host leaves it in place and the page stays translated.
+            // Clear it at every domain level to be safe.
+            const expire = "expires=Thu, 01 Jan 1970 00:00:00 UTC";
             const host = window.location.hostname;
-            const expire = "expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            document.cookie = `googtrans=; ${expire}`;
-            document.cookie = `googtrans=; ${expire} domain=${host};`;
-            document.cookie = `googtrans=; ${expire} domain=.${host};`;
+            const clearFor = (domain?: string) => {
+                document.cookie = `googtrans=; ${expire}; path=/;${domain ? ` domain=${domain};` : ""}`;
+            };
+            clearFor(); // host-only
+            const parts = host.split(".");
+            for (let i = 0; i < parts.length - 1; i++) {
+                const d = parts.slice(i).join(".");
+                clearFor(d);
+                clearFor(`.${d}`);
+            }
+            clearFor(host);
+            clearFor(`.${host}`);
             window.location.reload();
             return;
         }
