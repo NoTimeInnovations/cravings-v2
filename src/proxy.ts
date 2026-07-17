@@ -192,6 +192,9 @@ export async function proxy(request: NextRequest) {
     "/newlogin",
     "/get-started",
     "/demo",
+    // Partner call-flow editor (menuthere.com/flow/<partnerId>) — opened from the
+    // Call Logger app and authed by the device token in the URL, not a web session.
+    "/flow",
   ];
 
   // if (
