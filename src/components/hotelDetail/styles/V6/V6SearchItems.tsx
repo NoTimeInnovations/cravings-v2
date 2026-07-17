@@ -365,6 +365,13 @@ const V6SearchItems = ({
 
   const filteredMenu = useMemo(() => filterMenuByQuery(menu, searchQuery), [menu, searchQuery]);
 
+  // Only show the cart FAB when the store actually supports ordering (same gate
+  // the per-row Add button uses). View-only menus have no cart to show.
+  const features = getFeatures(hoteldata?.feature_flags || "");
+  const canOrder =
+    !!((features?.ordering.enabled && tableNumber !== 0) ||
+      (features?.delivery.enabled && tableNumber === 0));
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     const timer = setTimeout(() => { inputRef.current?.focus(); }, 150);
@@ -413,7 +420,7 @@ const V6SearchItems = ({
       </div>
 
       <div className="flex-grow overflow-y-auto">
-        <div className="divide-y divide-gray-200/60 px-4 pb-24 pt-2">
+        <div className={`divide-y divide-gray-200/60 px-4 pt-2 ${canOrder ? "pb-24" : "pb-6"}`}>
           {filteredMenu.length > 0 ? (
             filteredMenu.map((item) => (
               <V6SearchRow
@@ -432,23 +439,25 @@ const V6SearchItems = ({
         </div>
       </div>
 
-      <button
-        id={SEARCH_CART_ID}
-        onClick={onCartClick}
-        aria-label={`Cart: ${cartCount} item${cartCount === 1 ? "" : "s"}`}
-        className="fixed bottom-6 right-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.28)] transition active:scale-90"
-        style={{ backgroundColor: accent, color: readableTextColor(accent) }}
-      >
-        <ShoppingBag className="h-6 w-6" strokeWidth={2.2} />
-        {cartCount > 0 && (
-          <span
-            className="absolute -right-1 -top-1 flex h-6 min-w-[24px] items-center justify-center rounded-full border-2 border-white bg-white px-1 text-[12px] font-extrabold tabular-nums"
-            style={{ color: accent }}
-          >
-            {cartCount}
-          </span>
-        )}
-      </button>
+      {canOrder && (
+        <button
+          id={SEARCH_CART_ID}
+          onClick={onCartClick}
+          aria-label={`Cart: ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+          className="fixed bottom-6 right-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.28)] transition active:scale-90"
+          style={{ backgroundColor: accent, color: readableTextColor(accent) }}
+        >
+          <ShoppingBag className="h-6 w-6" strokeWidth={2.2} />
+          {cartCount > 0 && (
+            <span
+              className="absolute -right-1 -top-1 flex h-6 min-w-[24px] items-center justify-center rounded-full border-2 border-white bg-white px-1 text-[12px] font-extrabold tabular-nums"
+              style={{ color: accent }}
+            >
+              {cartCount}
+            </span>
+          )}
+        </button>
+      )}
     </div>
   );
 };
