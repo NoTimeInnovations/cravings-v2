@@ -362,8 +362,8 @@ const V6 = ({
         className="pointer-events-none absolute inset-x-0 top-0 h-[46vh]"
         style={{
           backgroundImage: foodDoodleUrl(accent),
-          backgroundSize: "150px 120px",
-          opacity: 0.1,
+          backgroundSize: "120px 96px",
+          opacity: 0.22,
           WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%)",
           maskImage: "linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%)",
         }}
