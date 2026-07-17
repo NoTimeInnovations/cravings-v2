@@ -503,21 +503,19 @@ const V6ItemCard = ({
         </div>
 
         {/* Content */}
-        <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5">
+        <div className="flex flex-col px-3 pb-2.5 pt-2">
           <h3 dir={nameDir} translate={nameTranslate} className={`line-clamp-2 text-left text-[14px] font-bold leading-tight tracking-[-0.01em] text-gray-900${nameNo}`}>
             {offerData?.variant && !hasMultipleVariantsOnOffer
               ? `${displayName} (${offerData.variant.name})`
               : displayName}
           </h3>
 
-          {hasVariants ? (
+          {hasVariants && (
             <p className="mt-0.5 text-[11px] font-medium text-gray-400">Multiple options</p>
-          ) : (
-            <span className="mt-0.5 block h-[13px]" />
           )}
 
           {/* Price + control */}
-          <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+          <div className="mt-1.5 flex items-end justify-between gap-2">
             <div className="min-w-0">
               {shouldShowPrice ? (
                 item.is_price_as_per_size !== true ? (
