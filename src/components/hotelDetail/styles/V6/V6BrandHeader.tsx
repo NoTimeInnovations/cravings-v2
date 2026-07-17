@@ -49,8 +49,10 @@ export default function V6BrandHeader({
             <ArrowLeft className="h-[17px] w-[17px]" />
           </button>
         )}
-        {/* Logo — shown in full: no border, no rounding, no cropping. */}
-        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center">
+        {/* Logo — shown in full (no border / rounding / crop). Fixed compact
+            height with auto width so the logo keeps its aspect ratio (wide logos
+            get wider, not a taller header). */}
+        <div className="flex h-[52px] shrink-0 items-center justify-center">
           {showBanner ? (
             isVideoUrl(storeBanner as string) ? (
               <video
@@ -59,13 +61,13 @@ export default function V6BrandHeader({
                 preload="metadata"
                 muted
                 playsInline
-                className="h-full w-full object-contain"
+                className="h-full w-auto max-w-[130px] object-contain"
               />
             ) : (
               <img
                 src={storeBanner}
                 alt={hoteldata?.store_name}
-                className="h-full w-full object-contain"
+                className="h-full w-auto max-w-[130px] object-contain"
                 onError={() => setBannerError(true)}
               />
             )
