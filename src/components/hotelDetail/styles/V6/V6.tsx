@@ -535,6 +535,9 @@ const V6 = ({
             hoteldata={hoteldata}
             tableNumber={tableNumber}
             onClose={() => setSearchOpen(false)}
+            onCartClick={openCart}
+            cartCount={cartCount}
+            accent={accent}
           />
         )}
 

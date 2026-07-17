@@ -244,6 +244,10 @@ const HotelMenuPage = ({
   const [onboardingDismissed, setOnboardingDismissed] = useState(
     () =>
       !showOnboarding ||
+      // V6 shows the order-type/location sheet as a bottom sheet OVER the menu,
+      // so paint the menu behind it (dimmed by the sheet backdrop) instead of a
+      // blank screen.
+      theme?.menuStyle === "v6" ||
       isBackNavInitial ||
       isReorderMode ||
       peekSkipStorefrontOnce() ||
