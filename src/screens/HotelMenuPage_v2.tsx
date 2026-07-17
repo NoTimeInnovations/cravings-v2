@@ -684,11 +684,15 @@ const HotelMenuPage = ({
               />
             )}
           {renderPage()}
-          <LanguageSwitcher
-            enabled={languageSwitcherEnabled}
-            languages={languageSwitcherLangs}
-            accent={styles?.accent}
-          />
+          {/* v6 renders its own inline language switcher inside its brand header,
+              so skip the floating one there to avoid a duplicate + double init. */}
+          {theme?.menuStyle !== "v6" && (
+            <LanguageSwitcher
+              enabled={languageSwitcherEnabled}
+              languages={languageSwitcherLangs}
+              accent={styles?.accent}
+            />
+          )}
           {isHotelOnFreePlan && (
             <div className="w-full py-3 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
               Powered by{" "}

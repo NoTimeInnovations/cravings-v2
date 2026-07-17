@@ -5,8 +5,8 @@ import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 /**
  * V6 ("Grocery") promo-banner carousel — shown above Categories when the partner
  * has uploaded banners (delivery_rules.carousel_banners). Full-width, rounded,
- * soft-shadowed, with a slow idle Ken-Burns zoom, finger-drag + snap, gentle
- * auto-advance, infinite loop, and elegant accent pill dots. A single banner is
+ * soft-shadowed, with finger-drag + snap, gentle auto-advance, infinite loop,
+ * and elegant accent pill dots. A single banner is
  * static (no dots / auto-advance); videos autoplay muted+looped.
  *
  * Banners are cropped ~1131:583 in the dashboard, so the frame uses that aspect
@@ -135,7 +135,7 @@ export function V6BannerCarousel({ banners, accent }: { banners: string[]; accen
               />
             ) : (
               <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat v6-kenburns"
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
                 style={{ backgroundImage: `url("${url}")` }}
                 role="img"
                 aria-label={`Promotion ${idx + 1}`}
@@ -168,12 +168,6 @@ export function V6BannerCarousel({ banners, accent }: { banners: string[]; accen
         </div>
       )}
 
-      {/* Slow idle Ken-Burns zoom — scoped to this component. */}
-      <style>{`
-        @keyframes v6kenburns { 0% { transform: scale(1); } 100% { transform: scale(1.08); } }
-        .v6-kenburns { animation: v6kenburns 9s ease-in-out infinite alternate; }
-        @media (prefers-reduced-motion: reduce) { .v6-kenburns { animation: none; } }
-      `}</style>
     </div>
   );
 }

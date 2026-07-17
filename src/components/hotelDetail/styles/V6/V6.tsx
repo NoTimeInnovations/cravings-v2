@@ -12,6 +12,7 @@ import V6ItemCard from "./V6ItemCard";
 import V6CategoryTile from "./V6CategoryTile";
 import V6BannerCarousel from "./V6BannerCarousel";
 import V6BrandHeader from "./V6BrandHeader";
+import { LanguageSwitcher } from "../../LanguageSwitcher";
 import { V6_FONT } from "./v6utils";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
@@ -299,18 +300,22 @@ const V6 = ({
   const locationText = hoteldata?.location_details || hoteldata?.district || hoteldata?.country || "";
   const backAction = onShowStorefront || brandHeader?.onChange;
 
-  // ===== Reusable pieces =====
-  const SearchPill = () => (
-    <button
-      onClick={() => setSearchOpen(true)}
-      className="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3.5 text-left shadow-sm ring-1 ring-black/[0.03] transition hover:shadow"
-      aria-label="Search"
-    >
-      <span className="text-[15px] font-medium text-gray-400">Search</span>
-      <Search className="h-[19px] w-[19px] text-gray-400" strokeWidth={2.2} />
-    </button>
-  );
+  // Language switcher (store settings → storefront_settings). v6 hosts the globe
+  // inline in the brand header instead of the global floating badge.
+  const { langSwitcherEnabled, langSwitcherLangs } = useMemo(() => {
+    try {
+      const raw = (hoteldata as any)?.storefront_settings;
+      const sf = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return {
+        langSwitcherEnabled: !!sf?.languageSwitcher,
+        langSwitcherLangs: Array.isArray(sf?.menuLanguages) ? (sf.menuLanguages as string[]) : [],
+      };
+    } catch {
+      return { langSwitcherEnabled: false, langSwitcherLangs: [] as string[] };
+    }
+  }, [(hoteldata as any)?.storefront_settings]);
 
+  // ===== Reusable pieces =====
   const renderGrid = (list: any[], categoryForCard?: any) => {
     if (!list || list.length === 0) {
       return (
@@ -379,7 +384,16 @@ const V6 = ({
                   : "Items"
                 : "Categories"}
             </h1>
-            <span className="w-[74px] shrink-0" aria-hidden="true" />
+            <div className="flex w-[74px] shrink-0 justify-end">
+              <button
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search the menu"
+                className="flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-black/[0.06] transition hover:bg-white"
+                style={{ color: accent }}
+              >
+                <Search className="h-[18px] w-[18px]" strokeWidth={2.3} />
+              </button>
+            </div>
           </div>
         ) : (
           /* Merged brand + address header: logo / name / WhatsApp+location on top,
@@ -391,31 +405,46 @@ const V6 = ({
               socialLinks={socialLinks}
               accent={accent}
               onBack={backAction || undefined}
-              footer={
-                hasAnyOrderType ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setOrderTypeSheetOpen(true)}
-                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                    >
-                      <MapPin className="h-[18px] w-[18px] shrink-0" style={{ color: accent }} strokeWidth={2.2} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] font-bold leading-tight text-gray-900">{addrPrimary}</span>
-                        {addrSecondary && (
-                          <span className="block truncate text-[11px] font-medium text-gray-400">{addrSecondary}</span>
-                        )}
-                      </span>
-                      <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-                    </button>
-                    {(authUser as any)?.role === "user" && (
-                      <LoyaltyPointsBadge
-                        partnerId={(hoteldata as any)?.id}
-                        currency={(hoteldata as any)?.currency || "₹"}
-                        storeName={(hoteldata as any)?.store_name}
-                      />
-                    )}
-                  </div>
+              extraIcon={
+                langSwitcherEnabled ? (
+                  <LanguageSwitcher variant="inline" enabled languages={langSwitcherLangs} accent={accent} />
                 ) : undefined
+              }
+              footer={
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={hasAnyOrderType ? () => setOrderTypeSheetOpen(true) : undefined}
+                    disabled={!hasAnyOrderType}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
+                  >
+                    <MapPin className="h-[18px] w-[18px] shrink-0" style={{ color: accent }} strokeWidth={2.2} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-bold leading-tight text-gray-900">
+                        {hasAnyOrderType ? addrPrimary : locationText}
+                      </span>
+                      {hasAnyOrderType && addrSecondary && (
+                        <span className="block truncate text-[11px] font-medium text-gray-400">{addrSecondary}</span>
+                      )}
+                    </span>
+                    {hasAnyOrderType && <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />}
+                  </button>
+                  {(authUser as any)?.role === "user" && (
+                    <LoyaltyPointsBadge
+                      partnerId={(hoteldata as any)?.id}
+                      currency={(hoteldata as any)?.currency || "₹"}
+                      storeName={(hoteldata as any)?.store_name}
+                    />
+                  )}
+                  {/* Search — compact icon here instead of a full-width row. */}
+                  <button
+                    onClick={() => setSearchOpen(true)}
+                    aria-label="Search the menu"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition active:scale-95"
+                    style={{ backgroundColor: `${accent}14`, color: accent }}
+                  >
+                    <Search className="h-[18px] w-[18px]" strokeWidth={2.3} />
+                  </button>
+                </div>
               }
             />
           </div>
@@ -424,10 +453,6 @@ const V6 = ({
         {/* ============ HOME ============ */}
         {view === "home" && (
           <>
-            <div className="px-4 pt-1 pb-3">
-              <SearchPill />
-            </div>
-
             {/* Announcement */}
             {(hoteldata as any)?.delivery_rules?.announcement && (
               <div className="mx-4 mb-3 flex items-center gap-2.5 rounded-2xl bg-blue-50 px-3 py-2 ring-1 ring-blue-100">
@@ -495,9 +520,6 @@ const V6 = ({
         {/* ============ CATEGORIES GRID ============ */}
         {view === "categories" && (
           <>
-            <div className="px-4 pt-2 pb-3">
-              <SearchPill />
-            </div>
             {menuCategories.length === 0 ? (
               <p className="px-4 py-16 text-center text-sm text-gray-400">No categories available.</p>
             ) : (

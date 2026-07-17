@@ -31,10 +31,14 @@ export function LanguageSwitcher({
     enabled,
     languages,
     accent = "#ea580c",
+    variant = "floating",
 }: {
     enabled: boolean;
     languages?: string[]; // configured codes; empty/undefined = offer all
     accent?: string;
+    /** "floating" = the default fixed top-right pill. "inline" = a small icon
+     *  button (sized like a header icon) the caller places in its own header. */
+    variant?: "floating" | "inline";
 }) {
     const [open, setOpen] = useState(false);
     const [current, setCurrent] = useState("en");
@@ -161,27 +165,42 @@ export function LanguageSwitcher({
 
     const currentLabel = MENU_LANGUAGES.find((l) => l.code === current)?.label ?? "English";
 
+    const isInline = variant === "inline";
+
     return (
         <>
             <div id="google_translate_element" className="hidden" aria-hidden="true" />
-            <div className="notranslate fixed right-4 top-4 z-[9998]" translate="no">
+            <div
+                className={
+                    isInline
+                        ? "notranslate relative"
+                        : "notranslate fixed right-4 top-4 z-[9998]"
+                }
+                translate="no"
+            >
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
                     aria-label={`Change language (current: ${currentLabel})`}
                     title={currentLabel}
-                    className="flex h-12 w-12 flex-col items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-black/5 transition active:scale-95"
+                    className={
+                        isInline
+                            ? "flex h-8 w-8 items-center justify-center rounded-full bg-white ring-1 ring-black/[0.06] transition hover:bg-gray-50 active:scale-95"
+                            : "flex h-12 w-12 flex-col items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-black/5 transition active:scale-95"
+                    }
                     style={{ color: accent }}
                 >
-                    <Globe className="h-4 w-4" />
-                    <span className="mt-0.5 text-[10px] font-bold uppercase leading-none">
-                        {current}
-                    </span>
+                    <Globe className={isInline ? "h-[17px] w-[17px]" : "h-4 w-4"} />
+                    {!isInline && (
+                        <span className="mt-0.5 text-[10px] font-bold uppercase leading-none">
+                            {current}
+                        </span>
+                    )}
                 </button>
                 {open && (
                     <>
                         <div className="fixed inset-0 -z-10" onClick={() => setOpen(false)} />
-                        <div className="absolute right-0 mt-2 max-h-[60vh] w-44 overflow-y-auto rounded-xl border bg-white p-1 shadow-lg">
+                        <div className="absolute right-0 z-[100] mt-2 max-h-[60vh] w-44 overflow-y-auto rounded-xl border bg-white p-1 shadow-lg">
                             {offered.map((l) => (
                                 <button
                                     key={l.code}

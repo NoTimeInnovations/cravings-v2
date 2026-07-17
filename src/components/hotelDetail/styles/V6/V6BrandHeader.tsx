@@ -22,12 +22,15 @@ export default function V6BrandHeader({
   accent,
   onBack,
   footer,
+  extraIcon,
 }: {
   hoteldata: HotelData;
   socialLinks?: SocialLinks | null;
   accent: string;
   onBack?: () => void;
   footer?: React.ReactNode;
+  /** Rendered at the end of the contact-icon row (e.g. the language switcher). */
+  extraIcon?: React.ReactNode;
 }) {
   const storeBanner = hoteldata?.store_banner as string | undefined;
   const [bannerError, setBannerError] = useState(false);
@@ -126,12 +129,11 @@ export default function V6BrandHeader({
         {subtitle && <p className="truncate text-[11px] font-medium text-gray-400">{subtitle}</p>}
       </div>
 
-      {/* Contact icons — WhatsApp + location first, per the brand-bar request.
-          mr-12 reserves the top-right corner for the global floating
-          language/profile badge (fixed right-4, ~48px) so the last icon clears
-          it with a small gap. */}
-      {contacts.length > 0 && (
-        <div className="mr-12 flex shrink-0 items-center gap-1.5">
+      {/* Contact icons — WhatsApp + location, then the language switcher
+          (extraIcon). The v6 storefront hosts the language globe here instead of
+          the global floating badge, so no corner reserve is needed. */}
+      {(contacts.length > 0 || extraIcon) && (
+        <div className="flex shrink-0 items-center gap-1.5">
           {contacts.map((c) => (
             <a
               key={c.key}
@@ -143,6 +145,7 @@ export default function V6BrandHeader({
               {c.icon}
             </a>
           ))}
+          {extraIcon}
         </div>
       )}
       </div>
