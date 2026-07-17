@@ -378,16 +378,28 @@ export function AdminV2WhatsAppBroadcast() {
         ? [...costByCurrency.entries()].map(([cur, amt]) => formatMoney(amt, cur)).join("  |  ")
         : "—";
 
-      // ── Sheet 1: Overview — only the headline numbers ──
+      // ── Sheet 1: Overview — a plain-English line anyone can read + the
+      // headline numbers ──
+      const dPct = pct(totals.delivered, totals.recipients);
+      const rPct = pct(totals.read, totals.recipients);
+      const fPct = pct(totals.failed, totals.recipients);
+      const sentence =
+        `Across ${broadcasts.length} broadcast${broadcasts.length === 1 ? "" : "s"}, ` +
+        `${totals.recipients.toLocaleString()} customers were messaged — ` +
+        `${totals.delivered.toLocaleString()} received it (${dPct}%), ` +
+        `${totals.read.toLocaleString()} read it (${rPct}%), and ` +
+        `${totals.failed.toLocaleString()} could not be delivered (${fPct}%). ` +
+        `Estimated cost: ${costLine}.`;
       const overview: (string | number)[][] = [
         ["WhatsApp broadcasts — summary"],
+        [sentence],
         ["Generated", fmtTime(new Date().toISOString())],
         [],
         ["Broadcasts", broadcasts.length],
         ["Recipients", totals.recipients],
-        ["Delivered", totals.delivered, `${pct(totals.delivered, totals.recipients)}%`],
-        ["Read", totals.read, `${pct(totals.read, totals.recipients)}%`],
-        ["Failed", totals.failed, `${pct(totals.failed, totals.recipients)}%`],
+        ["Delivered", totals.delivered, `${dPct}%`],
+        ["Read", totals.read, `${rPct}%`],
+        ["Failed", totals.failed, `${fPct}%`],
         [],
         ["Total cost (est.)", costLine],
       ];
@@ -2122,8 +2134,18 @@ function BroadcastDetailDialog({
       const wb = XLSX.utils.book_new();
       const cur = detail.cost_currency || quality?.currency || "INR";
       const recips = detail.total_recipients || 0;
+      const dPct = pct(detail.delivered_count, recips);
+      const rPct = pct(detail.read_count, recips);
+      const fPct = pct(detail.failed_count, recips);
+      const sentence =
+        `${recips.toLocaleString()} customers were messaged — ` +
+        `${detail.delivered_count.toLocaleString()} received it (${dPct}%), ` +
+        `${detail.read_count.toLocaleString()} read it (${rPct}%), and ` +
+        `${detail.failed_count.toLocaleString()} could not be delivered (${fPct}%). ` +
+        `Estimated cost: ${detail.total_cost ?? 0} ${cur}.`;
       const summary: (string | number)[][] = [
         ["Broadcast report"],
+        [sentence],
         [],
         ["Template", detail.template_name],
         ["Language", detail.language],
@@ -2133,9 +2155,9 @@ function BroadcastDetailDialog({
         ["Completed", detail.completed_at ? fmtTime(detail.completed_at) : "—"],
         [],
         ["Recipients", recips],
-        ["Delivered", detail.delivered_count, `${pct(detail.delivered_count, recips)}%`],
-        ["Read", detail.read_count, `${pct(detail.read_count, recips)}%`],
-        ["Failed", detail.failed_count, `${pct(detail.failed_count, recips)}%`],
+        ["Delivered", detail.delivered_count, `${dPct}%`],
+        ["Read", detail.read_count, `${rPct}%`],
+        ["Failed", detail.failed_count, `${fPct}%`],
         [],
         ["Total cost (est.)", `${detail.total_cost ?? 0} ${cur}`],
       ];
