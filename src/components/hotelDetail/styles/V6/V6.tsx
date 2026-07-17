@@ -355,15 +355,15 @@ const V6 = ({
         if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
       }}
     >
-      {/* Food-doodle watermark on the page background — fills the top of the
-          screen (behind the header) and fades out by ~half. */}
+      {/* Food-doodle watermark on the page background — small, dense line-art
+          food icons behind the header, fading out around the banner's middle. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[46vh]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[25vh]"
         style={{
-          backgroundImage: foodDoodleUrl(accent),
-          backgroundSize: "120px 96px",
-          opacity: 0.22,
+          backgroundImage: foodDoodleUrl("#334155"),
+          backgroundSize: "100px 73px",
+          opacity: 0.15,
           WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%)",
           maskImage: "linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%)",
         }}

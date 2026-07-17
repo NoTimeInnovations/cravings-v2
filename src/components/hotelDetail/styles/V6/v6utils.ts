@@ -64,17 +64,34 @@ export function accentTileGradient(accent: string, key: string): string {
 }
 
 /**
- * A tiling food-doodle (line-art) pattern as a CSS `url(...)` value, stroked in
- * the given colour. Used as a subtle page-background watermark on the storefront.
+ * A dense tiling food-doodle (line-art) pattern as a CSS `url(...)` value,
+ * stroked in the given colour — recognizable food icons (coffee, ice-cream,
+ * burger, donut, soda, pizza, cupcake, fish, cookie, apple). Used as a subtle
+ * page-background watermark on the storefront.
  */
 export function foodDoodleUrl(color: string): string {
   const svg =
-    `<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' viewBox='0 0 150 120' fill='none' stroke='${color}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>` +
-    `<path d='M18 40h20v12a10 10 0 0 1-20 0z'/><path d='M38 42a6 6 0 0 1 0 10'/><path d='M23 34q3-5 0-10M31 34q3-5 0-10'/>` +
-    `<circle cx='95' cy='24' r='9'/><path d='M86 30l9 22 9-22'/>` +
-    `<path d='M20 88a18 10 0 0 1 36 0z'/><path d='M22 94h32M24 99h28'/><path d='M20 100a18 8 0 0 0 36 0'/>` +
-    `<circle cx='115' cy='88' r='15'/><circle cx='115' cy='88' r='6'/>` +
-    `<path d='M132 18v30M128 18v9M136 18v9M128 27h8'/><path d='M147 18v30M147 18c-4 4-4 12 0 15'/>` +
+    `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='160' viewBox='0 0 220 160' fill='none' stroke='${color}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>` +
+    // coffee cup
+    `<path d='M14 24h16v9a8 8 0 0 1-16 0z'/><path d='M30 26a5 5 0 0 1 0 8'/><path d='M18 18q2-4 0-7M25 18q2-4 0-7'/>` +
+    // ice-cream cone
+    `<circle cx='58' cy='18' r='8'/><path d='M50 24l8 26 8-26'/><path d='M53 28l10 7M58 25l6 13'/>` +
+    // burger
+    `<path d='M92 32a16 8 0 0 1 32 0z'/><path d='M92 35h32M94 41h28'/><path d='M92 43a16 7 0 0 0 32 0'/>` +
+    // donut
+    `<circle cx='150' cy='30' r='13'/><circle cx='150' cy='30' r='5'/><path d='M145 24l1 3M154 26l1 3M147 36l1 3M156 35l1 3'/>` +
+    // soda cup + straw
+    `<path d='M182 22l3 26h11l3-26z'/><path d='M180 22h20'/><path d='M194 22l2-12'/>` +
+    // pizza slice
+    `<path d='M18 96l11 40 11-40'/><path d='M18 96a13 4 0 0 1 22 0'/><circle cx='25' cy='106' r='2'/><circle cx='33' cy='110' r='2'/><circle cx='29' cy='118' r='2'/>` +
+    // cupcake
+    `<path d='M58 116l3 22h16l3-22z'/><path d='M65 116v22M72 116v22'/><path d='M56 116a13 8 0 0 1 26 0M60 110a9 6 0 0 1 18 0M65 105a5 4 0 0 1 10 0'/><circle cx='70' cy='103' r='2'/>` +
+    // fish
+    `<ellipse cx='115' cy='114' rx='15' ry='8'/><path d='M130 114l8-7v14z'/><circle cx='108' cy='110' r='1.5'/>` +
+    // cookie
+    `<circle cx='165' cy='112' r='11'/><circle cx='161' cy='108' r='1.3'/><circle cx='169' cy='111' r='1.3'/><circle cx='163' cy='116' r='1.3'/><circle cx='168' cy='115' r='1.3'/>` +
+    // apple
+    `<path d='M196 120a8 8 0 0 1-8-8c0-5 4-7 8-5 4-2 8 0 8 5a8 8 0 0 1-8 8z'/><path d='M196 104v-3M196 102q4-2 6 1'/>` +
     `</svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
