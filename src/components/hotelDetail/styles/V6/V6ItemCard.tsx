@@ -401,7 +401,7 @@ const V6ItemCard = ({
         <button
           onClick={(e) => { e.stopPropagation(); setShowVariants(true); }}
           className="flex items-center justify-center px-1 text-[13px] font-extrabold uppercase tracking-wide transition active:scale-95"
-          style={{ height: CTRL_H, color: accent }}
+          style={{ color: accent }}
         >
           View
         </button>
@@ -509,10 +509,6 @@ const V6ItemCard = ({
               ? `${displayName} (${offerData.variant.name})`
               : displayName}
           </h3>
-
-          {hasVariants && (
-            <p className="mt-0.5 text-[11px] font-medium text-gray-400">Multiple options</p>
-          )}
 
           {/* Price + control */}
           <div className="mt-1.5 flex items-end justify-between gap-2">
