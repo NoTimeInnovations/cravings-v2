@@ -1,27 +1,33 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { MapPin, Phone } from "lucide-react";
+import { MapPin, Phone, ArrowLeft } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import type { HotelData, SocialLinks } from "@/app/hotels/[...id]/page";
 
 /**
- * V6 ("Grocery") brand bar — a white card that sits at the very top of the home
- * view, ABOVE the address / order-type header: the store logo on the left of the
- * store name, and contact icons (WhatsApp + location first, then phone /
- * Instagram when present) on the right. Logo + social-link logic mirrors V3's
- * store-identity hero so behaviour is consistent across themes.
+ * V6 ("Grocery") brand + address header — a single white card at the top of the
+ * home view. Top row: an optional back button, the store logo on the left of the
+ * store name, and contact icons (WhatsApp + location first, then phone / Instagram
+ * as fallbacks) on the right. Optional `footer` row (below a divider) hosts the
+ * address / order-type selector, so the store identity and the address live in
+ * ONE section instead of two duplicate cards. Logo + social-link logic mirrors
+ * V3's store-identity hero so behaviour is consistent across themes.
  */
 
 export default function V6BrandHeader({
   hoteldata,
   socialLinks,
   accent,
+  onBack,
+  footer,
 }: {
   hoteldata: HotelData;
   socialLinks?: SocialLinks | null;
   accent: string;
+  onBack?: () => void;
+  footer?: React.ReactNode;
 }) {
   const storeBanner = hoteldata?.store_banner as string | undefined;
   const [bannerError, setBannerError] = useState(false);
@@ -56,7 +62,7 @@ export default function V6BrandHeader({
   const mapHref = getPartnerMapsUrl(hoteldata);
 
   const iconBtn =
-    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ring-black/[0.06] transition hover:bg-gray-50 active:scale-95";
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ring-black/[0.06] transition hover:bg-gray-50 active:scale-95";
 
   // Priority order — WhatsApp + location first (as requested), phone / Instagram
   // only as fallbacks when those two aren't set. Capped at 2 so the icon group
@@ -70,10 +76,21 @@ export default function V6BrandHeader({
   ].filter(Boolean).slice(0, 2) as { key: string; href: string; external: boolean; label: string; icon: React.ReactNode }[];
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-black/[0.03]">
+    <div className="rounded-2xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-black/[0.03]">
+      {/* ===== Identity row ===== */}
+      <div className="flex items-center gap-2.5">
+      {onBack && (
+        <button
+          onClick={onBack}
+          aria-label="Back"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-800 ring-1 ring-black/[0.06] transition hover:bg-gray-50 active:scale-95"
+        >
+          <ArrowLeft className="h-[17px] w-[17px]" />
+        </button>
+      )}
       {/* Logo */}
       <div
-        className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-black/5"
+        className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-black/5"
         style={{ background: bannerLogo.bgColor || "#ffffff" }}
       >
         {showBanner ? (
@@ -103,7 +120,7 @@ export default function V6BrandHeader({
 
       {/* Store name + subtitle */}
       <div className="min-w-0 flex-1">
-        <h1 translate="no" className="notranslate truncate text-[16px] font-extrabold tracking-tight text-gray-900">
+        <h1 translate="no" className="notranslate truncate text-[15px] font-extrabold tracking-tight text-gray-900">
           {hoteldata?.store_name}
         </h1>
         {subtitle && <p className="truncate text-[11px] font-medium text-gray-400">{subtitle}</p>}
@@ -128,6 +145,10 @@ export default function V6BrandHeader({
           ))}
         </div>
       )}
+      </div>
+
+      {/* ===== Address / order-type selector (footer) ===== */}
+      {footer && <div className="mt-2.5 border-t border-gray-100 pt-2.5">{footer}</div>}
     </div>
   );
 }

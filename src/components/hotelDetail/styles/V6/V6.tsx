@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
-  ShoppingBag, Search, ArrowLeft, User, ChevronDown,
+  ShoppingBag, Search, ArrowLeft, User, ChevronDown, MapPin,
   Home as HomeIcon, LayoutGrid, ClipboardList,
 } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -152,6 +152,24 @@ const V6 = ({
             ? "Delivery"
             : "Add your address"
           : "";
+
+  // Address/order-type selector text for the brand-header footer. Deliberately
+  // never falls back to the store name (that's already shown in the identity row
+  // just above) — it shows the delivery address / order type instead.
+  const addrPrimary =
+    orderType === "delivery"
+      ? userAddress || "Add your address"
+      : orderTypeLabel || "Select order type";
+  const addrSecondary =
+    orderType === "delivery"
+      ? userAddress
+        ? "Delivery"
+        : null
+      : orderType === "takeaway"
+        ? "Pick up at the outlet"
+        : orderType === "dine_in"
+          ? "Reserve a table"
+          : null;
 
   // Delivery address chosen in the sheet → persist + remember + close.
   const commitDeliveryFromSheet = useCallback(async (addr: string, coords: { lat: number; lng: number } | null) => {
@@ -342,13 +360,6 @@ const V6 = ({
           partnerName={hoteldata?.store_name ?? null}
         />
 
-        {/* ============ BRAND BAR (home only) — logo + name + WhatsApp/location ==== */}
-        {view === "home" && (
-          <div className="px-4 pt-3 pb-1">
-            <V6BrandHeader hoteldata={hoteldata} socialLinks={socialLinks} accent={accent} />
-          </div>
-        )}
-
         {/* ============ HEADER ============ */}
         {view !== "home" ? (
           <div className="sticky top-0 z-40 flex items-center gap-2 bg-[#f2f1ec]/95 px-4 py-3 backdrop-blur">
@@ -371,38 +382,42 @@ const V6 = ({
             <span className="w-[74px] shrink-0" aria-hidden="true" />
           </div>
         ) : (
-          <div className="sticky top-0 z-40 bg-[#f2f1ec]/95 px-4 pt-3 pb-2 backdrop-blur">
-            <div className="flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-black/[0.03]">
-              {backAction && (
-                <button
-                  onClick={backAction}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-800 ring-1 ring-black/[0.06] transition hover:bg-gray-50"
-                  aria-label="Back"
-                >
-                  <ArrowLeft className="h-[18px] w-[18px]" />
-                </button>
-              )}
-              <button
-                onClick={hasAnyOrderType ? () => setOrderTypeSheetOpen(true) : undefined}
-                disabled={!hasAnyOrderType}
-                className="flex min-w-0 flex-1 flex-col text-left"
-              >
-                <span className="truncate text-[15px] font-extrabold leading-tight text-gray-900">
-                  {orderType === "delivery" && userAddress ? userAddress : outletName}
-                </span>
-                <span className="flex items-center gap-0.5 truncate text-[11px] font-medium text-gray-400">
-                  {orderTypeLabel || locationText || "Your store"}
-                  {hasAnyOrderType && <ChevronDown className="h-3 w-3 shrink-0" />}
-                </span>
-              </button>
-              {(authUser as any)?.role === "user" && (
-                <LoyaltyPointsBadge
-                  partnerId={(hoteldata as any)?.id}
-                  currency={(hoteldata as any)?.currency || "₹"}
-                  storeName={(hoteldata as any)?.store_name}
-                />
-              )}
-            </div>
+          /* Merged brand + address header: logo / name / WhatsApp+location on top,
+             the address / order-type selector below — one section, no duplicate
+             store-name card. */
+          <div className="px-4 pt-3 pb-1">
+            <V6BrandHeader
+              hoteldata={hoteldata}
+              socialLinks={socialLinks}
+              accent={accent}
+              onBack={backAction || undefined}
+              footer={
+                hasAnyOrderType ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setOrderTypeSheetOpen(true)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    >
+                      <MapPin className="h-[18px] w-[18px] shrink-0" style={{ color: accent }} strokeWidth={2.2} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] font-bold leading-tight text-gray-900">{addrPrimary}</span>
+                        {addrSecondary && (
+                          <span className="block truncate text-[11px] font-medium text-gray-400">{addrSecondary}</span>
+                        )}
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                    </button>
+                    {(authUser as any)?.role === "user" && (
+                      <LoyaltyPointsBadge
+                        partnerId={(hoteldata as any)?.id}
+                        currency={(hoteldata as any)?.currency || "₹"}
+                        storeName={(hoteldata as any)?.store_name}
+                      />
+                    )}
+                  </div>
+                ) : undefined
+              }
+            />
           </div>
         )}
 
