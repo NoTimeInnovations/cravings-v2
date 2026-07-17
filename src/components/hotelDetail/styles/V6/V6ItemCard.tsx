@@ -524,7 +524,8 @@ const V6ItemCard = ({
                   hasValidMainOffer ? (
                     <div className="flex flex-col">
                       <MenuPrice forceSymbolLtr
-                        className="text-[15px] font-extrabold text-gray-900"
+                        className="text-[15px] font-extrabold"
+                        style={{ color: accent }}
                         currency={hoteldata?.currency}
                         amount={formatPrice(mainOfferPrice, hoteldata?.id)}
                       />
@@ -537,7 +538,7 @@ const V6ItemCard = ({
                       )}
                     </div>
                   ) : hasValidBasePrice && baseItemPrice > 0 ? (
-                    <span className="text-[15px] font-extrabold text-gray-900">
+                    <span className="text-[15px] font-extrabold" style={{ color: accent }}>
                       {hasVariants && <span className="text-[10px] font-normal text-gray-500">From </span>}
                       <MenuPrice forceSymbolLtr currency={hoteldata?.currency} amount={formatPrice(baseItemPrice, hoteldata?.id)} />
                     </span>
@@ -580,13 +581,13 @@ const V6ItemCard = ({
               <div className="mt-1 flex items-center gap-2">
                 {hasValidMainOffer && !isUpcomingOffer ? (
                   <>
-                    <MenuPrice forceSymbolLtr className="text-base font-extrabold text-gray-900" currency={hoteldata?.currency} amount={formatPrice(offerData!.offer_price!, hoteldata?.id)} />
+                    <MenuPrice forceSymbolLtr className="text-base font-extrabold" style={{ color: accent }} currency={hoteldata?.currency} amount={formatPrice(offerData!.offer_price!, hoteldata?.id)} />
                     {hasValidMainOriginalPrice && mainOriginalPrice! > offerData!.offer_price! && (
                       <MenuPrice forceSymbolLtr className="text-sm text-gray-400 line-through" currency={hoteldata?.currency} amount={formatPrice(mainOriginalPrice, hoteldata?.id)} />
                     )}
                   </>
                 ) : hasValidBasePrice && baseItemPrice > 0 ? (
-                  <MenuPrice forceSymbolLtr className="text-base font-extrabold text-gray-900" currency={hoteldata?.currency} amount={formatPrice(baseItemPrice, hoteldata?.id)} />
+                  <MenuPrice forceSymbolLtr className="text-base font-extrabold" style={{ color: accent }} currency={hoteldata?.currency} amount={formatPrice(baseItemPrice, hoteldata?.id)} />
                 ) : null}
               </div>
             )}

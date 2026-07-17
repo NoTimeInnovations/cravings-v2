@@ -150,7 +150,7 @@ const V6SearchRow = ({
         </div>
         <h3 dir={nameDir} translate={nameTranslate} className={`mt-1 text-left text-sm font-bold leading-snug text-gray-900${nameNo}`}>{displayName}</h3>
         {shouldShowPrice && (
-          <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-gray-900">
+          <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold" style={{ color: accent }}>
             {hasVariants && <span className="text-[10px] font-medium text-gray-400">From </span>}
             <MenuPrice forceSymbolLtr currency={hoteldata?.currency} amount={formatPrice(price, hoteldata?.id)} />
           </div>

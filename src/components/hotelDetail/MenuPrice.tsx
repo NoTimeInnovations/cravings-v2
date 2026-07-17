@@ -27,6 +27,7 @@ export function MenuPrice({
   className,
   symbolClassName,
   forceSymbolLtr = false,
+  style,
 }: {
   currency?: string | null;
   amount: React.ReactNode;
@@ -38,6 +39,8 @@ export function MenuPrice({
    *  bidi-override). Multi-glyph Arabic symbols (e.g. "ر.ق") otherwise lay out
    *  in their natural RTL order; opt in to show them exactly as authored. */
   forceSymbolLtr?: boolean;
+  /** Extra inline styles for the wrapper span (e.g. a theme colour). */
+  style?: React.CSSProperties;
 }) {
   const lang = useMenuLanguageStore((s) => s.lang);
   const symbol = currencySymbolForLang(currency, lang);
@@ -48,7 +51,7 @@ export function MenuPrice({
       dir="ltr"
       translate="no"
       className={cn("notranslate", className)}
-      style={{ direction: "ltr", unicodeBidi: "isolate" }}
+      style={{ direction: "ltr", unicodeBidi: "isolate", ...style }}
     >
       {amount}
       {showSymbol && (
