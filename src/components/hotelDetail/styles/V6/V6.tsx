@@ -355,17 +355,14 @@ const V6 = ({
         if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
       }}
     >
-      {/* Food-doodle watermark on the page background — small, dense line-art
-          food icons behind the header, fading out around the banner's middle. */}
+      {/* Food-doodle watermark — full-page background, low opacity. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[25vh]"
+        className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage: foodDoodleUrl("#334155"),
-          backgroundSize: "100px 73px",
-          opacity: 0.15,
-          WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%)",
-          maskImage: "linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%)",
+          backgroundSize: "185px 135px",
+          opacity: 0.05,
         }}
       />
       <PullToRefresh />
