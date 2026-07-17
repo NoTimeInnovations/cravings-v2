@@ -55,10 +55,36 @@ export default function V6BrandHeader({
     (hoteldata as any)?.country ||
     "";
 
+  // Subtle food-doodle watermark (line-art icons) tinted with the theme accent.
+  const doodleUrl = useMemo(() => {
+    const svg =
+      `<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' viewBox='0 0 150 120' fill='none' stroke='${accent}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>` +
+      `<path d='M18 40h20v12a10 10 0 0 1-20 0z'/><path d='M38 42a6 6 0 0 1 0 10'/><path d='M23 34q3-5 0-10M31 34q3-5 0-10'/>` +
+      `<circle cx='95' cy='24' r='9'/><path d='M86 30l9 22 9-22'/>` +
+      `<path d='M20 88a18 10 0 0 1 36 0z'/><path d='M22 94h32M24 99h28'/><path d='M20 100a18 8 0 0 0 36 0'/>` +
+      `<circle cx='115' cy='88' r='15'/><circle cx='115' cy='88' r='6'/>` +
+      `<path d='M132 18v30M128 18v9M136 18v9M128 27h8'/><path d='M147 18v30M147 18c-4 4-4 12 0 15'/>` +
+      `</svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  }, [accent]);
+
   return (
-    <div className="rounded-2xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-black/[0.03]">
+    <div className="relative rounded-2xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-black/[0.03]">
+      {/* Food-doodle watermark — fills from the right, fading out toward the
+          logo/name on the left (≈ half the banner). */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-2xl"
+        style={{
+          backgroundImage: doodleUrl,
+          backgroundSize: "132px 106px",
+          opacity: 0.1,
+          WebkitMaskImage: "linear-gradient(to left, #000 0%, #000 48%, transparent 82%)",
+          maskImage: "linear-gradient(to left, #000 0%, #000 48%, transparent 82%)",
+        }}
+      />
       {/* ===== Identity row ===== */}
-      <div className="flex items-center gap-2.5">
+      <div className="relative z-10 flex items-center gap-2.5">
         {onBack && (
           <button
             onClick={onBack}
@@ -68,13 +94,12 @@ export default function V6BrandHeader({
             <ArrowLeft className="h-[17px] w-[17px]" />
           </button>
         )}
-        {/* Logo — circular with a theme-colored border and an inner white
-            padding gap. The inner ring clips the partner-scaled logo so the
-            border + padding are always preserved (logo fills the inner circle,
-            not edge-to-edge against the border). */}
+        {/* Logo — circular with a very light neutral border + inner padding gap.
+            The inner ring clips the partner-scaled logo so the border + padding
+            are preserved (logo fills the inner circle, not edge-to-edge). */}
         <div
-          className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-full border-[1.5px] p-0.5"
-          style={{ borderColor: accent, background: bannerLogo.bgColor || "#ffffff" }}
+          className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-full border border-black/[0.06] p-0.5"
+          style={{ background: bannerLogo.bgColor || "#ffffff" }}
         >
           <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full">
             {showBanner ? (
@@ -116,7 +141,7 @@ export default function V6BrandHeader({
       </div>
 
       {/* ===== Address / order-type selector (footer) ===== */}
-      {footer && <div className="mt-2.5 border-t border-gray-100 pt-2.5">{footer}</div>}
+      {footer && <div className="relative z-10 mt-2.5 border-t border-gray-100 pt-2.5">{footer}</div>}
     </div>
   );
 }
