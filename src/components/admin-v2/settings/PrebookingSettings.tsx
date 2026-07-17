@@ -40,6 +40,7 @@ export function PrebookingSettings() {
 
     const [cfg, setCfg] = useState<PrebookingConfig>(DEFAULT_PREBOOKING_SETTINGS);
     const [enabled, setEnabled] = useState(true);
+    const [optional, setOptional] = useState(false);
     const [todayOnly, setTodayOnly] = useState(false);
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
@@ -56,6 +57,7 @@ export function PrebookingSettings() {
         const merged = mergePrebookingConfig((userData as any)?.prebooking_settings);
         setCfg(merged);
         setEnabled(merged.prebooking_enabled);
+        setOptional(merged.prebooking_optional ?? false);
         setTodayOnly(merged.today_only ?? false);
         setStartDate(merged.start_date ?? "");
         setEndDate(merged.end_date ?? "");
@@ -79,7 +81,7 @@ export function PrebookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, today_only: todayOnly, start_date: startDate || undefined, end_date: endDate || undefined, picker_mode: pickerMode, slot_mode: slotMode, rolling_interval_minutes: rollingInterval, rolling_slot_count: rollingCount, windows });
+            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, prebooking_optional: optional, today_only: todayOnly, start_date: startDate || undefined, end_date: endDate || undefined, picker_mode: pickerMode, slot_mode: slotMode, rolling_interval_minutes: rollingInterval, rolling_slot_count: rollingCount, windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -89,7 +91,7 @@ export function PrebookingSettings() {
             console.error("Error saving prebooking settings:", e);
             toast.error("Failed to save prebooking settings");
         }
-    }, [cfg, enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -99,7 +101,7 @@ export function PrebookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -141,6 +143,18 @@ export function PrebookingSettings() {
 
                     {enabled && (
                         <>
+                            <div className="flex items-center justify-between p-4 border rounded-lg">
+                                <div className="space-y-0.5">
+                                    <div className="font-medium">Make it optional</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Customers can choose whether to schedule. Checkout shows a
+                                        &ldquo;Prebook for later&rdquo; checkbox instead of forcing a slot — leave it
+                                        unticked to order now (ASAP).
+                                    </div>
+                                </div>
+                                <Switch checked={optional} onCheckedChange={setOptional} />
+                            </div>
+
                             <div className="flex items-center justify-between p-4 border rounded-lg">
                                 <div className="space-y-0.5">
                                     <div className="font-medium">Today only</div>

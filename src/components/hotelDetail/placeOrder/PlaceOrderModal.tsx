@@ -2038,6 +2038,18 @@ const PlaceOrderModal = ({
   // Pass the picker's selection (already carries `dineIn` for reservations) so
   // order type follows the captured reservation, not live orderType at submit.
   const prebookingArg = showPicker && prebooking ? prebooking : null;
+  // Optional scheduling ("make optional" toggle): when on for this order type,
+  // checkout does NOT force a slot — the customer opts in and may order ASAP.
+  const slotOptional = isDineIn
+    ? prebookingSettings?.slot_booking_optional === true
+    : prebookingSettings?.prebooking_optional === true;
+  // Operating window to clamp rolling slots to (delivery/takeaway hours only).
+  const slotClampWindow =
+    prebookOrderTypeKey === "delivery"
+      ? (hotelData as any)?.delivery_rules?.delivery_time_allowed ?? null
+      : prebookOrderTypeKey === "takeaway"
+        ? (hotelData as any)?.delivery_rules?.takeaway_time_allowed ?? null
+        : null;
 
   /* ---------------- 3PL delivery-agent serviceability + quote -------------
    * Default-on: when the partner has the `delivery_agent` feature enabled and
@@ -2885,7 +2897,7 @@ const PlaceOrderModal = ({
       return;
     }
 
-    if (showPicker && !prebookingArg) {
+    if (showPicker && !slotOptional && !prebookingArg) {
       toast.error(
         isDineIn
           ? "Please choose a date, time and number of guests for your table."
@@ -3179,7 +3191,7 @@ const PlaceOrderModal = ({
       return;
     }
 
-    if (showPicker && !prebookingArg) {
+    if (showPicker && !slotOptional && !prebookingArg) {
       toast.error(
         isDineIn
           ? "Please choose a date, time and number of guests for your table."
@@ -3862,6 +3874,9 @@ const PlaceOrderModal = ({
                       orderTypeKey={prebookOrderTypeKey}
                       onChange={setPrebooking}
                       reservation={isDineIn}
+                      optional={slotOptional}
+                      clampWindow={slotClampWindow}
+                      timezone={hotelTimezone}
                     />
                   </div>
                 )}

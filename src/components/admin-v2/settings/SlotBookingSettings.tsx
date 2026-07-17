@@ -40,6 +40,7 @@ export function SlotBookingSettings() {
 
     const [cfg, setCfg] = useState<PrebookingConfig>(DEFAULT_PREBOOKING_SETTINGS);
     const [enabled, setEnabled] = useState(true);
+    const [optional, setOptional] = useState(false);
     const [todayOnly, setTodayOnly] = useState(false);
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
@@ -57,6 +58,7 @@ export function SlotBookingSettings() {
         const merged = mergePrebookingConfig((userData as any)?.prebooking_settings);
         setCfg(merged);
         setEnabled(merged.slot_booking_enabled);
+        setOptional(merged.slot_booking_optional ?? false);
         setTodayOnly(merged.dine_in_today_only ?? false);
         setStartDate(merged.dine_in_start_date ?? "");
         setEndDate(merged.dine_in_end_date ?? "");
@@ -81,7 +83,7 @@ export function SlotBookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, dine_in_today_only: todayOnly, dine_in_start_date: startDate || undefined, dine_in_end_date: endDate || undefined, dine_in_picker_mode: pickerMode, dine_in_slot_mode: slotMode, dine_in_rolling_interval_minutes: rollingInterval, dine_in_rolling_slot_count: rollingCount, dine_in_ask_people_count: askPeople, dine_in_windows });
+            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, slot_booking_optional: optional, dine_in_today_only: todayOnly, dine_in_start_date: startDate || undefined, dine_in_end_date: endDate || undefined, dine_in_picker_mode: pickerMode, dine_in_slot_mode: slotMode, dine_in_rolling_interval_minutes: rollingInterval, dine_in_rolling_slot_count: rollingCount, dine_in_ask_people_count: askPeople, dine_in_windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -91,7 +93,7 @@ export function SlotBookingSettings() {
             console.error("Error saving slot booking settings:", e);
             toast.error("Failed to save slot booking settings");
         }
-    }, [cfg, enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -101,7 +103,7 @@ export function SlotBookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -144,6 +146,18 @@ export function SlotBookingSettings() {
 
                     {enabled && (
                         <>
+                            <div className="flex items-center justify-between p-4 border rounded-lg">
+                                <div className="space-y-0.5">
+                                    <div className="font-medium">Make it optional</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Customers can choose whether to reserve a table. Checkout shows a
+                                        &ldquo;Book a table slot&rdquo; checkbox instead of forcing a reservation —
+                                        leave it unticked to order without booking.
+                                    </div>
+                                </div>
+                                <Switch checked={optional} onCheckedChange={setOptional} />
+                            </div>
+
                             <div className="flex items-center justify-between p-4 border rounded-lg">
                                 <div className="space-y-0.5">
                                     <div className="font-medium">Today only</div>

@@ -147,21 +147,64 @@ function rollingConfig(settings: PrebookingSettings, dineIn?: boolean) {
     return { rolling: mode === "rolling", interval: Math.max(1, interval), count: Math.max(1, count) };
 }
 
+/** A restaurant-local open window ("HH:MM"–"HH:MM") to clamp rolling slots to. */
+export type ClampWindow = { from?: string | null; to?: string | null } | null | undefined;
+
+/** True when minute-of-day `m` falls inside [from, to], overnight-aware (from > to
+ *  wraps past midnight), mirroring src/lib/isWithinTimeWindow. No window ⇒ always true. */
+function withinWindow(m: number, window: ClampWindow): boolean {
+    if (!window?.from || !window?.to) return true; // no restriction
+    const s = toMinutes(window.from);
+    const e = toMinutes(window.to);
+    return s <= e ? m >= s && m <= e : m >= s || m <= e;
+}
+
+/** Minute-of-day for `now` in the restaurant's IANA timezone, mirroring
+ *  isWithinTimeWindow so rolling slots and their window clamp share ONE clock.
+ *  The operating window (delivery_time_allowed/…) is restaurant-local, so when a
+ *  timezone is supplied we read `now` in that zone rather than the device clock —
+ *  otherwise an out-of-timezone customer's browser time could clamp away every
+ *  valid slot. Falls back to the device clock when no/invalid zone (same-tz
+ *  markets, e.g. all-India, are unaffected). */
+function nowMinuteOfDay(now: Date, timezone?: string | null): number {
+    if (!timezone) return now.getHours() * 60 + now.getMinutes();
+    try {
+        const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            hour: "2-digit",
+            minute: "2-digit",
+            hourCycle: "h23",
+        }).formatToParts(now);
+        const h = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
+        const m = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
+        return h * 60 + m;
+    } catch {
+        return now.getHours() * 60 + now.getMinutes();
+    }
+}
+
 /**
  * Rolling slots: discrete pickup times at `now + interval`, `now + 2*interval`, …
  * up to `count`, within today. Each is a point-in-time slot (from === to). These
  * roll forward with the clock, so the checkout re-computes them periodically.
+ *
+ * When `window` is given (the order type's operating hours — delivery_time_allowed /
+ * takeaway_time_allowed), only slots that fall inside it are emitted, so rolling
+ * never offers a pickup time outside the delivery/takeaway open window.
  */
 export function getRollingSlots(
     intervalMin: number,
     count: number,
-    now: Date = new Date()
+    now: Date = new Date(),
+    window: ClampWindow = null,
+    timezone?: string | null
 ): { from: string; to: string }[] {
-    const base = now.getHours() * 60 + now.getMinutes();
+    const base = nowMinuteOfDay(now, timezone);
     const out: { from: string; to: string }[] = [];
     for (let i = 1; i <= count; i++) {
         const m = base + intervalMin * i;
         if (m >= 24 * 60) break; // stay within today
+        if (!withinWindow(m, window)) continue; // clamp to the operating window
         const t = fmt(m);
         out.push({ from: t, to: t });
     }
@@ -176,12 +219,13 @@ export function getRollingSlots(
 export function getPrebookingDates(
     settings: PrebookingSettings,
     now: Date = new Date(),
-    opts: { dineIn?: boolean; fromOffset?: number; throughDay?: number } = {}
+    opts: { dineIn?: boolean; fromOffset?: number; throughDay?: number; clampWindow?: ClampWindow; timezone?: string | null } = {}
 ): { value: string; label: string }[] {
     const rollingCfg = rollingConfig(settings, opts.dineIn);
     if (rollingCfg.rolling) {
-        // Rolling slots are now-relative → offer only today (when it has slots).
-        return getRollingSlots(rollingCfg.interval, rollingCfg.count, now).length > 0
+        // Rolling slots are now-relative → offer only today (when it has slots
+        // inside the operating window).
+        return getRollingSlots(rollingCfg.interval, rollingCfg.count, now, opts.clampWindow, opts.timezone).length > 0
             ? [{ value: ymd(now), label: "Today" }]
             : [];
     }
@@ -244,14 +288,15 @@ export function getPrebookingDates(
 export function getPrebookingRanges(
     settings: PrebookingSettings,
     dateStr: string,
-    opts: { dineIn?: boolean; now?: Date } = {}
+    opts: { dineIn?: boolean; now?: Date; clampWindow?: ClampWindow; timezone?: string | null } = {}
 ): { from: string; to: string }[] {
     const rollingCfg = rollingConfig(settings, opts.dineIn);
     if (rollingCfg.rolling) {
-        // Rolling slots are now-relative → only today has them.
+        // Rolling slots are now-relative → only today has them, clamped to the
+        // order type's operating window when one is provided.
         const rnow = opts.now ?? new Date();
         if (dateStr !== ymd(rnow)) return [];
-        return getRollingSlots(rollingCfg.interval, rollingCfg.count, rnow);
+        return getRollingSlots(rollingCfg.interval, rollingCfg.count, rnow, opts.clampWindow, opts.timezone);
     }
     const date = new Date(`${dateStr}T00:00:00`);
     if (isNaN(date.getTime())) return [];
@@ -358,6 +403,7 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         allowed_order_types: parsed.allowed_order_types?.length
             ? parsed.allowed_order_types
             : base.allowed_order_types,
+        prebooking_optional: parsed.prebooking_optional === true,
         dine_in_min_lead_time_minutes: num(
             parsed.dine_in_min_lead_time_minutes,
             num(parsed.min_lead_time_minutes, base.dine_in_min_lead_time_minutes)
@@ -377,6 +423,7 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         dine_in_rolling_interval_minutes: num(parsed.dine_in_rolling_interval_minutes, 15),
         dine_in_rolling_slot_count: num(parsed.dine_in_rolling_slot_count, 2),
         dine_in_ask_people_count: parsed.dine_in_ask_people_count === true,
+        slot_booking_optional: parsed.slot_booking_optional === true,
         dine_in_windows: normalizeWindows(parsed.dine_in_windows ?? parsed.windows, base.dine_in_windows),
     };
 }

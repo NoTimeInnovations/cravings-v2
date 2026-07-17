@@ -20,6 +20,9 @@ export interface PrebookingSelection {
     dineIn?: boolean; // true when this selection is a dine-in table reservation
 }
 
+/** Restaurant-local open window used to clamp rolling slots (delivery/takeaway hours). */
+export type PrebookClampWindow = { from?: string | null; to?: string | null } | null;
+
 /** Bottom sheet (portaled to body so it sits above the full-screen checkout). */
 function BottomSheet({
     title,
@@ -53,6 +56,12 @@ function BottomSheet({
  * like the order-type buttons; each opens a single-select bottom sheet. Dates
  * span tomorrow … +30 days; slots come from the partner's allowed ranges.
  * Renders nothing unless the partner allows scheduling for the current order type.
+ *
+ * `optional`: when true, scheduling is opt-in — the customer ticks "Book a slot"
+ * to add a slot (and can untick to remove it and order ASAP). When false (default)
+ * the picker forces a slot as before. `clampWindow`: the order type's operating
+ * hours (delivery_time_allowed / takeaway_time_allowed) — rolling slots are
+ * clamped to it so they never fall outside the delivery/takeaway open window.
  */
 export function PrebookingPicker({
     settings,
@@ -61,6 +70,9 @@ export function PrebookingPicker({
     accentColor = "#16a34a",
     className = "rounded-lg border p-4 space-y-3 bg-white",
     reservation = false,
+    optional = false,
+    clampWindow = null,
+    timezone = null,
 }: {
     settings: PrebookingSettings;
     orderTypeKey: PrebookOrderType;
@@ -68,10 +80,19 @@ export function PrebookingPicker({
     accentColor?: string;
     className?: string;
     reservation?: boolean;
+    optional?: boolean;
+    clampWindow?: PrebookClampWindow;
+    /** Restaurant IANA timezone — rolling slots + their window clamp are evaluated
+     *  in it so an out-of-timezone customer isn't wrongly clamped. */
+    timezone?: string | null;
 }) {
     const allowed = reservation ? true : isOrderTypeAllowed(settings, orderTypeKey);
     const [date, setDate] = useState<string>("");
     const [time, setTime] = useState<string>("");
+    // Optional scheduling: the customer opts in via a checkbox instead of being
+    // forced to pick a slot. `opted` is always true for forced (non-optional)
+    // types, so their behavior is unchanged.
+    const [opted, setOpted] = useState<boolean>(!optional);
     // Party size. Only collected for dine-in reservations when the partner turns
     // on "Ask number of people"; otherwise a fixed 1 still records the table
     // marker downstream (booking_persons) without prompting.
@@ -97,33 +118,66 @@ export function PrebookingPicker({
         return () => clearInterval(id);
     }, [isRolling]);
 
+    // Reset the opt-in when the order type / optionality changes: forced types are
+    // always opted-in; optional types start opted-out so the order can go ASAP
+    // until the customer explicitly books a slot.
+    useEffect(() => {
+        setOpted(!optional);
+        if (optional) {
+            setDate("");
+            setTime("");
+            setUserPickedTime(false);
+        }
+    }, [optional, orderTypeKey, reservation]);
+
+    // Clamp window as primitive deps so a fresh object identity each render doesn't
+    // thrash the memos below.
+    const clampFrom = clampWindow?.from ?? null;
+    const clampTo = clampWindow?.to ?? null;
+
     // Dates: today … +30 days that have at least one slot (today is dropped
     // automatically if all its slots are past / under the min lead time).
     const dates = useMemo(
         () =>
             allowed
-                ? getPrebookingDates(settings, now, { dineIn: reservation, fromOffset: 0, throughDay: 30 })
+                ? getPrebookingDates(settings, now, {
+                      dineIn: reservation,
+                      fromOffset: 0,
+                      throughDay: 30,
+                      clampWindow: clampFrom && clampTo ? { from: clampFrom, to: clampTo } : null,
+                      timezone,
+                  })
                 : [],
-        [allowed, settings, reservation, now],
+        [allowed, settings, reservation, now, clampFrom, clampTo, timezone],
     );
     // Slots are the partner's configured open ranges for the day (e.g. lunch +
     // dinner) — shown as "from – to", not every half-hour. The selection stores
     // the range's start as the scheduled time.
     const ranges = useMemo(
-        () => (date ? getPrebookingRanges(settings, date, { dineIn: reservation, now }) : []),
-        [settings, date, reservation, now],
+        () =>
+            date
+                ? getPrebookingRanges(settings, date, {
+                      dineIn: reservation,
+                      now,
+                      clampWindow: clampFrom && clampTo ? { from: clampFrom, to: clampTo } : null,
+                      timezone,
+                  })
+                : [],
+        [settings, date, reservation, now, clampFrom, clampTo, timezone],
     );
 
     // Keep the chosen date valid, and auto-select the first available date so
     // there's always a sensible default (required when the date picker is hidden).
+    // Skipped while opted out (optional + unchecked) so no slot is implied.
     useEffect(() => {
+        if (!opted) return;
         if (date && !dates.some((d) => d.value === date)) {
             setDate("");
             setTime("");
         } else if (!date && dates.length > 0) {
             setDate(dates[0].value);
         }
-    }, [dates, date]);
+    }, [dates, date, opted]);
 
     // Slot selection lifecycle.
     // - Windows: clear an invalid pick (e.g. after a date change), else auto-select first.
@@ -131,6 +185,7 @@ export function PrebookingPicker({
     //   minute via a DIRECT swap — no transient empty state that would emit null).
     //   A manual pick is an absolute time preserved until it passes, then re-defaults.
     useEffect(() => {
+        if (!opted) return;
         if (isRolling) {
             if (userPickedTime) {
                 const [h, m] = (time || "0:0").split(":").map(Number);
@@ -150,38 +205,35 @@ export function PrebookingPicker({
         }
         if (time && !ranges.some((r) => r.from === time)) setTime("");
         else if (!time && ranges.length > 0) setTime(ranges[0].from);
-    }, [ranges, time, userPickedTime, isRolling, now]);
+    }, [ranges, time, userPickedTime, isRolling, now, opted]);
 
-    // Report selection upward (null until fully chosen). timeTo = the chosen
-    // range's end, so the order can show a full from–to slot.
+    // Report selection upward (null until fully chosen, or while opted out). timeTo
+    // = the chosen range's end, so the order can show a full from–to slot.
     useEffect(() => {
         const timeTo = ranges.find((r) => r.from === time)?.to;
-        if (!allowed || !date || !time || (reservation && !persons)) {
+        if (!opted || !allowed || !date || !time || (reservation && !persons)) {
             onChange(null);
         } else {
             onChange(reservation ? { date, time, timeTo, persons, dineIn: true } : { date, time, timeTo });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [allowed, date, time, persons, reservation]);
+    }, [opted, allowed, date, time, persons, reservation]);
 
     // Prebooking doesn't apply to this order type → no picker, order proceeds.
     if (!allowed) return null;
-    // Allowed, but the partner's configured window (e.g. a date range that has
-    // lapsed, or all slots past the lead time) leaves no selectable date. Show an
-    // explicit closed-state instead of rendering nothing, so the customer isn't
-    // left with a silently-disabled checkout and no explanation.
-    if (dates.length === 0) {
-        return (
-            <div className={className}>
-                <div className="flex items-start gap-2 rounded-xl border-2 border-amber-100 bg-amber-50 p-3">
-                    <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                    <p className="text-xs font-medium text-amber-800">
-                        No booking dates are currently available. Please contact the restaurant.
-                    </p>
-                </div>
-            </div>
-        );
-    }
+
+    // Toggle the opt-in. Un-ticking removes any added slot (→ ASAP order).
+    const toggleOpted = () => {
+        setOpted((prev) => {
+            const next = !prev;
+            if (!next) {
+                setDate("");
+                setTime("");
+                setUserPickedTime(false);
+            }
+            return next;
+        });
+    };
 
     const dateLabel = dates.find((d) => d.value === date)?.label;
     // Rolling slots are a single point in time (from === to) → show just the time;
@@ -201,108 +253,80 @@ export function PrebookingPicker({
     const triggerCls =
         "flex items-center justify-between gap-1 py-3 px-2.5 rounded-xl text-xs font-semibold border-2 border-gray-100 bg-gray-50 text-gray-700 disabled:opacity-50";
 
-    return (
-        <div className={className}>
-            <div className="flex items-center gap-2">
-                <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
-                    {reservation ? "Slot booking" : "Book a slot"}
-                </span>
+    // The date/slot booking body (shown when forced, or when the customer opted in).
+    const bookingBody =
+        dates.length === 0 ? (
+            <div className="flex items-start gap-2 rounded-xl border-2 border-amber-100 bg-amber-50 p-3">
+                <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <p className="text-xs font-medium text-amber-800">
+                    No booking dates are currently available. Please contact the restaurant.
+                </p>
             </div>
-
-            <div className={`grid gap-2 ${showDate && showTime ? "grid-cols-2" : "grid-cols-1"}`}>
-                {showDate && (
-                    <button type="button" onClick={() => setSheet("date")} className={triggerCls}>
-                        <span className="leading-tight">{dateLabel || "Select date"}</span>
-                        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-                    </button>
-                )}
-                {showTime && (
-                    <button
-                        type="button"
-                        onClick={() => setSheet("slot")}
-                        disabled={!date}
-                        className={triggerCls}
-                    >
-                        <span className="leading-tight">{slotLabel || "Select slot"}</span>
-                        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-                    </button>
-                )}
-            </div>
-
-            {askPeople && (
-                <div className="flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl border-2 border-gray-100 bg-gray-50">
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        Number of people
-                    </span>
-                    <div className="flex items-center gap-3">
+        ) : (
+            <>
+                <div className={`grid gap-2 ${showDate && showTime ? "grid-cols-2" : "grid-cols-1"}`}>
+                    {showDate && (
+                        <button type="button" onClick={() => setSheet("date")} className={triggerCls}>
+                            <span className="leading-tight">{dateLabel || "Select date"}</span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                        </button>
+                    )}
+                    {showTime && (
                         <button
                             type="button"
-                            onClick={() => setPersons((p) => Math.max(1, p - 1))}
-                            disabled={persons <= 1}
-                            aria-label="Decrease"
-                            className="h-7 w-7 flex items-center justify-center rounded-full border-2 border-gray-200 bg-white text-gray-700 disabled:opacity-40"
+                            onClick={() => setSheet("slot")}
+                            disabled={!date}
+                            className={triggerCls}
                         >
-                            <Minus className="h-3.5 w-3.5" />
+                            <span className="leading-tight">{slotLabel || "Select slot"}</span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
                         </button>
-                        <span className="min-w-[1.5rem] text-center text-sm font-bold text-gray-900">{persons}</span>
-                        <button
-                            type="button"
-                            onClick={() => setPersons((p) => Math.min(MAX_PERSONS, p + 1))}
-                            disabled={persons >= MAX_PERSONS}
-                            aria-label="Increase"
-                            className="h-7 w-7 flex items-center justify-center rounded-full border-2 text-white disabled:opacity-40"
-                            style={{ backgroundColor: accentColor, borderColor: accentColor }}
-                        >
-                            <Plus className="h-3.5 w-3.5" />
-                        </button>
-                    </div>
+                    )}
                 </div>
-            )}
 
-
-            {sheet === "date" && (
-                <BottomSheet title="Select date" onClose={() => setSheet(null)}>
-                    {dates.map((d) => {
-                        const selected = d.value === date;
-                        return (
+                {askPeople && (
+                    <div className="flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl border-2 border-gray-100 bg-gray-50">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+                            <Users className="h-4 w-4 text-gray-400" />
+                            Number of people
+                        </span>
+                        <div className="flex items-center gap-3">
                             <button
-                                key={d.value}
                                 type="button"
-                                onClick={() => {
-                                    setDate(d.value);
-                                    setTime("");
-                                    setUserPickedTime(false);
-                                    setSheet(null);
-                                }}
-                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm font-medium ${
-                                    selected ? "text-white border-transparent" : "border-gray-100 bg-gray-50 text-gray-800"
-                                }`}
-                                style={selected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+                                onClick={() => setPersons((p) => Math.max(1, p - 1))}
+                                disabled={persons <= 1}
+                                aria-label="Decrease"
+                                className="h-7 w-7 flex items-center justify-center rounded-full border-2 border-gray-200 bg-white text-gray-700 disabled:opacity-40"
                             >
-                                {d.label}
-                                {selected && <Check className="h-4 w-4" />}
+                                <Minus className="h-3.5 w-3.5" />
                             </button>
-                        );
-                    })}
-                </BottomSheet>
-            )}
+                            <span className="min-w-[1.5rem] text-center text-sm font-bold text-gray-900">{persons}</span>
+                            <button
+                                type="button"
+                                onClick={() => setPersons((p) => Math.min(MAX_PERSONS, p + 1))}
+                                disabled={persons >= MAX_PERSONS}
+                                aria-label="Increase"
+                                className="h-7 w-7 flex items-center justify-center rounded-full border-2 text-white disabled:opacity-40"
+                                style={{ backgroundColor: accentColor, borderColor: accentColor }}
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+                    </div>
+                )}
 
-            {sheet === "slot" && (
-                <BottomSheet title="Select slot" onClose={() => setSheet(null)}>
-                    {ranges.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-6">No slots available for this day.</p>
-                    ) : (
-                        ranges.map((r) => {
-                            const selected = r.from === time;
+                {sheet === "date" && (
+                    <BottomSheet title="Select date" onClose={() => setSheet(null)}>
+                        {dates.map((d) => {
+                            const selected = d.value === date;
                             return (
                                 <button
-                                    key={`${r.from}-${r.to}`}
+                                    key={d.value}
                                     type="button"
                                     onClick={() => {
-                                        setTime(r.from);
-                                        setUserPickedTime(true);
+                                        setDate(d.value);
+                                        setTime("");
+                                        setUserPickedTime(false);
                                         setSheet(null);
                                     }}
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm font-medium ${
@@ -310,14 +334,73 @@ export function PrebookingPicker({
                                     }`}
                                     style={selected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
                                 >
-                                    {rangeLabel(r)}
+                                    {d.label}
                                     {selected && <Check className="h-4 w-4" />}
                                 </button>
                             );
-                        })
-                    )}
-                </BottomSheet>
+                        })}
+                    </BottomSheet>
+                )}
+
+                {sheet === "slot" && (
+                    <BottomSheet title="Select slot" onClose={() => setSheet(null)}>
+                        {ranges.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">No slots available for this day.</p>
+                        ) : (
+                            ranges.map((r) => {
+                                const selected = r.from === time;
+                                return (
+                                    <button
+                                        key={`${r.from}-${r.to}`}
+                                        type="button"
+                                        onClick={() => {
+                                            setTime(r.from);
+                                            setUserPickedTime(true);
+                                            setSheet(null);
+                                        }}
+                                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm font-medium ${
+                                            selected ? "text-white border-transparent" : "border-gray-100 bg-gray-50 text-gray-800"
+                                        }`}
+                                        style={selected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+                                    >
+                                        {rangeLabel(r)}
+                                        {selected && <Check className="h-4 w-4" />}
+                                    </button>
+                                );
+                            })
+                        )}
+                    </BottomSheet>
+                )}
+            </>
+        );
+
+    return (
+        <div className={className}>
+            {optional ? (
+                // Opt-in row: ticking adds a slot; un-ticking removes it (order ASAP).
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        checked={opted}
+                        onChange={toggleOpted}
+                        className="h-4 w-4 rounded border-gray-300"
+                        style={{ accentColor }}
+                    />
+                    <span className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                        <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                        {reservation ? "Book a table slot" : "Prebook for later"}
+                    </span>
+                </label>
+            ) : (
+                <div className="flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                        {reservation ? "Slot booking" : "Book a slot"}
+                    </span>
+                </div>
             )}
+
+            {opted && bookingBody}
         </div>
     );
 }

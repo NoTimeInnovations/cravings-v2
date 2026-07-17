@@ -645,6 +645,20 @@ const PlaceOrderModalV2 = ({
   // `dineIn` for reservations) — so order type follows the captured reservation,
   // not the live orderType at submit.
   const prebookingArg = showPicker && prebooking ? prebooking : null;
+  // Optional scheduling ("make optional" toggle, per Prebooking / Slot Booking
+  // tab): when on for this order type, checkout does NOT force a slot — the
+  // customer opts in via a checkbox and may order ASAP with no slot.
+  const slotOptional = isDineIn
+    ? prebookingSettings?.slot_booking_optional === true
+    : prebookingSettings?.prebooking_optional === true;
+  // Operating window used to clamp rolling slots so they never fall outside the
+  // delivery/takeaway open hours. Dine-in has no per-type operating window.
+  const slotClampWindow =
+    prebookOrderTypeKey === "delivery"
+      ? deliveryTimeAllowed
+      : prebookOrderTypeKey === "takeaway"
+        ? takeawayTimeAllowed
+        : null;
   // Default-on: when delivery_agent is enabled and the partner has NOT
   // explicitly set `use_delivery_agent_charge = false`, treat as on.
   const useAgentForCharge =
@@ -1632,7 +1646,7 @@ const PlaceOrderModalV2 = ({
       flagMissingName();
       return;
     }
-    if (showPicker && !prebookingArg) {
+    if (showPicker && !slotOptional && !prebookingArg) {
       toast.error(
         isDineIn
           ? "Please choose a date, time and number of guests for your table."
@@ -2049,7 +2063,7 @@ const PlaceOrderModalV2 = ({
       flagMissingName();
       return;
     }
-    if (showPicker && !prebookingArg) {
+    if (showPicker && !slotOptional && !prebookingArg) {
       toast.error(
         isDineIn
           ? "Please choose a date, time and number of guests for your table."
@@ -2659,7 +2673,7 @@ const PlaceOrderModalV2 = ({
     orderStatus !== "idle" ||
     !items ||
     items.length === 0 ||
-    (showPicker && !prebookingArg) ||
+    (showPicker && !slotOptional && !prebookingArg) ||
     (orderType === "delivery" &&
       !useAgentForCharge &&
       !usePorterForCharge &&
@@ -2924,6 +2938,9 @@ const PlaceOrderModalV2 = ({
                 accentColor={accent}
                 className="bg-white rounded-2xl p-4 shadow-sm space-y-3"
                 reservation={isDineIn}
+                optional={slotOptional}
+                clampWindow={slotClampWindow}
+                timezone={hotelTimezone}
               />
             )}
 

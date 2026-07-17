@@ -224,6 +224,10 @@ export interface PrebookingSettings {
   windows: PrebookingWindow[];
   /** Order types for which "schedule for later" is offered (delivery/takeaway). */
   allowed_order_types: ("delivery" | "takeaway" | "dine_in")[];
+  /** When true, scheduling a delivery/takeaway slot is OPTIONAL at checkout: the
+   *  customer sees a "Book a slot" opt-in instead of being forced to pick one, and
+   *  can order ASAP (no slot). Default false = a slot is required (legacy behavior). */
+  prebooking_optional?: boolean;
 
   // ── Slot booking: dine-in table reservations (independent settings) ───────
   /** Minimum advance notice for a dine-in reservation, in minutes. */
@@ -243,6 +247,10 @@ export interface PrebookingSettings {
   dine_in_rolling_slot_count?: number;
   /** When true, ask the customer how many people the table booking is for. */
   dine_in_ask_people_count?: boolean;
+  /** When true, booking a dine-in table slot is OPTIONAL at checkout: the customer
+   *  sees a "Book a table slot" opt-in instead of being forced to reserve, and can
+   *  order without a reservation. Default false = a reservation is required. */
+  slot_booking_optional?: boolean;
   /** Explicit dine-in table slot times per weekday. */
   dine_in_windows: PrebookingWindow[];
 }
@@ -267,9 +275,11 @@ export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
   today_only: false,
   windows: defaultWindows(),
   allowed_order_types: ["delivery", "takeaway", "dine_in"],
+  prebooking_optional: false,
   dine_in_min_lead_time_minutes: 0,
   dine_in_max_advance_days: 7,
   dine_in_today_only: false,
+  slot_booking_optional: false,
   dine_in_windows: defaultWindows(),
 };
 
@@ -1564,7 +1574,16 @@ const useOrderStore = create(
           };
 
           const validQrId = qrId && isValidUUID(qrId) ? qrId : null;
-          const type = (tableNumber ?? 0) > 0 || isDineInReservation ? "table_order" : "delivery";
+          // A dine-in order stays a table_order even when the customer skipped an
+          // (optional) slot reservation. Without the orderType check, an opted-out
+          // dine-in order (no reservation, no QR table) would fall through to
+          // "delivery" and be persisted with a spurious delivery address/location.
+          const type =
+            (tableNumber ?? 0) > 0 ||
+            isDineInReservation ||
+            state.orderType === "dine_in"
+              ? "table_order"
+              : "delivery";
           const createdAt = new Date().toISOString();
 
           // Prepare extra charges
