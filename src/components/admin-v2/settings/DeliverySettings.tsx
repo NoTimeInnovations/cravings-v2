@@ -28,7 +28,11 @@ function sanitizeLocalPhone(raw: string, countryCode?: string): string {
     const cc = String(countryCode ?? "").replace(/\D/g, "");
     if (cc && d.length > 10 && d.startsWith(cc)) d = d.slice(cc.length);
     d = d.replace(/^0+/, "");
-    if (d.length > 10) d = d.slice(-10);
+    // India local numbers are exactly 10 digits — keep the 10-digit-tail cleanup
+    // for India only. Other countries have shorter/longer local numbers (UAE 9,
+    // Qatar/Oman 8, …), so truncating to 10 would corrupt a valid number.
+    const isIndia = !cc || cc === "91";
+    if (isIndia && d.length > 10) d = d.slice(-10);
     return d;
 }
 
@@ -459,9 +463,21 @@ export function DeliverySettings() {
             ...item,
             number: sanitizeLocalPhone(item.number, countryCode),
         }));
+        // India uses fixed 10-digit local numbers; other countries vary (UAE 9,
+        // Qatar/Oman 8, …), so only enforce 10 digits for India and accept a
+        // reasonable 6–15 digit range elsewhere.
+        const ccDigits = String(countryCode).replace(/\D/g, "");
+        const isIndiaCc = !ccDigits || ccDigits === "91";
         for (const item of cleanedWhatsapp) {
-            if (!item.number || item.number.length !== 10) {
-                toast.error(`Please enter a valid 10-digit WhatsApp Number for ${item.area || "unnamed area"}`);
+            const validLen = isIndiaCc
+                ? item.number.length === 10
+                : item.number.length >= 6 && item.number.length <= 15;
+            if (!item.number || !validLen) {
+                toast.error(
+                    isIndiaCc
+                        ? `Please enter a valid 10-digit WhatsApp Number for ${item.area || "unnamed area"}`
+                        : `Please enter a valid WhatsApp Number for ${item.area || "unnamed area"}`,
+                );
                 return;
             }
             if (!item.area) {
@@ -482,8 +498,13 @@ export function DeliverySettings() {
             ["Uber", cleanUber],
             ["Rapido", cleanRapido],
         ] as const) {
-            if (m && !/^[6-9][0-9]{9}$/.test(m)) {
-                toast.error(`${label} mobile must be a 10-digit number (or left blank)`);
+            const bridgeValid = isIndiaCc ? /^[6-9][0-9]{9}$/.test(m) : /^\d{6,15}$/.test(m);
+            if (m && !bridgeValid) {
+                toast.error(
+                    isIndiaCc
+                        ? `${label} mobile must be a 10-digit number (or left blank)`
+                        : `${label} mobile must be a valid number (or left blank)`,
+                );
                 return;
             }
         }
