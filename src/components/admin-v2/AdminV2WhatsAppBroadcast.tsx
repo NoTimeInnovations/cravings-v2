@@ -352,20 +352,21 @@ export function AdminV2WhatsAppBroadcast() {
       const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
 
-      // Grand totals. sent/delivered/read are cumulative funnel stages
-      // (delivered already includes read), so we only surface the numbers an
-      // owner actually needs — how many were delivered, read, and failed — each
-      // as a share of everyone messaged. No confusing overlapping/derived rows.
+      // Grand totals. "Received" = delivered (reached the phone; already
+      // includes those who read). "Not received" = everyone else
+      // (recipients − received) — the honest miss count: hard failures PLUS
+      // messages sent but never confirmed delivered. Received + Not received
+      // always equals Recipients, so the numbers reconcile.
       const totals = broadcasts.reduce(
         (acc, b) => {
           acc.recipients += b.total_recipients || 0;
-          acc.delivered += b.delivered_count || 0;
+          acc.received += b.delivered_count || 0;
           acc.read += b.read_count || 0;
-          acc.failed += b.failed_count || 0;
           return acc;
         },
-        { recipients: 0, delivered: 0, read: 0, failed: 0 },
+        { recipients: 0, received: 0, read: 0 },
       );
+      const notReceived = Math.max(0, totals.recipients - totals.received);
 
       // Costs can span currencies — sum per currency so the total is never wrong.
       const costByCurrency = new Map<string, number>();
@@ -379,16 +380,16 @@ export function AdminV2WhatsAppBroadcast() {
         : "—";
 
       // ── Sheet 1: Overview — a plain-English line anyone can read + the
-      // headline numbers ──
-      const dPct = pct(totals.delivered, totals.recipients);
+      // headline numbers (Received + Not received = Recipients) ──
+      const dPct = pct(totals.received, totals.recipients);
       const rPct = pct(totals.read, totals.recipients);
-      const fPct = pct(totals.failed, totals.recipients);
+      const nrPct = pct(notReceived, totals.recipients);
       const sentence =
         `Across ${broadcasts.length} broadcast${broadcasts.length === 1 ? "" : "s"}, ` +
         `${totals.recipients.toLocaleString()} customers were messaged — ` +
-        `${totals.delivered.toLocaleString()} received it (${dPct}%), ` +
-        `${totals.read.toLocaleString()} read it (${rPct}%), and ` +
-        `${totals.failed.toLocaleString()} could not be delivered (${fPct}%). ` +
+        `${totals.received.toLocaleString()} received it (${dPct}%) and ` +
+        `${totals.read.toLocaleString()} read it (${rPct}%). ` +
+        `The other ${notReceived.toLocaleString()} did not receive it (${nrPct}%). ` +
         `Estimated cost: ${costLine}.`;
       const overview: (string | number)[][] = [
         ["WhatsApp broadcasts — summary"],
@@ -397,9 +398,9 @@ export function AdminV2WhatsAppBroadcast() {
         [],
         ["Broadcasts", broadcasts.length],
         ["Recipients", totals.recipients],
-        ["Delivered", totals.delivered, `${dPct}%`],
+        ["Received", totals.received, `${dPct}%`],
         ["Read", totals.read, `${rPct}%`],
-        ["Failed", totals.failed, `${fPct}%`],
+        ["Not received", notReceived, `${nrPct}%`],
         [],
         ["Total cost (est.)", costLine],
       ];
@@ -414,33 +415,37 @@ export function AdminV2WhatsAppBroadcast() {
         "Status",
         "Created",
         "Recipients",
-        "Delivered",
+        "Received",
         "Read",
-        "Failed",
+        "Not received",
         "Cost",
         "Currency",
       ];
-      const rows = broadcasts.map((b) => [
-        b.template_name || "",
-        b.language || "",
-        broadcastStatusLabel(b.status, b.scheduled_at),
-        fmtTime(b.created_at),
-        b.total_recipients || 0,
-        b.delivered_count || 0,
-        b.read_count || 0,
-        b.failed_count || 0,
-        b.total_cost || 0,
-        (b.cost_currency || "").toUpperCase(),
-      ]);
+      const rows = broadcasts.map((b) => {
+        const rec = b.total_recipients || 0;
+        const got = b.delivered_count || 0;
+        return [
+          b.template_name || "",
+          b.language || "",
+          broadcastStatusLabel(b.status, b.scheduled_at),
+          fmtTime(b.created_at),
+          rec,
+          got,
+          b.read_count || 0,
+          Math.max(0, rec - got),
+          b.total_cost || 0,
+          (b.cost_currency || "").toUpperCase(),
+        ];
+      });
       const totalRow = [
         "TOTAL",
         "",
         "",
         "",
         totals.recipients,
-        totals.delivered,
+        totals.received,
         totals.read,
-        totals.failed,
+        notReceived,
         costByCurrency.size === 1 ? [...costByCurrency.values()][0] : "",
         costByCurrency.size === 1 ? [...costByCurrency.keys()][0] : costByCurrency.size ? "mixed" : "",
       ];
@@ -453,7 +458,7 @@ export function AdminV2WhatsAppBroadcast() {
         { wch: 12 },
         { wch: 10 },
         { wch: 8 },
-        { wch: 8 },
+        { wch: 13 },
         { wch: 12 },
         { wch: 9 },
       ];
@@ -2134,14 +2139,15 @@ function BroadcastDetailDialog({
       const wb = XLSX.utils.book_new();
       const cur = detail.cost_currency || quality?.currency || "INR";
       const recips = detail.total_recipients || 0;
+      const notReceived = Math.max(0, recips - detail.delivered_count);
       const dPct = pct(detail.delivered_count, recips);
       const rPct = pct(detail.read_count, recips);
-      const fPct = pct(detail.failed_count, recips);
+      const nrPct = pct(notReceived, recips);
       const sentence =
         `${recips.toLocaleString()} customers were messaged — ` +
-        `${detail.delivered_count.toLocaleString()} received it (${dPct}%), ` +
-        `${detail.read_count.toLocaleString()} read it (${rPct}%), and ` +
-        `${detail.failed_count.toLocaleString()} could not be delivered (${fPct}%). ` +
+        `${detail.delivered_count.toLocaleString()} received it (${dPct}%) and ` +
+        `${detail.read_count.toLocaleString()} read it (${rPct}%). ` +
+        `The other ${notReceived.toLocaleString()} did not receive it (${nrPct}%). ` +
         `Estimated cost: ${detail.total_cost ?? 0} ${cur}.`;
       const summary: (string | number)[][] = [
         ["Broadcast report"],
@@ -2155,9 +2161,9 @@ function BroadcastDetailDialog({
         ["Completed", detail.completed_at ? fmtTime(detail.completed_at) : "—"],
         [],
         ["Recipients", recips],
-        ["Delivered", detail.delivered_count, `${dPct}%`],
+        ["Received", detail.delivered_count, `${dPct}%`],
         ["Read", detail.read_count, `${rPct}%`],
-        ["Failed", detail.failed_count, `${fPct}%`],
+        ["Not received", notReceived, `${nrPct}%`],
         [],
         ["Total cost (est.)", `${detail.total_cost ?? 0} ${cur}`],
       ];
