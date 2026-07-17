@@ -1,6 +1,6 @@
 "use client";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
-import { Search, ArrowLeft, ShoppingBag, Plus, Minus } from "lucide-react";
+import { Search, ArrowLeft, ShoppingCart, Plus, Minus } from "lucide-react";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { getFeatures } from "@/lib/getFeatures";
@@ -447,7 +447,7 @@ const V6SearchItems = ({
           className="fixed bottom-6 right-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.28)] transition active:scale-90"
           style={{ backgroundColor: accent, color: readableTextColor(accent) }}
         >
-          <ShoppingBag className="h-6 w-6" strokeWidth={2.2} />
+          <ShoppingCart className="h-6 w-6" strokeWidth={2.2} />
           {cartCount > 0 && (
             <span
               className="absolute -right-1 -top-1 flex h-6 min-w-[24px] items-center justify-center rounded-full border-2 border-white bg-white px-1 text-[12px] font-extrabold tabular-nums"

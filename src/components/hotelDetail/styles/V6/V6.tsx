@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
-  ShoppingBag, Search, ArrowLeft, User, ChevronDown, ChevronRight, MapPin,
+  ShoppingCart, Search, ArrowLeft, User, ChevronDown, ChevronRight, MapPin,
   Home as HomeIcon, LayoutGrid, ClipboardList,
 } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -727,7 +727,7 @@ const V6 = ({
                   className="flex h-8 w-8 items-center justify-center rounded-full"
                   style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
                 >
-                  <ShoppingBag className="h-4 w-4" strokeWidth={2.4} />
+                  <ShoppingCart className="h-4 w-4" strokeWidth={2.4} />
                 </span>
                 <span className="text-sm font-extrabold">
                   {cartCount} item{cartCount === 1 ? "" : "s"}
