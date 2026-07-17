@@ -11,6 +11,7 @@ import { formatDisplayName } from "@/store/categoryStore_hasura";
 import V6ItemCard from "./V6ItemCard";
 import V6CategoryTile from "./V6CategoryTile";
 import V6BannerCarousel from "./V6BannerCarousel";
+import V6BrandHeader from "./V6BrandHeader";
 import { V6_FONT } from "./v6utils";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
@@ -84,6 +85,7 @@ function getOfferMeta(item: any, offers: any[]) {
 const V6 = ({
   styles,
   hoteldata,
+  socialLinks,
   offers,
   tableNumber,
   auth,
@@ -339,6 +341,13 @@ const V6 = ({
           partnerPhone={hoteldata?.phone ?? null}
           partnerName={hoteldata?.store_name ?? null}
         />
+
+        {/* ============ BRAND BAR (home only) — logo + name + WhatsApp/location ==== */}
+        {view === "home" && (
+          <div className="px-4 pt-3 pb-1">
+            <V6BrandHeader hoteldata={hoteldata} socialLinks={socialLinks} accent={accent} />
+          </div>
+        )}
 
         {/* ============ HEADER ============ */}
         {view !== "home" ? (
