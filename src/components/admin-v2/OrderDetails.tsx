@@ -864,6 +864,26 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     />
                 )}
 
+            {/* Dispatch failure banner — a bridge rejection that never returned a
+                dispatchId (bad config, no drop coords, "no active provider
+                accounts") otherwise fails silently: no progress panel, no rider,
+                no explanation. Surface the reason so the partner knows why no
+                rider came and can retry via "Book rider now" above. The dispatchId
+                case is covered by the progress panel below. */}
+            {(order as any).delivery_provider_state === "failed" &&
+                !(order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId && (
+                    <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm">
+                        <p className="font-medium text-rose-800">Rider booking failed</p>
+                        <p className="mt-0.5 text-xs text-rose-700">
+                            {(order.delivery_provider_meta as { error?: string } | null)?.error ||
+                                "The delivery bridge couldn't book a rider for this order."}
+                        </p>
+                        <p className="mt-1 text-xs text-rose-600">
+                            Fix the cause, then use “Book rider now” above to retry.
+                        </p>
+                    </div>
+                )}
+
             {/* Delivery-bridge multi-provider dispatch progress — which provider
                 is being checked now + each provider's outcome (cancelled/live).
                 Shows for any order dispatched through the bridge (has a dispatchId). */}
