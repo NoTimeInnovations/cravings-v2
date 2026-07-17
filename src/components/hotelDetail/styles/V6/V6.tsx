@@ -418,31 +418,33 @@ const V6 = ({
                 </>
               }
               footer={
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={hasAnyOrderType ? () => setOrderTypeSheetOpen(true) : undefined}
-                    disabled={!hasAnyOrderType}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
-                  >
-                    <MapPin className="h-[18px] w-[18px] shrink-0" style={{ color: accent }} strokeWidth={2.2} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-bold leading-tight text-gray-900">
-                        {hasAnyOrderType ? addrPrimary : locationText}
+                /* Address / order-type selector — only when the store actually
+                   offers an order type. View-only menus (no delivery/ordering)
+                   skip this row instead of echoing the store location. */
+                hasAnyOrderType ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setOrderTypeSheetOpen(true)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    >
+                      <MapPin className="h-[18px] w-[18px] shrink-0" style={{ color: accent }} strokeWidth={2.2} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] font-bold leading-tight text-gray-900">{addrPrimary}</span>
+                        {addrSecondary && (
+                          <span className="block truncate text-[11px] font-medium text-gray-400">{addrSecondary}</span>
+                        )}
                       </span>
-                      {hasAnyOrderType && addrSecondary && (
-                        <span className="block truncate text-[11px] font-medium text-gray-400">{addrSecondary}</span>
-                      )}
-                    </span>
-                    {hasAnyOrderType && <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />}
-                  </button>
-                  {(authUser as any)?.role === "user" && (
-                    <LoyaltyPointsBadge
-                      partnerId={(hoteldata as any)?.id}
-                      currency={(hoteldata as any)?.currency || "₹"}
-                      storeName={(hoteldata as any)?.store_name}
-                    />
-                  )}
-                </div>
+                      <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                    </button>
+                    {(authUser as any)?.role === "user" && (
+                      <LoyaltyPointsBadge
+                        partnerId={(hoteldata as any)?.id}
+                        currency={(hoteldata as any)?.currency || "₹"}
+                        storeName={(hoteldata as any)?.store_name}
+                      />
+                    )}
+                  </div>
+                ) : undefined
               }
             />
           </div>
