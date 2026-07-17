@@ -2,6 +2,7 @@
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner } from "@/store/authStore";
 import PartnerConnectionsCard from "@/components/PartnerConnectionsCard";
+import OwnRazorpayCard from "@/components/superAdmin/OwnRazorpayCard";
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
@@ -541,6 +542,7 @@ For any support or clarification, please contact us anytime.`;
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <PartnerConnectionsCard partnerId={selectedPartner.id} />
+              <OwnRazorpayCard partnerId={selectedPartner.id} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>

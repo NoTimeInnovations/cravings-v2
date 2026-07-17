@@ -77,7 +77,6 @@ import {
   verifyRazorpayPayment,
   markRazorpayOrderPaid,
 } from "@/app/actions/razorpayPartner";
-import { usesOwnRazorpay } from "@/lib/ownRazorpayPartners";
 import {
   resolveCurrencyCode,
   categoryName,
@@ -204,7 +203,10 @@ const PlaceOrderModalV2 = ({
   // the online option as available for them (so the UI renders) and route the
   // charge to Razorpay in handlePay. Everything else (Petpooja push,
   // notifications) is unchanged.
-  const isFlamin = usesOwnRazorpay((hotelData as any)?.id);
+  // Own-Razorpay partners are flagged in the DB (partners.own_razorpay_enabled),
+  // set via the superadmin screen — no per-partner env/code. The flag is a
+  // non-secret boolean on the fetched partner row; credentials stay server-side.
+  const isFlamin = !!(hotelData as any)?.own_razorpay_enabled;
   const baseCashfree =
     (((hotelData as any)?.accept_payments_via_cashfree === true &&
       !!(hotelData as any)?.cashfree_merchant_id) ||

@@ -196,6 +196,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     geo_location
     delivery_rate
     feature_flags
+    own_razorpay_enabled
     phone
     location_details
     whatsapp_numbers

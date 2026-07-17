@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { finalizeCfOrder } from "@/app/actions/cfOrders";
-import { allRazorpayWebhookSecrets } from "@/app/actions/razorpayPartner";
+import { allRazorpayWebhookSecrets } from "@/lib/ownRazorpayServer";
 
 export const dynamic = "force-dynamic";
 

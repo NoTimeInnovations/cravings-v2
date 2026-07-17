@@ -3,41 +3,40 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { fetchFromHasuraServer } from "@/lib/hasuraServerClient";
 import { finalizeCfOrder } from "./cfOrders";
+import { revalidateTag } from "./revalidate";
+import { getAuthCookie } from "@/app/auth/actions";
+import { encryptSecret, tryDecryptSecret, paymentCryptoConfigured } from "@/lib/paymentCrypto";
+import {
+  razorpayCredsForPartner,
+  credsFromRow,
+  fetchPartnerCredRow,
+  type CredRow,
+} from "@/lib/ownRazorpayServer";
 
-// Partners that collect order payments through their OWN Razorpay account
-// (env-gated). Each slug SLUG needs these env vars:
-//   SLUG_PARTNER_ID              — the partner's UUID
-//   SLUG_RAZORPAY_KEY_ID         — their Razorpay key id
-//   SLUG_RAZORPAY_KEY_SECRET     — their Razorpay key secret
-//   SLUG_RAZORPAY_WEBHOOK_SECRET — their Razorpay webhook secret
-// (Plus NEXT_PUBLIC_SLUG_PARTNER_ID so the storefront checkout renders the
-// Razorpay path — see src/lib/ownRazorpayPartners.ts.)
-const RZP_PARTNER_SLUGS = ["FLAMIN", "REGU", "HIGHJOINT", "FOODOUT"];
+// Partners collect order payments through their OWN Razorpay account. Credentials
+// live ENCRYPTED in the DB (partner_payment_credentials, AES-256-GCM ciphertext,
+// AAD-bound to the partner id); the plaintext master key RZP_CREDS_MASTER_KEY is
+// server-only. Onboarding is config-only via the superadmin screen. The storefront
+// renders the Razorpay path off partners.own_razorpay_enabled (a non-secret flag);
+// the browser never receives key_secret / webhook_secret (only the publishable
+// key_id, returned at order-creation time).
+//
+// The credential resolver + webhook-secret helper live in the PLAIN server module
+// src/lib/ownRazorpayServer.ts so they are never dispatchable as Server Actions.
 
-// Resolve a partner's Razorpay keys from env. Read per-call (not at module load)
-// so it always sees the current env. Trims to defend against stray whitespace
-// pasted into .env, which would otherwise 401 from Razorpay.
-function razorpayCredsForPartner(
-  partnerId: string,
-): { slug: string; keyId: string; keySecret: string } | null {
-  for (const slug of RZP_PARTNER_SLUGS) {
-    const pid = (process.env[`${slug}_PARTNER_ID`] || "").trim();
-    if (pid && pid === partnerId) {
-      const keyId = (process.env[`${slug}_RAZORPAY_KEY_ID`] || "").trim();
-      const keySecret = (process.env[`${slug}_RAZORPAY_KEY_SECRET`] || "").trim();
-      return keyId && keySecret ? { slug, keyId, keySecret } : null;
-    }
+// The payment (customer-facing) actions below are intentionally callable without
+// an admin session — they run during checkout. The CREDENTIAL-MANAGEMENT actions
+// (getOwnRazorpayStatus / saveOwnRazorpayCredentials / setOwnRazorpayEnabled) are
+// gated by requireSuperadmin(), because a "use server" export is a public RPC
+// endpoint and these decide where a partner's money goes.
+async function requireSuperadmin(): Promise<{ id: string }> {
+  const auth = await getAuthCookie();
+  if (!auth?.id || auth.role !== "superadmin") {
+    throw new Error("Not authorized");
   }
-  return null;
-}
-
-// Every configured partner's webhook secret — the shared /api/fhc/razorpay
-// webhook tries each so multiple accounts can point at the same URL.
-export async function allRazorpayWebhookSecrets(): Promise<string[]> {
-  return RZP_PARTNER_SLUGS.map((s) =>
-    (process.env[`${s}_RAZORPAY_WEBHOOK_SECRET`] || "").trim(),
-  ).filter(Boolean);
+  return { id: auth.id };
 }
 
 export async function createRazorpayOrderForPartner(
@@ -46,7 +45,7 @@ export async function createRazorpayOrderForPartner(
   amount: number, // in rupees (e.g. 299.00)
   customer: { id: string; name: string; phone: string; email?: string },
 ) {
-  const creds = razorpayCredsForPartner(partnerId);
+  const creds = await razorpayCredsForPartner(partnerId);
   if (!creds) {
     return { success: false, error: "Razorpay not enabled for this restaurant" };
   }
@@ -65,14 +64,9 @@ export async function createRazorpayOrderForPartner(
       },
     });
 
-    // Store the Razorpay order id on the local order row so the webhook can
-    // map a payment.captured event back to our order (mirrors how Cashfree
-    // stores cashfree_order_id). We reuse the cashfree_order_id column as the
-    // generic "provider order id" — flamin never uses Cashfree, and the
-    // reconcile cron safely no-ops on it (no Cashfree merchant configured).
-    // Also overwrite payment_method to "razorpay" — the deferred pending-order
-    // mutation hardcodes "cashfree" (it was built for the platform Cashfree
-    // flow), which made flamin's draft orders show "cashfree" in admin-v2.
+    // Store the Razorpay order id on the local order row so the webhook can map a
+    // payment.captured event back to our order (reusing cashfree_order_id as the
+    // generic "provider order id"). Also stamp payment_method="razorpay".
     try {
       await fetchFromHasura(
         `mutation SetRazorpayOrderId($id: uuid!, $rzp_order_id: String!) {
@@ -81,18 +75,18 @@ export async function createRazorpayOrderForPartner(
         { id: orderId, rzp_order_id: order.id },
       );
     } catch (e) {
-      console.error("[razorpay-flamin] failed to persist rzp_order_id on order", orderId, e);
+      console.error("[razorpay] failed to persist rzp_order_id on order", orderId, e);
     }
 
-    console.log(`[razorpay-${creds.slug.toLowerCase()}] create-order ok`, "rzp_order_id=", order.id);
+    console.log(`[razorpay] create-order ok`, "partner=", partnerId, "rzp_order_id=", order.id);
 
     return {
       success: true,
       rzpOrderId: order.id,
-      keyId: creds.keyId, // safe to send to client
+      keyId: creds.keyId, // publishable — safe to send to client
     };
   } catch (error: any) {
-    console.error("[razorpay-flamin] create-order FAILED", error);
+    console.error("[razorpay] create-order FAILED", error);
     return {
       success: false,
       error: error?.error?.description || "Failed to create payment order",
@@ -101,30 +95,30 @@ export async function createRazorpayOrderForPartner(
 }
 
 // Call this server-side after Razorpay checkout.js fires the handler callback.
-// rzpOrderId + rzpPaymentId + rzpSignature come from the Razorpay handler response.
 export async function verifyRazorpayPayment(
   partnerId: string,
   rzpOrderId: string,
   rzpPaymentId: string,
   rzpSignature: string,
 ) {
-  const creds = razorpayCredsForPartner(partnerId);
+  const creds = await razorpayCredsForPartner(partnerId);
   if (!creds) return { success: false, paid: false };
   const generated = crypto
     .createHmac("sha256", creds.keySecret)
     .update(`${rzpOrderId}|${rzpPaymentId}`)
     .digest("hex");
 
-  const isValid = generated === rzpSignature;
-  console.log(`[razorpay-${creds.slug.toLowerCase()}] verify`, "valid=", isValid, "payment=", rzpPaymentId);
+  // Constant-time compare (both hex digests are the same length).
+  const a = Buffer.from(generated, "utf8");
+  const b = Buffer.from(rzpSignature || "", "utf8");
+  const isValid = a.length === b.length && crypto.timingSafeEqual(a, b);
+  console.log(`[razorpay] verify`, "partner=", partnerId, "valid=", isValid, "payment=", rzpPaymentId);
 
   return { success: true, paid: isValid };
 }
 
-// Lightweight mark-paid for the "pay an already-placed order" flow
-// (/order/[id]), mirroring cashfree's markOrderAsPaid — it does NOT finalize /
-// push to Petpooja (the order is already visible in the system; we only record
-// the payment). Sets payment_method to razorpay so admin-v2 shows it correctly.
+// Lightweight mark-paid for the "pay an already-placed order" flow (/order/[id]) —
+// records the payment without finalizing / pushing to Petpooja.
 export async function markRazorpayOrderPaidSimple(orderId: string, rzpPaymentId?: string) {
   const set: Record<string, any> = { is_paid: true, payment_method: "razorpay" };
   if (rzpPaymentId) set.cashfree_payment_id = rzpPaymentId;
@@ -136,14 +130,9 @@ export async function markRazorpayOrderPaidSimple(orderId: string, rzpPaymentId?
   );
 }
 
-// Run the SAME finalization the Cashfree success path uses: claim the order
-// idempotently, mark it paid, and push to Petpooja / notify the partner.
-// finalizeCfOrder is generic (keyed on orderId) — it reads cf_pp_payload from
-// the order row, so the order MUST have been created via the same pending-order
-// path that stamps cf_pp_payload (see createPendingCfOrder).
+// Run the SAME finalization the Cashfree success path uses: claim idempotently,
+// mark paid, push to Petpooja / notify the partner.
 export async function markRazorpayOrderPaid(orderId: string, rzpPaymentId: string) {
-  // payment_method isn't touched by finalizeCfOrder, so stamp it separately
-  // for attribution before finalizing.
   await fetchFromHasura(
     `mutation SetRazorpayPaymentMethod($id: uuid!) {
       update_orders_by_pk(pk_columns: {id: $id}, _set: { payment_method: "razorpay" }) { id }
@@ -152,4 +141,146 @@ export async function markRazorpayOrderPaid(orderId: string, rzpPaymentId: strin
   );
 
   return finalizeCfOrder(orderId, rzpPaymentId);
+}
+
+// ── Superadmin: manage a partner's own-Razorpay credentials (encrypted at rest) ──
+// Every call is authorized (requireSuperadmin) and audited with the SERVER-derived
+// actor (never a client-supplied value). The UI never gets stored secrets back.
+
+function last4(s: string): string {
+  return s.length >= 4 ? s.slice(-4) : s;
+}
+
+async function auditCredChange(
+  partnerId: string,
+  action: string,
+  actor: string,
+  details?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await fetchFromHasuraServer(
+      `mutation AuditCred($obj: payment_credential_audit_insert_input!) {
+        insert_payment_credential_audit_one(object: $obj) { id }
+      }`,
+      { obj: { partner_id: partnerId, action, actor, details: details || {} } },
+    );
+  } catch (e) {
+    console.warn("[razorpay] audit insert failed", e);
+  }
+}
+
+export async function getOwnRazorpayStatus(partnerId: string) {
+  await requireSuperadmin();
+  const base = {
+    enabled: false,
+    hasCredentials: false,
+    keyIdLast4: null as string | null,
+    hasWebhookSecret: false,
+    masterKeyConfigured: paymentCryptoConfigured(),
+  };
+  if (!partnerId) return base;
+  try {
+    const data = await fetchFromHasuraServer(
+      `query RzpStatus($id: uuid!) {
+        partners_by_pk(id: $id) { own_razorpay_enabled }
+        partner_payment_credentials_by_pk(partner_id: $id) { key_id key_secret_enc webhook_secret_enc }
+      }`,
+      { id: partnerId },
+    );
+    const row = (data as any)?.partner_payment_credentials_by_pk as CredRow | null;
+    return {
+      enabled: !!(data as any)?.partners_by_pk?.own_razorpay_enabled,
+      hasCredentials: !!credsFromRow(row, partnerId),
+      keyIdLast4: row?.key_id ? last4(row.key_id) : null,
+      hasWebhookSecret: !!tryDecryptSecret(row?.webhook_secret_enc, partnerId),
+      masterKeyConfigured: paymentCryptoConfigured(),
+    };
+  } catch (e) {
+    console.error("[razorpay] status lookup failed", e);
+    return base;
+  }
+}
+
+// A BLANK secret field means "keep the existing secret". key_id is always required.
+// Secrets are AAD-bound to the partner id before storage.
+export async function saveOwnRazorpayCredentials(
+  partnerId: string,
+  creds: { keyId: string; keySecret?: string; webhookSecret?: string },
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = await requireSuperadmin();
+  if (!partnerId) return { ok: false, error: "partnerId required" };
+  if (!paymentCryptoConfigured()) {
+    return { ok: false, error: "RZP_CREDS_MASTER_KEY is not configured on the server" };
+  }
+  const keyId = (creds.keyId || "").trim();
+  if (!keyId) return { ok: false, error: "Key ID is required" };
+  try {
+    const obj: Record<string, any> = {
+      partner_id: partnerId,
+      provider: "razorpay",
+      key_id: keyId,
+      updated_by: admin.id,
+      updated_at: new Date().toISOString(),
+    };
+    if (creds.keySecret && creds.keySecret.trim()) {
+      obj.key_secret_enc = encryptSecret(creds.keySecret.trim(), partnerId);
+    }
+    if (creds.webhookSecret && creds.webhookSecret.trim()) {
+      obj.webhook_secret_enc = encryptSecret(creds.webhookSecret.trim(), partnerId);
+    }
+    const updateColumns = Object.keys(obj).filter((k) => k !== "partner_id");
+    await fetchFromHasuraServer(
+      `mutation UpsertRzpCreds(
+        $obj: partner_payment_credentials_insert_input!,
+        $cols: [partner_payment_credentials_update_column!]!
+      ) {
+        insert_partner_payment_credentials_one(
+          object: $obj,
+          on_conflict: { constraint: partner_payment_credentials_pkey, update_columns: $cols }
+        ) { partner_id }
+      }`,
+      { obj, cols: updateColumns },
+    );
+    await auditCredChange(partnerId, "saved_credentials", admin.id, {
+      keyIdLast4: last4(keyId),
+      setKeySecret: !!obj.key_secret_enc,
+      setWebhookSecret: !!obj.webhook_secret_enc,
+    });
+    revalidateTag(partnerId);
+    return { ok: true };
+  } catch (e: any) {
+    console.error("[razorpay] save creds failed", e?.message || e);
+    return { ok: false, error: "Failed to save credentials" };
+  }
+}
+
+// Flip the storefront-facing own_razorpay_enabled flag. Enabling is blocked unless
+// usable (decryptable) credentials are already stored.
+export async function setOwnRazorpayEnabled(
+  partnerId: string,
+  enabled: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = await requireSuperadmin();
+  if (!partnerId) return { ok: false, error: "partnerId required" };
+  try {
+    if (enabled) {
+      if (!paymentCryptoConfigured()) {
+        return { ok: false, error: "RZP_CREDS_MASTER_KEY is not configured on the server" };
+      }
+      const usable = credsFromRow(await fetchPartnerCredRow(partnerId), partnerId);
+      if (!usable) return { ok: false, error: "Add valid Razorpay credentials before enabling" };
+    }
+    await fetchFromHasuraServer(
+      `mutation SetOwnRzpEnabled($id: uuid!, $en: Boolean!) {
+        update_partners_by_pk(pk_columns: { id: $id }, _set: { own_razorpay_enabled: $en }) { id }
+      }`,
+      { id: partnerId, en: enabled },
+    );
+    await auditCredChange(partnerId, enabled ? "enabled" : "disabled", admin.id, {});
+    revalidateTag(partnerId);
+    return { ok: true };
+  } catch (e: any) {
+    console.error("[razorpay] setEnabled failed", e?.message || e);
+    return { ok: false, error: "Failed to update" };
+  }
 }

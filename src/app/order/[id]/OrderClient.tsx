@@ -24,7 +24,6 @@ import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { createCashfreeOrderForPartner, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
 import { createRazorpayOrderForPartner, verifyRazorpayPayment, markRazorpayOrderPaidSimple } from "@/app/actions/razorpayPartner";
-import { usesOwnRazorpay } from "@/lib/ownRazorpayPartners";
 import { verifyCashfreePaymentSettled } from "@/lib/cashfreeVerify";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import { isCustomDomainHost } from "@/lib/domain-utils";
@@ -95,6 +94,7 @@ const GET_ORDER_QUERY = `
         name
         username
         feature_flags
+        own_razorpay_enabled
         petpooja_restaurant_id
         geo_location
       }
@@ -525,9 +525,10 @@ ${itemsText}
     const whatsappLink = buildWhatsappLink();
     const hasUpiQr = partnerPaymentInfo?.show_payment_qr && !!partnerPaymentInfo?.upi_id;
     const hasCashfree = partnerPaymentInfo?.accept_payments_via_cashfree === true && !!partnerPaymentInfo?.cashfree_merchant_id;
-    // Some partners (Flamin Hot Chicken, Regu Sweets, …) pay via their own
-    // Razorpay, not the platform Cashfree.
-    const isFlamin = usesOwnRazorpay(order?.partnerId);
+    // Some partners collect payments via their OWN Razorpay, not the platform
+    // Cashfree. Flagged in the DB (partners.own_razorpay_enabled) via superadmin —
+    // no per-partner env/code. Credentials stay server-side.
+    const isFlamin = !!(order?.partner as any)?.own_razorpay_enabled;
 
     const handleCashfreePayment = async () => {
         if (!order) return;
