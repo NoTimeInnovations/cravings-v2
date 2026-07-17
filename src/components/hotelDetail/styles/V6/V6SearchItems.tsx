@@ -152,7 +152,7 @@ const V6SearchRow = ({
         {shouldShowPrice && (
           <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-gray-900">
             {hasVariants && <span className="text-[10px] font-medium text-gray-400">From </span>}
-            <MenuPrice currency={hoteldata?.currency} amount={formatPrice(price, hoteldata?.id)} />
+            <MenuPrice forceSymbolLtr currency={hoteldata?.currency} amount={formatPrice(price, hoteldata?.id)} />
           </div>
         )}
         {item.description && (
@@ -277,13 +277,13 @@ const V6SearchRow = ({
                       <div className="flex-shrink-0 text-sm font-semibold">
                         {hasValidVariantOffer ? (
                           <div className="flex items-center gap-1.5">
-                            <MenuPrice className="text-gray-900" currency={hoteldata?.currency} amount={formatPrice(variantOffer!.offer_price!, hoteldata?.id)} />
+                            <MenuPrice forceSymbolLtr className="text-gray-900" currency={hoteldata?.currency} amount={formatPrice(variantOffer!.offer_price!, hoteldata?.id)} />
                             {hasValidOriginalPrice && originalVariantPrice! > variantOffer!.offer_price! && (
-                              <MenuPrice className="text-xs font-normal text-gray-400 line-through" currency={hoteldata?.currency} amount={formatPrice(originalVariantPrice, hoteldata?.id)} />
+                              <MenuPrice forceSymbolLtr className="text-xs font-normal text-gray-400 line-through" currency={hoteldata?.currency} amount={formatPrice(originalVariantPrice, hoteldata?.id)} />
                             )}
                           </div>
                         ) : hasValidOriginalPrice && originalVariantPrice! > 0 ? (
-                          <MenuPrice className="text-gray-700" currency={hoteldata?.currency} amount={formatPrice(originalVariantPrice, hoteldata?.id)} />
+                          <MenuPrice forceSymbolLtr className="text-gray-700" currency={hoteldata?.currency} amount={formatPrice(originalVariantPrice, hoteldata?.id)} />
                         ) : null}
                       </div>
                     )}

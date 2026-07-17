@@ -26,6 +26,7 @@ export function MenuPrice({
   amount,
   className,
   symbolClassName,
+  forceSymbolLtr = false,
 }: {
   currency?: string | null;
   amount: React.ReactNode;
@@ -33,6 +34,10 @@ export function MenuPrice({
   className?: string;
   /** Extra classes for the currency-symbol span only. */
   symbolClassName?: string;
+  /** Force the symbol's glyphs into stored/logical left-to-right order (via
+   *  bidi-override). Multi-glyph Arabic symbols (e.g. "ر.ق") otherwise lay out
+   *  in their natural RTL order; opt in to show them exactly as authored. */
+  forceSymbolLtr?: boolean;
 }) {
   const lang = useMenuLanguageStore((s) => s.lang);
   const symbol = currencySymbolForLang(currency, lang);
@@ -49,7 +54,11 @@ export function MenuPrice({
       {showSymbol && (
         <>
           {" "}
-          <span translate="no" className={cn("notranslate", symbolClassName)}>
+          <span
+            translate="no"
+            className={cn("notranslate", symbolClassName)}
+            style={forceSymbolLtr ? { direction: "ltr", unicodeBidi: "bidi-override" } : undefined}
+          >
             {symbol}
           </span>
         </>
