@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import type { HotelData } from "@/app/hotels/[...id]/page";
@@ -29,6 +29,20 @@ export default function V6BrandHeader({
   const [bannerError, setBannerError] = useState(false);
   const showBanner = !!storeBanner && !bannerError;
 
+  // The partner's logo-scale (storefront_settings.bannerLogo) zooms past the
+  // whitespace many logo images carry, so the mark fills its box.
+  const logoScale = useMemo(() => {
+    const raw = (hoteldata as any)?.storefront_settings;
+    let parsed: any = null;
+    try {
+      parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch {
+      parsed = null;
+    }
+    const rawScale = typeof parsed?.bannerLogo?.scale === "number" ? parsed.bannerLogo.scale : 100;
+    return Math.min(5, Math.max(0.5, rawScale / 100));
+  }, [(hoteldata as any)?.storefront_settings]);
+
   const subtitle =
     (hoteldata as any)?.store_tagline ||
     (hoteldata as any)?.location_details ||
@@ -49,10 +63,10 @@ export default function V6BrandHeader({
             <ArrowLeft className="h-[17px] w-[17px]" />
           </button>
         )}
-        {/* Logo — shown in full (no border / rounding / crop). Fixed compact
-            height with auto width so the logo keeps its aspect ratio (wide logos
-            get wider, not a taller header). */}
-        <div className="flex h-[52px] shrink-0 items-center justify-center">
+        {/* Logo — full logo (no border / rounding) in a compact square; the
+            partner's logo scale zooms past the image's whitespace so the mark
+            fills the box and the name stays tight on the left. */}
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden">
           {showBanner ? (
             isVideoUrl(storeBanner as string) ? (
               <video
@@ -61,13 +75,15 @@ export default function V6BrandHeader({
                 preload="metadata"
                 muted
                 playsInline
-                className="h-full w-auto max-w-[130px] object-contain"
+                className="h-full w-full object-contain"
+                style={{ transform: `scale(${logoScale})` }}
               />
             ) : (
               <img
                 src={storeBanner}
                 alt={hoteldata?.store_name}
-                className="h-full w-auto max-w-[130px] object-contain"
+                className="h-full w-full object-contain"
+                style={{ transform: `scale(${logoScale})` }}
                 onError={() => setBannerError(true)}
               />
             )
