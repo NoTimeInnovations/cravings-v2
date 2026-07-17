@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/dispatch-due-porter",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/backfill-own-razorpay",
+      "schedule": "* * * * *"
     }
   ]
 }
