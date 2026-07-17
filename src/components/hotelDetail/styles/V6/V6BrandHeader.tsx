@@ -37,7 +37,7 @@ export default function V6BrandHeader({
     "";
 
   return (
-    <div className="rounded-2xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-black/[0.03]">
+    <div className="rounded-2xl bg-white pl-1.5 pr-3 py-2.5 shadow-sm ring-1 ring-black/[0.03]">
       {/* ===== Identity row ===== */}
       <div className="flex items-center gap-2.5">
         {onBack && (
