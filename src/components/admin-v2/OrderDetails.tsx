@@ -463,6 +463,12 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 )}
                             </div>
                         </div>
+                        {order.user?.full_name && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Name:</span>
+                                <span className="font-medium text-right">{order.user.full_name}</span>
+                            </div>
+                        )}
                         {order.scheduled_date && (
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">{order.booking_persons ? "Table booking:" : "Prebooked for:"}</span>
