@@ -352,28 +352,19 @@ export function AdminV2WhatsAppBroadcast() {
       const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
 
-      const pendingOf = (b: BroadcastRow) =>
-        Math.max(
-          0,
-          (b.total_recipients || 0) -
-            b.sent_count -
-            b.delivered_count -
-            b.read_count -
-            b.failed_count,
-        );
-
-      // Grand totals across all broadcasts.
+      // Grand totals. sent/delivered/read are cumulative funnel stages
+      // (delivered already includes read), so we only surface the numbers an
+      // owner actually needs — how many were delivered, read, and failed — each
+      // as a share of everyone messaged. No confusing overlapping/derived rows.
       const totals = broadcasts.reduce(
         (acc, b) => {
           acc.recipients += b.total_recipients || 0;
-          acc.sent += b.sent_count || 0;
           acc.delivered += b.delivered_count || 0;
           acc.read += b.read_count || 0;
           acc.failed += b.failed_count || 0;
-          acc.pending += pendingOf(b);
           return acc;
         },
-        { recipients: 0, sent: 0, delivered: 0, read: 0, failed: 0, pending: 0 },
+        { recipients: 0, delivered: 0, read: 0, failed: 0 },
       );
 
       // Costs can span currencies — sum per currency so the total is never wrong.
@@ -383,57 +374,49 @@ export function AdminV2WhatsAppBroadcast() {
         const cur = (b.cost_currency || "INR").toUpperCase();
         costByCurrency.set(cur, (costByCurrency.get(cur) || 0) + b.total_cost);
       }
-      const costLines = [...costByCurrency.entries()].map(([cur, amt]) =>
-        formatMoney(amt, cur),
-      );
+      const costLine = costByCurrency.size
+        ? [...costByCurrency.entries()].map(([cur, amt]) => formatMoney(amt, cur)).join("  |  ")
+        : "—";
 
-      // ── Sheet 1: Overview (totals only) ──
+      // ── Sheet 1: Overview — only the headline numbers ──
       const overview: (string | number)[][] = [
-        ["WhatsApp broadcasts — overall report"],
+        ["WhatsApp broadcasts — summary"],
         ["Generated", fmtTime(new Date().toISOString())],
         [],
-        ["Total broadcasts", broadcasts.length],
-        ["Total recipients", totals.recipients],
-        ["Sent", totals.sent],
-        ["Delivered", totals.delivered],
-        ["Read", totals.read],
-        ["Failed", totals.failed],
-        ["Pending", totals.pending],
+        ["Broadcasts", broadcasts.length],
+        ["Recipients", totals.recipients],
+        ["Delivered", totals.delivered, `${pct(totals.delivered, totals.recipients)}%`],
+        ["Read", totals.read, `${pct(totals.read, totals.recipients)}%`],
+        ["Failed", totals.failed, `${pct(totals.failed, totals.recipients)}%`],
         [],
-        ["Total cost (est.)", costLines.length ? costLines.join("  |  ") : "—"],
+        ["Total cost (est.)", costLine],
       ];
       const wsOverview = XLSX.utils.aoa_to_sheet(overview);
-      wsOverview["!cols"] = [{ wch: 22 }, { wch: 34 }];
+      wsOverview["!cols"] = [{ wch: 20 }, { wch: 18 }, { wch: 10 }];
       XLSX.utils.book_append_sheet(wb, wsOverview, "Overview");
 
-      // ── Sheet 2: Broadcasts (one totals row each) ──
+      // ── Sheet 2: one row per broadcast — same headline metrics ──
       const header = [
         "Template",
         "Language",
-        "Category",
         "Status",
         "Created",
         "Recipients",
-        "Sent",
         "Delivered",
         "Read",
         "Failed",
-        "Pending",
-        "Total cost",
+        "Cost",
         "Currency",
       ];
       const rows = broadcasts.map((b) => [
         b.template_name || "",
         b.language || "",
-        b.category || "",
         broadcastStatusLabel(b.status, b.scheduled_at),
         fmtTime(b.created_at),
         b.total_recipients || 0,
-        b.sent_count || 0,
         b.delivered_count || 0,
         b.read_count || 0,
         b.failed_count || 0,
-        pendingOf(b),
         b.total_cost || 0,
         (b.cost_currency || "").toUpperCase(),
       ]);
@@ -442,29 +425,23 @@ export function AdminV2WhatsAppBroadcast() {
         "",
         "",
         "",
-        "",
         totals.recipients,
-        totals.sent,
         totals.delivered,
         totals.read,
         totals.failed,
-        totals.pending,
         costByCurrency.size === 1 ? [...costByCurrency.values()][0] : "",
-        costByCurrency.size === 1 ? [...costByCurrency.keys()][0] : "mixed",
+        costByCurrency.size === 1 ? [...costByCurrency.keys()][0] : costByCurrency.size ? "mixed" : "",
       ];
       const wsList = XLSX.utils.aoa_to_sheet([header, ...rows, [], totalRow]);
       wsList["!cols"] = [
         { wch: 26 },
         { wch: 10 },
         { wch: 12 },
-        { wch: 12 },
         { wch: 18 },
         { wch: 12 },
-        { wch: 8 },
         { wch: 10 },
         { wch: 8 },
         { wch: 8 },
-        { wch: 9 },
         { wch: 12 },
         { wch: 9 },
       ];
@@ -2144,32 +2121,21 @@ function BroadcastDetailDialog({
       const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
       const cur = detail.cost_currency || quality?.currency || "INR";
-      const pending = Math.max(
-        0,
-        (detail.total_recipients || 0) -
-          detail.sent_count -
-          detail.delivered_count -
-          detail.read_count -
-          detail.failed_count,
-      );
-
+      const recips = detail.total_recipients || 0;
       const summary: (string | number)[][] = [
         ["Broadcast report"],
         [],
         ["Template", detail.template_name],
         ["Language", detail.language],
-        ["Category", detail.category],
         ["Status", detail.status],
         ["Created", fmtTime(detail.created_at)],
         ["Started", detail.started_at ? fmtTime(detail.started_at) : "—"],
         ["Completed", detail.completed_at ? fmtTime(detail.completed_at) : "—"],
         [],
-        ["Total recipients", detail.total_recipients || 0],
-        ["Sent", detail.sent_count],
-        ["Delivered", detail.delivered_count],
-        ["Read", detail.read_count],
-        ["Failed", detail.failed_count],
-        ["Pending", pending],
+        ["Recipients", recips],
+        ["Delivered", detail.delivered_count, `${pct(detail.delivered_count, recips)}%`],
+        ["Read", detail.read_count, `${pct(detail.read_count, recips)}%`],
+        ["Failed", detail.failed_count, `${pct(detail.failed_count, recips)}%`],
         [],
         ["Total cost (est.)", `${detail.total_cost ?? 0} ${cur}`],
       ];
