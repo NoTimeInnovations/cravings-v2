@@ -68,6 +68,7 @@ import { displayChargeName } from "@/lib/chargeLabel";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
 import ManualPorterBookButton from "./ManualPorterBookButton";
+import PorterDispatchCountdown from "./PorterDispatchCountdown";
 import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
 import PoolRiderPanel from "@/components/PoolRiderPanel";
 import { checkAllProvidersAvailability } from "@/app/actions/deliveryAgent";
@@ -538,6 +539,20 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     !getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled &&
                     !getFeatures((userData as Partner)?.feature_flags || null).delivery_pool.enabled && (
                         <DeliveryBoyAssignment order={order} />
+                    )}
+
+                {/* Delayed auto-book countdown — the order reached the auto-book
+                    trigger but the partner set a booking delay, so it's stamped
+                    with porter_dispatch_due_at and the cron will book at that
+                    time. Only while genuinely pending: future due_at, no dispatch
+                    attempted yet (a stale past stamp can linger next to a
+                    cancelled dispatch — don't show the countdown for that). */}
+                {order.type === "delivery" &&
+                    getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled &&
+                    !!order.porter_dispatch_due_at &&
+                    !(order as any).delivery_provider_meta?.dispatchId &&
+                    !(order as any).delivery_provider_state && (
+                        <PorterDispatchCountdown dueAt={order.porter_dispatch_due_at} />
                     )}
 
                 {/* Manual porter-bridge booking — for partners who turned off

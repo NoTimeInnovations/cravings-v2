@@ -409,6 +409,10 @@ export interface Order {
     [k: string]: any;
   } | null;
   delivery_provider_last_event_at?: string | null;
+  /** When set (future timestamp) the order is scheduled for a delayed porter
+   *  auto-book; the dispatch-due-porter cron books it at this time. Drives the
+   *  countdown shown in OrderDetails. Cleared to null once booked/cancelled. */
+  porter_dispatch_due_at?: string | null;
   delivery_boy?: {
     id: string;
     name: string;
@@ -938,6 +942,7 @@ const useOrderStore = create(
               delivery_provider: order.delivery_provider ?? null,
               delivery_provider_state: order.delivery_provider_state ?? null,
               delivery_provider_meta: order.delivery_provider_meta ?? null,
+              porter_dispatch_due_at: order.porter_dispatch_due_at ?? null,
               user: order.user,
               items: order.order_items.map((i: any) => ({
                 id: i.item.id,
@@ -2119,6 +2124,7 @@ const useOrderStore = create(
                 delivery_provider_state
                 delivery_provider_meta
                 delivery_provider_last_event_at
+                porter_dispatch_due_at
                 captainid {
                   id
                   name
@@ -2215,6 +2221,7 @@ const useOrderStore = create(
               delivery_provider_state: order.delivery_provider_state,
               delivery_provider_meta: order.delivery_provider_meta,
               delivery_provider_last_event_at: order.delivery_provider_last_event_at,
+              porter_dispatch_due_at: order.porter_dispatch_due_at ?? null,
               items: order.order_items.map((i: any) => ({
                 id: i.menu?.id,
                 quantity: i.quantity,
@@ -2326,6 +2333,7 @@ function transformOrderFromHasura(order: any): Order {
     delivery_provider_state: order.delivery_provider_state,
     delivery_provider_meta: order.delivery_provider_meta,
     delivery_provider_last_event_at: order.delivery_provider_last_event_at,
+    porter_dispatch_due_at: order.porter_dispatch_due_at ?? null,
     extraCharges: order.extra_charges,
     is_paid: order.is_paid || false,
     cashfree_payment_id: order.cashfree_payment_id || null,

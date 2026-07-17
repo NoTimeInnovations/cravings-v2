@@ -536,6 +536,7 @@ subscription GetPaginatedPartnerOrders(
     delivery_provider_state
     delivery_provider_meta
     delivery_provider_last_event_at
+    porter_dispatch_due_at
     delivery_boy {
       id
       name
