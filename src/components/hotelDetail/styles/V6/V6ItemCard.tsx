@@ -395,17 +395,11 @@ const V6ItemCard = ({
       );
     }
 
-    // View-only (ordering + delivery both off): show a borderless "View" text.
+    // View-only (ordering + delivery both off): no CTA on variant items. Tapping
+    // the card already opens the variant sheet, so the price line stays clean
+    // (just "From <price>") instead of showing a redundant "View" button.
     if ((hasVariants || hasMultipleVariantsOnOffer) && !hasOrderingFeature && !hasDeliveryFeature) {
-      return (
-        <button
-          onClick={(e) => { e.stopPropagation(); setShowVariants(true); }}
-          className="flex items-center justify-center px-1 text-[13px] font-extrabold uppercase tracking-wide transition active:scale-95"
-          style={{ color: accent }}
-        >
-          View
-        </button>
-      );
+      return null;
     }
 
     if (!showAddButton && !((hasVariants || hasMultipleVariantsOnOffer))) return null;
