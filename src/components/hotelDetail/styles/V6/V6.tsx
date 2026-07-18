@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
-  ShoppingBag, Search, ArrowLeft, User, ChevronDown, MapPin,
+  ShoppingBag, Search, ArrowLeft, User, ChevronDown, ChevronRight, MapPin,
   Home as HomeIcon, LayoutGrid, ClipboardList,
 } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -14,6 +14,7 @@ import V6BannerCarousel from "./V6BannerCarousel";
 import V6BrandHeader from "./V6BrandHeader";
 import { LanguageSwitcher } from "../../LanguageSwitcher";
 import { V6_FONT } from "./v6utils";
+import { formatPrice } from "@/lib/constants";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { getFeatures } from "@/lib/getFeatures";
@@ -119,6 +120,9 @@ const V6 = ({
 
   const features = getFeatures(hoteldata?.feature_flags as string);
   const cartCount = cartItems?.reduce((sum, i) => sum + i.quantity, 0) || 0;
+  const cartTotal = cartItems?.reduce((sum, i) => sum + i.price * i.quantity, 0) || 0;
+  const currency = hoteldata?.currency || "₹";
+  const shouldShowCartPrice = currency !== "🚫";
   const openCart = useCallback(() => {
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("open-cart-drawer"));
   }, []);
@@ -347,6 +351,55 @@ const V6 = ({
     );
   };
 
+  // Shared bottom-nav items — rendered inside the floating pill (empty cart) OR
+  // the full-width bottom footer (cart has items). Kept in one place so both
+  // layouts stay in sync.
+  const navItems = (
+    <>
+      <NavBtn
+        icon={<HomeIcon className="h-[20px] w-[20px]" />}
+        label="Home"
+        active={view === "home"}
+        accent={accent}
+        onAccent={onAccent}
+        onClick={() => { setView("home"); window.scrollTo({ top: 0 }); }}
+      />
+      <NavBtn
+        icon={<LayoutGrid className="h-[20px] w-[20px]" />}
+        label="Categories"
+        active={view === "categories" || view === "items"}
+        accent={accent}
+        onAccent={onAccent}
+        onClick={() => { setView("categories"); window.scrollTo({ top: 0 }); }}
+      />
+      {username ? (
+        <Link
+          href={`/${username}/my-orders`}
+          className="flex h-11 items-center justify-center rounded-full px-4 text-gray-500 transition hover:text-gray-800"
+          aria-label="Orders"
+        >
+          <ClipboardList className="h-[20px] w-[20px]" />
+        </Link>
+      ) : (
+        <NavBtn
+          icon={<ClipboardList className="h-[20px] w-[20px]" />}
+          label="Orders"
+          active={false}
+          accent={accent}
+          onAccent={onAccent}
+          onClick={() => setOrdersOpen(true)}
+        />
+      )}
+      <Link
+        href={username ? `/${username}/user-profile` : "/user-profile"}
+        className="flex h-11 items-center justify-center rounded-full px-4 text-gray-500 transition hover:text-gray-800"
+        aria-label="Profile"
+      >
+        <User className="h-[20px] w-[20px]" />
+      </Link>
+    </>
+  );
+
   return (
     <div
       style={{ fontFamily: V6_FONT }}
@@ -356,7 +409,9 @@ const V6 = ({
       }}
     >
       <PullToRefresh />
-      <main className="relative mx-auto max-w-2xl pb-28">
+      {/* Extra bottom padding when the cart footer is docked (cart strip + full-
+          width nav) so the last items are never hidden behind it. */}
+      <main className={`relative mx-auto max-w-2xl ${cartCount > 0 ? "pb-40" : "pb-28"}`}>
         <ShopClosedModalWarning
           hotelId={hoteldata?.id}
           isShopOpen={hoteldata?.is_shop_open}
@@ -638,74 +693,61 @@ const V6 = ({
         )}
       </main>
 
-      {/* ============ FLOATING CART ============ */}
-      {/* Always mounted while ordering is possible so the fly-to-cart animation
-          (which targets this id) has somewhere to land — even on the first add. */}
-      {showBottomNav && (
-        <button
+      {/* ============ FLOATING CART / CHECKOUT ============ */}
+      {/* Empty cart: NO visible cart button (there's nothing to view yet). We keep
+          an invisible, non-interactive anchor at the same spot purely so the
+          fly-to-cart animation on the very FIRST add still has a landing target
+          (id="v6-cart-target"). Once the cart has items it morphs into the WORDED
+          "View Cart" bar above the nav, which carries the same id — only one target
+          renders at a time. */}
+      {showBottomNav && cartCount === 0 && (
+        <div
           id="v6-cart-target"
-          onClick={openCart}
-          className="fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.28)] transition active:scale-90"
-          style={{ backgroundColor: accent, color: onAccent }}
-          aria-label={`Cart: ${cartCount} item${cartCount === 1 ? "" : "s"}`}
-        >
-          <ShoppingBag className="h-6 w-6" strokeWidth={2.2} />
-          {cartCount > 0 && (
-            <span
-              className="absolute -right-1 -top-1 flex h-6 min-w-[24px] items-center justify-center rounded-full border-2 px-1 text-[12px] font-extrabold tabular-nums"
-              style={{ borderColor: "#f2f1ec", backgroundColor: "#ffffff", color: accent }}
-            >
-              {cartCount}
-            </span>
-          )}
-        </button>
+          aria-hidden="true"
+          className="pointer-events-none fixed bottom-24 left-5 z-40 h-14 w-14 rounded-full opacity-0"
+        />
       )}
 
-      {/* ============ FLOATING BOTTOM NAV ============ */}
-      {showBottomNav && !open_place_order_modal && (
-        <nav className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full bg-white/95 px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.14)] ring-1 ring-black/[0.05] backdrop-blur">
-          <NavBtn
-            icon={<HomeIcon className="h-[20px] w-[20px]" />}
-            label="Home"
-            active={view === "home"}
-            accent={accent}
-            onAccent={onAccent}
-            onClick={() => { setView("home"); window.scrollTo({ top: 0 }); }}
-          />
-          <NavBtn
-            icon={<LayoutGrid className="h-[20px] w-[20px]" />}
-            label="Categories"
-            active={view === "categories" || view === "items"}
-            accent={accent}
-            onAccent={onAccent}
-            onClick={() => { setView("categories"); window.scrollTo({ top: 0 }); }}
-          />
-          {username ? (
-            <Link
-              href={`/${username}/my-orders`}
-              className="flex h-11 items-center justify-center rounded-full px-4 text-gray-500 transition hover:text-gray-800"
-              aria-label="Orders"
+      {/* Bottom nav — ALWAYS a FULL-WIDTH footer pinned to bottom:0 (never a
+          floating pill), in both the empty and filled states. When the cart has
+          items the "View Cart" strip docks directly above it — one container so
+          they never overlap and the footer respects the device safe area. */}
+      {showBottomNav && (
+        <div className="fixed inset-x-0 bottom-0 z-40">
+          {cartCount > 0 && (
+            <button
+              onClick={openCart}
+              aria-label={`View cart: ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+              className="mx-auto mb-2 flex w-[92%] max-w-md items-center justify-between rounded-2xl px-4 py-3.5 shadow-[0_12px_34px_rgba(0,0,0,0.30)] transition active:scale-[0.99]"
+              style={{ backgroundColor: accent, color: onAccent }}
             >
-              <ClipboardList className="h-[20px] w-[20px]" />
-            </Link>
-          ) : (
-            <NavBtn
-              icon={<ClipboardList className="h-[20px] w-[20px]" />}
-              label="Orders"
-              active={false}
-              accent={accent}
-              onAccent={onAccent}
-              onClick={() => setOrdersOpen(true)}
-            />
+              <span className="flex items-center gap-2.5">
+                <span
+                  id="v6-cart-target"
+                  className="flex h-8 w-8 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
+                >
+                  <ShoppingBag className="h-4 w-4" strokeWidth={2.4} />
+                </span>
+                <span className="text-sm font-extrabold">
+                  {cartCount} item{cartCount === 1 ? "" : "s"}
+                  {shouldShowCartPrice ? <> · {currency}{formatPrice(cartTotal, hoteldata?.id)}</> : null}
+                </span>
+              </span>
+              <span className="flex items-center gap-1 text-sm font-extrabold uppercase tracking-wide">
+                View Cart <ChevronRight className="h-4 w-4" />
+              </span>
+            </button>
           )}
-          <Link
-            href={username ? `/${username}/user-profile` : "/user-profile"}
-            className="flex h-11 items-center justify-center rounded-full px-4 text-gray-500 transition hover:text-gray-800"
-            aria-label="Profile"
+          <nav
+            className="border-t border-black/[0.06] bg-white shadow-[0_-6px_24px_rgba(0,0,0,0.08)]"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
-            <User className="h-[20px] w-[20px]" />
-          </Link>
-        </nav>
+            <div className="mx-auto flex max-w-md items-center justify-around px-1 py-2">
+              {navItems}
+            </div>
+          </nav>
+        </div>
       )}
     </div>
   );
