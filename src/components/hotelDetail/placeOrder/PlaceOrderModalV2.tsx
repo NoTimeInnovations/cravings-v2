@@ -1937,12 +1937,6 @@ const PlaceOrderModalV2 = ({
         hotelData.id,
         orderId,
         Math.round(payable * 100) / 100,
-        {
-          id: user.id,
-          name: customerName.trim() || selectedReceiverName || accountReceiverName(user) || "Customer",
-          phone: ((user as any)?.phone || "9999999999").replace(/\D/g, "").slice(-10),
-          email: (user as any)?.email,
-        },
       );
 
       if (!rzpRes.success) {

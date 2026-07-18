@@ -627,12 +627,6 @@ ${itemsText}
                 order.partnerId,
                 orderId,
                 grandTotal,
-                {
-                    id: order.userId || "guest",
-                    name: order.user?.full_name || "Customer",
-                    phone: (order.user?.phone || order.phone || "9999999999").replace(/\D/g, "").slice(-10),
-                    email: order.user?.email,
-                },
             );
             if (!rzpRes.success) throw new Error(rzpRes.error);
 

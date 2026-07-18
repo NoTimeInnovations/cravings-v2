@@ -46,7 +46,6 @@ export async function createRazorpayOrderForPartner(
   partnerId: string,
   orderId: string,
   amount: number, // in rupees (e.g. 299.00)
-  customer: { id: string; name: string; phone: string; email?: string },
 ) {
   const creds = await razorpayCredsForPartner(partnerId);
   if (!creds) {
@@ -59,15 +58,11 @@ export async function createRazorpayOrderForPartner(
       amount: Math.round(amount * 100), // Razorpay expects paise
       currency: "INR",
       receipt: orderId,
-      // Razorpay rejects order creation if any notes value isn't valid UTF-8.
-      // Customer-entered names can carry a lone UTF-16 surrogate (half an emoji
-      // from a phone keyboard / autofill / paste), which has no UTF-8 encoding —
-      // strip those before sending so checkout never fails on bad input.
+      // Only the order id goes in the note — it maps the webhook back to our
+      // order. stripLoneSurrogates keeps the value valid UTF-8 for Razorpay's
+      // notes API (defensive; a system-generated UUID never carries a surrogate).
       notes: {
         order_id: stripLoneSurrogates(orderId),
-        customer_id: stripLoneSurrogates(customer.id),
-        customer_name: stripLoneSurrogates(customer.name),
-        customer_phone: stripLoneSurrogates(customer.phone),
       },
     });
 
