@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import {
   ShoppingCart, Search, ArrowLeft, User, ChevronDown, ChevronRight, MapPin,
@@ -13,7 +13,7 @@ import V6CategoryTile from "./V6CategoryTile";
 import V6BannerCarousel from "./V6BannerCarousel";
 import V6BrandHeader from "./V6BrandHeader";
 import { LanguageSwitcher } from "../../LanguageSwitcher";
-import { V6_FONT } from "./v6utils";
+import { V6_FONT, menuFontStack, menuInk, softInk } from "./v6utils";
 import { formatPrice } from "@/lib/constants";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
@@ -97,9 +97,48 @@ const V6 = ({
   onShowStorefront,
   brandHeader,
   open_place_order_modal,
+  theme,
 }: DefaultHotelPageProps) => {
   const accent = styles.accent || "#16a34a";
   const onAccent = readableTextColor(accent);
+
+  // Per-partner brand surface: an opt-in font (theme.fontFamily) and a brand
+  // text colour ("ink", from theme.colors.text). Both are null/undefined for
+  // stores that don't set them, so V6 keeps its Bricolage + grey-text defaults.
+  const menuFont = menuFontStack(theme?.fontFamily);
+  const ink = menuInk(styles.color);
+  const inkSoft = ink ? softInk(ink) : null;
+
+  // The V6 root cascades the font + ink to the page; the bottom-sheets are
+  // portaled to <body>, so mirror the same variables + flag onto <html> to
+  // reach them too. Restore on unmount so navigating away leaves no residue.
+  useEffect(() => {
+    if (!menuFont && !ink) return;
+    const el = document.documentElement;
+    const prev = {
+      font: el.style.getPropertyValue("--v6-font"),
+      ink: el.style.getPropertyValue("--menu-ink"),
+      inkSoft: el.style.getPropertyValue("--menu-ink-soft"),
+      attr: el.getAttribute("data-menu-ink"),
+    };
+    if (menuFont) el.style.setProperty("--v6-font", menuFont);
+    if (ink && inkSoft) {
+      el.style.setProperty("--menu-ink", ink);
+      el.style.setProperty("--menu-ink-soft", inkSoft);
+      el.setAttribute("data-menu-ink", "");
+    }
+    return () => {
+      const restore = (prop: string, val: string) =>
+        val ? el.style.setProperty(prop, val) : el.style.removeProperty(prop);
+      if (menuFont) restore("--v6-font", prev.font);
+      if (ink) {
+        restore("--menu-ink", prev.ink);
+        restore("--menu-ink-soft", prev.inkSoft);
+        if (prev.attr !== null) el.setAttribute("data-menu-ink", prev.attr);
+        else el.removeAttribute("data-menu-ink");
+      }
+    };
+  }, [menuFont, ink, inkSoft]);
 
   const [view, setView] = useState<View>("home");
   const [activeCatId, setActiveCatId] = useState<string | null>(null);
@@ -402,7 +441,12 @@ const V6 = ({
 
   return (
     <div
-      style={{ fontFamily: V6_FONT }}
+      style={{
+        fontFamily: V6_FONT,
+        ...(menuFont ? { ["--v6-font"]: menuFont } : {}),
+        ...(ink ? { ["--menu-ink"]: ink, ["--menu-ink-soft"]: inkSoft } : {}),
+      } as React.CSSProperties}
+      data-menu-ink={ink ? "" : undefined}
       className="no-image-save min-h-screen bg-[#f2f1ec] antialiased"
       onContextMenu={(e) => {
         if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();

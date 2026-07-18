@@ -661,3 +661,21 @@ button[data-state="open"] h1 .left-marker {
   from { width: 100%; }
   to { width: 0%; }
 }
+
+/* ── V6 "Grocery" per-partner brand text ("ink") ──────────────────────────────
+   When a V6 partner sets a brand text colour, V6 stamps `data-menu-ink` (+ the
+   --menu-ink / --menu-ink-soft variables) on its root and on <html> (so the
+   body-portaled bottom-sheets are covered too). These rules then remap V6's grey
+   text scale onto the brand navy: strong greys → ink, muted greys → soft ink.
+   They are inert without the attribute, so every other storefront is untouched.
+   Accent-coloured text (prices, buttons) uses inline styles and is not matched. */
+[data-menu-ink] .text-gray-900,
+[data-menu-ink] .text-gray-800,
+[data-menu-ink] .text-gray-700 {
+  color: var(--menu-ink);
+}
+[data-menu-ink] .text-gray-500,
+[data-menu-ink] .text-gray-400,
+[data-menu-ink] .text-gray-300 {
+  color: var(--menu-ink-soft);
+}
