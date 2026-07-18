@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   ShoppingCart, Search, ArrowLeft, User, ChevronDown, ChevronRight, MapPin,
@@ -142,6 +142,8 @@ const V6 = ({
 
   const [view, setView] = useState<View>("home");
   const [activeCatId, setActiveCatId] = useState<string | null>(null);
+  // The items-view category tab rail, so we can reveal the active tab in it.
+  const catTabsRef = useRef<HTMLDivElement>(null);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
@@ -334,6 +336,24 @@ const V6 = ({
     setView("items");
     window.scrollTo({ top: 0 });
   }, []);
+
+  // Items view: when the active category changes (or on entering the view),
+  // reveal its tab in the sticky rail so the selected category is visible +
+  // highlighted (instead of the rail sitting at the list start). Only scrolls
+  // when the active tab isn't already fully visible, so tapping a visible tab
+  // never jerks the rail; the jump is instant (no auto sliding).
+  useEffect(() => {
+    if (view !== "items") return;
+    const container = catTabsRef.current;
+    const activeBtn = container?.querySelector<HTMLElement>('[data-cat-active="true"]');
+    if (!container || !activeBtn) return;
+    const cRect = container.getBoundingClientRect();
+    const bRect = activeBtn.getBoundingClientRect();
+    if (bRect.left >= cRect.left && bRect.right <= cRect.right) return; // already visible
+    const target =
+      container.scrollLeft + (bRect.left - cRect.left) - container.clientWidth / 2 + bRect.width / 2;
+    container.scrollTo({ left: Math.max(0, target) });
+  }, [activeCatId, view]);
 
   const activeGroup = activeCatId ? groupById.get(activeCatId) : null;
   const activeCategoryForCard = activeGroup?.category;
@@ -647,12 +667,13 @@ const V6 = ({
             {/* Horizontal category tab selector (active bold, neighbours faded) */}
             {menuCategories.length > 1 && (
               <div className="sticky top-[64px] z-30 bg-[#f2f1ec]/95 backdrop-blur">
-                <div className="flex items-center gap-5 overflow-x-auto scrollbar-hide px-4 py-3">
+                <div ref={catTabsRef} className="flex items-center gap-5 overflow-x-auto scrollbar-hide px-4 py-3">
                   {menuCategories.map((g) => {
                     const active = g.category.id === activeCatId;
                     return (
                       <button
                         key={g.category.id}
+                        data-cat-active={active ? "true" : undefined}
                         onClick={() => { setActiveCatId(g.category.id); window.scrollTo({ top: 0 }); }}
                         className={`shrink-0 whitespace-nowrap transition-all ${
                           active
