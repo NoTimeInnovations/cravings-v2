@@ -41,6 +41,10 @@ import { readableTextColor } from "@/lib/brandColor";
 
 type View = "home" | "categories" | "items";
 
+// Combined height of the items-view sticky header (~64px) + the sticky category
+// tab bar below it — used to align scrolled-to sections and drive scroll-spy.
+const ITEMS_STICKY_OFFSET = 116;
+
 // Resolve the active-offer / upcoming-offer metadata for one item — mirrors the
 // per-item offer computation used by V5 so pricing + variant behaviour match.
 function getOfferMeta(item: any, offers: any[]) {
@@ -144,6 +148,12 @@ const V6 = ({
   const [activeCatId, setActiveCatId] = useState<string | null>(null);
   // The items-view category tab rail, so we can reveal the active tab in it.
   const catTabsRef = useRef<HTMLDivElement>(null);
+  // Items view continuous scroll-spy: a ref per category section, a lock that
+  // suppresses the spy during programmatic scrolls, and the category to align
+  // under the bar when the view is first opened from a tile.
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const spyLockRef = useRef(0);
+  const pendingCatRef = useRef<string | null>(null);
   // Whether the home Categories rail is currently pinned to the top (detected via
   // the sentinel just above it). Drives the "elevated" white bar treatment so the
   // rail reads as a clean toolbar over the scrolling grid instead of blending in.
@@ -337,9 +347,21 @@ const V6 = ({
   }, [hoteldata]);
 
   const openCategory = useCallback((catId: string) => {
+    pendingCatRef.current = catId;
     setActiveCatId(catId);
     setView("items");
-    window.scrollTo({ top: 0 });
+  }, []);
+
+  // Tab tap / programmatic jump: smooth-scroll a category's section to just under
+  // the sticky bar, and briefly suppress the scroll-spy so the tapped tab stays
+  // active through the animation instead of flickering back.
+  const scrollToCategory = useCallback((catId: string, smooth = true) => {
+    const el = sectionRefs.current[catId];
+    if (!el) return;
+    spyLockRef.current = Date.now() + 700;
+    setActiveCatId(catId);
+    const top = el.getBoundingClientRect().top + window.scrollY - ITEMS_STICKY_OFFSET;
+    window.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "auto" });
   }, []);
 
   // Home: flip railStuck once the sticky Categories rail pins to the top (its
@@ -373,6 +395,53 @@ const V6 = ({
       container.scrollLeft + (bRect.left - cRect.left) - container.clientWidth / 2 + bRect.width / 2;
     container.scrollTo({ left: Math.max(0, target) });
   }, [activeCatId, view]);
+
+  // On entering the items view, align the category that was tapped (from a home
+  // tile / the Categories grid) just under the sticky bar. Instant (no sliding).
+  useEffect(() => {
+    if (view !== "items") return;
+    const catId = pendingCatRef.current;
+    pendingCatRef.current = null;
+    const raf = requestAnimationFrame(() => {
+      const el = catId ? sectionRefs.current[catId] : null;
+      if (el) {
+        spyLockRef.current = Date.now() + 400;
+        const top = el.getBoundingClientRect().top + window.scrollY - ITEMS_STICKY_OFFSET;
+        window.scrollTo({ top: Math.max(0, top) });
+      } else {
+        window.scrollTo({ top: 0 });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [view]);
+
+  // Items view: continuous scroll-spy — the active category is whichever section
+  // currently sits under the sticky header + tab bar, so the rail auto-updates
+  // as you scroll from one category into the next.
+  useEffect(() => {
+    if (view !== "items") return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      if (Date.now() < spyLockRef.current) return;
+      let current: string | null = null;
+      for (const g of menuCategories) {
+        const el = sectionRefs.current[g.category.id];
+        if (!el) continue;
+        if (el.getBoundingClientRect().top - ITEMS_STICKY_OFFSET <= 4) current = g.category.id;
+        else break;
+      }
+      if (!current && menuCategories[0]) current = menuCategories[0].category.id;
+      if (current) setActiveCatId((prev) => (prev === current ? prev : current));
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    update();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [view, menuCategories]);
 
   const activeGroup = activeCatId ? groupById.get(activeCatId) : null;
   const activeCategoryForCard = activeGroup?.category;
@@ -699,7 +768,7 @@ const V6 = ({
                       <button
                         key={g.category.id}
                         data-cat-active={active ? "true" : undefined}
-                        onClick={() => { setActiveCatId(g.category.id); window.scrollTo({ top: 0 }); }}
+                        onClick={() => scrollToCategory(g.category.id)}
                         className={`shrink-0 whitespace-nowrap transition-all ${
                           active
                             ? "text-[22px] font-extrabold tracking-tight text-gray-900"
@@ -714,9 +783,24 @@ const V6 = ({
               </div>
             )}
 
-            <div className="pt-2">
-              {renderGrid(activeGroup?.items || [], activeCategoryForCard)}
-            </div>
+            {/* Continuous list of every category — scroll flows from one section
+                into the next; the sticky rail above scroll-spies the current one. */}
+            {menuCategories.map((g) => (
+              <section
+                key={g.category.id}
+                ref={(el) => {
+                  sectionRefs.current[g.category.id] = el;
+                }}
+                className="scroll-mt-[116px] pt-2"
+              >
+                {menuCategories.length > 1 && (
+                  <h2 className="px-4 pb-0.5 pt-1 text-[16px] font-extrabold tracking-tight text-gray-900">
+                    {formatDisplayName(g.category.name)}
+                  </h2>
+                )}
+                {renderGrid(g.items, g.category)}
+              </section>
+            ))}
             <p translate="no" className="py-6 text-center text-[10px] text-gray-300 notranslate">
               {hoteldata?.store_name}
             </p>
