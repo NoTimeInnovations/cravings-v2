@@ -1371,6 +1371,26 @@ const PlaceOrderModalV2 = ({
     }, 250);
   };
 
+  // Auto-close the checkout when the cart becomes empty — e.g. the customer steps
+  // the last line down to zero / removes it here. Uses the same smooth
+  // v3CheckoutOut exit as the back button (handleClose) instead of leaving a
+  // "To Pay 0" screen up. Guarded to ONLY the idle browsing state: never while
+  // placing/verifying or on the success / UPI screens, where placeOrder clears
+  // the cart itself and the modal must stay to show the result.
+  useEffect(() => {
+    if (
+      open_place_order_modal &&
+      orderStatus === "idle" &&
+      !closing &&
+      !successClosing &&
+      !showUpiScreen &&
+      (items?.length ?? 0) === 0
+    ) {
+      handleClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open_place_order_modal, items, orderStatus, closing, successClosing, showUpiScreen]);
+
   const buildExtraCharges = (
     cartItems: typeof items,
     ot: typeof orderType,
