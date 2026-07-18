@@ -463,7 +463,7 @@ const V6ItemCard = ({
         style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(10px)" }}
       >
         {/* Image */}
-        <div className="relative aspect-square w-full overflow-hidden bg-gray-50">
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-50">
           {visible && (
             <img
               ref={imgRef}
