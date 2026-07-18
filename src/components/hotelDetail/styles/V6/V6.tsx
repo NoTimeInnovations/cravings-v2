@@ -15,6 +15,7 @@ import V6BrandHeader from "./V6BrandHeader";
 import { LanguageSwitcher } from "../../LanguageSwitcher";
 import { V6_FONT, menuFontStack, menuInk, softInk } from "./v6utils";
 import { formatPrice } from "@/lib/constants";
+import MenuPrice from "@/components/hotelDetail/MenuPrice";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { getFeatures } from "@/lib/getFeatures";
@@ -448,7 +449,6 @@ const V6 = ({
 
   const outletName = hoteldata?.store_name || "Menu";
   const locationText = hoteldata?.location_details || hoteldata?.district || hoteldata?.country || "";
-  const backAction = onShowStorefront || brandHeader?.onChange;
 
   // Language switcher (store settings → storefront_settings). v6 hosts the globe
   // inline in the brand header instead of the global floating badge.
@@ -608,7 +608,6 @@ const V6 = ({
           <div className="px-4 pt-3 pb-1">
             <V6BrandHeader
               hoteldata={hoteldata}
-              onBack={backAction || undefined}
               extraIcon={
                 <>
                   {/* Search lives here (row 1) instead of a full-width row. */}
@@ -908,7 +907,12 @@ const V6 = ({
                 </span>
                 <span className="text-sm font-extrabold">
                   {cartCount} item{cartCount === 1 ? "" : "s"}
-                  {shouldShowCartPrice ? <> · {currency}{formatPrice(cartTotal, hoteldata?.id)}</> : null}
+                  {shouldShowCartPrice ? (
+                    <>
+                      {" · "}
+                      <MenuPrice forceSymbolLtr currency={currency} amount={formatPrice(cartTotal, hoteldata?.id)} />
+                    </>
+                  ) : null}
                 </span>
               </span>
               <span className="flex items-center gap-1 text-sm font-extrabold uppercase tracking-wide">
