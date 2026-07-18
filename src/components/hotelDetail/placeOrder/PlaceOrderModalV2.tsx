@@ -133,6 +133,28 @@ function accountReceiverName(user: any): string {
   return name;
 }
 
+// Forward-geocode a plain address string to coordinates. Used to seed the map
+// picker near a delivery address that has no pin yet, so the customer lands on
+// (roughly) the right spot to drop it. Best-effort — returns null on any miss.
+async function geocodeAddressText(text: string): Promise<{ lat: number; lng: number } | null> {
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+  const q = (text || "").trim();
+  if (!q || !key) return null;
+  try {
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&key=${key}`,
+    );
+    const data = await res.json();
+    const loc = data?.results?.[0]?.geometry?.location;
+    if (loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lng)) {
+      return { lat: loc.lat, lng: loc.lng };
+    }
+  } catch {
+    /* geocode is best-effort; fall through to null → picker opens on its landing */
+  }
+  return null;
+}
+
 const PlaceOrderModalV2 = ({
   hotelData,
   tableNumber,
@@ -327,7 +349,13 @@ const PlaceOrderModalV2 = ({
     // always show up in saved addresses, even if it was never explicitly saved.
     const curAddr = (useOrderStore.getState().userAddress || "").trim();
     const curCoords = useOrderStore.getState().coordinates;
-    if (curAddr || curCoords) {
+    // Don't manufacture a COORDLESS "Other" entry for a geo-enabled delivery
+    // partner — it would just re-select coordlessly and dead-end at Place Order.
+    // Keep it when coords exist, or for partners that don't require a pin.
+    const needsCoords =
+      !!hotelData?.geo_location &&
+      (hotelData?.delivery_rules?.needDeliveryLocation ?? true);
+    if (curCoords || (curAddr && !needsCoords)) {
       const exists = merged.some(
         (a) =>
           (curCoords != null &&
@@ -1276,12 +1304,37 @@ const PlaceOrderModalV2 = ({
   };
 
   // Address handling
+  // Self-heal for a delivery order whose chosen address has no coordinates
+  // (legacy state, a typed landmark, or the coordless "Other" auto-entry):
+  // instead of dead-ending at "select your location on the map", open the map
+  // picker seeded near the typed address so the customer drops a pin. Confirming
+  // there writes store coordinates (via handleAddressModalSaved →
+  // handleSelectSavedAddress), unblocking checkout.
+  const promptDeliveryLocationOnMap = useCallback(async (addressText?: string) => {
+    const addr = (addressText ?? useOrderStore.getState().userAddress ?? "").trim();
+    setShowAddressSheet(false);
+    toast.message("Confirm your delivery location on the map");
+    const coords = await geocodeAddressText(addr);
+    setMapInitialPick(coords ? { address: addr, coords } : null);
+    setShowAddressModal(true);
+  }, []);
+
   const handleSelectSavedAddress = useCallback((addr: SavedAddress) => {
     const fullAddress =
       addr.address ||
       [addr.flat_no, addr.house_no, addr.area, addr.city]
         .filter(Boolean)
         .join(", ");
+    // Delivery on a geo-enabled partner needs an exact pin — a coordless saved
+    // address would only dead-end at Place Order. Reroute to the map instead
+    // (skipped for takeaway/dine-in, no-geo partners, or needDeliveryLocation=false).
+    const needsCoords =
+      !!hotelData?.geo_location &&
+      (hotelData?.delivery_rules?.needDeliveryLocation ?? true);
+    if (orderType === "delivery" && needsCoords && !(addr.latitude && addr.longitude)) {
+      void promptDeliveryLocationOnMap(fullAddress);
+      return;
+    }
     useOrderStore.getState().setUserAddress(fullAddress);
     if (addr.latitude && addr.longitude) {
       const coords = { lat: addr.latitude, lng: addr.longitude };
@@ -1307,7 +1360,7 @@ const PlaceOrderModalV2 = ({
     const stamped: SavedAddress = { ...addr, receiverPhone, receiverName, savedAt: Date.now() };
     const rest = savedAddresses.filter((a) => a.id !== addr.id);
     persistAddresses([stamped, ...rest]);
-  }, [hotelData, orderType, user, savedAddresses, persistAddresses]);
+  }, [hotelData, orderType, user, savedAddresses, persistAddresses, promptDeliveryLocationOnMap]);
 
   const handleAddressModalSaved = useCallback((addr: SavedAddress) => {
     // Address coming from map picker. The map location IS the address and the
@@ -1705,7 +1758,10 @@ const PlaceOrderModalV2 = ({
       if (needLocation) {
         const coords = useOrderStore.getState().coordinates;
         if (hotelData?.geo_location && !coords) {
-          toast.error("Please select your location on the map.");
+          // Address set but no pin (legacy / coordless saved entry): open the map
+          // to capture coords instead of dead-ending. Placing still blocks until
+          // store coordinates exist, so a geo delivery is never placed without one.
+          void promptDeliveryLocationOnMap(address || undefined);
           return;
         }
         if (deliveryInfo?.isOutOfRange) {
@@ -2116,7 +2172,10 @@ const PlaceOrderModalV2 = ({
       if (needLocation) {
         const coords = useOrderStore.getState().coordinates;
         if (hotelData?.geo_location && !coords) {
-          toast.error("Please select your location on the map.");
+          // Address set but no pin (legacy / coordless saved entry): open the map
+          // to capture coords instead of dead-ending. Placing still blocks until
+          // store coordinates exist, so a geo delivery is never placed without one.
+          void promptDeliveryLocationOnMap(address || undefined);
           return;
         }
         if (useAgentForCharge) {
