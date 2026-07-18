@@ -6,6 +6,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { revalidateTag } from "./revalidate";
 import plansData from "@/data/plans.json";
 import { applyPlanFeatureFlags } from "@/lib/planFeatureFlags";
+import { stripLoneSurrogates } from "@/lib/utf8";
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -63,7 +64,10 @@ export async function createSubscriptionAction(internalPlanId: string, userId: s
             notes: {
                 internal_plan_id: internalPlanId,
                 partner_id: userId,
-                store_name: storeName
+                // store_name is partner-entered free text — strip any lone UTF-16
+                // surrogate so Razorpay doesn't reject the subscription for
+                // invalid UTF-8 in notes.
+                store_name: stripLoneSurrogates(storeName)
             },
         });
 

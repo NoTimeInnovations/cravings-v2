@@ -14,6 +14,7 @@ import {
   fetchPartnerCredRow,
   type CredRow,
 } from "@/lib/ownRazorpayServer";
+import { stripLoneSurrogates } from "@/lib/utf8";
 
 // Partners collect order payments through their OWN Razorpay account. Credentials
 // live ENCRYPTED in the DB (partner_payment_credentials, AES-256-GCM ciphertext,
@@ -58,11 +59,15 @@ export async function createRazorpayOrderForPartner(
       amount: Math.round(amount * 100), // Razorpay expects paise
       currency: "INR",
       receipt: orderId,
+      // Razorpay rejects order creation if any notes value isn't valid UTF-8.
+      // Customer-entered names can carry a lone UTF-16 surrogate (half an emoji
+      // from a phone keyboard / autofill / paste), which has no UTF-8 encoding —
+      // strip those before sending so checkout never fails on bad input.
       notes: {
-        order_id: orderId,
-        customer_id: customer.id,
-        customer_name: customer.name,
-        customer_phone: customer.phone,
+        order_id: stripLoneSurrogates(orderId),
+        customer_id: stripLoneSurrogates(customer.id),
+        customer_name: stripLoneSurrogates(customer.name),
+        customer_phone: stripLoneSurrogates(customer.phone),
       },
     });
 
