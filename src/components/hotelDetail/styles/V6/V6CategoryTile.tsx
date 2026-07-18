@@ -34,7 +34,7 @@ export function V6CategoryTile({
       aria-label={name}
     >
       <div
-        className={`relative overflow-hidden transition-all duration-300 ${isRail ? "rounded-xl" : "aspect-square w-full rounded-[22px]"} ${active ? "ring-2 ring-offset-2" : "ring-1 ring-black/[0.05]"} group-active:scale-95`}
+        className={`relative overflow-hidden transition-all duration-300 ${isRail ? "rounded-2xl" : "aspect-square w-full rounded-2xl"} ${active ? "ring-2 ring-offset-2" : "ring-1 ring-black/[0.05]"} group-active:scale-95`}
         style={{
           width: isRail ? tileSize : undefined,
           height: isRail ? tileSize : undefined,

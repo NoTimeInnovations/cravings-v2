@@ -75,7 +75,7 @@ export function V6BannerCarousel({ banners, accent }: { banners: string[]; accen
 
   return (
     <div
-      className="relative w-full select-none overflow-hidden rounded-[26px] bg-gray-100 shadow-[0_14px_34px_-12px_rgba(0,0,0,0.28)] ring-1 ring-black/[0.05]"
+      className="relative w-full select-none overflow-hidden rounded-2xl bg-gray-100 shadow-[0_14px_34px_-12px_rgba(0,0,0,0.28)] ring-1 ring-black/[0.05]"
       style={{ aspectRatio: "1131 / 583" }}
       onTouchStart={
         isMultiple
