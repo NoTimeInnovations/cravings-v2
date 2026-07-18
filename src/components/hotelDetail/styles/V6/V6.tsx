@@ -144,6 +144,11 @@ const V6 = ({
   const [activeCatId, setActiveCatId] = useState<string | null>(null);
   // The items-view category tab rail, so we can reveal the active tab in it.
   const catTabsRef = useRef<HTMLDivElement>(null);
+  // Whether the home Categories rail is currently pinned to the top (detected via
+  // the sentinel just above it). Drives the "elevated" white bar treatment so the
+  // rail reads as a clean toolbar over the scrolling grid instead of blending in.
+  const [railStuck, setRailStuck] = useState(false);
+  const railSentinelRef = useRef<HTMLDivElement>(null);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
@@ -336,6 +341,20 @@ const V6 = ({
     setView("items");
     window.scrollTo({ top: 0 });
   }, []);
+
+  // Home: flip railStuck once the sticky Categories rail pins to the top (its
+  // sentinel scrolls above the viewport). Reset + re-observe on view change.
+  useEffect(() => {
+    setRailStuck(false);
+    const el = railSentinelRef.current;
+    if (view !== "home" || !el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => setRailStuck(entry.boundingClientRect.top < 0),
+      { threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [view]);
 
   // Items view: when the active category changes (or on entering the view),
   // reveal its tab in the sticky rail so the selected category is visible +
@@ -589,12 +608,22 @@ const V6 = ({
               </section>
             )}
 
-            {/* Categories rail — sticky so the heading + options stay pinned to the
-                top while scrolling the Popular grid, letting the user change
-                category on scroll (tapping a tile opens that category). Opaque
-                cream + blur so content scrolls cleanly underneath. */}
+            {/* Sentinel just above the sticky Categories rail — when it scrolls
+                above the viewport top the rail is pinned, so we elevate it. */}
+            <div ref={railSentinelRef} aria-hidden="true" className="h-0 w-full" />
+
+            {/* Categories rail — sticky so the heading + options stay reachable while
+                scrolling. At rest it blends with the cream page; once pinned it
+                elevates into a clean white toolbar with a soft separation shadow so
+                the grid reads as clearly scrolling underneath it. */}
             {menuCategories.length > 0 && (
-              <section className="sticky top-0 z-30 bg-[#f2f1ec]/95 pb-1 pt-3 backdrop-blur shadow-[0_10px_22px_-18px_rgba(0,0,0,0.45)]">
+              <section
+                className={`sticky top-0 z-30 pb-2 pt-3 transition-[background-color,box-shadow,border-color] duration-200 ${
+                  railStuck
+                    ? "border-b border-black/[0.06] bg-white shadow-[0_6px_16px_-6px_rgba(0,0,0,0.16)]"
+                    : "border-b border-transparent bg-transparent"
+                }`}
+              >
                 <div className="flex items-center justify-between px-4 pb-2.5">
                   <h2 className="text-[18px] font-extrabold tracking-tight text-gray-900">Categories</h2>
                   {menuCategories.length > 4 && (

@@ -24,17 +24,17 @@ export function V6CategoryTile({
   onClick?: () => void;
 }) {
   const isRail = variant === "rail";
-  const tileSize = isRail ? 72 : undefined;
+  const tileSize = isRail ? 54 : undefined;
   const initial = (name || "?").trim().charAt(0).toUpperCase();
 
   return (
     <button
       onClick={onClick}
-      className={`group flex shrink-0 flex-col items-center gap-1.5 focus:outline-none ${isRail ? "w-[76px]" : "w-full"}`}
+      className={`group flex shrink-0 flex-col items-center gap-1 focus:outline-none ${isRail ? "w-[58px]" : "w-full"}`}
       aria-label={name}
     >
       <div
-        className={`relative overflow-hidden transition-all duration-300 ${isRail ? "rounded-2xl" : "aspect-square w-full rounded-[22px]"} ${active ? "ring-2 ring-offset-2" : "ring-1 ring-black/[0.05]"} group-active:scale-95`}
+        className={`relative overflow-hidden transition-all duration-300 ${isRail ? "rounded-xl" : "aspect-square w-full rounded-[22px]"} ${active ? "ring-2 ring-offset-2" : "ring-1 ring-black/[0.05]"} group-active:scale-95`}
         style={{
           width: isRail ? tileSize : undefined,
           height: isRail ? tileSize : undefined,
@@ -61,7 +61,7 @@ export function V6CategoryTile({
         )}
       </div>
       <span
-        className={`w-full truncate text-center font-semibold leading-tight ${isRail ? "text-[12px]" : "text-[13px]"}`}
+        className={`w-full truncate text-center font-semibold leading-tight ${isRail ? "text-[10.5px]" : "text-[13px]"}`}
         style={{ color: active ? accent : "#374151" }}
       >
         {name}
