@@ -569,9 +569,12 @@ const V6 = ({
               </section>
             )}
 
-            {/* Categories rail */}
+            {/* Categories rail — sticky so the heading + options stay pinned to the
+                top while scrolling the Popular grid, letting the user change
+                category on scroll (tapping a tile opens that category). Opaque
+                cream + blur so content scrolls cleanly underneath. */}
             {menuCategories.length > 0 && (
-              <section className="pt-3">
+              <section className="sticky top-0 z-30 bg-[#f2f1ec]/95 pb-1 pt-3 backdrop-blur shadow-[0_10px_22px_-18px_rgba(0,0,0,0.45)]">
                 <div className="flex items-center justify-between px-4 pb-2.5">
                   <h2 className="text-[18px] font-extrabold tracking-tight text-gray-900">Categories</h2>
                   {menuCategories.length > 4 && (
