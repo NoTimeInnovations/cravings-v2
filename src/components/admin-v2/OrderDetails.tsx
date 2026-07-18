@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Bike, XCircle } from "lucide-react";
+import { ArrowLeft, Bike, XCircle, AlertTriangle } from "lucide-react";
 
 // Mapbox-based live tracker reused from the customer order page. Lazy-loaded
 // (ssr: false) because mapbox-gl needs window/document.
@@ -878,15 +878,18 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 case is covered by the progress panel below. */}
             {(order as any).delivery_provider_state === "failed" &&
                 !(order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId && (
-                    <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm">
-                        <p className="font-medium text-rose-800">Rider booking failed</p>
-                        <p className="mt-0.5 text-xs text-rose-700">
-                            {(order.delivery_provider_meta as { error?: string } | null)?.error ||
-                                "The delivery bridge couldn't book a rider for this order."}
-                        </p>
-                        <p className="mt-1 text-xs text-rose-600">
-                            Fix the cause, then use “Book rider now” above to retry.
-                        </p>
+                    <div className="rounded-lg border-2 border-rose-400 bg-rose-50 p-3.5 text-sm flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" />
+                        <div>
+                            <p className="font-semibold text-rose-800">No third-party rider available right now — please deliver this order yourself.</p>
+                            <p className="mt-1 text-xs text-rose-700">
+                                {(order.delivery_provider_meta as { error?: string } | null)?.error ||
+                                    "The delivery bridge couldn't book a rider for this order."}
+                            </p>
+                            <p className="mt-1 text-xs text-rose-600">
+                                You can try again with “Book rider now” above, or arrange your own delivery.
+                            </p>
+                        </div>
                     </div>
                 )}
 

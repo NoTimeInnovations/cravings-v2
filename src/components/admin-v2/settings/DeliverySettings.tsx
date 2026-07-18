@@ -981,6 +981,9 @@ export function DeliverySettings() {
                                         </button>
                                     ))}
                                 </div>
+                                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                    If no third-party rider is available when a customer orders, the order is <strong>still placed</strong> using your Custom delivery pricing (the distance / fixed rate below), and you&apos;ll be asked to deliver it yourself. Keep that pricing set so the fallback charge is correct.
+                                </p>
                             </div>
 
                             <div className="border-t border-orange-100 pt-3">

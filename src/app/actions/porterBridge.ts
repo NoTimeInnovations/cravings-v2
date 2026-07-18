@@ -1053,6 +1053,22 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
     );
   }
 
+  // The whole dispatch exhausted every provider (or errored) without assigning a
+  // rider. Persist "failed" once so the order shows the self-deliver banner
+  // everywhere and the manual "Book rider now" retry button reappears (it's gated
+  // on state === "failed"/"cancelled"). No rider means the restaurant delivers it
+  // themselves. "stopped" is excluded — that's a deliberate cancel, handled above.
+  const dispatchDead = !won && (d.status === "exhausted" || d.status === "error");
+  if (dispatchDead && !terminal && storedState !== "failed") {
+    await persistDispatch(orderId, "dispatch", "failed", null, {
+      dispatchId,
+      dispatchStatus: d.status,
+      error:
+        "No third-party rider available — all delivery partners were tried without success. Please deliver this order yourself.",
+      exhaustedAt: new Date().toISOString(),
+    });
+  }
+
   // Handover OTPs (Rapido sets a 4-digit pickup/drop PIN at book time). Stash
   // them onto the order — append-only so we don't disturb the provider/state
   // lifecycle — the first time they appear, so the order list views +

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { getDispatchProgress, cancelDispatch } from "@/app/actions/porterBridge";
 
 type ProviderState = "won" | "checking" | "tried" | "pending";
@@ -116,6 +117,25 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
           </div>
         ))}
       </div>
+
+      {/* Dispatch exhausted every provider (or errored) with no rider assigned —
+          tell the partner clearly they must self-deliver. Restricted to these
+          terminal no-rider states (NOT "searching"/"running", which are still in
+          progress, and NOT "stopped", which is a deliberate cancel shown below).
+          Mirrors the exhausted->"failed" reconcile in getDispatchProgress. */}
+      {(p.status === "exhausted" || p.status === "error") && !p.wonProvider && !cancelled && (
+        <div className="mt-3 flex items-start gap-3 rounded-lg border-2 border-rose-400 bg-rose-50 p-3.5">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" />
+          <div>
+            <p className="font-semibold text-rose-800">
+              No third-party rider available right now — please deliver this order yourself.
+            </p>
+            <p className="mt-1 text-xs text-rose-700">
+              None of the delivery partners could pick up this order. Use “Book rider now” to try again, or arrange your own delivery.
+            </p>
+          </div>
+        </div>
+      )}
 
       {p.status === "running" && !cancelled && (
         <button

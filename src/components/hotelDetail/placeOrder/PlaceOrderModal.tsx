@@ -711,8 +711,13 @@ const BillCard = ({
   const agentDistance = useAgent && typeof agentQuote?.distanceKm === "number" ? agentQuote.distanceKm : null;
   const usePorter = !!usePorterForCharge;
   const porterPrice = usePorter && porterQuote?.available && typeof porterQuote?.fare === "number" ? porterQuote.fare : 0;
+  // When the third-party quote is unavailable, fall back to the partner's own
+  // delivery pricing so the order is still placeable (never blocks). Porter mode
+  // overrides the legacy hide_delivery_charge flag (same as the live-quote path
+  // and the extra_charges builder that actually bills), so it's not checked here.
+  const porterFallback = deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
   const deliveryCharges = usePorter
-    ? (isDelivery ? porterPrice : 0)
+    ? (isDelivery ? (porterPrice || porterFallback) : 0)
     : useAgent
       ? (isDelivery ? agentPrice : 0)
       : isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
@@ -846,15 +851,19 @@ const BillCard = ({
                 </span>
               ) : porterQuote.available && typeof porterQuote.fare === "number" ? (
                 <span className="text-inherit"><MenuPrice currency={currency} amount={porterQuote.fare.toFixed(0)} /></span>
+              ) : deliveryCharges > 0 ? (
+                <span className="text-inherit"><MenuPrice currency={currency} amount={deliveryCharges.toFixed(0)} /></span>
               ) : (
-                <span className="text-rose-600 text-xs">Not serviceable</span>
+                <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>Free</span>
               )}
             </div>
-            {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
+            {porterQuote?.available && typeof porterQuote.etaMins === "number" ? (
               <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
                 ETA {porterQuote.etaMins} min · via Porter
               </div>
-            )}
+            ) : !porterQuoteLoading && porterQuote && !porterQuote.available ? (
+              <div className="text-xs mt-0.5 text-amber-600">Restaurant will arrange delivery</div>
+            ) : null}
           </div>
         )}
 
@@ -2208,12 +2217,10 @@ const PlaceOrderModal = ({
     selectedCoords?.lng,
   ]);
 
-  const porterBlocksOrder =
-    usePorterForCharge &&
-    isDelivery &&
-    orderType === "delivery" &&
-    !!selectedCoords &&
-    (porterQuoteLoading || !porterQuote?.available);
+  // NOTE: porter-bridge unavailability NEVER blocks placement — when the live
+  // quote can't be fetched we fall back to the partner's own delivery pricing
+  // (see `deliveryCharges` / `_barDeliveryCharge`) and still place the order.
+  // The restaurant arranges delivery if no third-party rider is available.
 
   // Fetch active coupon discounts for this partner
   useEffect(() => {
@@ -2930,7 +2937,7 @@ const PlaceOrderModal = ({
           return;
         }
 
-        if (!useAgentForCharge && deliveryInfo?.isOutOfRange) {
+        if (!useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) {
           toast.error("Delivery is not available to your location");
           return;
         }
@@ -3016,7 +3023,9 @@ const PlaceOrderModal = ({
         // Porter takes precedence — its live quote IS the customer-billed
         // delivery charge. Falls through to Adloggs, then to delivery_rules.
         const amt = usePorterForCharge
-          ? (porterQuote?.available && typeof porterQuote.fare === "number" ? porterQuote.fare : 0)
+          ? (porterQuote?.available && typeof porterQuote.fare === "number"
+              ? porterQuote.fare
+              : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0))
           : useAgentForCharge
             ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
             : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
@@ -3212,7 +3221,7 @@ const PlaceOrderModal = ({
       if (!address?.trim()) { toast.error("Please enter your delivery address"); return; }
       if (needLocation) {
         if (hasDelivery && !selectedCoords) { toast.error("Please select your location on the map"); return; }
-        if (deliveryInfo?.isOutOfRange) { toast.error("Delivery is not available to your location"); return; }
+        if (!useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) { toast.error("Delivery is not available to your location"); return; }
       }
     }
     if (hasMultiWhatsapp && !selectedLocation) { toast.error("Please select a hotel location"); return; }
@@ -3235,7 +3244,9 @@ const PlaceOrderModal = ({
       }
       if (!isQrScan && orderType === "delivery" && (!(hotelData?.delivery_rules?.hide_delivery_charge) || usePorterForCharge || useAgentForCharge)) {
         const amt = usePorterForCharge
-          ? (porterQuote?.available && typeof porterQuote.fare === "number" ? porterQuote.fare : 0)
+          ? (porterQuote?.available && typeof porterQuote.fare === "number"
+              ? porterQuote.fare
+              : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0))
           : useAgentForCharge
             ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
             : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
@@ -3640,7 +3651,6 @@ const PlaceOrderModal = ({
           !selectedCoords))) ||
     (isDelivery && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) ||
     agentBlocksOrder ||
-    porterBlocksOrder ||
     (hasMultiWhatsapp && !selectedLocation);
 
   const { qrData } = useQrDataStore();
@@ -3652,7 +3662,10 @@ const PlaceOrderModal = ({
   const _barDeliveryCharge = (() => {
     if (isQrScan || orderType !== "delivery") return 0;
     if (usePorterForCharge) {
-      return porterQuote?.available && typeof porterQuote.fare === "number" ? porterQuote.fare : 0;
+      if (porterQuote?.available && typeof porterQuote.fare === "number") return porterQuote.fare;
+      // Third-party unavailable → fall back to the partner's own delivery pricing.
+      // Porter mode overrides the legacy hide flag (matches the extra_charges builder).
+      return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
     }
     if (_barHideDelivery) return 0;
     if (useAgentForCharge) {
@@ -4109,7 +4122,7 @@ const PlaceOrderModal = ({
               )}
 
               {/* Warnings */}
-              {isDelivery && !isQrScan && orderType === "delivery" && !useAgentForCharge && deliveryInfo?.isOutOfRange && (
+              {isDelivery && !isQrScan && orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange && (
                 <div className="flex items-start gap-2.5 p-3 rounded-xl border border-red-200 bg-red-50">
                   <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
                     <AlertTriangle className="w-4 h-4 text-red-600" />
@@ -4142,6 +4155,24 @@ const PlaceOrderModal = ({
                         : "Delivery partner can't serve this address right now."}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Porter/3PL unavailable — soft, NON-blocking notice. Order stays
+                  placeable; the restaurant arranges delivery if no rider is found. */}
+              {isDelivery && !isQrScan && orderType === "delivery" && usePorterForCharge && selectedCoords && !porterQuoteLoading && porterQuote && !porterQuote.available && (
+                <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-200 bg-amber-50">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-800">
+                      Delivery arranged by the restaurant
+                    </p>
+                    <p className="mt-0.5 text-xs text-amber-700/90 leading-snug">
+                      No delivery partner is available right now, but you can still place your order — the restaurant will arrange your delivery.
+                    </p>
+                  </div>
                 </div>
               )}
 

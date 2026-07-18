@@ -855,6 +855,10 @@ const PlaceOrderModalV2 = ({
       if (porterQuote?.available && typeof porterQuote.fare === "number") {
         return porterQuote.fare;
       }
+      // Third-party rider unavailable → fall back to the partner's own delivery
+      // pricing so the order is STILL placeable (we never block). If the live
+      // dispatch also fails at accept-time, the admin is told to self-deliver.
+      if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) return deliveryInfo.cost;
       return 0;
     }
     if (useAgentForCharge) {
@@ -886,14 +890,11 @@ const PlaceOrderModalV2 = ({
     !!userCoordinates &&
     (agentQuoteLoading || !agentQuote?.available);
 
-  // Same guard for porter-bridge: must have a successful 2-wheeler quote
-  // before we let the customer submit (otherwise dispatch will fail at
-  // accept time with no quoted delivery charge to back it).
-  const porterBlocksOrder =
-    usePorterForCharge &&
-    orderType === "delivery" &&
-    !!userCoordinates &&
-    (porterQuoteLoading || !porterQuote?.available);
+  // NOTE: porter-bridge unavailability NEVER blocks placement. When the live
+  // 2-wheeler quote can't be fetched we fall back to the partner's own delivery
+  // pricing (see deliveryCharge above) and still place the order — the restaurant
+  // arranges delivery if no third-party rider is available. (delivery_agent still
+  // blocks via agentBlocksOrder; that flow has no custom-price fallback wired.)
 
   const parcelCharge = useMemo(() => {
     // Delivery & takeaway only (not dine-in / QR table).
@@ -1474,6 +1475,9 @@ const PlaceOrderModalV2 = ({
       if (usePorterForCharge) {
         if (porterQuote?.available && typeof porterQuote.fare === "number") {
           charge = porterQuote.fare;
+        } else if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) {
+          // Third-party rider unavailable → bill the partner's own delivery price.
+          charge = deliveryInfo.cost;
         }
       } else if (useAgentForCharge) {
         if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
@@ -1764,7 +1768,10 @@ const PlaceOrderModalV2 = ({
           void promptDeliveryLocationOnMap(address || undefined);
           return;
         }
-        if (deliveryInfo?.isOutOfRange) {
+        // Porter/agent partners never hard-block on the partner's own delivery
+        // radius — porter dispatch is coordinate-based and the charge falls back
+        // to custom pricing. Matches placementDisabled + the legacy checkout.
+        if (!useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) {
           toast.error("Delivery is not available to your location.");
           return;
         }
@@ -2195,7 +2202,7 @@ const PlaceOrderModalV2 = ({
             );
             return;
           }
-        } else if (deliveryInfo?.isOutOfRange) {
+        } else if (!usePorterForCharge && deliveryInfo?.isOutOfRange) {
           toast.error("Delivery is not available to your location.");
           return;
         }
@@ -2754,7 +2761,6 @@ const PlaceOrderModalV2 = ({
       !usePorterForCharge &&
       deliveryInfo?.isOutOfRange) ||
     agentBlocksOrder ||
-    porterBlocksOrder ||
     (!isQrScan && !orderType) ||
     (!isQrScan && orderType === "delivery" && !isDeliveryOpen) ||
     (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) ||
@@ -2895,7 +2901,7 @@ const PlaceOrderModalV2 = ({
             )}
 
             {/* Delivery out of range warning */}
-            {orderType === "delivery" && !useAgentForCharge && deliveryInfo?.isOutOfRange && (
+            {orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange && (
               <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
                 <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
                 <div>
@@ -2926,6 +2932,26 @@ const PlaceOrderModalV2 = ({
                 </div>
               ) : null
             )}
+
+            {/* Third-party rider unavailable — soft, NON-blocking notice. The
+                order can still be placed; the restaurant arranges delivery (or
+                retries) if no partner is available at pickup time. */}
+            {orderType === "delivery" &&
+              usePorterForCharge &&
+              userCoordinates &&
+              !porterQuoteLoading &&
+              porterQuote &&
+              !porterQuote.available && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                  <Bike className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Delivery arranged by the restaurant</p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      No delivery partner is available right now, but you can still place your order — the restaurant will arrange your delivery.
+                    </p>
+                  </div>
+                </div>
+              )}
 
             {/* Delivery charge notice */}
             {orderType === "delivery" && effectiveHideDeliveryCharge && (
@@ -3391,17 +3417,21 @@ const PlaceOrderModalV2 = ({
                           </span>
                         ) : porterQuote.available && typeof porterQuote.fare === "number" ? (
                           <span className="text-gray-900"><MenuPrice currency={currency} amount={porterQuote.fare.toFixed(0)} /></span>
+                        ) : deliveryCharge > 0 ? (
+                          <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
                         ) : (
-                          <span className="text-rose-600 text-xs">
-                            Not serviceable
-                          </span>
+                          <span className="font-semibold" style={{ color: accent }}>Free</span>
                         )}
                       </div>
-                      {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
+                      {porterQuote?.available && typeof porterQuote.etaMins === "number" ? (
                         <div className="text-xs text-gray-400 mt-0.5">
                           ETA {porterQuote.etaMins} min · via Porter
                         </div>
-                      )}
+                      ) : !porterQuoteLoading && porterQuote && !porterQuote.available ? (
+                        <div className="text-xs text-amber-600 mt-0.5">
+                          Restaurant will arrange delivery
+                        </div>
+                      ) : null}
                     </div>
                   )}
                   {orderType === "delivery" && effectiveHideDeliveryCharge && (
