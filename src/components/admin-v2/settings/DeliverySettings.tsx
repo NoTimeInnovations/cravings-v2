@@ -1193,7 +1193,7 @@ export function DeliverySettings() {
                         </div>
                     </div>
 
-                    {deliveryRules.needDeliveryLocation && !porterUsesLiveQuote && (
+                    {deliveryRules.needDeliveryLocation && (
                         <div className="space-y-2">
                             <Label>Delivery Radius (km)</Label>
                             <Input
