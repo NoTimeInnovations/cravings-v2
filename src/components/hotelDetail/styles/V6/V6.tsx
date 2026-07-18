@@ -651,13 +651,9 @@ const V6 = ({
               </section>
             )}
 
-            {/* Decorative strip — Flash Sale · Popular · New Arrivals. NOT tabs:
-                purely a fancy heading with Popular centred + bold. The grid
-                below always shows the popular dishes. */}
-            <div aria-hidden="true" className="mt-4 flex select-none items-baseline justify-center gap-7 px-6 py-3">
-              <span className="shrink-0 whitespace-nowrap text-[18px] font-bold text-gray-300">Flash Sale</span>
-              <span className="shrink-0 whitespace-nowrap text-[23px] font-extrabold tracking-tight text-gray-900">Popular</span>
-              <span className="shrink-0 whitespace-nowrap text-[18px] font-bold text-gray-300">New Arrivals</span>
+            {/* "Popular" section heading — the grid below shows the popular dishes. */}
+            <div className="mt-4 px-4 pb-1">
+              <h2 className="text-[18px] font-extrabold tracking-tight text-gray-900">Popular</h2>
             </div>
 
             <div className="pt-1">{renderGrid(gridItems)}</div>
