@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMenuStore, GroupedItems } from "@/store/menuStore_hasura";
 import { useAuthStore } from "@/store/authStore";
 import { Search } from "lucide-react";
@@ -10,11 +10,24 @@ import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { Partner } from "@/store/authStore";
 
 export function POSMenu() {
-    const { items, groupedItems, fetchMenu } = useMenuStore();
+    const { groupedItems, fetchMenu } = useMenuStore();
     const { userData } = useAuthStore();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [filteredGroupedItems, setFilteredGroupedItems] = useState<GroupedItems>({});
+
+    // Unavailable items are hidden from the POS entirely (staff shouldn't be able
+    // to bill an item the kitchen has switched off). Categories left with no
+    // available items drop out of the list too.
+    const availableGroupedItems = useMemo(() => {
+        const result: GroupedItems = {};
+        if (!groupedItems) return result;
+        Object.entries(groupedItems).forEach(([category, categoryItems]) => {
+            const avail = categoryItems.filter((item) => item.is_available !== false);
+            if (avail.length > 0) result[category] = avail;
+        });
+        return result;
+    }, [groupedItems]);
 
     useEffect(() => {
         if (userData?.id) {
@@ -24,18 +37,21 @@ export function POSMenu() {
 
     useEffect(() => {
         if (!userData?.id) return;
-        if (groupedItems && Object.keys(groupedItems).length > 0 && !selectedCategory) {
-            const firstCategory = Object.keys(groupedItems)[0];
-            setSelectedCategory(firstCategory);
+        const cats = Object.keys(availableGroupedItems);
+        if (cats.length === 0) return;
+        // Pick the first category on load, or reset if the selected one just
+        // emptied out (all its items went unavailable).
+        if (!selectedCategory || !cats.includes(selectedCategory)) {
+            setSelectedCategory(cats[0]);
         }
-    }, [groupedItems, userData?.id]);
+    }, [availableGroupedItems, userData?.id, selectedCategory]);
 
     useEffect(() => {
-        if (!userData?.id || !groupedItems) return;
+        if (!userData?.id) return;
 
         if (searchQuery) {
             const filtered: GroupedItems = {};
-            Object.entries(groupedItems).forEach(([category, categoryItems]) => {
+            Object.entries(availableGroupedItems).forEach(([category, categoryItems]) => {
                 const filteredItems = categoryItems.filter((item) =>
                     item.name.toLowerCase().includes(searchQuery.toLowerCase())
                 );
@@ -44,16 +60,12 @@ export function POSMenu() {
                 }
             });
             setFilteredGroupedItems(filtered);
-        } else if (selectedCategory) {
-            const categoryItems = groupedItems[selectedCategory as string] || [];
-            setFilteredGroupedItems({ [selectedCategory as string]: categoryItems });
+        } else if (selectedCategory && availableGroupedItems[selectedCategory as string]) {
+            setFilteredGroupedItems({ [selectedCategory as string]: availableGroupedItems[selectedCategory as string] });
+        } else {
+            setFilteredGroupedItems({});
         }
-    }, [groupedItems, searchQuery, selectedCategory, userData?.id]);
-
-    // A category has no image of its own, so use its first item's image
-    // (first item in the group that actually has one).
-    const categoryImage = (category: string): string | undefined =>
-        (groupedItems?.[category] || []).find((i) => i.image_url)?.image_url || undefined;
+    }, [availableGroupedItems, searchQuery, selectedCategory, userData?.id]);
 
     return (
         <div className="flex h-full min-h-0 overflow-hidden">
@@ -68,29 +80,18 @@ export function POSMenu() {
             <div className="flex w-24 sm:w-32 lg:w-48 shrink-0 flex-col border-r bg-card h-full min-h-0 overflow-hidden">
                 <div className="p-2 lg:p-4 border-b font-semibold text-sm lg:text-lg shrink-0">Categories</div>
                 <div className="flex-1 min-h-0 overflow-y-auto p-1.5 lg:p-2 space-y-1">
-                    {groupedItems && Object.keys(groupedItems).map((category) => {
-                        const img = categoryImage(category);
-                        return (
-                            <button
-                                key={category}
-                                onClick={() => setSelectedCategory(category)}
-                                className={`w-full capitalize px-1.5 lg:px-2 py-2 rounded-md font-medium transition-colors text-[11px] lg:text-xs flex flex-col items-center gap-1 text-center border ${selectedCategory === category
-                                    ? "bg-orange-50 text-orange-600 border-orange-300"
-                                    : "border-transparent dark:text-white hover:bg-gray-50 hover:text-gray-900"
-                                    }`}
-                            >
-                                <span className="h-12 w-12 lg:h-16 lg:w-16 shrink-0 rounded-lg overflow-hidden bg-muted flex items-center justify-center text-sm lg:text-base font-semibold uppercase text-muted-foreground">
-                                    {img ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={img} alt={category} loading="lazy" className="h-full w-full object-cover" />
-                                    ) : (
-                                        category.charAt(0)
-                                    )}
-                                </span>
-                                <span className="w-full leading-tight break-words">{category}</span>
-                            </button>
-                        );
-                    })}
+                    {Object.keys(availableGroupedItems).map((category) => (
+                        <button
+                            key={category}
+                            onClick={() => setSelectedCategory(category)}
+                            className={`w-full capitalize px-2 lg:px-3 py-2 rounded-md font-medium leading-tight break-words transition-colors text-[11px] lg:text-sm text-left border ${selectedCategory === category
+                                ? "bg-orange-50 text-orange-600 border-orange-300"
+                                : "border-transparent dark:text-white hover:bg-gray-50 hover:text-gray-900"
+                                }`}
+                        >
+                            {category}
+                        </button>
+                    ))}
                 </div>
             </div>
 

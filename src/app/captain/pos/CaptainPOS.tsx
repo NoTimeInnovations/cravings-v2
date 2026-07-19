@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useMenuStore, GroupedItems } from "@/store/menuStore_hasura";
 import { usePOSStore } from "@/store/posStore";
 // REMOVED: Card, CardContent, Plus, Minus are no longer needed here
@@ -21,6 +21,18 @@ export const CaptainPOS = () => {
     const [filteredGroupedItems, setFilteredGroupedItems] = useState<GroupedItems>({});
     const [isLoading, setIsLoading] = useState(true);
     const [partnerData, setPartnerData] = useState<Partner | null>(null);
+
+    // Hide unavailable items from the POS (staff shouldn't be able to bill an
+    // item that's switched off); categories left empty drop out too.
+    const availableGroupedItems = useMemo(() => {
+        const result: GroupedItems = {};
+        if (!groupedItems) return result;
+        Object.entries(groupedItems).forEach(([category, categoryItems]) => {
+            const avail = categoryItems.filter((item) => item.is_available !== false);
+            if (avail.length > 0) result[category] = avail;
+        });
+        return result;
+    }, [groupedItems]);
 
     // All useEffect hooks remain the same...
     useEffect(() => {
@@ -72,16 +84,18 @@ export const CaptainPOS = () => {
     }, [captainData?.partner_id, fetchMenu, authLoading]);
 
     useEffect(() => {
-        if (Object.keys(groupedItems).length > 0 && !selectedCategory) {
-            setSelectedCategory(Object.keys(groupedItems)[0]);
+        const cats = Object.keys(availableGroupedItems);
+        if (cats.length === 0) return;
+        // Pick the first category on load, or reset if the selected one emptied out.
+        if (!selectedCategory || !cats.includes(selectedCategory)) {
+            setSelectedCategory(cats[0]);
         }
-    }, [groupedItems, selectedCategory]);
+    }, [availableGroupedItems, selectedCategory]);
 
     useEffect(() => {
-        if (!groupedItems) return;
         if (searchQuery) {
             const filtered: GroupedItems = {};
-            Object.entries(groupedItems).forEach(([category, categoryItems]) => {
+            Object.entries(availableGroupedItems).forEach(([category, categoryItems]) => {
                 const filteredItems = categoryItems.filter((item) =>
                     item.name.toLowerCase().includes(searchQuery.toLowerCase())
                 );
@@ -92,12 +106,12 @@ export const CaptainPOS = () => {
             setFilteredGroupedItems(filtered);
         } else if (selectedCategory) {
             setFilteredGroupedItems({
-                [selectedCategory]: groupedItems[selectedCategory] || [],
+                [selectedCategory]: availableGroupedItems[selectedCategory] || [],
             });
         } else {
-            setFilteredGroupedItems(groupedItems);
+            setFilteredGroupedItems(availableGroupedItems);
         }
-    }, [searchQuery, groupedItems, selectedCategory]);
+    }, [searchQuery, availableGroupedItems, selectedCategory]);
 
 
     if (authLoading || isLoading || !captainData?.partner_id) {
@@ -138,7 +152,7 @@ export const CaptainPOS = () => {
             {/* Categories */}
             {!searchQuery && (
                 <div className="flex gap-4 flex-wrap px-6">
-                    {Object.keys(groupedItems).map((category) => (
+                    {Object.keys(availableGroupedItems).map((category) => (
                         <Button
                             key={category}
                             variant={selectedCategory === category ? "default" : "outline"}
