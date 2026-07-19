@@ -198,17 +198,10 @@ export const usePOSStore = create<POSState>((set, get) => ({
     });
   },
 
-  setPosOrderType: (type) =>
-    set((s) => ({
-      posOrderType: type,
-      // A delivery order is only classified as delivery when it carries a non-empty
-      // address (an empty one is treated as takeaway), so seed the field with a
-      // sensible default the cashier can override. Never clobber a typed address.
-      deliveryAddress:
-        type === "delivery" && !(s.deliveryAddress || "").trim()
-          ? "Address not specified"
-          : s.deliveryAddress,
-    })),
+  // Don't prefill the address field — leave it empty (placeholder only). If the
+  // cashier leaves it blank, checkout/updateOrder attach "Address not specified"
+  // so the order is still classified as a real delivery (never a takeaway).
+  setPosOrderType: (type) => set({ posOrderType: type }),
 
   setPaymentMethod: (method) => {
     set({ paymentMethod: method });
