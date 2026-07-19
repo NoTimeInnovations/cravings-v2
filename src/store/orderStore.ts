@@ -781,9 +781,13 @@ const useOrderStore = create(
           }
 
           // Delivery-agents-server hooks. Gated by partner.feature_flags.delivery_agent.
-          // Only fires for true delivery orders (type === "delivery" with a non-empty
-          // delivery_address). Takeaway orders are stored as type="delivery" with a null
-          // address from the POS, and dine-in/pos orders use type="pos" — both skipped.
+          // Only fires for true delivery orders: type === "delivery", a non-empty
+          // delivery_address, AND geocoded drop coords (delivery_location). Takeaway
+          // orders are stored as type="delivery" with a null address, and dine-in/pos
+          // orders use type="pos" — both skipped. The delivery_location check also
+          // exempts in-store POS delivery orders (they carry a text-only address like
+          // "Address not specified" but never a pin) — a 3PL rider can't be routed
+          // without coordinates and the restaurant handles POS delivery itself.
           // Fire-and-forget — must NEVER block the local Hasura mutation.
           // Growjet partners (feature_flags.growjet_delivery) are untouched here:
           // Growjet still fires from pp_menu_insert.markFoodReady, not from this path.
@@ -793,7 +797,8 @@ const useOrderStore = create(
             const isRealDelivery =
               order?.type === "delivery" &&
               typeof order?.deliveryAddress === "string" &&
-              order.deliveryAddress.trim().length > 0;
+              order.deliveryAddress.trim().length > 0 &&
+              !!order?.delivery_location;
 
             if (features.delivery_agent.access && features.delivery_agent.enabled && isRealDelivery) {
               if (newStatus === "accepted") {

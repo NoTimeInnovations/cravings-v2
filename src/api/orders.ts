@@ -286,7 +286,8 @@ export const updateOrderMutation = `
     $tableNumber: Int,
     $extraCharges: jsonb,
     $discounts: jsonb,
-    $notes: String
+    $notes: String,
+    $deliveryAddress: String
   ) {
     update_orders_by_pk(
       pk_columns: { id: $id }
@@ -296,7 +297,8 @@ export const updateOrderMutation = `
         table_number: $tableNumber,
         extra_charges: $extraCharges,
         discounts: $discounts,
-        notes: $notes
+        notes: $notes,
+        delivery_address: $deliveryAddress
       }
     ) {
       id
@@ -305,6 +307,7 @@ export const updateOrderMutation = `
       extra_charges
       discounts
       notes
+      delivery_address
     }
   }
 `;

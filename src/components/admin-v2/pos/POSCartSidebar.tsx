@@ -4,7 +4,7 @@ import { useAuthStore, Partner } from "@/store/authStore";
 import { computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, ChevronUp, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save, MessageSquare } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, ChevronUp, Utensils, ShoppingBag, Bike, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
@@ -71,7 +71,12 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         loadOrderIntoCart,
         updateOrder,
         orderNote,
-        setOrderNote
+        setOrderNote,
+        deliveryAddress,
+        setDeliveryAddress,
+        customerName,
+        setCustomerName,
+        setQuantity,
     } = usePOSStore();
     const { userData } = useAuthStore();
     const partnerData = userData as Partner;
@@ -158,9 +163,10 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         };
     }, [userData?.id]);
 
-    const handleOrderTypeChange = (type: "dine-in" | "takeaway") => {
+    const handleOrderTypeChange = (type: "dine-in" | "takeaway" | "delivery") => {
         setPosOrderType(type);
-        if (type === "takeaway") {
+        // Only dine-in uses a table; clear it for takeaway and delivery.
+        if (type !== "dine-in") {
             setTableNumber(null);
         }
     };
@@ -481,7 +487,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2">
                             <Input
                                 placeholder="Customer Phone"
                                 value={userPhone || ""}
@@ -505,8 +511,37 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     <ShoppingBag className="h-3 w-3 mr-1" />
                                     Takeaway
                                 </button>
+                                <button
+                                    className={`flex-1 flex items-center justify-center text-xs font-medium rounded-sm transition-all ${posOrderType === 'delivery' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                    onClick={() => handleOrderTypeChange('delivery')}
+                                >
+                                    <Bike className="h-3 w-3 mr-1" />
+                                    Delivery
+                                </button>
                             </div>
                         </div>
+
+                        {/* Delivery: customer name + address (only for Delivery).
+                            The name links to the customer's account by phone at
+                            placement; the address defaults to "Address not specified"
+                            so the order stays classified as a real delivery. */}
+                        {posOrderType === 'delivery' && (
+                            <div className="space-y-2">
+                                <Input
+                                    placeholder="Customer Name"
+                                    value={customerName || ""}
+                                    onChange={(e) => setCustomerName(e.target.value)}
+                                    className="h-9 text-sm"
+                                />
+                                <Input
+                                    placeholder="Building Name and Floor Number"
+                                    value={deliveryAddress || ""}
+                                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                                    onFocus={(e) => e.currentTarget.select()}
+                                    className="h-9 text-sm"
+                                />
+                            </div>
+                        )}
 
                         {/* Table Selector - Only visible for Dine-In */}
                         {posOrderType === 'dine-in' && (
@@ -566,7 +601,21 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                             >
                                                 <Minus className="h-3 w-3" />
                                             </Button>
-                                            <span className="w-6 text-center text-xs font-medium">{item.quantity}</span>
+                                            <input
+                                                type="number"
+                                                inputMode="numeric"
+                                                min={1}
+                                                value={item.quantity}
+                                                onFocus={(e) => e.currentTarget.select()}
+                                                onChange={(e) => {
+                                                    const v = e.target.value;
+                                                    if (v === "") return; // ignore transient empty — don't delete the line
+                                                    const n = parseInt(v, 10);
+                                                    if (Number.isFinite(n)) setQuantity(item.id!, n);
+                                                }}
+                                                aria-label={`Quantity for ${item.name}`}
+                                                className="w-9 h-6 text-center text-xs font-medium bg-transparent rounded-sm outline-none focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            />
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -871,8 +920,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                 <p className="text-xs text-muted-foreground">
                                     {activeOrderData.tableName || `Table ${activeOrderData.tableNumber}`} • {
                                         (activeOrderData.type === 'delivery' && !activeOrderData.deliveryAddress) ? "Takeaway" :
-                                            (activeOrderData.type === 'table_order' || activeOrderData.type === 'pos') ? "Dine-in" :
-                                                activeOrderData.type
+                                            activeOrderData.type === 'delivery' ? "Delivery" :
+                                                (activeOrderData.type === 'table_order' || activeOrderData.type === 'pos') ? "Dine-in" :
+                                                    activeOrderData.type
                                     }
                                 </p>
                             </div>
@@ -1102,8 +1152,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                                 <span className="text-muted-foreground">
                                                     {order.tableName || `Table ${order.tableNumber}`} • {
                                                         (order.type === 'delivery' && !order.deliveryAddress) ? "Takeaway" :
-                                                            (order.type === 'table_order' || order.type === 'pos') ? "Dine-in" :
-                                                                order.type
+                                                            order.type === 'delivery' ? "Delivery" :
+                                                                (order.type === 'table_order' || order.type === 'pos') ? "Dine-in" :
+                                                                    order.type
                                                     }
                                                 </span>
                                                 <span className="font-medium text-foreground">

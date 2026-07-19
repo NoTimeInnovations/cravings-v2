@@ -26,6 +26,7 @@ import { v4 as uuidv4 } from "uuid";
 import { computeDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems } from "@/lib/takeawayPricing";
+import { findOrCreateUserByPhone } from "@/lib/whatsappFlow/silentUser";
 import { ROUND_OFF_NAME, computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
@@ -86,6 +87,8 @@ interface POSState {
   userPhone: string | null;
   deliveryAddress?: string;
   setDeliveryAddress: (address: string) => void;
+  customerName: string;
+  setCustomerName: (name: string) => void;
   setUserPhone: (phone: string | null) => void;
   tables: { id: string; number: number; name?: string; }[];
   tableNumbers: number[];
@@ -93,8 +96,8 @@ interface POSState {
   setTableNumber: (tableNumber: number | null) => void;
   tableName: string | null;
   setTableName: (tableName: string | null) => void;
-  posOrderType: "dine-in" | "takeaway";
-  setPosOrderType: (type: "dine-in" | "takeaway") => void;
+  posOrderType: "dine-in" | "takeaway" | "delivery";
+  setPosOrderType: (type: "dine-in" | "takeaway" | "delivery") => void;
   paymentMethod?: "cash" | "card" | "upi";
   setPaymentMethod: (method: "cash" | "card" | "upi") => void;
   addToCart: (item: MenuItem) => void;
@@ -102,6 +105,7 @@ interface POSState {
   removeFromCart: (itemId: string) => void;
   increaseQuantity: (itemId: string) => void;
   decreaseQuantity: (itemId: string) => void;
+  setQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
   checkout: () => Promise<void>;
   pastBills: Order[];
@@ -165,6 +169,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   cartModalOpen: false,
   isCaptainOrder: false,
   deliveryAddress: "",
+  customerName: "",
   isPOSOpen: false,
   qrGroup: null,
   removedQrGroupCharges: [],
@@ -193,7 +198,17 @@ export const usePOSStore = create<POSState>((set, get) => ({
     });
   },
 
-  setPosOrderType: (type) => set({ posOrderType: type }),
+  setPosOrderType: (type) =>
+    set((s) => ({
+      posOrderType: type,
+      // A delivery order is only classified as delivery when it carries a non-empty
+      // address (an empty one is treated as takeaway), so seed the field with a
+      // sensible default the cashier can override. Never clobber a typed address.
+      deliveryAddress:
+        type === "delivery" && !(s.deliveryAddress || "").trim()
+          ? "Address not specified"
+          : s.deliveryAddress,
+    })),
 
   setPaymentMethod: (method) => {
     set({ paymentMethod: method });
@@ -216,6 +231,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
     }
 
   },
+
+  setCustomerName: (name: string) => set({ customerName: name }),
 
   setPostCheckoutModalOpen: (open) => {
     set({ postCheckoutModalOpen: open });
@@ -482,8 +499,28 @@ export const usePOSStore = create<POSState>((set, get) => ({
     }));
   },
 
+  // Jump a line straight to a typed quantity (POS speed-entry). A non-positive or
+  // blank value removes the line. totalAmount is recomputed from the whole cart so
+  // it stays exact regardless of the jump size.
+  setQuantity: (itemId: string, quantity: number) => {
+    const q = Math.floor(Number(quantity));
+    if (!Number.isFinite(q) || q <= 0) {
+      get().removeFromCart(itemId);
+      return;
+    }
+    set((state) => {
+      const cartItems = state.cartItems.map((item) =>
+        item.id === itemId ? { ...item, quantity: q } : item
+      );
+      return {
+        cartItems,
+        totalAmount: cartItems.reduce((sum, it) => sum + it.price * it.quantity, 0),
+      };
+    });
+  },
+
   clearCart: () => {
-    set({ cartItems: [], totalAmount: 0, extraCharges: [], discounts: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined, posOrderType: "dine-in", editingOrderId: null, userPhone: null, tableNumber: null, tableName: null, savedPrices: {} });
+    set({ cartItems: [], totalAmount: 0, extraCharges: [], discounts: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined, posOrderType: "dine-in", deliveryAddress: "", customerName: "", editingOrderId: null, userPhone: null, tableNumber: null, tableName: null, savedPrices: {} });
   },
 
   loadOrderIntoCart: (order) => {
@@ -518,7 +555,14 @@ export const usePOSStore = create<POSState>((set, get) => ({
       tableNumber: order.table_number || order.tableNumber || null,
       tableName: order.table_name || order.tableName || null,
       orderNote: order.notes || order.orderNote || "",
-      posOrderType: (order.type === 'delivery' && !order.delivery_address) ? 'takeaway' : 'dine-in',
+      // type "delivery" splits by address: with one it's a real delivery, without
+      // it's a takeaway. Anything else (pos / table_order) is dine-in.
+      posOrderType:
+        order.type === 'delivery'
+          ? (order.delivery_address ? 'delivery' : 'takeaway')
+          : 'dine-in',
+      deliveryAddress: order.delivery_address || "",
+      customerName: order.user?.full_name || order.customerName || "",
       editingOrderId: order.id,
     });
   },
@@ -548,6 +592,17 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const takeawayAdj = posOrderType === "takeaway" ? resolveTakeawayAdjustment() : 0;
       const effectiveItems = applyTakeawayAdjustment(cartItems, takeawayAdj);
       const effectiveFoodAmount = totalAmount + takeawayChargeForItems(cartItems, takeawayAdj);
+
+      // Persist the delivery address on edit so address corrections save. Only a
+      // delivery order carries one (placeholder fallback keeps it classified as
+      // delivery); takeaway/dine-in send null. We deliberately do NOT rewrite the
+      // order `type` here: takeaway<->delivery differ only by address (both stay
+      // type "delivery"), and writing type would reclassify an edited customer
+      // dine-in order (table_order -> pos), dropping it from the dine-in filters.
+      const isDelivery = posOrderType === "delivery";
+      const editDeliveryAddress = isDelivery
+        ? (sanitizePrintText(get().deliveryAddress) || "Address not specified")
+        : null;
 
       const extraChargesTotal = extraCharges.reduce((acc, curr) => acc + curr.amount, 0);
       const subtotal = effectiveFoodAmount + extraChargesTotal;
@@ -580,6 +635,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         extraCharges: extraCharges.length > 0 ? extraCharges : null,
         discounts: discounts.length > 0 ? discounts : null,
         notes: orderNote || null,
+        deliveryAddress: editDeliveryAddress,
       });
 
       // Update order items by deleting and re-inserting
@@ -746,6 +802,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
       // `effectiveItems` is then used for all totals, GST and the persisted line items
       // so receipts / KOT / Petpooja all reflect the charged price.
       const isTakeaway = posOrderType === "takeaway";
+      const isDelivery = posOrderType === "delivery";
       const takeawayAdj = isTakeaway ? resolveTakeawayAdjustment() : 0;
       const effectiveItems = applyTakeawayAdjustment(cartItems, takeawayAdj);
 
@@ -805,7 +862,15 @@ export const usePOSStore = create<POSState>((set, get) => ({
         }
       }
 
-      const orderTypeString = isTakeaway ? "delivery" : "pos";
+      // Takeaway AND delivery both persist as type "delivery"; they're told apart by
+      // delivery_address (empty => takeaway, set => delivery). Dine-in stays "pos".
+      const orderTypeString = (isTakeaway || isDelivery) ? "delivery" : "pos";
+      // Only a delivery order carries an address. Fall back to a placeholder so a
+      // delivery order is never silently down-graded to takeaway when the cashier
+      // leaves the field blank.
+      const posDeliveryAddress = isDelivery
+        ? (sanitizePrintText(get().deliveryAddress) || "Address not specified")
+        : null;
 
       const orderId = uuidv4();
       const createdAt = new Date().toISOString();
@@ -835,6 +900,24 @@ export const usePOSStore = create<POSState>((set, get) => ({
         ? (userData as Captain).partner
         : (userData as Partner))!;
 
+      // Delivery orders link (or silently create) a customer account by phone so the
+      // typed name surfaces via order.user.full_name and the order joins that
+      // customer's history/loyalty — mirrors the storefront. Only for delivery;
+      // takeaway/dine-in stay anonymous (user_id null). Needs a phone (the account
+      // key); the name is optional. Failure is non-fatal — the order still places.
+      let posUserId: string | null = null;
+      if (isDelivery && (get().userPhone || "").trim()) {
+        // Key on the digits the cashier types, exactly like the storefront login
+        // (`${phone}@user.com`) — do NOT strip a country-code prefix (that helper is
+        // for WhatsApp numbers, which always carry the code; a POS-typed LOCAL number
+        // starting with the calling code would fork a phantom account).
+        const localPhone = (get().userPhone || "").replace(/\D/g, "");
+        posUserId = await findOrCreateUserByPhone(
+          localPhone,
+          (get().customerName || "").trim() || null,
+        ).catch(() => null);
+      }
+
       // PetPooja Order Push Logic
       if (partnerData?.petpooja_restaurant_id) {
         const petpoojaOrder = {
@@ -845,9 +928,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
           qr_id: null,
           status: "accepted",
           partner_id: partnerId,
-          user_id: null,
+          user_id: posUserId,
           type: orderTypeString,
-          delivery_address: isTakeaway ? null : (sanitizePrintText(get().deliveryAddress) || null),
+          delivery_address: posDeliveryAddress,
           phone: get().userPhone || null,
           notes: orderNote || null,
           payment_status: "pending",
@@ -933,10 +1016,10 @@ export const usePOSStore = create<POSState>((set, get) => ({
         tableNumber: get().tableNumber || null,
         qrId: null,
         partnerId,
-        userId: null,
+        userId: posUserId,
         type: orderTypeString,
         status: "accepted" as "accepted",
-        delivery_address: isTakeaway ? null : (sanitizePrintText(get().deliveryAddress) || null), // Ensure null for takeaway
+        delivery_address: posDeliveryAddress, // set only for delivery; null for takeaway/dine-in
         delivery_location: null,
         orderedby: isCaptainOrder ? "captain" : null,
         captain_id: isCaptainOrder ? userId : null,
@@ -1067,7 +1150,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         extraCharges: allExtraCharges,
         discounts: discounts,
         type: orderTypeString,
-        deliveryAddress: get().deliveryAddress || undefined,
+        deliveryAddress: posDeliveryAddress || undefined,
         phone: get().userPhone || "N/A",
         orderedby: isCaptainOrder ? "captain" : undefined,
         captain_id: isCaptainOrder ? userId : undefined,
