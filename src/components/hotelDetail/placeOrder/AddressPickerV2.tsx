@@ -1022,8 +1022,8 @@ const AddressPickerV2 = ({
                 }}
                 placeholder={
                   needAddressDetails
-                    ? "Flat / floor / building, landmark (required)"
-                    : "Flat / floor / building, landmark (optional)"
+                    ? "Building Name and Floor Number (required)"
+                    : "Building Name and Floor Number (optional)"
                 }
                 className={`w-full h-12 px-4 rounded-xl border bg-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${
                   needAddressDetails
