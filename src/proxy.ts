@@ -174,6 +174,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/captain", request.url));
   }
 
+  // Already-authenticated users have no reason to see the login page — send them
+  // to "/", where the root handler routes them to their role's home
+  // (partner → /admin-v2, superadmin → /superadmin, user stays on /). A missing
+  // or invalid token leaves `decrypted` undefined, so genuinely-logged-out
+  // visitors still reach /login normally.
+  if (
+    decrypted?.id &&
+    decrypted?.role &&
+    (pathname === "/login" || pathname.startsWith("/login/"))
+  ) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   // Public routes that don't require authentication
   const publicRoutes = [
     "/login",
