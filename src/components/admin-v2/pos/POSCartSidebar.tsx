@@ -534,7 +534,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     className="h-9 text-sm"
                                 />
                                 <Input
-                                    placeholder="Building Name and Floor Number"
+                                    placeholder="Delivery Address"
                                     value={deliveryAddress || ""}
                                     onChange={(e) => setDeliveryAddress(e.target.value)}
                                     onFocus={(e) => e.currentTarget.select()}
