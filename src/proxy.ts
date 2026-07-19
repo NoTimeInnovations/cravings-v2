@@ -179,9 +179,13 @@ export async function proxy(request: NextRequest) {
   // (partner → /admin-v2, superadmin → /superadmin, user stays on /). A missing
   // or invalid token leaves `decrypted` undefined, so genuinely-logged-out
   // visitors still reach /login normally.
+  // EXCEPTION: the account switcher's "Add another account" sends a logged-in user
+  // to /login?add=1 to sign into an ADDITIONAL account — let that through.
+  const isAddAccountFlow = request.nextUrl.searchParams.get("add") === "1";
   if (
     decrypted?.id &&
     decrypted?.role &&
+    !isAddAccountFlow &&
     (pathname === "/login" || pathname.startsWith("/login/"))
   ) {
     return NextResponse.redirect(new URL("/", request.url));

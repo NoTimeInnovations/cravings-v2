@@ -147,7 +147,9 @@ export function AdminAccountSwitcher() {
 
     const handleAddAccount = () => {
         setIsOpen(false);
-        router.push("/login");
+        // ?add=1 lets the middleware allow an already-logged-in user onto /login to
+        // sign into an ADDITIONAL account (a bare /login redirects them away).
+        router.push("/login?add=1");
     };
 
     const handleLogout = async () => {

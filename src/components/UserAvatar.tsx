@@ -190,7 +190,7 @@ const UserAvatar = ({ userData, align = "right", label, className }: { userData:
           {/* Actions */}
           <div className="py-1 border-t border-gray-100">
             <Link
-              href={"/login"}
+              href={"/login?add=1"}
               onClick={() => setIsOpen(false)}
               className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
