@@ -902,7 +902,7 @@ const BillCard = ({
           </div>
         )}
 
-        {billRoundOff > 0 && (
+        {billRoundOff !== 0 && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--pom-text-muted)" }}>Round Off</span>
             <span className="text-inherit"><MenuPrice currency={currency} amount={billRoundOff.toFixed(2)} /></span>

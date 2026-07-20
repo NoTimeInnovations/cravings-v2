@@ -3449,7 +3449,7 @@ const PlaceOrderModalV2 = ({
                   {additionalGst > 0 && (
                     <Row label="GST & Other Charges" value={<MenuPrice currency={currency} amount={additionalGst.toFixed(0)} />} />
                   )}
-                  {roundOff > 0 && (
+                  {roundOff !== 0 && (
                     <Row label="Round Off" value={<MenuPrice currency={currency} amount={roundOff.toFixed(2)} />} />
                   )}
                   {loyaltyRedeemValue > 0 && (

@@ -1651,7 +1651,7 @@ const useOrderStore = create(
           // (ppTotalPrice, total_price) picks up the rounded value.
           if (isRoundOffEnabled(hotelData?.delivery_rules)) {
             const roundOffAmount = computeRoundOff(grandTotal);
-            if (roundOffAmount > 0) {
+            if (roundOffAmount !== 0) {
               exCharges.push({
                 name: ROUND_OFF_NAME,
                 amount: roundOffAmount,

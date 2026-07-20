@@ -472,7 +472,7 @@ export function PaymentLegalSettings() {
                         <div className="space-y-0.5">
                             <Label className="text-base">Round Off</Label>
                             <p className="text-sm text-muted-foreground">
-                                Add a &quot;Round Off&quot; charge at checkout so the bill total is a whole number.
+                                Add a &quot;Round Off&quot; line at checkout so the bill total is rounded to the nearest whole number (down below .50, up from .50).
                             </p>
                         </div>
                         <Switch checked={roundOff} onCheckedChange={setRoundOff} />

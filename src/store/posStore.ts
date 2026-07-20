@@ -844,7 +844,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
           : (userData as Partner)?.delivery_rules;
       if (isRoundOffEnabled(roundOffRules)) {
         const roundOffAmount = computeRoundOff(grandTotal);
-        if (roundOffAmount > 0) {
+        if (roundOffAmount !== 0) {
           allExtraCharges.push({
             id: uuidv4(),
             name: ROUND_OFF_NAME,
