@@ -10,7 +10,10 @@ export const getExtraCharge = (
 
   // Handle backward compatibility for old numeric format
   if (typeof extraCharge === "number") {
-    if (extraCharge <= 0) return 0;
+    // Allow negative amounts through: the "Round Off" charge can be negative
+    // (round-DOWN). A 0/absent charge is already caught by the `!extraCharge`
+    // guard above, so only skip on an exact 0 here.
+    if (extraCharge === 0) return 0;
     return chargeType === "PER_ITEM"
       ? items.reduce((acc, item) => acc + item.quantity, 0) * extraCharge
       : extraCharge;
