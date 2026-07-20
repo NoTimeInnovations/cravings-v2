@@ -1429,26 +1429,10 @@ ${itemsText}
             )}
 
             {/* Sticky bottom action bar */}
-            {!loading && !isCompleted && !isPaid && (hasCashfree || hasUpiQr || isFlamin) && (
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-40 px-3 sm:px-4 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-                    <div className="container mx-auto max-w-3xl flex gap-2">
-                        {!isPaid && (hasCashfree || hasUpiQr || isFlamin) && (
-                            <button
-                                onClick={isFlamin ? handleRazorpayPayment : hasCashfree ? handleCashfreePayment : () => setShowUpiScreen(true)}
-                                disabled={cashfreeLoading}
-                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-colors disabled:opacity-60"
-                            >
-                                {cashfreeLoading ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <CreditCard className="w-4 h-4" />
-                                )}
-                                {cashfreeLoading ? "Processing…" : `Pay ${order?.partner?.currency || "₹"}${grandTotal.toFixed(2)}`}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
+            {/* Pay-after-placement bar removed: paying an already-placed order here
+                left Petpooja with the COD payment_type it received at push time
+                (the order reaches Petpooja before this late online payment). Online
+                orders must pay at checkout so Petpooja gets payment_type=ONLINE. */}
             {reviewOpen && order && (
                 <OrderReviewModal
                     order={order}
