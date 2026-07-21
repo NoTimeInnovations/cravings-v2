@@ -5,6 +5,15 @@ import { AlertTriangle } from "lucide-react";
 import { getDispatchProgress, cancelDispatch } from "@/app/actions/porterBridge";
 
 type ProviderState = "won" | "checking" | "tried" | "pending";
+interface HistItem {
+  bookingId: string;
+  provider: string;
+  status: string;
+  crn: string | null;
+  driver: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string } | null;
+  fareAmount: number | null;
+  createdAt: number;
+}
 interface Progress {
   status: string;
   vehicleMode: string | null;
@@ -13,6 +22,7 @@ interface Progress {
   providers: Array<{ provider: string; state: ProviderState }>;
   driverName: string | null;
   trackUrl: string | null;
+  history?: HistItem[];
   log: Array<{ t: number; text: string; tone: string }>;
 }
 
@@ -38,6 +48,49 @@ const STATUS_LABEL: Record<string, string> = {
  * (cancelled / live / waiting). Polls every 5s while the dispatch is running.
  * Renders nothing if the order wasn't dispatched through the bridge.
  */
+function histStatus(status: string): { label: string; cls: string } {
+  switch (status) {
+    case "ended": return { label: "Delivered", cls: "border-emerald-300 bg-emerald-50 text-emerald-700" };
+    case "cancelled": return { label: "Cancelled", cls: "border-rose-300 bg-rose-50 text-rose-700" };
+    case "failed": return { label: "Failed", cls: "border-rose-300 bg-rose-50 text-rose-700" };
+    case "started": return { label: "Picked up", cls: "border-blue-300 bg-blue-50 text-blue-700" };
+    case "not_started": return { label: "Assigned", cls: "border-amber-300 bg-amber-50 text-amber-700" };
+    case "unallocated": return { label: "Searching", cls: "border-amber-300 bg-amber-50 text-amber-700" };
+    default: return { label: status, cls: "border-border bg-muted text-muted-foreground" };
+  }
+}
+
+// Previously-booked riders for this order (across dispatches) + their outcome.
+// Surfaces cancelled/escalated riders so a cancel doesn't just silently vanish.
+function RiderHistoryBlock({ history }: { history: HistItem[] }) {
+  if (!history.length) return null;
+  return (
+    <div className="mt-3 border-t pt-3">
+      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Rider history
+      </p>
+      <div className="space-y-1.5">
+        {history.map((h) => {
+          const st = histStatus(h.status);
+          return (
+            <div key={h.bookingId} className="flex items-center gap-2 rounded-md border bg-white px-3 py-1.5 text-sm">
+              <span className="min-w-0 flex-1 truncate">
+                <span className="font-medium capitalize">{h.provider}</span>
+                {h.driver?.name ? <span className="text-muted-foreground"> · {h.driver.name}</span> : null}
+                {h.driver?.vehicleNumber ? <span className="text-muted-foreground"> · {h.driver.vehicleNumber}</span> : null}
+                {h.crn ? <span className="text-muted-foreground"> · {h.crn}</span> : null}
+              </span>
+              <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium ${st.cls}`}>
+                {st.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function DispatchProgressPanel({ orderId }: { orderId: string }) {
   const [p, setP] = useState<Progress | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -86,9 +139,20 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
   };
 
   if (!p) return null;
-  // Once a rider is assigned, the DeliveryRiderPanel takes over — hide the
-  // escalation progress card so they don't both show.
-  if (p.status === "assigned") return null;
+  const showHistory =
+    (p.history ?? []).length > 1 ||
+    (p.history ?? []).some((h) => h.status === "cancelled" || h.status === "failed");
+  // Once a rider is assigned, the live DeliveryRiderPanel takes over the escalation
+  // card — but if an earlier rider was cancelled/escalated, still surface the rider
+  // history so the operator can see who was booked before.
+  if (p.status === "assigned") {
+    return showHistory ? (
+      <div className="border rounded-lg bg-card p-4">
+        <h3 className="mb-2 font-semibold">Delivery Bridge dispatch</h3>
+        <RiderHistoryBlock history={p.history ?? []} />
+      </div>
+    ) : null;
+  }
 
   return (
     <div className="border rounded-lg bg-card p-4">
@@ -117,6 +181,8 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
           </div>
         ))}
       </div>
+
+      {showHistory && <RiderHistoryBlock history={p.history ?? []} />}
 
       {/* Dispatch exhausted every provider (or errored) with no rider assigned —
           tell the partner clearly they must self-deliver. Restricted to these

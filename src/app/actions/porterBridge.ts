@@ -1024,6 +1024,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       pickupPin?: string | null;
       dropPin?: string | null;
     } | null;
+    history?: Array<{ bookingId: string; provider: string; status: string; crn: string | null; driver: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string; photoUrl?: string } | null; fareAmount: number | null; createdAt: number; updatedAt: number }>;
     log: Array<{ t: number; text: string; tone: string }>;
   };
   const running = d.status === "running";
@@ -1046,7 +1047,11 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
   // is the only signal cravings gets. Reconcile a terminal change onto the
   // order once (so the cancel shows everywhere, not just this panel).
   const bookingStatus = d.booking?.status ?? null;
-  const terminal = bookingStatus != null && ["cancelled", "ended", "failed"].includes(bookingStatus);
+  // A "cancelled" booking is NOT an order-level cancel: the rider timed out,
+  // was escalated to the next provider, or was re-dispatched. Don't flip the
+  // delivery to "cancelled" on that (the exhausted-dispatch "failed" path below
+  // still shows the self-deliver banner). Only "ended"/"failed" reconcile.
+  const terminal = bookingStatus != null && ["ended", "failed"].includes(bookingStatus);
   if (terminal && bookingStatus !== storedState) {
     await persistDispatch(
       orderId,
@@ -1106,6 +1111,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       trackUrl: d.booking?.trackUrl ?? null,
       pickupPin,
       dropPin,
+      history: Array.isArray(d.history) ? d.history : [],
       log: Array.isArray(d.log) ? d.log.slice(-8) : [],
     },
   };
