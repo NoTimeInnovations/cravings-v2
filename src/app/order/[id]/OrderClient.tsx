@@ -937,7 +937,7 @@ ${itemsText}
                         {(order?.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId &&
                             order?.id && (
                             <div className="px-4 sm:px-0">
-                                <DeliveryRiderPanel orderId={order.id} />
+                                <DeliveryRiderPanel orderId={order.id} completed={order.status === "completed"} />
                             </div>
                         )}
 

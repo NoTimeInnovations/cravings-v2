@@ -5,20 +5,32 @@ import { Truck, Phone, MapPin, Loader2, X, Copy, Check, CheckCircle2 } from "luc
 import { toast } from "sonner";
 import { getDispatchProgress, cancelDispatch } from "@/app/actions/porterBridge";
 
+interface Driver {
+  name?: string;
+  phone?: string;
+  vehicleNumber?: string;
+  vehicleModel?: string;
+  photoUrl?: string;
+}
+interface HistItem {
+  bookingId: string;
+  provider: string;
+  status: string;
+  driver: Driver | null;
+  createdAt: number;
+}
 interface Rider {
   status: string;
   /** The won booking's LIVE status — flips to cancelled/ended/failed when the
    *  delivery is cancelled from the bridge dashboard. */
   bookingStatus?: string | null;
   wonProvider: string | null;
-  driver: {
-    name?: string;
-    phone?: string;
-    vehicleNumber?: string;
-    vehicleModel?: string;
-    photoUrl?: string;
-  } | null;
+  driver: Driver | null;
   trackUrl: string | null;
+  /** Every booking for this order across ALL its dispatches (oldest first) —
+   *  so the rider who actually delivered is recoverable even after a
+   *  cancel + re-dispatch (the delivering booking lives on a later dispatch). */
+  history?: HistItem[];
 }
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -26,6 +38,27 @@ const PROVIDER_LABEL: Record<string, string> = {
   uber: "Uber",
   rapido: "Rapido",
 };
+
+const isDead = (s?: string | null) => s === "cancelled" || s === "failed";
+
+/**
+ * The rider who actually took this order to the customer — for the "Delivered"
+ * card once the order is completed. Prefer a booking that reached "ended";
+ * otherwise the most recent non-cancelled booking that had a driver (the ride
+ * happened even if the bridge never observed the final "ended" tick). Spans
+ * dispatches via `history`, so a rider booked on a re-dispatch after an earlier
+ * cancel is still found. Returns null when no rider ever took it (self-delivered
+ * / all attempts cancelled) — we don't fabricate a deliverer.
+ */
+function pickDeliveredRider(r: Rider): { driver: Driver; provider: string | null } | null {
+  const hist = [...(r.history ?? [])].reverse(); // newest first
+  const ended = hist.find((h) => h.status === "ended" && h.driver?.name);
+  const active = hist.find((h) => !isDead(h.status) && h.driver?.name);
+  const fromHist = ended ?? active;
+  if (fromHist?.driver?.name) return { driver: fromHist.driver, provider: fromHist.provider };
+  if (r.driver?.name && !isDead(r.bookingStatus)) return { driver: r.driver, provider: r.wonProvider };
+  return null;
+}
 
 /**
  * Assigned delivery-partner card for bridge-dispatched orders — styled to match
@@ -88,11 +121,16 @@ export default function DeliveryRiderPanel({
     }
   };
 
-  // Order completed → show a static "Delivered" card with just the rider's
-  // name, vehicle number and phone (the only details still relevant).
-  if (completed && r?.driver?.name) {
-    const d = r.driver;
-    const provider = r.wonProvider ? (PROVIDER_LABEL[r.wonProvider] ?? r.wonProvider) : "Delivery";
+  // Order completed → static "Delivered" card showing WHO took the ride (name,
+  // vehicle, phone). Recovered via pickDeliveredRider so it survives a
+  // cancel + re-dispatch. If nobody ever took it (self-delivered / all
+  // attempts cancelled) render nothing — never the stale "on the way" /
+  // "cancelled" UI for a finished order.
+  const delivered = completed && r ? pickDeliveredRider(r) : null;
+  if (completed) {
+    if (!delivered) return null;
+    const d = delivered.driver;
+    const provider = delivered.provider ? (PROVIDER_LABEL[delivered.provider] ?? delivered.provider) : "Delivery";
     return (
       <div className="rounded-2xl shadow-sm overflow-hidden bg-gradient-to-br from-emerald-50 to-green-50 p-4 sm:p-5">
         <div className="flex items-start gap-3 mb-4">
