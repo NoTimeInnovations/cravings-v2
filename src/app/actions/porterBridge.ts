@@ -844,6 +844,10 @@ export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result
   const res = await bridgeFetch(`/api/v1/dispatch`, {
     method: "POST",
     json: {
+      // Enforce ONE live delivery per order: the bridge refuses a repeat
+      // dispatch for this orderId while a prior booking is still active (429/409
+      // → surfaced as the dispatch failure below). Cancel the previous to re-book.
+      orderId: order.id,
       mobile: c.cfg.mobile,
       mobiles: c.cfg.mobiles,
       groups: c.cfg.groups,
