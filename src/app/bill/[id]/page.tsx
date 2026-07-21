@@ -631,20 +631,41 @@ const PrintOrderPage = () => {
               {subtotal.toFixed(2)}
             </span>
           </div>
-          {gstPercentage > 0 && (
-            <div className="flex justify-between">
-              <span>
-                {order?.partner?.country === "United Arab Emirates"
-                  ? "VAT"
-                  : "GST"}{" "}
-                ({gstPercentage}%):
-              </span>
-              <span>
-                {currency}
-                {gstAmount.toFixed(2)}
-              </span>
-            </div>
-          )}
+          {gstPercentage > 0 &&
+            (order?.partner?.country === "United Arab Emirates" ? (
+              // UAE: single VAT line.
+              <div className="flex justify-between">
+                <span>VAT ({gstPercentage}%):</span>
+                <span>
+                  {currency}
+                  {gstAmount.toFixed(2)}
+                </span>
+              </div>
+            ) : (
+              // India: GST is split equally into CGST + SGST, each at half the rate,
+              // shown as "CGST@2.5 2.5%" (rate after @, and again as a percentage).
+              (() => {
+                const halfRate = (gstPercentage / 2).toFixed(2).replace(/\.?0+$/, "");
+                return (
+                  <>
+                    <div className="flex justify-between">
+                      <span>CGST@{halfRate} {halfRate}%</span>
+                      <span>
+                        {currency}
+                        {(gstAmount / 2).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>SGST@{halfRate} {halfRate}%</span>
+                      <span>
+                        {currency}
+                        {(gstAmount / 2).toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()
+            ))}
           {(order.loyalty_points_redeemed ?? 0) > 0 && (
             <div className="flex justify-between">
               <span>Loyalty Points ({order.loyalty_points_redeemed} pts):</span>
