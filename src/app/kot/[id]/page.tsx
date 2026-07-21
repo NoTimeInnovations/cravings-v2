@@ -4,6 +4,7 @@ import { getDateOnly } from "@/lib/formatDate";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { displayChargeName } from "@/lib/chargeLabel";
+import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { ExtraCharge } from "@/store/posStore";
 import { useParams, useSearchParams } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
@@ -27,6 +28,9 @@ query GetOrder($id: uuid!) {
     partner_id
     delivery_address
     extra_charges
+    partner {
+      delivery_rules
+    }
     qr_code{
       table_name
     }
@@ -37,6 +41,9 @@ query GetOrder($id: uuid!) {
       menu {
         id
         name
+        category {
+          name
+        }
       }
     }
   }
@@ -83,6 +90,7 @@ const PrintKOTPage = () => {
             id: item.id,
             quantity: item.quantity,
             name: item.item.name || item.menu.name || "N/A",
+            category: item.menu?.category?.name || "",
             notes: item.item.kot_notes,
             is_freebie: item.item?.is_freebie || false,
           })),
@@ -131,7 +139,10 @@ const PrintKOTPage = () => {
               table_name: formattedOrder.tableName,
               type: getOrderTypeText(formattedOrder),
               notes: formattedOrder.notes,
-              items: formattedOrder.items,
+              items: withCategoryInName(
+                formattedOrder.items || [],
+                isBillCategoryNameEnabled(orders_by_pk.partner?.delivery_rules)
+              ),
               generated_at: new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date()),
             },
             null,

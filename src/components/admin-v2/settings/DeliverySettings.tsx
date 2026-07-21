@@ -516,7 +516,12 @@ export function DeliverySettings() {
         try {
             const updates = {
                 delivery_rate: deliveryRate,
-                delivery_rules: deliveryRules,
+                // Read-modify-write: this section hydrates deliveryRules from a
+                // fixed key whitelist, so spreading it over the existing blob
+                // preserves keys owned by OTHER sections (round_off from Payment,
+                // bill_include_category_name from Bill Printing, etc.) that would
+                // otherwise be wiped by a full-object replacement.
+                delivery_rules: { ...((userData as any).delivery_rules || {}), ...deliveryRules },
                 whatsapp_numbers: cleanedWhatsapp,
                 country_code: countryCode,
                 price_adjustment: priceAdjustment,

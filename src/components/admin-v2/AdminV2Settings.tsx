@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { GeneralSettings } from "./settings/GeneralSettings";
+import { BillPrintingSettings } from "./settings/BillPrintingSettings";
 import { DeliverySettings } from "./settings/DeliverySettings";
 import { PaymentLegalSettings } from "./settings/PaymentLegalSettings";
 import { FeatureSettings } from "./settings/FeatureSettings";
@@ -102,7 +103,10 @@ export function AdminV2Settings() {
             label: "Store",
             desc: "Store details, location, contacts & integrations",
             icon: Store,
-            sections: [{ key: "general", label: "General", Component: GeneralSettings }],
+            sections: [
+                { key: "general", label: "General", Component: GeneralSettings },
+                { key: "bill-printing", label: "Bill Printing", Component: BillPrintingSettings },
+            ],
         },
         {
             key: "ordering",

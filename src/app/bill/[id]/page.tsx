@@ -6,6 +6,7 @@ import { getDateOnly } from "@/lib/formatDate";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
+import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { OrderItem } from "@/store/orderStore";
@@ -64,6 +65,7 @@ query GetOrder($id: uuid!) {
       address
       upi_id
       show_payment_qr
+      delivery_rules
     }
     gst_included
     extra_charges
@@ -294,7 +296,10 @@ const PrintOrderPage = () => {
                   google_maps_link: `https://www.google.com/maps/place/${formattedOrder.delivery_location.coordinates[1]},${formattedOrder.delivery_location.coordinates[0]}`,
                 }
                 : null,
-              order_items: formattedOrder.items,
+              order_items: withCategoryInName(
+                formattedOrder.items || [],
+                isBillCategoryNameEnabled(formattedOrder.partner?.delivery_rules)
+              ),
               extra_charges:
                 formattedOrder.extra_charges?.length > 0
                   ? formattedOrder.extra_charges.map((charge: any) => ({
