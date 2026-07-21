@@ -22,7 +22,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
-import { getPartnerDailyRevenue, type DailyRevenueRow } from "@/app/actions/dailyRevenue";
+import {
+  getPartnerDailyRevenue,
+  type DailyRevenueRow,
+  type RevenueTransaction,
+} from "@/app/actions/dailyRevenue";
 
 type FilterKey = "today" | "yesterday" | "7d" | "month" | "custom";
 type PresetKey = Exclude<FilterKey, "custom">;
@@ -103,6 +107,7 @@ export function AdminV2Settlements() {
   const [draftEnd, setDraftEnd] = useState(initialCustom.endDate);
   const [customError, setCustomError] = useState<string | null>(null);
   const [rows, setRows] = useState<DailyRevenueRow[]>([]);
+  const [transactions, setTransactions] = useState<RevenueTransaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
@@ -129,9 +134,11 @@ export function AdminV2Settlements() {
       const res = await getPartnerDailyRevenue(partnerId, currentRange);
       if (res.success) {
         setRows(res.rows);
+        setTransactions(res.transactions ?? []);
         setTruncated(res.truncated);
       } else {
         setRows([]);
+        setTransactions([]);
         setError(res.error);
       }
     } catch {
@@ -193,24 +200,62 @@ export function AdminV2Settlements() {
   }, [rows]);
 
   const downloadCsv = () => {
-    const head = ["Date", "Orders", "Prepaid", "COD", "Revenue"];
     const esc = (v: unknown) => {
       const s = v == null ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const lines = rows.map((r) =>
-      [r.date, r.orders, r.prepaid.toFixed(2), r.cod.toFixed(2), r.revenue.toFixed(2)].map(esc).join(","),
-    );
     const rr = currentRange ?? { startDate: today, endDate: today };
+    let head: string[];
+    let lines: string[];
+    let name: string;
+
+    if (currentRange && currentRange.startDate === currentRange.endDate) {
+      // Single day → per-transaction breakdown.
+      head = ["Time", "Order No.", "Payment", "Amount"];
+      lines = transactions.map((t) =>
+        [fmtTime(t.createdAt), fmtOrderNo(t), t.prepaid ? "Online" : "COD", t.amount.toFixed(2)]
+          .map(esc)
+          .join(","),
+      );
+      name = `transactions_${rr.startDate}`;
+    } else {
+      head = ["Date", "Orders", "Prepaid", "COD", "Revenue"];
+      lines = rows.map((r) =>
+        [r.date, r.orders, r.prepaid.toFixed(2), r.cod.toFixed(2), r.revenue.toFixed(2)].map(esc).join(","),
+      );
+      name = `daily-revenue_${rr.startDate}_to_${rr.endDate}`;
+    }
+
     const csv = [head.join(","), ...lines].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `daily-revenue_${rr.startDate}_to_${rr.endDate}.csv`;
+    a.download = `${name}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 500);
   };
+
+  // The per-transaction breakdown only makes sense (and is only returned by the
+  // server) for a single calendar day — today, yesterday, or a one-day custom range.
+  const isSingleDay = !!currentRange && currentRange.startDate === currentRange.endDate;
+
+  // Time-of-day of an order in the restaurant's own timezone (matches how days
+  // are bucketed on the server).
+  const fmtTime = (iso: string) => {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: tz,
+    });
+  };
+
+  // Same order label as the Orders list: the sequential order number when
+  // present, else the short UUID prefix as a fallback.
+  const fmtOrderNo = (t: RevenueTransaction) =>
+    t.displayId != null ? `#${t.displayId}` : `#${t.id.slice(0, 8)}`;
 
   const fmtDate = (s: string) => {
     const d = new Date(`${s}T00:00:00Z`);
@@ -334,7 +379,89 @@ export function AdminV2Settlements() {
         <Stat label="Revenue" value={loading ? "—" : money(totals.revenue)} accent />
       </div>
 
-      {/* Table */}
+      {/* Per-transaction breakdown (single day) */}
+      {isSingleDay ? (
+        <Card className="overflow-hidden border bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-2.5 text-left font-medium">Time</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Order No.</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Payment</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-14 text-center text-muted-foreground">
+                      <Loader2 className="mx-auto size-5 animate-spin" />
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-12 text-center">
+                      <AlertCircle className="mx-auto size-6 text-amber-500" />
+                      <div className="mt-2 text-sm text-muted-foreground">{error}</div>
+                    </td>
+                  </tr>
+                ) : transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-12 text-center">
+                      <div className="text-sm font-medium">No orders on this day</div>
+                      <div className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+                        Each order&rsquo;s time, payment type and amount shows here as it comes in.
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  transactions.map((t) => (
+                    <tr key={t.id} className="border-b border-muted last:border-0 hover:bg-muted/30">
+                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{fmtTime(t.createdAt)}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs">{fmtOrderNo(t)}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+                            t.prepaid
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-amber-50 text-amber-700",
+                          )}
+                        >
+                          {t.prepaid ? "Online" : "COD"}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right font-medium tabular-nums">
+                        {money(t.amount)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {!loading && !error && transactions.length > 0 && (
+                <tfoot>
+                  <tr className="border-t bg-muted/20 font-semibold">
+                    <td className="px-4 py-2.5 text-left" colSpan={3}>
+                      Total ({totals.orders.toLocaleString("en-IN")} orders)
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-primary">
+                      {money(totals.revenue)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          {!loading && !error && transactions.length > 0 && truncated && (
+            <div className="border-t px-4 py-3 text-xs text-amber-700">
+              Some orders were capped for this day — this list may be incomplete.
+            </div>
+          )}
+        </Card>
+      ) : (
+      /* Daily summary table (multi-day) */
       <Card className="overflow-hidden border bg-white">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
@@ -406,11 +533,13 @@ export function AdminV2Settlements() {
           </div>
         )}
       </Card>
+      )}
 
       <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
         <Info className="mt-0.5 size-3.5 shrink-0" />
-        Prepaid = orders paid online up-front; COD = cash / pay-at-counter orders. Revenue = Prepaid +
-        COD. Days are grouped by your restaurant&rsquo;s local calendar day.
+        {isSingleDay
+          ? "Online = paid online up-front; COD = cash / pay-at-counter. Times are in your restaurant's local timezone. Pick a wider range to see the day-by-day summary."
+          : "Prepaid = orders paid online up-front; COD = cash / pay-at-counter orders. Revenue = Prepaid + COD. Days are grouped by your restaurant's local calendar day."}
       </p>
     </div>
   );

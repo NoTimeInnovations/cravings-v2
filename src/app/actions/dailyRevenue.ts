@@ -25,8 +25,27 @@ export type DailyRevenueRow = {
   revenue: number;
 };
 
+/** A single order, for the per-transaction breakdown of a single day. */
+export type RevenueTransaction = {
+  /** Order UUID. */
+  id: string;
+  /** Per-partner sequential number (0/absent → fall back to short id). */
+  displayId: number | null;
+  /** Order timestamp (ISO). */
+  createdAt: string;
+  amount: number;
+  /** Paid online up-front vs cash / pay-at-counter. */
+  prepaid: boolean;
+};
+
 export type DailyRevenueResult =
-  | { success: true; rows: DailyRevenueRow[]; truncated: boolean }
+  | {
+      success: true;
+      rows: DailyRevenueRow[];
+      truncated: boolean;
+      /** Per-order breakdown, populated only when the range is a single day. */
+      transactions?: RevenueTransaction[];
+    }
   | { success: false; error: string };
 
 const getPartnerTimezone = `
@@ -53,6 +72,8 @@ const getPartnerOrders = `
       order_by: { created_at: desc }
       limit: $limit
     ) {
+      id
+      display_id
       created_at
       total_price
       is_paid
@@ -138,17 +159,34 @@ export async function getPartnerDailyRevenue(
 
   const truncated = orders.length >= MAX_ORDERS;
 
+  // Only build the per-order breakdown for a single-day range — otherwise it
+  // could be thousands of rows the UI never asks for.
+  const singleDay = range.startDate === range.endDate;
+  const transactions: RevenueTransaction[] = [];
+
   const byDate = new Map<string, { orders: number; prepaid: number; revenue: number }>();
   for (const o of orders) {
     const date = localDateInTz(o.created_at, timeZone);
     // Keep only orders whose local calendar day falls in the requested range.
     if (!date || date < range.startDate || date > range.endDate) continue;
     const amount = num(o.total_price);
+    const prepaid = isPrepaid(o);
     const bucket = byDate.get(date) || { orders: 0, prepaid: 0, revenue: 0 };
     bucket.orders += 1;
     bucket.revenue += amount;
-    if (isPrepaid(o)) bucket.prepaid += amount;
+    if (prepaid) bucket.prepaid += amount;
     byDate.set(date, bucket);
+
+    if (singleDay) {
+      const displayId = num(o.display_id);
+      transactions.push({
+        id: o.id,
+        displayId: displayId > 0 ? displayId : null,
+        createdAt: o.created_at,
+        amount,
+        prepaid,
+      });
+    }
   }
 
   const rows: DailyRevenueRow[] = Array.from(byDate.entries())
@@ -161,5 +199,6 @@ export async function getPartnerDailyRevenue(
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  return { success: true, rows, truncated };
+  // Orders come back newest-first from Hasura; keep that order in the breakdown.
+  return { success: true, rows, truncated, transactions: singleDay ? transactions : undefined };
 }
