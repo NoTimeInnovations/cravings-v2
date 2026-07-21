@@ -331,8 +331,6 @@ const V6ItemCard = ({
   };
 
   const isOrderable = item.is_available && !isOutOfStock;
-  const hasPrice = typeof (offerData?.offer_price ?? item.price ?? item.variants?.[0]?.price) === "number";
-  const showAddButton = isOrderable && hasPrice && (hasOrderingFeature || hasDeliveryFeature) && !item.is_price_as_per_size && !isPartnersRole;
 
   const mainOfferPrice = offerData?.offer_price;
   const hasValidMainOffer = typeof mainOfferPrice === "number";
@@ -340,6 +338,22 @@ const V6ItemCard = ({
   const hasValidMainOriginalPrice = typeof mainOriginalPrice === "number";
   const baseItemPrice = item.variants?.sort((a, b) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price;
   const hasValidBasePrice = typeof baseItemPrice === "number";
+
+  // Hide the ADD control only for genuinely priceless (₹0) items — placeholder /
+  // "enquiry" lines. An item counts as priced if ANY of its prices is > 0: for a
+  // variant item the shown price is the lowest "From" price, but it stays orderable
+  // as long as SOME variant is priced, so we gate on the MAX available price (base
+  // + every variant price), never the lowest — otherwise a ₹0 "Regular" variant
+  // would wrongly hide the Add control for its priced ₹200 "Large" sibling.
+  const variantPrices = (item.variants ?? [])
+    .map((v) => v?.price)
+    .filter((p): p is number => typeof p === "number");
+  const maxAvailablePrice = Math.max(
+    typeof item.price === "number" ? item.price : 0,
+    ...variantPrices,
+  );
+  const hasPrice = maxAvailablePrice > 0;
+  const showAddButton = isOrderable && hasPrice && (hasOrderingFeature || hasDeliveryFeature) && !item.is_price_as_per_size && !isPartnersRole;
 
   const { ref: inViewRef, visible } = useInView();
 
@@ -394,6 +408,10 @@ const V6ItemCard = ({
         </button>
       );
     }
+
+    // No real price (₹0 or unset) → no add control, for simple AND variant items
+    // (variant items otherwise slip past the showAddButton gate below).
+    if (!hasPrice) return null;
 
     // View-only (ordering + delivery both off): no CTA on variant items. Tapping
     // the card already opens the variant sheet, so the price line stays clean

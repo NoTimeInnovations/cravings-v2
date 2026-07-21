@@ -67,16 +67,24 @@ const V6SearchRow = ({
   const features = getFeatures(hoteldata?.feature_flags || "");
   const hasOrderingFeature = features?.ordering.enabled && tableNumber !== 0;
   const hasDeliveryFeature = features?.delivery.enabled && tableNumber === 0;
-  const showAddButton = (hasOrderingFeature || hasDeliveryFeature) && item.is_available;
+
+  const shouldShowPrice = hoteldata?.currency !== "🚫";
+  const price =
+    item.variants?.slice().sort((a, b) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price;
+  // Hide the ADD button only for genuinely priceless (₹0) items. An item stays
+  // orderable if ANY variant is priced, so gate on the MAX available price (base +
+  // every variant price), not the lowest "From" price used for display. Matches V6ItemCard.
+  const maxAvailablePrice = Math.max(
+    typeof item.price === "number" ? item.price : 0,
+    ...(item.variants ?? []).map((v) => v?.price).filter((p): p is number => typeof p === "number"),
+  );
+  const showAddButton =
+    (hasOrderingFeature || hasDeliveryFeature) && item.is_available && maxAvailablePrice > 0;
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
   const itemInCart = items?.find((i) => i.id === item.id);
   const variantItems = hasVariants ? items?.filter((i) => i.id.startsWith(`${item.id}|`)) || [] : [];
   const quantity = (itemInCart?.quantity || 0) + variantItems.reduce((sum, i) => sum + i.quantity, 0);
-
-  const shouldShowPrice = hoteldata?.currency !== "🚫";
-  const price =
-    item.variants?.slice().sort((a, b) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price;
 
   const getVariantOffer = (variantName: string) =>
     hoteldata?.offers?.find((o) => o.menu && o.menu.id === item.id && o.variant?.name === variantName);
