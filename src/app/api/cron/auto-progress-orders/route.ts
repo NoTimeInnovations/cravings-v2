@@ -3,9 +3,8 @@ import { fetchFromHasuraServer } from "@/lib/hasuraServerClient";
 import { AUTO_PROGRESS_PARTNER_IDS } from "@/lib/demoPartner";
 
 export const dynamic = "force-dynamic";
-// One invocation runs a few passes 20s apart (see PASSES/GAP_MS), so it needs
-// to stay alive longer than the passes take.
-export const maxDuration = 70;
+// One invocation makes a single pass and exits quickly (no in-function sleeping).
+export const maxDuration = 10;
 
 // Demo-only: automatically walk a test partner's orders through the lifecycle
 // (Accepted → Food ready → Dispatched → Completed) when they've enabled
@@ -13,10 +12,8 @@ export const maxDuration = 70;
 // order-event trigger, so the customer WhatsApp notifications flow just like a
 // real staff-driven progression. Scoped to AUTO_PROGRESS_PARTNER_IDS.
 //
-// Cadence: Vercel cron can't fire faster than once a minute, so each invocation
-// makes 3 passes 20s apart (at 0s/20s/40s). Combined with the every-minute
-// schedule that lands a pass every 20 seconds continuously — one status step
-// per order every ~20s.
+// Cadence: one pass per invocation on the every-minute cron schedule, so each
+// active order advances one status step per minute.
 
 const NEXT: Record<string, string> = {
   pending: "accepted",
@@ -24,10 +21,6 @@ const NEXT: Record<string, string> = {
   food_ready: "dispatched",
   dispatched: "completed",
 };
-
-const PASSES = 3; // passes per invocation
-const GAP_MS = 20_000; // 20s between passes
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const Q_PARTNERS = `
   query AutoProgressPartners($ids: [uuid!]!) {
@@ -115,12 +108,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, partners: 0, advanced: 0 });
   }
 
-  let advanced = 0;
-  for (let i = 0; i < PASSES; i++) {
-    advanced += await runPass(enabled, sinceIso);
-    if (i < PASSES - 1) await sleep(GAP_MS);
-  }
+  const advanced = await runPass(enabled, sinceIso);
 
-  console.log("[auto-progress-orders]", JSON.stringify({ partners: enabled.length, passes: PASSES, advanced }));
-  return NextResponse.json({ ok: true, partners: enabled.length, passes: PASSES, advanced });
+  console.log("[auto-progress-orders]", JSON.stringify({ partners: enabled.length, advanced }));
+  return NextResponse.json({ ok: true, partners: enabled.length, advanced });
 }

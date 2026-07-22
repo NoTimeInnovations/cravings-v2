@@ -13,7 +13,8 @@ Sentry.init({
   ],
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
+  // Lowered 1 -> 0.1 to cut trace volume/cost. Error + replay-on-error capture are unaffected.
+  tracesSampleRate: 0.1,
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
