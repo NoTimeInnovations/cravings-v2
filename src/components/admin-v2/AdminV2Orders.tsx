@@ -154,12 +154,14 @@ export function AdminV2Orders() {
 
   // When the Draft Orders toggle is on, the whole view operates on drafts.
   // When Prebookings is on, only scheduled orders are shown. Otherwise the
-  // normal live feed excludes prebookings so they stay separated.
+  // normal feed shows ALL live orders — prebookings included — so scheduled
+  // orders stay visible alongside regular ones (the Prebookings toggle just
+  // narrows the view to them).
   const activeOrders = showDrafts
     ? drafts
     : showPrebookings
       ? prebookings
-      : orders.filter((o) => !o.scheduled_date);
+      : orders;
 
   const selectedOrder = activeOrders.find((o) => o.id === selectedOrderId) || null;
 
