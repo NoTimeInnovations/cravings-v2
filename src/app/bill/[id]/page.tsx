@@ -7,9 +7,10 @@ import { getDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
-import { isVatEnabled } from "@/lib/taxLabel";
+import { isVatEnabled, getTrn } from "@/lib/taxLabel";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
+import { RECEIPT_FONT_FAMILY } from "@/lib/receiptFont";
 import { OrderItem } from "@/store/orderStore";
 import { ExtraCharge } from "@/store/posStore";
 import { useParams, useSearchParams } from "next/navigation";
@@ -327,6 +328,7 @@ const PrintOrderPage = () => {
               },
               currency: formattedOrder.partner?.currency || "$",
               gst_no: formattedOrder.partner?.gst_no,
+              trn: getTrn(formattedOrder.partner?.delivery_rules),
               address: formattedOrder?.address,
               fssai_licence_no: formattedOrder.fssai_licence_no,
               country: formattedOrder.partner?.country,
@@ -354,7 +356,14 @@ const PrintOrderPage = () => {
 
   useEffect(() => {
     if (!loading && order && printRef.current && !silentPrint) {
-      handlePrint();
+      // Wait for the Arabic receipt font to finish loading before printing,
+      // otherwise the page rasterizes with a fallback that has no Arabic glyphs
+      // and the Arabic in item names drops out on the thermal printout.
+      const fontsReady =
+        typeof document !== "undefined" && (document as any).fonts?.ready
+          ? (document as any).fonts.ready
+          : Promise.resolve();
+      fontsReady.then(() => handlePrint());
     }
   }, [loading, order, handlePrint]);
 
@@ -366,6 +375,8 @@ const PrintOrderPage = () => {
   const gstPercentage = order?.partner?.gst_percentage || 0;
   // VAT vs GST presentation — UAE, or the partner's "Use VAT" billing toggle.
   const showVat = isVatEnabled(order?.partner?.country, order?.partner?.delivery_rules);
+  // TRN (VAT Tax Registration Number) — printed on the bill only when set.
+  const trn = getTrn(order?.partner?.delivery_rules);
 
   // determine timezone for rendering the bill (partner preference -> browser tz -> UTC)
   const tz =
@@ -422,11 +433,11 @@ const PrintOrderPage = () => {
         style={
           silentPrint
             ? {
-              fontFamily: "monospace",
+              fontFamily: RECEIPT_FONT_FAMILY,
               maxWidth: printWidth,
             }
             : {
-              fontFamily: "monospace",
+              fontFamily: RECEIPT_FONT_FAMILY,
               maxWidth: printWidth,
               margin: "0 auto",
               padding: "16px",
@@ -700,6 +711,7 @@ const PrintOrderPage = () => {
               ? `${showVat ? "VAT" : "GST"}: ${order?.partner.gst_no}`
               : ""}
           </p>
+          {trn && <p className="mt-1">TRN: {trn}</p>}
           {order?.fssai_licence_no && (
             <p className="mt-1 inline-flex">
               {order?.fssai_licence_no

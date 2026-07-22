@@ -3,6 +3,7 @@
 import { getDateOnly } from "@/lib/formatDate";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
+import { RECEIPT_FONT_FAMILY } from "@/lib/receiptFont";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { ExtraCharge } from "@/store/posStore";
@@ -166,7 +167,14 @@ const PrintKOTPage = () => {
 
   useEffect(() => {
     if (!loading && order && printRef.current && !silentPrint) {
-      handlePrint();
+      // Wait for the Arabic receipt font to finish loading before printing,
+      // otherwise the page rasterizes with a fallback that has no Arabic glyphs
+      // and the Arabic in item names drops out on the thermal printout.
+      const fontsReady =
+        typeof document !== "undefined" && (document as any).fonts?.ready
+          ? (document as any).fonts.ready
+          : Promise.resolve();
+      fontsReady.then(() => handlePrint());
     }
   }, [loading, order, handlePrint]);
 
@@ -185,11 +193,11 @@ const PrintKOTPage = () => {
         style={
           silentPrint
             ? {
-              fontFamily: "monospace",
+              fontFamily: RECEIPT_FONT_FAMILY,
               maxWidth: printWidth,
             }
             : {
-              fontFamily: "monospace",
+              fontFamily: RECEIPT_FONT_FAMILY,
               maxWidth: printWidth,
               margin: "0 auto",
               padding: "16px",

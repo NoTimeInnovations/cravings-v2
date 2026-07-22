@@ -63,6 +63,11 @@ export function PaymentLegalSettings() {
     // billing-config blob). UAE partners always show VAT regardless. Default false.
     const [useVat, setUseVat] = useState(false);
 
+    // TRN (Tax Registration Number) — the UAE VAT registration id printed on tax
+    // invoices. Stored inside delivery_rules (the billing-config blob) alongside
+    // use_vat, since it's part of the same VAT configuration.
+    const [trn, setTrn] = useState("");
+
     useEffect(() => {
         if (userData?.role === "partner") {
             setUpiId(userData.upi_id || "");
@@ -74,6 +79,7 @@ export function PaymentLegalSettings() {
             setGstEnabled((userData.gst_percentage || 0) > 0);
             setRoundOff(!!(userData as any).delivery_rules?.round_off);
             setUseVat(!!(userData as any).delivery_rules?.use_vat);
+            setTrn((userData as any).delivery_rules?.trn || "");
             setAcceptCod((userData as any).accept_cod ?? true);
             setCashfreeMerchantId((userData as any).cashfree_merchant_id || "");
             setAcceptPaymentsViaCashfree((userData as any).accept_payments_via_cashfree || false);
@@ -121,7 +127,7 @@ export function PaymentLegalSettings() {
                 accept_payments_via_cashfree: acceptPaymentsViaCashfree,
                 delivery_qr_method: deliveryQrMethod,
                 payment_modes: paymentModes,
-                delivery_rules: { ...existingDeliveryRules, round_off: roundOff, use_vat: useVat },
+                delivery_rules: { ...existingDeliveryRules, round_off: roundOff, use_vat: useVat, trn: trn.trim() || null },
             };
 
             await updatePartner(userData.id, updates);
@@ -135,7 +141,7 @@ export function PaymentLegalSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, deliveryQrMethod, paymentModes, roundOff, useVat, setState]);
+    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, deliveryQrMethod, paymentModes, roundOff, useVat, trn, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -169,6 +175,7 @@ export function PaymentLegalSettings() {
         const initialDeliveryQrMethod = data.delivery_qr_method || "none";
         const initialRoundOff = !!data.delivery_rules?.round_off;
         const initialUseVat = !!data.delivery_rules?.use_vat;
+        const initialTrn = data.delivery_rules?.trn || "";
         const initialPaymentModes = (() => {
             const pm = data.payment_modes;
             const bo = data.accept_payments_via_cashfree || false;
@@ -194,6 +201,7 @@ export function PaymentLegalSettings() {
             deliveryQrMethod !== initialDeliveryQrMethod ||
             roundOff !== initialRoundOff ||
             useVat !== initialUseVat ||
+            trn.trim() !== initialTrn ||
             JSON.stringify(paymentModes) !== JSON.stringify(initialPaymentModes);
 
         setHasChanges(hasChanges);
@@ -213,6 +221,7 @@ export function PaymentLegalSettings() {
         paymentModes,
         roundOff,
         useVat,
+        trn,
         userData,
         setHasChanges
     ]);
@@ -485,6 +494,18 @@ export function PaymentLegalSettings() {
                                 </p>
                             </div>
                             <Switch checked={useVat} onCheckedChange={setUseVat} />
+                        </div>
+
+                        <div className="space-y-2 border-t pt-4">
+                            <Label>TRN (Tax Registration Number)</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Your VAT Tax Registration Number (UAE).
+                            </p>
+                            <Input
+                                value={trn}
+                                onChange={(e) => setTrn(e.target.value)}
+                                placeholder="15-digit Tax Registration Number"
+                            />
                         </div>
                     </div>
 

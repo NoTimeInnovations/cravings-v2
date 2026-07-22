@@ -31,3 +31,13 @@ export function isVatEnabled(country?: string | null, deliveryRules?: any): bool
 export function taxLabel(country?: string | null, deliveryRules?: any): "VAT" | "GST" {
   return isVatEnabled(country, deliveryRules) ? "VAT" : "GST";
 }
+
+/**
+ * The partner's VAT Tax Registration Number (TRN), stored in
+ * partners.delivery_rules.trn. Returns the trimmed value, or null when unset —
+ * so callers can gate rendering on `!== null`.
+ */
+export function getTrn(deliveryRules?: any): string | null {
+  const trn = parseDeliveryRules(deliveryRules)?.trn;
+  return typeof trn === "string" && trn.trim() ? trn.trim() : null;
+}
