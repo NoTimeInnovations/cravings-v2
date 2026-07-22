@@ -116,11 +116,6 @@ function normaliseMobile(p: string | null | undefined): string | null {
   return /^[6-9][0-9]{9}$/.test(ten) ? ten : null;
 }
 
-/** The dispatch-group tag we auto-assign: first 5 digits of the login mobile. */
-function groupForMobile(mobile: string): string {
-  return mobile.slice(0, 5);
-}
-
 const PROVIDER_MOBILE_COLUMN: Record<ConnectProvider, string> = {
   porter: "porter_mobile",
   rapido: "rapido_mobile",
@@ -215,7 +210,7 @@ export async function sendDeliveryOtp(
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// 2. Verify OTP → activate account, auto-tag group, persist to partner
+// 2. Verify OTP → activate account + save the mobile (group is set MANUALLY)
 // ──────────────────────────────────────────────────────────────────────────
 
 interface VerifyOtpInput {
@@ -253,41 +248,8 @@ export async function verifyDeliveryOtp(
     return { ok: false, message: "Verified, but the bridge returned no account id" };
   }
 
-  // 2b. Auto-tag the account's dispatch group = first 5 digits of the mobile.
-  //     If the tag FAILS we must NOT record the group on the partner: dispatch
-  //     sends `groups` (which takes precedence over mobile), so a group the
-  //     bridge account isn't actually tagged with would break dispatch. On
-  //     failure we keep the account connected and resolvable by mobile instead.
-  const group = groupForMobile(mobile);
-  const grp = await bridgeFetch(`/api/v1/accounts/${accountId}/group`, {
-    method: "POST",
-    json: { groupNumber: group },
-  });
-  const groupApplied = grp.ok;
-  if (!grp.ok) {
-    console.warn(
-      `[deliveryConnect] group tag failed for ${input.provider} ${mobile}: ${grp.message} — connecting by mobile only`,
-    );
-  }
-
-  // 2c. Mirror the mobile (always) + group (only when the bridge tag stuck) onto
-  //     the partner row via a read-modify-write of the delivery_rules jsonb. To
-  //     avoid two concurrent connects clobbering each other's group we RE-READ
-  //     right before writing and only touch this provider's key.
-  const conn = await loadPartnerConn(input.partnerId);
-  if (!conn) return { ok: false, message: "partner not found" };
-  const rules = { ...conn.delivery_rules } as Record<string, unknown>;
-  const groups = {
-    ...((rules.delivery_provider_groups as Record<string, unknown>) || {}),
-  };
-  if (groupApplied) {
-    groups[input.provider] = group;
-  } else {
-    // Drop any stale group for this provider so dispatch falls back to mobile.
-    delete groups[input.provider];
-  }
-  rules.delivery_provider_groups = groups;
-
+  // 2b. Save ONLY the mobile — the dispatch group is set manually in the
+  //     settings form (and pushed to the bridge on Save via setProviderGroup).
   const mobileColumn = PROVIDER_MOBILE_COLUMN[input.provider];
   await fetchFromHasuraServer(
     `mutation SaveDeliveryConn($id: uuid!, $updates: partners_set_input!) {
@@ -295,11 +257,7 @@ export async function verifyDeliveryOtp(
     }`,
     {
       id: input.partnerId,
-      updates: {
-        [mobileColumn]: mobile,
-        delivery_rules: rules,
-        updated_at: new Date().toISOString(),
-      },
+      updates: { [mobileColumn]: mobile, updated_at: new Date().toISOString() },
     },
   );
 
@@ -307,11 +265,53 @@ export async function verifyDeliveryOtp(
     ok: true,
     provider: input.provider,
     mobile,
-    group: groupApplied ? group : "",
+    group: "",
     accountId,
     mobileColumn,
-    deliveryRules: rules,
+    deliveryRules: {},
   };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// 2b. Push the manually-set dispatch groups to the bridge accounts.
+//     Called on Save: for each connected provider, tag its bridge account with
+//     the group the partner typed (empty clears it) so the dispatch's `groups`
+//     resolves to a real pooled account. Returns per-provider outcomes; never
+//     throws so it can't block the settings save.
+// ──────────────────────────────────────────────────────────────────────────
+
+export async function setProviderGroups(input: {
+  partnerId: string;
+}): Promise<{ ok: true; results: Record<string, string> } | { ok: false; message: string }> {
+  const auth = await assertPartner(input.partnerId);
+  if (!auth.ok) return auth;
+  const conn = await loadPartnerConn(input.partnerId);
+  if (!conn) return { ok: false, message: "partner not found" };
+  const rawGroups =
+    (conn.delivery_rules.delivery_provider_groups as Record<string, unknown>) || {};
+
+  const results: Record<string, string> = {};
+  for (const provider of ["porter", "rapido"] as ConnectProvider[]) {
+    const mobile = normaliseMobile(
+      provider === "porter" ? conn.porter_mobile : conn.rapido_mobile,
+    );
+    if (!mobile) {
+      results[provider] = "no connected account";
+      continue;
+    }
+    const group = String(rawGroups[provider] ?? "").trim();
+    const acct = await resolveAccountId(provider, mobile);
+    if (!acct) {
+      results[provider] = "account not found on bridge";
+      continue;
+    }
+    const res = await bridgeFetch(`/api/v1/accounts/${acct.accountId}/group`, {
+      method: "POST",
+      json: { groupNumber: group },
+    });
+    results[provider] = res.ok ? (group ? `set ${group}` : "cleared") : `failed: ${res.message}`;
+  }
+  return { ok: true, results };
 }
 
 // ──────────────────────────────────────────────────────────────────────────

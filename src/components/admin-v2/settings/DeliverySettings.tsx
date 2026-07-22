@@ -18,7 +18,7 @@ import { useMenuStore } from "@/store/menuStore_hasura";
 import { countryCodes } from "@/utils/countryCodes";
 import { getDeliveryAgentWallet } from "@/app/actions/deliveryAgent";
 import { DeliveryConnectDialog } from "./DeliveryConnectDialog";
-import { getDeliveryConnections, logoutDeliveryProvider } from "@/app/actions/deliveryConnect";
+import { getDeliveryConnections, logoutDeliveryProvider, setProviderGroups } from "@/app/actions/deliveryConnect";
 import type {
     ProviderConnection,
     ConnectProvider,
@@ -646,6 +646,18 @@ export function DeliverySettings() {
             await revalidateTag(userData.id);
             await revalidateTag("hotel-data");
             setState(updates);
+
+            // Push the manually-set groups to the connected bridge accounts so
+            // dispatch's `groups` resolves. Non-blocking: a bridge hiccup mustn't
+            // fail the settings save (the group is already stored on the partner).
+            if (features?.porter_bridge?.access && features?.porter_bridge?.enabled) {
+                setProviderGroups({ partnerId: userData.id })
+                    .then((r) => {
+                        if (!r.ok) console.warn("[delivery] setProviderGroups:", r.message);
+                    })
+                    .catch((e) => console.warn("[delivery] setProviderGroups failed:", e));
+            }
+
             toast.success("Delivery settings updated successfully");
         } catch (error) {
             console.error("Error updating delivery settings:", error);
@@ -653,7 +665,7 @@ export function DeliverySettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, takeawayPriceAdjustment, porterMobile, uberMobile, rapidoMobile, setState]);
+    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, takeawayPriceAdjustment, porterMobile, uberMobile, rapidoMobile, setState, features?.porter_bridge?.access, features?.porter_bridge?.enabled]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -896,11 +908,11 @@ export function DeliverySettings() {
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 Dispatch routes through your provider accounts on the bridge. Connect each
-                                account below with a one-time OTP login — the dispatch{" "}
-                                <strong>group</strong> is then set automatically to the first 5 digits of
-                                that number. Accounts sharing a group form a pool, so you can run several
-                                (e.g. multiple Rapido accounts, one live order each) by connecting more
-                                numbers that share the same first 5 digits.
+                                account below with a one-time OTP login, then set its dispatch{" "}
+                                <strong>group</strong> number. Accounts sharing the same group form a pool,
+                                so you can run several (e.g. multiple Rapido accounts, one live order each)
+                                by giving them the same group. The group is applied to the account when you
+                                press <strong>Save</strong>.
                             </p>
 
                             <div className="space-y-2">
@@ -954,9 +966,25 @@ export function DeliverySettings() {
                                             {conn?.mobile && (
                                                 <div className="text-xs text-muted-foreground">
                                                     ••{conn.mobile.slice(-4)}
-                                                    {conn.group ? ` · group ${conn.group}` : ""}
                                                 </div>
                                             )}
+                                            <div>
+                                                <Label className="text-xs text-muted-foreground">Group number</Label>
+                                                <Input
+                                                    value={deliveryRules.delivery_provider_groups?.[key] ?? ""}
+                                                    placeholder="e.g. 98765"
+                                                    inputMode="numeric"
+                                                    onChange={(e) =>
+                                                        setDeliveryRules((prev) => ({
+                                                            ...prev,
+                                                            delivery_provider_groups: {
+                                                                ...(prev.delivery_provider_groups || {}),
+                                                                [key]: e.target.value.replace(/\D/g, "").slice(0, 20),
+                                                            },
+                                                        }))
+                                                    }
+                                                />
+                                            </div>
                                             <select
                                                 value={deliveryRules.delivery_payment_modes?.[key] || "cash"}
                                                 onChange={(e) =>
