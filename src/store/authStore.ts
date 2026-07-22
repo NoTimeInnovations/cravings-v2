@@ -21,7 +21,7 @@ import {
 } from "@/app/auth/actions";
 import { sendRegistrationWhatsAppMsg } from "@/app/actions/sendWhatsappMsgs";
 import { FeatureFlags, getFeatures } from "@/lib/getFeatures";
-import { DeliveryRules } from "./orderStore";
+import { DeliveryRules, DeliveryRecharge } from "./orderStore";
 import { Notification } from "@/app/actions/notification";
 import { addAccount, getAccounts, getAllAccounts } from "@/lib/addAccount";
 import { transferTempDataToUserAccount } from "@/lib/transferTempDataToUserAccount";
@@ -100,6 +100,12 @@ export interface Partner extends BaseUser {
   geo_location: GeoLocation;
   delivery_rate: number;
   delivery_rules: DeliveryRules;
+  /**
+   * Manually-logged third-party portal recharges (Porter / Rapido / Uber
+   * prepaid top-ups). jsonb array on the partners table — see DeliveryRecharge.
+   * Shown/edited in Settings → Ordering → "3rd Party Delivery Charges".
+   */
+  delivery_recharges?: DeliveryRecharge[] | null;
   location_details?: string | null;
   place_id?: string;
   theme?: string;

@@ -71,6 +71,25 @@ export interface LegacyFirstKmRange {
   rate: number;
 }
 
+/**
+ * A single third-party-portal recharge the partner manually logs (Porter /
+ * Rapido / Uber prepaid top-up). The bridge can't see the recharge amount, so
+ * the partner types it here; balance = Σ recharges − Σ delivered-order fares.
+ * Stored as a jsonb array in the partners.delivery_recharges column.
+ */
+export interface DeliveryRecharge {
+  /** Client-generated unique id (stable across edits). */
+  id: string;
+  provider: "porter" | "rapido" | "uber";
+  /** Amount recharged, in the partner's currency. */
+  amount: number;
+  /** ISO date (yyyy-mm-dd) the recharge was done — editable by the partner. */
+  date: string;
+  note?: string;
+  /** ISO timestamp the row was created (audit; distinct from `date`). */
+  created_at: string;
+}
+
 export interface DeliveryRules {
   delivery_radius: number;
   // New format

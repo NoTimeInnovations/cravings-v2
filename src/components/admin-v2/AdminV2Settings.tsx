@@ -16,6 +16,7 @@ import { OrderTypesSettings } from "./settings/OrderTypesSettings";
 import { BrandingSettings } from "./settings/BrandingSettings";
 import { IntegrationsSettings } from "./settings/IntegrationsSettings";
 import { LoyaltyPointsSettings } from "./settings/LoyaltyPointsSettings";
+import { ThirdPartyChargesSettings } from "./settings/ThirdPartyChargesSettings";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -78,6 +79,10 @@ export function AdminV2Settings() {
 
     const showOrderRelatedSettings = features?.ordering?.access || features?.delivery?.access;
     const showDiscountSettings = features?.ordering?.access || features?.delivery?.access;
+    // 3rd-party portal recharge/charge tracking is only relevant to bridge (Porter/
+    // Rapido/Uber) partners — gate on access AND enabled, matching DeliverySettings.
+    const showThirdPartyCharges =
+        !!features?.porter_bridge?.access && !!features?.porter_bridge?.enabled;
     const showPrebookingGroup = features?.prebooking?.access && features?.prebooking?.enabled;
     const showStorefront = features?.storefront?.access && features?.storefront?.enabled;
     const showLoyalty = features?.loyalty_points?.access;
@@ -117,6 +122,15 @@ export function AdminV2Settings() {
                 ? [
                       { key: "order-types", label: "Order Types", Component: OrderTypesSettings },
                       { key: "delivery", label: "Delivery", Component: DeliverySettings },
+                      ...(showThirdPartyCharges
+                          ? [
+                                {
+                                    key: "3pl-charges",
+                                    label: "3rd Party Delivery Charges",
+                                    Component: ThirdPartyChargesSettings,
+                                },
+                            ]
+                          : []),
                       { key: "payment", label: "Payment & Legal", Component: PaymentLegalSettings },
                       ...(showDiscountSettings
                           ? [{ key: "discounts", label: "Discounts", Component: DiscountCodeSettings }]

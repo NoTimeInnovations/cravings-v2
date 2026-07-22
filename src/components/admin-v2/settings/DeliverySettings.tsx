@@ -11,12 +11,19 @@ import { useAuthStore, Partner } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { Loader2, Save, Plus, Trash2, Clock, Keyboard, Wallet, RefreshCw, AlertCircle } from "lucide-react";
+import { Loader2, Save, Plus, Trash2, Clock, Keyboard, Wallet, RefreshCw, AlertCircle, Link2, LogOut, CheckCircle2, XCircle } from "lucide-react";
 import { DeliveryRules, DeliveryRange } from "@/store/orderStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { countryCodes } from "@/utils/countryCodes";
 import { getDeliveryAgentWallet } from "@/app/actions/deliveryAgent";
+import { DeliveryConnectDialog } from "./DeliveryConnectDialog";
+import { getDeliveryConnections, logoutDeliveryProvider } from "@/app/actions/deliveryConnect";
+import type {
+    ProviderConnection,
+    ConnectProvider,
+    VerifyOtpSuccess,
+} from "@/lib/deliveryBridgeTypes";
 
 // Normalise a phone / WhatsApp number to the bare 10-digit local form: strips
 // spaces, "+", dashes, brackets, the country code, and any leading trunk "0".
@@ -324,6 +331,16 @@ export function DeliverySettings() {
     const [walletLoading, setWalletLoading] = useState(false);
     const [walletError, setWalletError] = useState<string | null>(null);
 
+    // Delivery-bridge account connection status (Porter / Rapido) resolved from
+    // the bridge — powers the Connect / Log out buttons below.
+    const [connections, setConnections] = useState<{
+        porter: ProviderConnection;
+        rapido: ProviderConnection;
+    } | null>(null);
+    const [connLoading, setConnLoading] = useState(false);
+    const [connectDialog, setConnectDialog] = useState<ConnectProvider | null>(null);
+    const [loggingOut, setLoggingOut] = useState<ConnectProvider | null>(null);
+
     const currencySymbol = (userData as Partner)?.currency || "₹";
 
     useEffect(() => {
@@ -420,6 +437,92 @@ export function DeliverySettings() {
     useEffect(() => {
         loadWallet();
     }, [loadWallet]);
+
+    // Partner pickup coords ({coordinates:[lng,lat]}) — Porter uses these to
+    // resolve the login region so a non-Kochi partner still receives the OTP.
+    const pickupCoords = (() => {
+        const geo = (userData as Partner)?.geo_location as
+            | { coordinates?: [number, number] }
+            | undefined;
+        const c = geo?.coordinates;
+        if (!Array.isArray(c) || c.length !== 2) return undefined;
+        const [lng, lat] = c;
+        if (typeof lat !== "number" || typeof lng !== "number") return undefined;
+        return { lat, lng };
+    })();
+
+    // Resolve Porter/Rapido connection status from the bridge (only meaningful
+    // when the porter_bridge flag is on).
+    const loadConnections = useCallback(async () => {
+        if (!userData?.id) return;
+        if (!features?.porter_bridge?.access || !features?.porter_bridge?.enabled) return;
+        setConnLoading(true);
+        try {
+            const res = await getDeliveryConnections({ partnerId: userData.id });
+            if (res.ok) setConnections({ porter: res.porter, rapido: res.rapido });
+        } catch {
+            /* leave prior status */
+        } finally {
+            setConnLoading(false);
+        }
+    }, [userData?.id, features?.porter_bridge?.access, features?.porter_bridge?.enabled]);
+
+    useEffect(() => {
+        loadConnections();
+    }, [loadConnections]);
+
+    // After a successful OTP connect: sync ONLY the local form fields for this
+    // provider (mobile + auto-group). The server action already persisted the
+    // mobile + group to the partner row, so we deliberately DON'T setState()
+    // authStore here — doing so re-runs the userData init effect and would wipe
+    // any other unsaved edits in this form. The live "Connected" badge comes
+    // from loadConnections() (the bridge), and a later global Save re-writes
+    // these same local values, so nothing is lost.
+    const handleConnected = useCallback(
+        (res: VerifyOtpSuccess) => {
+            if (res.provider === "porter") setPorterMobile(res.mobile);
+            if (res.provider === "rapido") setRapidoMobile(res.mobile);
+            // res.group is "" when the bridge group-tag didn't stick (dispatch
+            // then resolves by mobile) — only mirror a real group locally.
+            if (res.group) {
+                setDeliveryRules((prev) => ({
+                    ...prev,
+                    delivery_provider_groups: {
+                        ...(prev.delivery_provider_groups || {}),
+                        [res.provider]: res.group,
+                    },
+                }));
+            }
+            loadConnections();
+        },
+        [loadConnections],
+    );
+
+    const handleLogout = useCallback(
+        async (provider: ConnectProvider) => {
+            const mobile = provider === "porter" ? porterMobile : rapidoMobile;
+            if (!mobile) {
+                toast.error("No connected number to log out");
+                return;
+            }
+            if (!userData?.id) return;
+            setLoggingOut(provider);
+            try {
+                const res = await logoutDeliveryProvider({ partnerId: userData.id, provider, mobile });
+                if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                }
+                toast.success(`${provider === "porter" ? "Porter" : "Rapido"} logged out`);
+                await loadConnections();
+            } catch (e: any) {
+                toast.error(e?.message || "Logout failed");
+            } finally {
+                setLoggingOut(null);
+            }
+        },
+        [porterMobile, rapidoMobile, loadConnections, userData?.id],
+    );
 
     const handleSaveMerchantId = useCallback(async () => {
         if (!userData) return;
@@ -785,61 +888,141 @@ export function DeliverySettings() {
                                 <Label className="text-base">Delivery Bridge Settings</Label>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Dispatch routes through your provider accounts on the bridge. Enter the
-                                <strong> group number</strong> for each provider — the bridge books on a free
-                                account in that group, so you can run several accounts at once (e.g. multiple
-                                Rapido accounts, which each allow only one live order). Create accounts and tag
-                                them into a group at{" "}
-                                <a
-                                    href="https://deliverybridge.menuthere.com/accounts"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="underline underline-offset-2 font-medium"
-                                >
-                                    deliverybridge.menuthere.com
-                                </a>
-                                .
+                                Dispatch routes through your provider accounts on the bridge. Connect each
+                                account below with a one-time OTP login — the dispatch{" "}
+                                <strong>group</strong> is then set automatically to the first 5 digits of
+                                that number. Accounts sharing a group form a pool, so you can run several
+                                (e.g. multiple Rapido accounts, one live order each) by connecting more
+                                numbers that share the same first 5 digits.
                             </p>
-                            <div className="grid gap-3 sm:grid-cols-3">
+
+                            <div className="space-y-2">
                                 {([
-                                    { label: "Porter", key: "porter" },
-                                    { label: "Uber", key: "uber" },
-                                    { label: "Rapido", key: "rapido" },
-                                ] as { label: string; key: "porter" | "uber" | "rapido" }[]).map(({ label, key }) => (
-                                    <div key={label} className="space-y-1">
-                                        <Label className="text-sm">{label} group</Label>
-                                        <Input
-                                            value={deliveryRules.delivery_provider_groups?.[key] ?? ""}
-                                            placeholder="group #"
-                                            onChange={(e) =>
-                                                setDeliveryRules((prev) => ({
-                                                    ...prev,
-                                                    delivery_provider_groups: {
-                                                        ...(prev.delivery_provider_groups || {}),
-                                                        [key]: e.target.value.replace(/^\s+/, "").slice(0, 40),
-                                                    },
-                                                }))
-                                            }
-                                        />
-                                        <select
-                                            value={deliveryRules.delivery_payment_modes?.[key] || "cash"}
-                                            onChange={(e) =>
-                                                setDeliveryRules((prev) => ({
-                                                    ...prev,
-                                                    delivery_payment_modes: {
-                                                        ...(prev.delivery_payment_modes || {}),
-                                                        [key]: e.target.value as "cash" | "wallet",
-                                                    },
-                                                }))
-                                            }
-                                            className="w-full rounded-md border bg-white px-2 py-1.5 text-sm"
-                                        >
-                                            <option value="cash">Cash payment</option>
-                                            <option value="wallet">Wallet payment</option>
-                                        </select>
+                                    { label: "Porter", key: "porter" as const },
+                                    { label: "Rapido", key: "rapido" as const },
+                                ]).map(({ label, key }) => {
+                                    const conn = connections?.[key];
+                                    const expired = conn?.status === "token_expired";
+                                    return (
+                                        <div key={key} className="rounded-md border bg-white p-3 space-y-2">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="text-sm font-medium">{label}</span>
+                                                    {conn?.connected ? (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
+                                                            <CheckCircle2 className="h-3 w-3" /> Connected
+                                                        </span>
+                                                    ) : expired ? (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
+                                                            <XCircle className="h-3 w-3" /> Session expired
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[11px] text-muted-foreground">
+                                                            {connLoading && !connections ? "Checking…" : "Not connected"}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {conn?.connected ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleLogout(key)}
+                                                        disabled={loggingOut === key}
+                                                    >
+                                                        {loggingOut === key ? (
+                                                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                                        ) : (
+                                                            <LogOut className="h-4 w-4 mr-1" />
+                                                        )}
+                                                        Log out
+                                                    </Button>
+                                                ) : (
+                                                    <Button type="button" size="sm" onClick={() => setConnectDialog(key)}>
+                                                        <Link2 className="h-4 w-4 mr-1" />
+                                                        {conn?.mobile ? "Reconnect" : "Connect"}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {conn?.mobile && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    ••{conn.mobile.slice(-4)}
+                                                    {conn.group ? ` · group ${conn.group}` : ""}
+                                                </div>
+                                            )}
+                                            <select
+                                                value={deliveryRules.delivery_payment_modes?.[key] || "cash"}
+                                                onChange={(e) =>
+                                                    setDeliveryRules((prev) => ({
+                                                        ...prev,
+                                                        delivery_payment_modes: {
+                                                            ...(prev.delivery_payment_modes || {}),
+                                                            [key]: e.target.value as "cash" | "wallet",
+                                                        },
+                                                    }))
+                                                }
+                                                className="w-full rounded-md border bg-white px-2 py-1.5 text-sm"
+                                            >
+                                                <option value="cash">Cash payment</option>
+                                                <option value="wallet">Wallet payment</option>
+                                            </select>
+                                        </div>
+                                    );
+                                })}
+
+                                {/* Uber — manual group entry (in-app OTP connect not supported yet). */}
+                                <div className="rounded-md border bg-white p-3 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-medium">Uber</span>
+                                        <span className="text-[11px] text-muted-foreground">manual group</span>
                                     </div>
-                                ))}
+                                    <Input
+                                        value={deliveryRules.delivery_provider_groups?.uber ?? ""}
+                                        placeholder="group #"
+                                        onChange={(e) =>
+                                            setDeliveryRules((prev) => ({
+                                                ...prev,
+                                                delivery_provider_groups: {
+                                                    ...(prev.delivery_provider_groups || {}),
+                                                    uber: e.target.value.replace(/^\s+/, "").slice(0, 40),
+                                                },
+                                            }))
+                                        }
+                                    />
+                                    <select
+                                        value={deliveryRules.delivery_payment_modes?.uber || "cash"}
+                                        onChange={(e) =>
+                                            setDeliveryRules((prev) => ({
+                                                ...prev,
+                                                delivery_payment_modes: {
+                                                    ...(prev.delivery_payment_modes || {}),
+                                                    uber: e.target.value as "cash" | "wallet",
+                                                },
+                                            }))
+                                        }
+                                        className="w-full rounded-md border bg-white px-2 py-1.5 text-sm"
+                                    >
+                                        <option value="cash">Cash payment</option>
+                                        <option value="wallet">Wallet payment</option>
+                                    </select>
+                                </div>
                             </div>
+
+                            {connectDialog && (
+                                <DeliveryConnectDialog
+                                    open={!!connectDialog}
+                                    onOpenChange={(v) => {
+                                        if (!v) setConnectDialog(null);
+                                    }}
+                                    provider={connectDialog}
+                                    partnerId={userData?.id ?? ""}
+                                    storeName={(userData as Partner)?.store_name}
+                                    city={(userData as Partner)?.district}
+                                    coords={pickupCoords}
+                                    initialMobile={connectDialog === "porter" ? porterMobile : rapidoMobile}
+                                    onConnected={handleConnected}
+                                />
+                            )}
                             <p className="text-xs text-muted-foreground">
                                 <strong>Payment</strong>: how each provider collects the fare. <strong>Wallet</strong> draws
                                 from that provider&apos;s prepaid balance (Porter credits / Rapido wallet) so the rider

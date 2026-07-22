@@ -956,11 +956,12 @@ export async function getDispatchTracking(orderId: string): Promise<Result> {
   if (!res.ok) return res;
   const d = res.data as {
     status: string;
-    result: { provider?: string } | null;
+    result: { provider?: string; fare?: number } | null;
     booking: {
       provider?: string;
       ref?: string;
       status?: string;
+      fareAmount?: number;
       driver?: unknown;
       trackUrl?: string | null;
       pickupPin?: string | null;
@@ -972,9 +973,14 @@ export async function getDispatchTracking(orderId: string): Promise<Result> {
   // the real provider so the existing tracking panel renders it.
   const provider = b?.provider ?? d.result?.provider ?? "dispatch";
   const state = b?.status ?? (d.status === "assigned" ? "assigned" : d.status);
+  // Won fare (what the provider charges the restaurant) — persist it so the
+  // "3rd Party Delivery Charges" tab can total per-order spend for the dispatch
+  // flow too (the older single-provider book already stores fareAmount).
+  const wonFare = b?.fareAmount ?? d.result?.fare ?? null;
   await persistDispatch(orderId, provider, state, b?.ref ?? dispatchId, {
     dispatchId,
     dispatchStatus: d.status,
+    ...(wonFare != null ? { fareAmount: wonFare } : {}),
     ...(b?.trackUrl ? { trackUrl: b.trackUrl, consignmentNotePdfUrl: b.trackUrl } : {}),
     ...(b?.driver ? { driver: b.driver } : {}),
     ...(b?.pickupPin ? { pickupPin: b.pickupPin } : {}),
