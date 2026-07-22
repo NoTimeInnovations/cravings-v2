@@ -337,6 +337,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 currency
                 gst_percentage
                 store_name
+                country
+                delivery_rules
               }
             }
           `,
@@ -682,6 +684,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             currency
             gst_percentage
             store_name
+            country
+            delivery_rules
           }
         }
       `,

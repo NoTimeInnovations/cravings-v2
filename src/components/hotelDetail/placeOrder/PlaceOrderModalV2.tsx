@@ -55,6 +55,7 @@ import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } 
 import { getTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { computeParcelCharge } from "@/lib/parcelCharge";
 import { computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
+import { taxLabel } from "@/lib/taxLabel";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { useLiveStock } from "@/store/liveStockStore";
 
@@ -3447,7 +3448,7 @@ const PlaceOrderModalV2 = ({
                     <Row label={qrGroup.name} value={<MenuPrice currency={currency} amount={qrExtraCharge.toFixed(0)} />} />
                   )}
                   {additionalGst > 0 && (
-                    <Row label="GST & Other Charges" value={<MenuPrice currency={currency} amount={additionalGst.toFixed(0)} />} />
+                    <Row label={`${taxLabel(hotelData?.country, hotelData?.delivery_rules)} & Other Charges`} value={<MenuPrice currency={currency} amount={additionalGst.toFixed(0)} />} />
                   )}
                   {roundOff !== 0 && (
                     <Row label="Round Off" value={<MenuPrice currency={currency} amount={roundOff.toFixed(2)} />} />

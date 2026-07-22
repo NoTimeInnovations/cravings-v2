@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import useOrderStore, { Order } from "@/store/orderStore";
 import { useAuthStore, Partner } from "@/store/authStore";
+import { taxLabel } from "@/lib/taxLabel";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, X } from "lucide-react";
@@ -152,7 +153,7 @@ const SingleOrderView: React.FC<{
               <span>Subtotal:</span> <span>₹{foodSubtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>{(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>{" "}
+              <span>{taxLabel((userData as Partner)?.country, (userData as any)?.delivery_rules)} ({gstPercentage}%):</span>{" "}
               <span>₹{gstAmount.toFixed(2)}</span>
             </div>
             {(order.extraCharges ?? []).map((charge, index) => (

@@ -17,6 +17,7 @@ import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import PlaceOrderModal from "./placeOrder/PlaceOrderModal";
 import PlaceOrderModalV2 from "./placeOrder/PlaceOrderModalV2";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { taxLabel } from "@/lib/taxLabel";
 import { getTakeawayAdjustment, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { computeParcelCharge } from "@/lib/parcelCharge";
 import { roadDistanceKm, haversineKm, type LatLng } from "@/lib/roadDistance";
@@ -584,7 +585,7 @@ const OrderDrawer = ({
     const billingLines = [
       `*Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}`,
       hotelData?.gst_percentage
-        ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAmount.toFixed(2)}`
+        ? `*${taxLabel(hotelData?.country, (hotelData as any)?.delivery_rules)} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAmount.toFixed(2)}`
         : "",
       !isQrScan &&
       orderType === "delivery" &&

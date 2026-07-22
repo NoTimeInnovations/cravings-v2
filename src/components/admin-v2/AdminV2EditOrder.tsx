@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
+import { taxLabel } from "@/lib/taxLabel";
 import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import useOrderStore, { Order } from "@/store/orderStore";
@@ -788,7 +789,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                     {gstPercentage > 0 && (
                                         <div className="flex justify-between text-muted-foreground">
                                             <span>
-                                                {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%)
+                                                {taxLabel((userData as Partner)?.country, (userData as any)?.delivery_rules)} ({gstPercentage}%)
                                             </span>
                                             <span>
                                                 {currency}

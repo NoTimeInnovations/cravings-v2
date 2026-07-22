@@ -127,6 +127,7 @@ export type PartnerOrdersPartner = {
   currency: string;
   gstPercentage: number;
   country: string | null;
+  delivery_rules?: any;
 };
 
 export type OrderStat = { count: number; gmv: number };

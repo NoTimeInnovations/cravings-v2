@@ -65,6 +65,7 @@ const DeliveryRiderPanel = dynamic(
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
+import { taxLabel } from "@/lib/taxLabel";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
 import ManualPorterBookButton from "./ManualPorterBookButton";
@@ -1033,7 +1034,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         {gstAmount > 0 && (
                             <TableRow className="bg-muted/50 font-medium">
                                 <TableCell colSpan={3} className="text-right">
-                                    {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%)
+                                    {taxLabel((userData as Partner)?.country, (userData as any)?.delivery_rules)} ({gstPercentage}%)
                                 </TableCell>
                                 <TableCell className="text-right">
                                     {currency}{gstAmount.toFixed(2)}

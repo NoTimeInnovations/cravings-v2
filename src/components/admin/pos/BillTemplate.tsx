@@ -5,6 +5,7 @@ import {
 } from "@/components/hotelDetail/OrderDrawer";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { taxLabel } from "@/lib/taxLabel";
 import { getDateOnly } from "@/lib/formatDate";
 import { Partner } from "@/store/authStore";
 import { Order } from "@/store/orderStore";
@@ -231,7 +232,7 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
           )}
           {gstPercentage > 0 && (
             <div className="flex justify-between">
-              <span>{(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>
+              <span>{taxLabel((userData as Partner)?.country, (userData as any)?.delivery_rules)} ({gstPercentage}%):</span>
               <span>
                 {currency}
                 {gstAmount.toFixed(2)}
@@ -251,7 +252,7 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
         <div className="text-center text-xs mt-4 pt-2 border-t border-dashed border-gray-400">
           <p>Thank you for your visit!</p>
           <p className="mt-1">
-            {userData?.gst_no ? `${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}: ${userData.gst_no}` : ""}
+            {userData?.gst_no ? `${taxLabel((userData as Partner)?.country, (userData as any)?.delivery_rules)}: ${userData.gst_no}` : ""}
           </p>
         </div>
       </div>

@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { taxLabel } from "@/lib/taxLabel";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 
 export interface MenuItem {
@@ -475,7 +476,7 @@ export const EditOrderModal = () => {
                     {totalPrice.toFixed(2)}
                     {gstPercentage > 0 && (
                       <span className="text-xs text-muted-foreground ml-2">
-                        (incl. {gstPercentage}% {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}: {currency}
+                        (incl. {gstPercentage}% {taxLabel((userData as Partner)?.country, (userData as any)?.delivery_rules)}: {currency}
                         {calculateGstForItems(
                           items.map((i) => ({ price: i.menu.price, quantity: i.quantity, tax_inclusive: (i.menu as any).tax_inclusive })),
                           gstPercentage,

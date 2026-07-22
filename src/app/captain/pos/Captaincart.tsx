@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ExtraCharge, usePOSStore } from "@/store/posStore";
+import { taxLabel } from "@/lib/taxLabel";
 import { Plus, Minus, ShoppingCart, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Captain, useAuthStore } from "@/store/authStore";
@@ -402,7 +403,7 @@ export const Captaincart = () => {
                   {/* GST (on food only) */}
                   {(captainData?.gst_percentage || 0) > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span>{`${captainData?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} (${
+                      <span>{`${taxLabel(captainData?.partner?.country, (captainData?.partner as any)?.delivery_rules)} (${
                         captainData?.gst_percentage || 0
                       }%)`}</span>
                       <span>

@@ -6,6 +6,7 @@ import { formatDate, getDateOnly, formatOrderShortId } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
+import { taxLabel } from "@/lib/taxLabel";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { useLiveAgentLocation } from "@/hooks/useLiveAgentLocation";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -91,6 +92,7 @@ const GET_ORDER_QUERY = `
         store_banner
         theme
         country
+        delivery_rules
         name
         username
         feature_flags
@@ -505,7 +507,7 @@ const OrderClient = () => {
             .map((item, index) => `${index + 1}. ${item.name}\n   ➤ Qty: ${item.quantity} × ${currency}${item.price.toFixed(2)} = ${currency}${(item.price * item.quantity).toFixed(2)}`)
             .join("\n\n");
         const gstLine = gstPercentage > 0
-            ? `\n*${order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} (${gstPercentage}%):* ${currency}${gstAmount.toFixed(2)}`
+            ? `\n*${taxLabel(order?.partner?.country, (order?.partner as any)?.delivery_rules)} (${gstPercentage}%):* ${currency}${gstAmount.toFixed(2)}`
             : "";
         const msg = `*🍽️ Order Details 🍽️*
 
@@ -1265,7 +1267,7 @@ ${itemsText}
                                 {gstPercentage > 0 && (
                                     <div className="flex justify-between text-gray-700">
                                         <span>
-                                            {order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%)
+                                            {taxLabel(order?.partner?.country, (order?.partner as any)?.delivery_rules)} ({gstPercentage}%)
                                         </span>
                                         <span>{order?.partner?.currency || "₹"}{gstAmount.toFixed(2)}</span>
                                     </div>

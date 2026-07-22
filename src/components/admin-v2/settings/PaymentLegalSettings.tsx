@@ -58,6 +58,11 @@ export function PaymentLegalSettings() {
     // Defaults to false.
     const [roundOff, setRoundOff] = useState(false);
 
+    // Use VAT: when on, bills / checkout label the tax as "VAT" instead of the
+    // India-style "GST" (CGST+SGST split). Stored inside delivery_rules (the
+    // billing-config blob). UAE partners always show VAT regardless. Default false.
+    const [useVat, setUseVat] = useState(false);
+
     useEffect(() => {
         if (userData?.role === "partner") {
             setUpiId(userData.upi_id || "");
@@ -68,6 +73,7 @@ export function PaymentLegalSettings() {
             setGstPercentage(userData.gst_percentage || 0);
             setGstEnabled((userData.gst_percentage || 0) > 0);
             setRoundOff(!!(userData as any).delivery_rules?.round_off);
+            setUseVat(!!(userData as any).delivery_rules?.use_vat);
             setAcceptCod((userData as any).accept_cod ?? true);
             setCashfreeMerchantId((userData as any).cashfree_merchant_id || "");
             setAcceptPaymentsViaCashfree((userData as any).accept_payments_via_cashfree || false);
@@ -115,7 +121,7 @@ export function PaymentLegalSettings() {
                 accept_payments_via_cashfree: acceptPaymentsViaCashfree,
                 delivery_qr_method: deliveryQrMethod,
                 payment_modes: paymentModes,
-                delivery_rules: { ...existingDeliveryRules, round_off: roundOff },
+                delivery_rules: { ...existingDeliveryRules, round_off: roundOff, use_vat: useVat },
             };
 
             await updatePartner(userData.id, updates);
@@ -129,7 +135,7 @@ export function PaymentLegalSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, deliveryQrMethod, paymentModes, roundOff, setState]);
+    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, deliveryQrMethod, paymentModes, roundOff, useVat, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -162,6 +168,7 @@ export function PaymentLegalSettings() {
         const initialAcceptCashfree = data.accept_payments_via_cashfree || false;
         const initialDeliveryQrMethod = data.delivery_qr_method || "none";
         const initialRoundOff = !!data.delivery_rules?.round_off;
+        const initialUseVat = !!data.delivery_rules?.use_vat;
         const initialPaymentModes = (() => {
             const pm = data.payment_modes;
             const bo = data.accept_payments_via_cashfree || false;
@@ -186,6 +193,7 @@ export function PaymentLegalSettings() {
             acceptPaymentsViaCashfree !== initialAcceptCashfree ||
             deliveryQrMethod !== initialDeliveryQrMethod ||
             roundOff !== initialRoundOff ||
+            useVat !== initialUseVat ||
             JSON.stringify(paymentModes) !== JSON.stringify(initialPaymentModes);
 
         setHasChanges(hasChanges);
@@ -204,6 +212,7 @@ export function PaymentLegalSettings() {
         deliveryQrMethod,
         paymentModes,
         roundOff,
+        useVat,
         userData,
         setHasChanges
     ]);
@@ -466,6 +475,17 @@ export function PaymentLegalSettings() {
                                 </div>
                             </div>
                         )}
+
+                        <div className="flex items-center justify-between border-t pt-4">
+                            <div className="space-y-0.5">
+                                <Label className="text-base">Use VAT</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Label the tax as &quot;VAT&quot; on bills and checkout instead of the
+                                    India-style GST (CGST + SGST). UAE stores always show VAT.
+                                </p>
+                            </div>
+                            <Switch checked={useVat} onCheckedChange={setUseVat} />
+                        </div>
                     </div>
 
                     <div className="flex items-center justify-between border rounded-lg p-4">

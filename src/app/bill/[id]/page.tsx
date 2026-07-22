@@ -7,6 +7,7 @@ import { getDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
+import { isVatEnabled } from "@/lib/taxLabel";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { OrderItem } from "@/store/orderStore";
@@ -363,6 +364,8 @@ const PrintOrderPage = () => {
 
   const currency = order?.partner?.currency || "$";
   const gstPercentage = order?.partner?.gst_percentage || 0;
+  // VAT vs GST presentation — UAE, or the partner's "Use VAT" billing toggle.
+  const showVat = isVatEnabled(order?.partner?.country, order?.partner?.delivery_rules);
 
   // determine timezone for rendering the bill (partner preference -> browser tz -> UTC)
   const tz =
@@ -637,8 +640,8 @@ const PrintOrderPage = () => {
             </span>
           </div>
           {gstPercentage > 0 &&
-            (order?.partner?.country === "United Arab Emirates" ? (
-              // UAE: single VAT line.
+            (showVat ? (
+              // VAT (UAE or "Use VAT" toggle): a single VAT line.
               <div className="flex justify-between">
                 <span>VAT ({gstPercentage}%):</span>
                 <span>
@@ -694,10 +697,7 @@ const PrintOrderPage = () => {
           <p>Thank you for your visit!</p>
           <p className="mt-1">
             {order?.partner?.gst_no
-              ? `${order?.partner?.country === "United Arab Emirates"
-                ? "VAT"
-                : "GST"
-              }: ${order?.partner.gst_no}`
+              ? `${showVat ? "VAT" : "GST"}: ${order?.partner.gst_no}`
               : ""}
           </p>
           {order?.fssai_licence_no && (

@@ -28,6 +28,7 @@ import { computeParcelCharge } from "@/lib/parcelCharge";
 import { computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { taxLabel } from "@/lib/taxLabel";
 import { getFeatures } from "@/lib/getFeatures";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
 import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd } from "@/lib/prebooking";
@@ -883,7 +884,7 @@ const BillCard = ({
             <div className="border-t my-2" style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }} />
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--pom-text-muted)" }}>
-                {hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} &amp; Other Charges ({gstPercentage}%)
+                {taxLabel(hotelData?.country, (hotelData as any)?.delivery_rules)} &amp; Other Charges ({gstPercentage}%)
               </span>
               <span className="text-inherit"><MenuPrice currency={currency} amount={gstAmount.toFixed(2)} /></span>
             </div>
@@ -2837,7 +2838,7 @@ const PlaceOrderModal = ({
 
     const billingLines = [
       `*Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}`,
-      hotelData?.gst_percentage && gstAdditional > 0 ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAdditional.toFixed(2)}` : "",
+      hotelData?.gst_percentage && gstAdditional > 0 ? `*${taxLabel(hotelData?.country, (hotelData as any)?.delivery_rules)} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAdditional.toFixed(2)}` : "",
       !isQrScan && orderType === "delivery" && deliveryCharge > 0 ? `*Delivery Charge:* ${hotelData.currency}${deliveryCharge.toFixed(2)}` : "",
       qrGroup?.extra_charge ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}` : "",
       parcelCharge > 0 ? `*Packaging Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}` : "",

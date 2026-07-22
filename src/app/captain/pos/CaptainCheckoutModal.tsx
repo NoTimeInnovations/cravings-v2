@@ -17,6 +17,7 @@ import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import KOTTemplate from "@/components/admin/pos/KOTTemplate";
 import BillTemplate from "@/components/admin/pos/BillTemplate";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { taxLabel } from "@/lib/taxLabel";
 import { toast } from "sonner";
 import { formatDate, getDateOnly } from "@/lib/formatDate";
 
@@ -206,7 +207,7 @@ export const CaptainCheckoutModal = () => {
                   </div>
                   {gstPercentage > 0 && (
                     <div className="flex justify-between items-center text-sm">
-                      <span>{captainData?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>
+                      <span>{taxLabel(captainData?.partner?.country, (captainData?.partner as any)?.delivery_rules)} ({gstPercentage}%):</span>
                       <span>
                         {currency}
                         {gstAmount.toFixed(2)}

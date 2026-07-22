@@ -91,6 +91,7 @@ const ORDERS_QUERY = `
       currency
       gst_percentage
       country
+      delivery_rules
     }
 
     today_agg: orders_aggregate(where: {
@@ -341,6 +342,7 @@ export async function GET(req: NextRequest) {
         currency: data.partner.currency ?? "₹",
         gstPercentage: data.partner.gst_percentage ?? 0,
         country: data.partner.country ?? null,
+        delivery_rules: data.partner.delivery_rules ?? null,
       },
       summary: {
         today: {

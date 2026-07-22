@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, MapPin, MessageCircle, Phone, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { getDiscountAmount } from "@/lib/discountUtils";
+import { taxLabel } from "@/lib/taxLabel";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import type { AnalyticsOrder, PartnerOrdersPartner } from "../types";
 
@@ -377,7 +378,7 @@ export default function PartnerOrderDetails({
             {gstAmount > 0 && (
               <TableRow className="bg-muted/50 font-medium">
                 <TableCell colSpan={3} className="text-right">
-                  {partner.country === "United Arab Emirates" ? "VAT" : "GST"} (
+                  {taxLabel(partner.country, (partner as any)?.delivery_rules)} (
                   {gstPercentage}%)
                 </TableCell>
                 <TableCell className="text-right">
