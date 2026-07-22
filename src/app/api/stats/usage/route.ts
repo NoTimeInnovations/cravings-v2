@@ -157,6 +157,141 @@ const QR_SCANS_QUERY = `
   }
 `;
 
+// Aggregate variant of the partner/orders/scans fetch: instead of pulling up to
+// 50k order rows + 200k scan rows into the function and counting in JS, let
+// Hasura count per partner via nested aggregates. Gated behind ?agg=1 with a
+// legacy fallback until the nested-aggregate relationships are confirmed.
+const PARTNERS_AGG_QUERY = `
+  query UsagePartnersAgg($start: timestamptz!, $end: timestamptz!, $excluded: [uuid!]!) {
+    partners(
+      where: {
+        id: { _nin: $excluded },
+        username: { _is_null: false, _neq: "" }
+      }
+      limit: 5000
+    ) {
+      id
+      name
+      store_name
+      district
+      username
+      orders_aggregate(
+        where: {
+          created_at: { _gte: $start, _lte: $end },
+          _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }]
+        }
+      ) {
+        aggregate { count }
+      }
+      qr_codes {
+        qr_scans_aggregate(where: { created_at: { _gte: $start, _lte: $end } }) {
+          aggregate { count }
+        }
+      }
+    }
+  }
+`;
+
+type PartnerInfo = {
+  id: string;
+  username: string;
+  name: string;
+  district: string | null;
+  orders: number;
+  scans: number;
+};
+
+// Legacy data path: pull raw order/scan rows (capped) and count per-partner in JS.
+async function buildPartnersLegacy(w: {
+  start: string;
+  end: string;
+  days: number;
+}): Promise<Map<string, PartnerInfo>> {
+  const [partnersRes, ordersRes, qrCodesRes, qrScansRes] = await Promise.all([
+    hasura(PARTNERS_QUERY, { excluded: EXCLUDED_PARTNER_IDS }),
+    hasura(ORDERS_QUERY, {
+      start: w.start,
+      end: w.end,
+      excluded: EXCLUDED_PARTNER_IDS,
+    }),
+    hasura(QR_CODES_QUERY, { excluded: EXCLUDED_PARTNER_IDS }),
+    hasura(QR_SCANS_QUERY, { start: w.start, end: w.end }),
+  ]);
+
+  const ordersByPartner = new Map<string, number>();
+  for (const o of ordersRes.orders ?? []) {
+    if (!o.partner_id) continue;
+    ordersByPartner.set(o.partner_id, (ordersByPartner.get(o.partner_id) ?? 0) + 1);
+  }
+
+  const qrToPartner = new Map<string, string>();
+  for (const qc of qrCodesRes.qr_codes ?? []) {
+    if (qc.id && qc.partner_id) qrToPartner.set(qc.id, qc.partner_id);
+  }
+
+  const scansByPartner = new Map<string, number>();
+  for (const s of qrScansRes.qr_scans ?? []) {
+    const pid = qrToPartner.get(s.qr_id);
+    if (!pid) continue;
+    scansByPartner.set(pid, (scansByPartner.get(pid) ?? 0) + 1);
+  }
+
+  const map = new Map<string, PartnerInfo>();
+  for (const p of partnersRes.partners ?? []) {
+    const uname = (p.username ?? "").toString().trim().toLowerCase();
+    if (!uname) continue;
+    map.set(uname, {
+      id: p.id,
+      username: uname,
+      name: p.store_name ?? p.name ?? "—",
+      district: p.district ?? null,
+      orders: ordersByPartner.get(p.id) ?? 0,
+      scans: scansByPartner.get(p.id) ?? 0,
+    });
+  }
+  return map;
+}
+
+// Aggregate data path (?agg=1): Hasura counts orders + scans per partner via
+// nested aggregates, so the function never materializes the raw rows. Throws if
+// the nested-aggregate relationships aren't exposed so the caller can fall back.
+async function buildPartnersAgg(w: {
+  start: string;
+  end: string;
+  days: number;
+}): Promise<Map<string, PartnerInfo>> {
+  const res = await hasura(PARTNERS_AGG_QUERY, {
+    start: w.start,
+    end: w.end,
+    excluded: EXCLUDED_PARTNER_IDS,
+  });
+  if (!Array.isArray(res.partners)) {
+    throw new Error(
+      "agg query returned no partners (nested-aggregate relationship missing?)"
+    );
+  }
+
+  const map = new Map<string, PartnerInfo>();
+  for (const p of res.partners) {
+    const uname = (p.username ?? "").toString().trim().toLowerCase();
+    if (!uname) continue;
+    const orders = p.orders_aggregate?.aggregate?.count ?? 0;
+    let scans = 0;
+    for (const qc of p.qr_codes ?? []) {
+      scans += qc.qr_scans_aggregate?.aggregate?.count ?? 0;
+    }
+    map.set(uname, {
+      id: p.id,
+      username: uname,
+      name: p.store_name ?? p.name ?? "—",
+      district: p.district ?? null,
+      orders,
+      scans,
+    });
+  }
+  return map;
+}
+
 function emptyResponse(reason: string, range: Range, start: string, end: string) {
   return NextResponse.json({
     enabled: false,
@@ -205,62 +340,26 @@ export async function GET(req: NextRequest) {
         )
       : Promise.resolve(null);
 
-    const [phRes, partnersRes, ordersRes, qrCodesRes, qrScansRes] =
-      await Promise.all([
-        phPromise,
-        hasura(PARTNERS_QUERY, { excluded: EXCLUDED_PARTNER_IDS }),
-        hasura(ORDERS_QUERY, {
-          start: w.start,
-          end: w.end,
-          excluded: EXCLUDED_PARTNER_IDS,
-        }),
-        hasura(QR_CODES_QUERY, { excluded: EXCLUDED_PARTNER_IDS }),
-        hasura(QR_SCANS_QUERY, { start: w.start, end: w.end }),
-      ]);
-
-    const ordersByPartner = new Map<string, number>();
-    for (const o of ordersRes.orders ?? []) {
-      if (!o.partner_id) continue;
-      ordersByPartner.set(
-        o.partner_id,
-        (ordersByPartner.get(o.partner_id) ?? 0) + 1
-      );
+    // Partner + orders + scans. Default path pulls raw rows and counts in JS;
+    // ?agg=1 uses Hasura nested aggregates (no 250k-row materialization) and
+    // falls back to legacy on any error, so prod stays safe while it's validated.
+    // PostHog runs concurrently with whichever path is chosen.
+    const useAgg = req.nextUrl.searchParams.get("agg") === "1";
+    let partnersByUsername: Map<string, PartnerInfo>;
+    if (useAgg) {
+      try {
+        partnersByUsername = await buildPartnersAgg(w);
+      } catch (aggErr: any) {
+        console.error(
+          "[usage] ?agg=1 path failed, falling back to legacy:",
+          aggErr?.message || aggErr
+        );
+        partnersByUsername = await buildPartnersLegacy(w);
+      }
+    } else {
+      partnersByUsername = await buildPartnersLegacy(w);
     }
-
-    const qrToPartner = new Map<string, string>();
-    for (const qc of qrCodesRes.qr_codes ?? []) {
-      if (qc.id && qc.partner_id) qrToPartner.set(qc.id, qc.partner_id);
-    }
-
-    const scansByPartner = new Map<string, number>();
-    for (const s of qrScansRes.qr_scans ?? []) {
-      const pid = qrToPartner.get(s.qr_id);
-      if (!pid) continue;
-      scansByPartner.set(pid, (scansByPartner.get(pid) ?? 0) + 1);
-    }
-
-    type PartnerInfo = {
-      id: string;
-      username: string;
-      name: string;
-      district: string | null;
-      orders: number;
-      scans: number;
-    };
-
-    const partnersByUsername = new Map<string, PartnerInfo>();
-    for (const p of partnersRes.partners ?? []) {
-      const uname = (p.username ?? "").toString().trim().toLowerCase();
-      if (!uname) continue;
-      partnersByUsername.set(uname, {
-        id: p.id,
-        username: uname,
-        name: p.store_name ?? p.name ?? "—",
-        district: p.district ?? null,
-        orders: ordersByPartner.get(p.id) ?? 0,
-        scans: scansByPartner.get(p.id) ?? 0,
-      });
-    }
+    const phRes = await phPromise;
 
     type UsageAgg = {
       events: number;

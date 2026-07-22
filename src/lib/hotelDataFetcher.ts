@@ -95,6 +95,27 @@ export async function processHotelPage(
     storeName: (hoteldata as any)?.store_name,
   };
 
+  // Kick off the two independent, id-only reads concurrently so they overlap the
+  // CPU work below (and each other) instead of running back-to-back. Each
+  // pre-catches so one failing does NOT reject the other (avoids Promise.all's
+  // all-or-nothing). They are awaited at their use-sites further down.
+  const qrCodesPromise: Promise<any> = hoteldata?.id
+    ? fetchFromHasura(GET_QR_CODES_WITH_GROUPS_BY_PARTNER, {
+        partner_id: hoteldata.id,
+      }).catch((error) => {
+        console.error("Error fetching QR codes:", error);
+        return null;
+      })
+    : Promise.resolve(null);
+  const freshSubscriptionPromise: Promise<any> = hoteldata?.id
+    ? fetchFromHasura(getPartnerSubscriptionQuery, {
+        partnerId: hoteldata.id,
+      }).catch((error) => {
+        console.error("Error fetching subscription:", error);
+        return null;
+      })
+    : Promise.resolve(null);
+
   // Filter expired offers
   if (hoteldata?.offers) {
     const today = new Date().setHours(0, 0, 0, 0);
@@ -105,17 +126,8 @@ export async function processHotelPage(
 
   const offers = hoteldata?.offers;
 
-  // Cleanup expired custom menu items
-  if (hoteldata?.id) {
-    try {
-      const { cleanupExpiredCustomItems } = await import("@/api/offers");
-      await fetchFromHasura(cleanupExpiredCustomItems, {
-        partner_id: hoteldata.id,
-      });
-    } catch (error) {
-      console.error("Error cleaning up expired custom items:", error);
-    }
-  }
+  // Expired custom-item cleanup moved OUT of the render path (it was a DB write
+  // on every storefront view) to /api/cron/cleanup-expired-custom-items.
 
   // Parse variant JSON for offers + deduplicate same item/variant keeping highest discount
   if (hoteldata?.offers) {
@@ -246,14 +258,11 @@ export async function processHotelPage(
 
   const socialLinks = getSocialLinks(hoteldata as HotelData);
 
-  // Fetch QR codes with groups to find table 0 extra charges
+  // Resolve the QR-codes read started earlier (find table 0 extra charges).
+  // The promise already pre-catches, so this never throws.
   let table0QrGroup = null;
-  try {
-    const qrCodesResponse = hoteldata?.id
-      ? await fetchFromHasura(GET_QR_CODES_WITH_GROUPS_BY_PARTNER, {
-          partner_id: hoteldata.id,
-        })
-      : null;
+  {
+    const qrCodesResponse = await qrCodesPromise;
 
     if (qrCodesResponse?.qr_codes) {
       const table0QrCode = qrCodesResponse.qr_codes.find(
@@ -278,8 +287,6 @@ export async function processHotelPage(
         };
       }
     }
-  } catch (error) {
-    console.error("Error fetching QR codes:", error);
   }
 
   const partnerPriceAdjustment = hoteldata?.price_adjustment || 0;
@@ -307,12 +314,8 @@ export async function processHotelPage(
     menus: menuItemWithOfferPrice,
   };
 
-  // Fetch fresh subscription details for scan limit checks (uncached)
-  const freshSubscriptionRes = hoteldata?.id
-    ? await fetchFromHasura(getPartnerSubscriptionQuery, {
-        partnerId: hoteldata.id,
-      })
-    : null;
+  // Resolve the fresh subscription read started earlier (uncached; scan-limit checks).
+  const freshSubscriptionRes = await freshSubscriptionPromise;
   const freshSubscription = freshSubscriptionRes?.partner_subscriptions?.[0];
 
   // --- Subscription & Scan Limit Logic ---

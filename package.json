@@ -92,7 +92,6 @@
     "openai": "^6.10.0",
     "pdfjs-dist": "^4.10.38",
     "posthog-js": "^1.332.0",
-    "puppeteer": "^23.11.1",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
     "react": "19.2.1",

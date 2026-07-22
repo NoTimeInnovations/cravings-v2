@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getPartnerByUsernameQuery } from "@/api/partners";
 import {
   getBranchByParentPartnerIdQuery,
@@ -63,7 +64,10 @@ async function getBrandLinkForOutlet(
   }
 }
 
-async function getPartnerIdByUsername(username: string): Promise<string | null> {
+// Wrapped in React cache() so the username -> partnerId lookup runs once per
+// request instead of 3x (generateMetadata, generateViewport, and the page body).
+// Request-scoped memoization; composes cleanly with the unstable_cache layer below.
+const getPartnerIdByUsername = cache(async (username: string): Promise<string | null> => {
   try {
     const result = await fetchFromHasura(getPartnerByUsernameQuery, { username });
     return result?.partners?.[0]?.id || null;
@@ -71,7 +75,7 @@ async function getPartnerIdByUsername(username: string): Promise<string | null> 
     console.error("Error fetching partner by username:", error);
     return null;
   }
-}
+});
 
 export async function generateMetadata({
   params,
