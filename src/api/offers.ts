@@ -154,7 +154,7 @@ export const incrementOfferEnquiry = `
     }
   }`;
 
-// Cleanup expired custom menu items
+// Cleanup expired custom menu items (per-partner). Kept for any direct callers.
 export const cleanupExpiredCustomItems = `
   mutation CleanupExpiredCustomItems($partner_id: uuid!) {
     update_menu(
@@ -171,6 +171,26 @@ export const cleanupExpiredCustomItems = `
         id
         name
       }
+    }
+  }
+`;
+
+// Global variant used by the /api/cron/cleanup-expired-custom-items cron: cleans
+// expired custom items across ALL partners in one mutation (no partner_id
+// filter). This replaces running the per-partner cleanup as a write on every
+// storefront render — the cron is cheaper and also covers partners whose page
+// nobody happens to view.
+export const cleanupAllExpiredCustomItems = `
+  mutation CleanupAllExpiredCustomItems {
+    update_menu(
+      where: {
+        category: { name: { _eq: "custom" } },
+        offers: { end_time: { _lt: "now()" } },
+        deletion_status: { _eq: 0 }
+      },
+      _set: { deletion_status: 1 }
+    ) {
+      affected_rows
     }
   }
 `;

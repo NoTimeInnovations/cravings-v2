@@ -222,17 +222,8 @@ const HotelPage = async ({
 
   const offers = hoteldata?.offers;
 
-  // Cleanup expired custom menu items
-  if (hoteldata?.id) {
-    try {
-      const { cleanupExpiredCustomItems } = await import('@/api/offers');
-      await fetchFromHasura(cleanupExpiredCustomItems, {
-        partner_id: hoteldata.id
-      });
-    } catch (error) {
-      console.error("Error cleaning up expired custom items:", error);
-    }
-  }
+  // Expired custom-item cleanup moved OUT of the render path (it was a DB write
+  // on every storefront view) to /api/cron/cleanup-expired-custom-items.
 
   // Parse variant JSON for offers + deduplicate same item/variant keeping highest discount
   if (hoteldata?.offers) {
