@@ -62,7 +62,7 @@ function getConfig(): { url: string; key: string } | null {
 
 async function bridgeFetch(
   path: string,
-  init: RequestInit & { json?: unknown } = {},
+  init: RequestInit & { json?: unknown; timeoutMs?: number } = {},
 ): Promise<BridgeResult> {
   const cfg = getConfig();
   if (!cfg) {
@@ -76,13 +76,14 @@ async function bridgeFetch(
     ...(init.json !== undefined ? { "Content-Type": "application/json" } : {}),
     ...(init.headers as Record<string, string> | undefined),
   };
+  const { timeoutMs, ...fetchInit } = init;
   let res: Response;
   try {
     res = await fetch(`${cfg.url}${path}`, {
-      ...init,
+      ...fetchInit,
       headers,
       body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(timeoutMs ?? 25_000),
     });
   } catch (err) {
     return { ok: false, message: `network: ${(err as Error).message}` };
@@ -398,7 +399,28 @@ export async function getDeliveryConnections(input: {
     if (v != null && v !== "") groups[k] = String(v);
   }
 
-  const list = await bridgeFetch(`/api/v1/accounts`, { method: "GET" });
+  const porterMobile = normaliseMobile(conn.porter_mobile);
+  const rapidoMobile = normaliseMobile(conn.rapido_mobile);
+
+  const notConnected = (provider: ConnectProvider): ProviderConnection => ({
+    mobile: null,
+    group: groups[provider] ?? null,
+    status: "none",
+    connected: false,
+  });
+
+  // Nothing connected for this partner → no reason to hit the bridge at all.
+  // (Fixes the perpetual "Checking…" for partners who never connected an
+  // account — the status check no longer depends on a slow global list call.)
+  if (!porterMobile && !rapidoMobile) {
+    return { ok: true, porter: notConnected("porter"), rapido: notConnected("rapido") };
+  }
+
+  // Only now do we ask the bridge — with a short timeout so the settings screen
+  // never wedges on it. On failure we fall back to "known-but-unverified":
+  // a saved mobile is treated as connected so we don't wrongly prompt to
+  // reconnect just because the status probe timed out.
+  const list = await bridgeFetch(`/api/v1/accounts`, { method: "GET", timeoutMs: 8_000 });
   const rows: Array<Record<string, unknown>> = list.ok
     ? (Array.isArray(list.data)
         ? (list.data as Array<Record<string, unknown>>)
@@ -407,8 +429,10 @@ export async function getDeliveryConnections(input: {
 
   const build = (provider: ConnectProvider, rawMobile: string | null): ProviderConnection => {
     const mobile = normaliseMobile(rawMobile);
-    if (!mobile) {
-      return { mobile: null, group: groups[provider] ?? null, status: "none", connected: false };
+    if (!mobile) return notConnected(provider);
+    if (!list.ok) {
+      // Couldn't reach the bridge — assume the saved account is still connected.
+      return { mobile, group: groups[provider] ?? null, status: "unknown", connected: true };
     }
     const match = rows.find(
       (r) =>

@@ -457,9 +457,16 @@ export function DeliverySettings() {
         if (!userData?.id) return;
         if (!features?.porter_bridge?.access || !features?.porter_bridge?.enabled) return;
         setConnLoading(true);
+        // Hard client-side ceiling so the status never wedges on "Checking…" even
+        // if the server action stalls — after this we just stop the spinner (the
+        // row falls back to "Not connected", and the Connect button still works).
+        const guard = new Promise<null>((resolve) => setTimeout(() => resolve(null), 12_000));
         try {
-            const res = await getDeliveryConnections({ partnerId: userData.id });
-            if (res.ok) setConnections({ porter: res.porter, rapido: res.rapido });
+            const res = await Promise.race([
+                getDeliveryConnections({ partnerId: userData.id }),
+                guard,
+            ]);
+            if (res && res.ok) setConnections({ porter: res.porter, rapido: res.rapido });
         } catch {
             /* leave prior status */
         } finally {
