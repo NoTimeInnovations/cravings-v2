@@ -30,9 +30,13 @@ export interface VerifyOtpSuccess {
 export interface ProviderConnection {
     mobile: string | null;
     group: string | null;
-    /** "active" | "token_expired" | "pending_otp" | "blocked" | "disabled" | "none" */
+    /** "active" | "token_expired" | "pending_otp" | "blocked" | "disabled" | "none" | "unknown" */
     status: string;
     connected: boolean;
+    /** How many ACTIVE accounts are tagged into this provider's configured group
+     *  on the bridge — what dispatch actually pools from. 0 when no group is set
+     *  or none are tagged. */
+    groupAccounts: number;
 }
 
 // ── charges ──────────────────────────────────────────────────────────────────

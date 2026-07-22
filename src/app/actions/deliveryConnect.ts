@@ -407,19 +407,19 @@ export async function getDeliveryConnections(input: {
     group: groups[provider] ?? null,
     status: "none",
     connected: false,
+    groupAccounts: 0,
   });
 
-  // Nothing connected for this partner → no reason to hit the bridge at all.
-  // (Fixes the perpetual "Checking…" for partners who never connected an
-  // account — the status check no longer depends on a slow global list call.)
-  if (!porterMobile && !rapidoMobile) {
+  // Skip the bridge only when there's genuinely nothing to check — no saved
+  // mobile AND no group configured for either provider. (Avoids the old
+  // perpetual "Checking…" for brand-new partners.)
+  if (!porterMobile && !rapidoMobile && !groups.porter && !groups.rapido) {
     return { ok: true, porter: notConnected("porter"), rapido: notConnected("rapido") };
   }
 
-  // Only now do we ask the bridge — with a short timeout so the settings screen
-  // never wedges on it. On failure we fall back to "known-but-unverified":
-  // a saved mobile is treated as connected so we don't wrongly prompt to
-  // reconnect just because the status probe timed out.
+  // Ask the bridge (short timeout so the settings screen never wedges). On
+  // failure we fall back to "configured-but-unverified" rather than wrongly
+  // prompting a reconnect.
   const list = await bridgeFetch(`/api/v1/accounts`, { method: "GET", timeoutMs: 8_000 });
   const rows: Array<Record<string, unknown>> = list.ok
     ? (Array.isArray(list.data)
@@ -429,23 +429,48 @@ export async function getDeliveryConnections(input: {
 
   const build = (provider: ConnectProvider, rawMobile: string | null): ProviderConnection => {
     const mobile = normaliseMobile(rawMobile);
-    if (!mobile) return notConnected(provider);
+    const group = groups[provider] ?? null;
+
     if (!list.ok) {
-      // Couldn't reach the bridge — assume the saved account is still connected.
-      return { mobile, group: groups[provider] ?? null, status: "unknown", connected: true };
+      // Couldn't reach the bridge — treat anything configured as connected so we
+      // don't nag; we just can't show the live account count.
+      const configured = !!(mobile || group);
+      return {
+        mobile,
+        group,
+        status: configured ? "unknown" : "none",
+        connected: configured,
+        groupAccounts: 0,
+      };
     }
-    const match = rows.find(
-      (r) =>
-        ((r.service as string) ?? "porter") === provider &&
-        normaliseMobile(String(r.mobile)) === mobile,
-    );
-    const status = match ? String(match.status ?? "none") : "none";
-    return {
-      mobile,
-      group: (match?.groupNumber ? String(match.groupNumber) : groups[provider]) ?? null,
-      status,
-      connected: status === "active",
-    };
+
+    // Active accounts pooled under this provider's group — what dispatch books
+    // from. This is the key signal in the manual-group model: a group with ≥1
+    // active account is "connected" even if THIS partner never OTP-logged a
+    // number themselves.
+    const groupAccounts = group
+      ? rows.filter(
+          (r) =>
+            ((r.service as string) ?? "porter") === provider &&
+            String(r.status ?? "") === "active" &&
+            String(r.groupNumber ?? "") === group,
+        ).length
+      : 0;
+
+    // The partner's own saved account (when a mobile is on file).
+    const match = mobile
+      ? rows.find(
+          (r) =>
+            ((r.service as string) ?? "porter") === provider &&
+            normaliseMobile(String(r.mobile)) === mobile,
+        )
+      : undefined;
+    const mobileStatus = match ? String(match.status ?? "none") : "none";
+
+    const connected = mobileStatus === "active" || groupAccounts > 0;
+    const status =
+      mobileStatus !== "none" ? mobileStatus : groupAccounts > 0 ? "active" : "none";
+    return { mobile, group, status, connected, groupAccounts };
   };
 
   return {

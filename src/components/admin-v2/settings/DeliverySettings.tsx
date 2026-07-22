@@ -654,6 +654,9 @@ export function DeliverySettings() {
                 setProviderGroups({ partnerId: userData.id })
                     .then((r) => {
                         if (!r.ok) console.warn("[delivery] setProviderGroups:", r.message);
+                        // Refresh so the "N accounts in group X" status reflects the
+                        // group we just applied.
+                        loadConnections();
                     })
                     .catch((e) => console.warn("[delivery] setProviderGroups failed:", e));
             }
@@ -665,7 +668,7 @@ export function DeliverySettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, takeawayPriceAdjustment, porterMobile, uberMobile, rapidoMobile, setState, features?.porter_bridge?.access, features?.porter_bridge?.enabled]);
+    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, takeawayPriceAdjustment, porterMobile, uberMobile, rapidoMobile, setState, features?.porter_bridge?.access, features?.porter_bridge?.enabled, loadConnections]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -941,7 +944,7 @@ export function DeliverySettings() {
                                                         </span>
                                                     )}
                                                 </div>
-                                                {conn?.connected ? (
+                                                {conn?.mobile ? (
                                                     <Button
                                                         type="button"
                                                         variant="outline"
@@ -959,13 +962,17 @@ export function DeliverySettings() {
                                                 ) : (
                                                     <Button type="button" size="sm" onClick={() => setConnectDialog(key)}>
                                                         <Link2 className="h-4 w-4 mr-1" />
-                                                        {conn?.mobile ? "Reconnect" : "Connect"}
+                                                        {conn?.connected ? "Add account" : "Connect"}
                                                     </Button>
                                                 )}
                                             </div>
-                                            {conn?.mobile && (
+                                            {(conn?.mobile || (conn?.groupAccounts ?? 0) > 0) && (
                                                 <div className="text-xs text-muted-foreground">
-                                                    ••{conn.mobile.slice(-4)}
+                                                    {conn?.mobile ? `••${conn.mobile.slice(-4)}` : ""}
+                                                    {conn?.mobile && (conn?.groupAccounts ?? 0) > 0 ? " · " : ""}
+                                                    {(conn?.groupAccounts ?? 0) > 0
+                                                        ? `${conn!.groupAccounts} account${conn!.groupAccounts === 1 ? "" : "s"} in group ${conn!.group}`
+                                                        : ""}
                                                 </div>
                                             )}
                                             <div>
