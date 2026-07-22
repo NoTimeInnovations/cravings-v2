@@ -219,6 +219,10 @@ interface VerifyOtpInput {
   mobile: string;
   otp: string;
   storeName?: string;
+  /** Group to pool this account into. Connecting several accounts with the SAME
+   *  group lets dispatch run one live order on each (esp. Rapido). Empty = the
+   *  account is resolvable only by its own mobile. */
+  group?: string;
 }
 
 export async function verifyDeliveryOtp(
@@ -230,6 +234,7 @@ export async function verifyDeliveryOtp(
   if (!mobile) return { ok: false, message: "Enter a valid 10-digit mobile" };
   const otp = String(input.otp || "").replace(/\D/g, "");
   if (otp.length < 4) return { ok: false, message: "Enter the OTP you received" };
+  const group = String(input.group ?? "").replace(/\D/g, "").slice(0, 20);
 
   const firstName = (input.storeName || "").slice(0, 40) || undefined;
 
@@ -248,27 +253,54 @@ export async function verifyDeliveryOtp(
     return { ok: false, message: "Verified, but the bridge returned no account id" };
   }
 
-  // 2b. Save ONLY the mobile — the dispatch group is set manually in the
-  //     settings form (and pushed to the bridge on Save via setProviderGroup).
+  // 2b. Tag THIS account into the group so it joins the pool — this is what lets
+  //     multiple accounts (esp. Rapido, one live order each) run together. Every
+  //     connected account with the same group is a member; dispatch books on a
+  //     free one. Non-fatal so a tag hiccup doesn't lose the connection.
+  if (group) {
+    const grp = await bridgeFetch(`/api/v1/accounts/${accountId}/group`, {
+      method: "POST",
+      json: { groupNumber: group },
+    });
+    if (!grp.ok) {
+      console.warn(
+        `[deliveryConnect] group tag failed for ${input.provider} ${mobile}: ${grp.message}`,
+      );
+    }
+  }
+
+  // 2c. Save the mobile (last-connected = the "primary" for logout) and, when a
+  //     group was given, persist it onto delivery_rules so dispatch sends it.
+  const conn = await loadPartnerConn(input.partnerId);
+  const rules = { ...(conn?.delivery_rules ?? {}) } as Record<string, unknown>;
   const mobileColumn = PROVIDER_MOBILE_COLUMN[input.provider];
+  const updates: Record<string, unknown> = {
+    [mobileColumn]: mobile,
+    updated_at: new Date().toISOString(),
+  };
+  if (group) {
+    const groups = {
+      ...((rules.delivery_provider_groups as Record<string, unknown>) || {}),
+    };
+    groups[input.provider] = group;
+    rules.delivery_provider_groups = groups;
+    updates.delivery_rules = rules;
+  }
   await fetchFromHasuraServer(
     `mutation SaveDeliveryConn($id: uuid!, $updates: partners_set_input!) {
       update_partners_by_pk(pk_columns: { id: $id }, _set: $updates) { id }
     }`,
-    {
-      id: input.partnerId,
-      updates: { [mobileColumn]: mobile, updated_at: new Date().toISOString() },
-    },
+    { id: input.partnerId, updates },
   );
 
   return {
     ok: true,
     provider: input.provider,
     mobile,
-    group: "",
+    group,
     accountId,
     mobileColumn,
-    deliveryRules: {},
+    deliveryRules: rules,
   };
 }
 

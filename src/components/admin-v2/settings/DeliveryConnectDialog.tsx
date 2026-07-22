@@ -30,6 +30,7 @@ export function DeliveryConnectDialog({
     city,
     coords,
     initialMobile,
+    initialGroup,
     onConnected,
 }: {
     open: boolean;
@@ -40,10 +41,12 @@ export function DeliveryConnectDialog({
     city?: string;
     coords?: { lat: number; lng: number };
     initialMobile?: string;
+    initialGroup?: string;
     onConnected: (result: VerifyOtpSuccess) => void;
 }) {
     const [step, setStep] = useState<"mobile" | "otp">("mobile");
     const [mobile, setMobile] = useState("");
+    const [group, setGroup] = useState("");
     const [otp, setOtp] = useState("");
     const [sending, setSending] = useState(false);
     const [verifying, setVerifying] = useState(false);
@@ -53,11 +56,12 @@ export function DeliveryConnectDialog({
         if (open) {
             setStep("mobile");
             setMobile((initialMobile || "").replace(/\D/g, "").slice(-10));
+            setGroup((initialGroup || "").replace(/\D/g, "").slice(0, 20));
             setOtp("");
             setSending(false);
             setVerifying(false);
         }
-    }, [open, initialMobile]);
+    }, [open, initialMobile, initialGroup]);
 
     const label = LABELS[provider];
 
@@ -97,6 +101,7 @@ export function DeliveryConnectDialog({
                 mobile: mobile.replace(/\D/g, ""),
                 otp: code,
                 storeName,
+                group,
             });
             if (!res.ok) {
                 toast.error(res.message);
@@ -143,9 +148,18 @@ export function DeliveryConnectDialog({
                                     autoFocus
                                 />
                             </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Group number</Label>
+                            <Input
+                                value={group}
+                                onChange={(e) => setGroup(e.target.value.replace(/\D/g, "").slice(0, 20))}
+                                inputMode="numeric"
+                                placeholder="e.g. 98765"
+                            />
                             <p className="text-xs text-muted-foreground">
-                                Once connected, the dispatch group is set automatically to the first 5
-                                digits of this number.
+                                Connect several {label} accounts with the <strong>same</strong> group to
+                                run more live orders at once — dispatch books on whichever account is free.
                             </p>
                         </div>
                         <Button onClick={handleSend} disabled={sending} className="w-full">

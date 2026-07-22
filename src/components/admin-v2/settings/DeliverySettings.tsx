@@ -944,27 +944,29 @@ export function DeliverySettings() {
                                                         </span>
                                                     )}
                                                 </div>
-                                                {conn?.mobile ? (
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleLogout(key)}
-                                                        disabled={loggingOut === key}
-                                                    >
-                                                        {loggingOut === key ? (
-                                                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                                        ) : (
-                                                            <LogOut className="h-4 w-4 mr-1" />
-                                                        )}
-                                                        Log out
-                                                    </Button>
-                                                ) : (
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    {conn?.mobile && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="px-2 text-muted-foreground"
+                                                            onClick={() => handleLogout(key)}
+                                                            disabled={loggingOut === key}
+                                                            title={`Log out ••${conn.mobile.slice(-4)}`}
+                                                        >
+                                                            {loggingOut === key ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <LogOut className="h-4 w-4" />
+                                                            )}
+                                                        </Button>
+                                                    )}
                                                     <Button type="button" size="sm" onClick={() => setConnectDialog(key)}>
                                                         <Link2 className="h-4 w-4 mr-1" />
-                                                        {conn?.connected ? "Add account" : "Connect"}
+                                                        {conn?.connected || conn?.mobile ? "Add account" : "Connect"}
                                                     </Button>
-                                                )}
+                                                </div>
                                             </div>
                                             {(conn?.mobile || (conn?.groupAccounts ?? 0) > 0) && (
                                                 <div className="text-xs text-muted-foreground">
@@ -1062,6 +1064,7 @@ export function DeliverySettings() {
                                     city={(userData as Partner)?.district}
                                     coords={pickupCoords}
                                     initialMobile={connectDialog === "porter" ? porterMobile : rapidoMobile}
+                                    initialGroup={deliveryRules.delivery_provider_groups?.[connectDialog] ?? ""}
                                     onConnected={handleConnected}
                                 />
                             )}
