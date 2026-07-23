@@ -648,11 +648,18 @@ export function AdminV2Orders() {
               >
                 <TableCell className="font-medium">
                   <div className="flex flex-col gap-1">
-                    <span>
-                      {(Number(order.display_id) ?? 0) > 0
-                        ? `${order.display_id}-${getDateOnly(order.createdAt)}`
-                        : order.id.slice(0, 8)}
-                    </span>
+                    {(Number(order.display_id) ?? 0) > 0 ? (
+                      <div className="flex w-fit flex-col items-start gap-0.5">
+                        <Badge className="bg-orange-100 px-2 py-0.5 text-sm font-bold text-orange-800 hover:bg-orange-100">
+                          {order.display_id}
+                        </Badge>
+                        <span className="whitespace-nowrap text-xs text-muted-foreground">
+                          {format(new Date(order.createdAt), "d MMM")}
+                        </span>
+                      </div>
+                    ) : (
+                      <span>{order.id.slice(0, 8)}</span>
+                    )}
                     <PickupOtpBadge
                       meta={order.delivery_provider_meta}
                       status={order.status}
@@ -674,30 +681,40 @@ export function AdminV2Orders() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {format(new Date(order.createdAt), "yyyy-MM-dd")}
+                  {format(new Date(order.createdAt), "dd-MM-yy")}
                 </TableCell>
                 <TableCell>
                   {format(new Date(order.createdAt), "hh:mm a")}
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap items-center gap-1">
-                    <Badge variant="secondary" className="uppercase">
-                      {order.type === "delivery" && !order.deliveryAddress
-                        ? "Takeaway"
-                        : order.type === "table_order"
-                          ? "Dine-in"
-                          : order.type}
-                    </Badge>
+                  <div className="flex max-w-[200px] flex-col gap-1">
+                    {/* line 1: order type + compact Prebooked/Table tag (fits on
+                        one line); the long date/slot moves to line 2 below */}
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Badge variant="secondary" className="uppercase">
+                        {order.type === "delivery" && !order.deliveryAddress
+                          ? "Takeaway"
+                          : order.type === "table_order"
+                            ? "Dine-in"
+                            : order.type}
+                      </Badge>
+                      {order.scheduled_date && (
+                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                          {order.booking_persons ? "Table" : "Prebooked"}
+                        </Badge>
+                      )}
+                      {order.booking_persons != null && order.booking_persons > 1 && (
+                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 gap-1">
+                          <Users className="h-3 w-3" /> {order.booking_persons}
+                        </Badge>
+                      )}
+                    </div>
+                    {/* line 2: the prebooked date · slot, small so the column stays narrow */}
                     {order.scheduled_date && (
-                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 whitespace-nowrap">
-                        {order.booking_persons ? "Table" : "Prebooked"} · {formatPrebookDateLabel(order.scheduled_date)}
+                      <span className="text-[11px] font-medium leading-tight text-blue-700">
+                        {formatPrebookDateLabel(order.scheduled_date)}
                         {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons, to: order.scheduled_time_to })}` : ""}
-                      </Badge>
-                    )}
-                    {order.booking_persons != null && order.booking_persons > 1 && (
-                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 whitespace-nowrap gap-1">
-                        <Users className="h-3 w-3" /> {order.booking_persons}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 </TableCell>
