@@ -74,6 +74,9 @@ interface HotelMenuPageProps {
   selectedCategory?: string;
   hideOtherCategories?: boolean;
   qrData?: QrCode | null;
+  /** Server-set (e.g. a scanned QR with view_only=true) → force view-only mode
+   * even without the ?viewonly=true URL param. */
+  viewOnly?: boolean;
   onboardingCompleted?: boolean;
   skipNotices?: boolean;
   skipStorefront?: boolean;
@@ -112,6 +115,7 @@ const HotelMenuPage = ({
   tableNumber,
   socialLinks,
   qrData,
+  viewOnly: viewOnlyProp = false,
   qrGroup,
   qrId,
   selectedCategory: selectedCategoryProp,
@@ -172,7 +176,7 @@ const HotelMenuPage = ({
   // feature-flags string (ordering + delivery + prebooking → off) so every layout's
   // existing "menu-only" branch already hides the add/cart UI (and V6's in-layout
   // order-type row), and separately gate the onboarding + notice mounts below.
-  const viewOnly = searchParams?.get("viewonly") === "true";
+  const viewOnly = viewOnlyProp || searchParams?.get("viewonly") === "true";
   const effectiveFeatureFlags = useMemo(() => {
     const raw = hoteldata?.feature_flags || "";
     if (!viewOnly) return raw;

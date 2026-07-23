@@ -41,6 +41,7 @@ const GET_QRS_QUERY = `
       qr_number
       table_number
       table_name
+      view_only
       partner_id
       partner {
         store_name
@@ -98,6 +99,14 @@ const UPDATE_QR_TABLE_NUMBER_MUTATION = `
 const UPDATE_QR_TABLE_NAME_MUTATION = `
   mutation UpdateQrTableName($qrId: uuid!, $tableName: String) {
     update_qr_codes_by_pk(pk_columns: {id: $qrId}, _set: {table_name: $tableName}) {
+      id
+    }
+  }
+`;
+
+const UPDATE_QR_VIEW_ONLY_MUTATION = `
+  mutation UpdateQrViewOnly($qrId: uuid!, $viewOnly: Boolean!) {
+    update_qr_codes_by_pk(pk_columns: {id: $qrId}, _set: {view_only: $viewOnly}) {
       id
     }
   }
@@ -390,6 +399,34 @@ const QrManagement_v2 = () => {
     }
   };
 
+  // Toggle the QR's view-only flag. When ON, scanning this QR opens the menu in
+  // view-only mode (no ordering / onboarding / add-to-cart) via qr_codes.view_only.
+  const handleToggleViewOnly = async () => {
+    if (selectedQrs.size !== 1) return;
+    const qrId = Array.from(selectedQrs)[0];
+    const currentQr = qrs.find((qr) => qr.id === qrId);
+    const newViewOnly = !currentQr?.view_only;
+
+    setIsUpdating(true);
+    try {
+      await fetchFromHasura(UPDATE_QR_VIEW_ONLY_MUTATION, {
+        qrId,
+        viewOnly: newViewOnly,
+      });
+      setQrs((prev) =>
+        prev.map((qr) =>
+          qr.id === qrId ? { ...qr, view_only: newViewOnly } : qr
+        )
+      );
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Error updating view only:", error);
+      alert("Failed to update View Only.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleRowInteraction = (
     clickedId: string,
     event: React.MouseEvent<HTMLTableRowElement>
@@ -598,6 +635,18 @@ const QrManagement_v2 = () => {
                   >
                     {isUpdating ? "Saving..." : "Change Table Name"}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleToggleViewOnly}
+                    disabled={isActionRunning}
+                  >
+                    {isUpdating
+                      ? "Saving..."
+                      : qrs.find((q) => q.id === Array.from(selectedQrs)[0])?.view_only
+                        ? "View Only: On"
+                        : "View Only: Off"}
+                  </Button>
                 </>
               )}
               <Button
@@ -655,13 +704,14 @@ const QrManagement_v2 = () => {
               <TableHead>QR Id</TableHead>
               <TableHead>Table Number</TableHead>
               <TableHead>Table Name</TableHead>
+              <TableHead>View Only</TableHead>
               <TableHead>Partner</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center">
+                <TableCell colSpan={6} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
@@ -706,6 +756,13 @@ const QrManagement_v2 = () => {
                     {qr.table_name ?? "N/A"}
                   </TableCell>
                   <TableCell>
+                    {qr.view_only ? (
+                      <span className="text-xs font-semibold text-orange-600">On</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Off</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     {qr.partner?.store_name ?? (
                       <span className="text-muted-foreground">Unassigned</span>
                     )}
@@ -714,7 +771,7 @@ const QrManagement_v2 = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="text-center">
+                <TableCell colSpan={6} className="text-center">
                   No QR codes found.
                 </TableCell>
               </TableRow>

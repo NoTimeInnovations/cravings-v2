@@ -23,6 +23,7 @@ import {
   DialogDescription
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import ExcelJS from 'exceljs';
 import QRCode from 'qrcode';
 
@@ -31,6 +32,8 @@ interface QrCode {
   qr_number: number;
   table_number: string;
   no_of_scans: number;
+  /** When true, scanning this QR opens the menu in view-only mode (no ordering). */
+  view_only?: boolean;
 }
 
 export function QrCodesTable({
@@ -51,6 +54,7 @@ export function QrCodesTable({
     qr_number: 0,
     table_number: '',
     no_of_scans: 0,
+    view_only: false,
   });
   const [isBulkGenerateOpen, setIsBulkGenerateOpen] = useState(false);
   const [numberOfQrs, setNumberOfQrs] = useState<number>(1);
@@ -92,6 +96,7 @@ export function QrCodesTable({
       qr_number: qr.qr_number,
       table_number: qr.table_number,
       no_of_scans: qr.no_of_scans,
+      view_only: qr.view_only ?? false,
     });
   };
 
@@ -104,6 +109,7 @@ export function QrCodesTable({
           qr_number: editedQr.qr_number,
           table_number: editedQr.table_number,
           no_of_scans: editedQr.no_of_scans,
+          view_only: editedQr.view_only ?? false,
         },
       });
 
@@ -116,6 +122,7 @@ export function QrCodesTable({
                   qr_number: editedQr.qr_number ?? qr.qr_number,
                   table_number: editedQr.table_number ?? qr.table_number,
                   no_of_scans: editedQr.no_of_scans ?? qr.no_of_scans,
+                  view_only: editedQr.view_only ?? qr.view_only,
                 }
               : qr
           )
@@ -157,6 +164,7 @@ export function QrCodesTable({
           table_number: newQr.table_number,
           partner_id: partnerId,
           no_of_scans: 0,
+          view_only: newQr.view_only,
         },
       });
 
@@ -164,7 +172,7 @@ export function QrCodesTable({
         setQrCodes((prev) => [...prev, response.insert_qr_codes_one]);
         toast.success("QR code created successfully");
         setIsCreateDialogOpen(false);
-        setNewQr({ qr_number: 0, table_number: '', no_of_scans: 0 });
+        setNewQr({ qr_number: 0, table_number: '', no_of_scans: 0, view_only: false });
       }
     } catch (error) {
       toast.error("Failed to create QR code");
@@ -276,6 +284,7 @@ export function QrCodesTable({
               <TableHead className="px-4 py-3">QR Number</TableHead>
               <TableHead className="px-4 py-3">Table Number</TableHead>
               <TableHead className="px-4 py-3">Scans</TableHead>
+              <TableHead className="px-4 py-3">View Only</TableHead>
               <TableHead className="px-4 py-3">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -333,6 +342,20 @@ export function QrCodesTable({
                     />
                   ) : (
                     qr.no_of_scans
+                  )}
+                </TableCell>
+                <TableCell className="px-4 py-3">
+                  {editingId === qr.id ? (
+                    <Checkbox
+                      checked={editedQr.view_only ?? qr.view_only ?? false}
+                      onCheckedChange={(v) =>
+                        setEditedQr({ ...editedQr, view_only: !!v })
+                      }
+                    />
+                  ) : qr.view_only ? (
+                    <span className="text-xs font-semibold text-orange-600">On</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Off</span>
                   )}
                 </TableCell>
                 <TableCell className="px-4 py-3 space-x-2">
@@ -398,6 +421,21 @@ export function QrCodesTable({
                 }
                 className="col-span-3"
               />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="viewOnly" className="text-right">
+                View Only
+              </Label>
+              <div className="col-span-3 flex items-center gap-2">
+                <Checkbox
+                  id="viewOnly"
+                  checked={newQr.view_only}
+                  onCheckedChange={(v) => setNewQr({ ...newQr, view_only: !!v })}
+                />
+                <span className="text-sm text-muted-foreground">
+                  Scanning opens the menu in view-only mode (no ordering)
+                </span>
+              </div>
             </div>
           </div>
           <DialogFooter>

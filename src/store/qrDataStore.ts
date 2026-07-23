@@ -7,6 +7,8 @@ export type QrCode = {
   table_number: number;
   table_name?: string | null;
   partner_id?: string;
+  /** When true, scanning this QR opens the menu in view-only mode (no ordering). */
+  view_only?: boolean | null;
   partner?: {
     store_name: string;
   };

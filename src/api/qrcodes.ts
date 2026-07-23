@@ -5,6 +5,7 @@ query GetQrTable($id: uuid!) {
     table_name,
     partner_id
     price_adjustment
+    view_only
     qr_group {
       extra_charge
       name
@@ -60,6 +61,7 @@ export const INSERT_QR_CODE = `
       table_number
       partner_id
       no_of_scans
+      view_only
     }
   }
 `;
@@ -84,6 +86,7 @@ export const UPDATE_QR_CODE = `
       qr_number
       table_number
       no_of_scans
+      view_only
     }
   }
 `;

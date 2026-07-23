@@ -477,6 +477,7 @@ const page = async ({
           tableNumber={tableNumber}
           theme={theme}
           qrData={qr_codes[0]}
+          viewOnly={!!qr_codes[0]?.view_only}
           qrGroup={qr_codes[0].qr_group}
           qrId={validQrId}
           selectedCategory={cat}
