@@ -5,6 +5,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { getFeatures } from "@/lib/getFeatures";
+import { useViewOnly } from "@/components/hotelDetail/viewOnlyContext";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
@@ -196,6 +197,7 @@ const V3ItemCard = ({
   const liveStockQty = useLiveStock((s) => s.qty);
 
   const features = getFeatures(feature_flags || "");
+  const viewOnly = useViewOnly();
   const deliveryRules = hoteldata?.delivery_rules;
   const isDeliveryTimeOpen = deliveryRules?.isDeliveryActive !== false &&
     isWithinTimeWindow(deliveryRules?.delivery_time_allowed);
@@ -450,12 +452,14 @@ const V3ItemCard = ({
               ) : (hasVariants && !offerData) || hasMultipleVariantsOnOffer ? (
                 !defaultShowOptions ? (
                   (!hasOrderingFeature && !hasDeliveryFeature) ? (
+                    viewOnly ? null : (
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowVariants(true); }}
                       className={addPillClass}
                     >
                       Add
                     </button>
+                    )
                   ) : itemQuantity > 0 ? (
                     <div className={stepperWrapClass}>
                       <button

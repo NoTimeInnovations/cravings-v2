@@ -5,6 +5,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { getFeatures } from "@/lib/getFeatures";
+import { useViewOnly } from "@/components/hotelDetail/viewOnlyContext";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
@@ -121,6 +122,7 @@ const ItemCard = ({
   };
 
   const _features = getFeatures(feature_flags || "");
+  const viewOnly = useViewOnly();
   const _dr = hoteldata?.delivery_rules;
   const _tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
   const _isDeliveryTimeOpen = _dr?.isDeliveryActive !== false && isWithinTimeWindow(_dr?.delivery_time_allowed, _tz);
@@ -503,7 +505,7 @@ const ItemCard = ({
                           +
                         </button>
                       </div>
-                    ) : (
+                    ) : viewOnly ? null : (
                       <div
                         onClick={(e) => { e.stopPropagation(); setShowVariants(!showVariants); }}
                         className="bg-white border rounded-lg px-5 py-1 font-semibold text-sm cursor-pointer shadow-sm whitespace-nowrap"

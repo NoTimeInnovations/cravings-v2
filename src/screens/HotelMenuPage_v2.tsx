@@ -10,7 +10,8 @@ import useOrderStore from "@/store/orderStore";
 // Import useMemo and useCallback
 import { useEffect, useMemo, useCallback, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { getFeatures } from "@/lib/getFeatures";
+import { getFeatures, revertFeatureToString } from "@/lib/getFeatures";
+import { ViewOnlyContext } from "@/components/hotelDetail/viewOnlyContext";
 import { canSkipOnboarding } from "@/lib/onboardingSession";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -166,8 +167,24 @@ const HotelMenuPage = ({
   const { setHotelId, genOrderId, open_place_order_modal, orderType } = useOrderStore();
   const { setQrData } = useQrDataStore();
 
+  // `?viewonly=true` → a pure menu viewer: no order-type prompt, no add-to-cart /
+  // cart controls, no onboarding/notice overlays — just the menu. We neutralise the
+  // feature-flags string (ordering + delivery + prebooking → off) so every layout's
+  // existing "menu-only" branch already hides the add/cart UI (and V6's in-layout
+  // order-type row), and separately gate the onboarding + notice mounts below.
+  const viewOnly = searchParams?.get("viewonly") === "true";
+  const effectiveFeatureFlags = useMemo(() => {
+    const raw = hoteldata?.feature_flags || "";
+    if (!viewOnly) return raw;
+    const f = getFeatures(raw);
+    f.ordering.enabled = false;
+    f.delivery.enabled = false;
+    f.prebooking.enabled = false;
+    return revertFeatureToString(f);
+  }, [hoteldata?.feature_flags, viewOnly]);
+
   // Onboarding state
-  const features = getFeatures(hoteldata?.feature_flags || "");
+  const features = getFeatures(effectiveFeatureFlags);
   // New onboarding always presents the order-type screen at table 0 — even when
   // only one (or no) order type qualifies — so don't gate the onboarding mount
   // on the delivery/ordering feature flags. OnboardingFlow / OrderTypeScreen
@@ -206,7 +223,7 @@ const HotelMenuPage = ({
   // Always mount the onboarding overlay when needed; it dismisses itself once the
   // user picks an order type and re-mounts on every reload so the order type screen
   // shows again (value persists only in sessionStorage).
-  const showOnboarding = needsOnboarding || hasStorefrontSplash;
+  const showOnboarding = (needsOnboarding || hasStorefrontSplash) && !viewOnly;
   // If the URL signals a fast-dismiss case (?back=true from picker redirect),
   // pre-mark onboarding dismissed so the menu renders on first paint without
   // waiting for the client-side dismiss effect.
@@ -512,20 +529,24 @@ const HotelMenuPage = ({
   // Keep allMenus (unfiltered) for checkout cart validation
   const filteredHotelData = useMemo(() => ({
     ...hoteldata,
+    // In view-only mode this carries the neutralised flags so every layout hides
+    // its add/cart/order-type controls.
+    feature_flags: effectiveFeatureFlags,
     // Show the shortest native currency symbol (e.g. QAR → "ر.ق") so the menu
     // language switcher's translation can't expand it into words. Applies in
     // every language, including English.
     currency: shortCurrencySymbol((hoteldata as any)?.currency),
     menus: filteredMenus,
     allMenus: hoteldata?.menus || [],
-  }), [hoteldata, filteredMenus]);
+  }), [hoteldata, filteredMenus, effectiveFeatureFlags]);
 
   // Same native-symbol currency for the cart drawer + checkout modals, but keep
   // the FULL menu list (the modals look items up by id for discounts/freebies).
   const checkoutHotelData = useMemo(() => ({
     ...hoteldata,
+    feature_flags: effectiveFeatureFlags,
     currency: shortCurrencySymbol((hoteldata as any)?.currency),
-  }), [hoteldata]);
+  }), [hoteldata, effectiveFeatureFlags]);
 
   // Return to the brand parent's outlet picker (the screen the user picked this
   // outlet from). ?pickOutlet=1 forces the picker step even for single-outlet
@@ -672,7 +693,7 @@ const HotelMenuPage = ({
         isWithinDeliveryTime()));
 
   return (
-    <>
+    <ViewOnlyContext.Provider value={viewOnly}>
       {isReorderMode && <ReorderHandler hotelData={hoteldata} />}
       {!onboardingDismissed ? null : (
         <>
@@ -719,7 +740,7 @@ const HotelMenuPage = ({
           )}
         </>
       )}
-      {(showOnboarding || forceStorefront) && !isReorderMode && (
+      {(showOnboarding || forceStorefront) && !isReorderMode && !viewOnly && (
         <OnboardingFlow
           key={onboardingKey}
           featureFlags={hoteldata?.feature_flags || ""}
@@ -752,14 +773,14 @@ const HotelMenuPage = ({
       )}
       {/* Storefront announcement / notice modal — shows on every open when the
           partner has an active, in-schedule notice. */}
-      {hoteldata?.id && (
+      {hoteldata?.id && !viewOnly && (
         <NoticeModal
           partnerId={hoteldata.id}
           notices={(hoteldata as any)?.notices}
           ready={!showOnboarding || onboardingDismissed}
         />
       )}
-    </>
+    </ViewOnlyContext.Provider>
   );
 };
 

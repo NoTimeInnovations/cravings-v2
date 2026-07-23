@@ -5,6 +5,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { getFeatures } from "@/lib/getFeatures";
+import { useViewOnly } from "@/components/hotelDetail/viewOnlyContext";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
@@ -342,6 +343,7 @@ const V5ItemCard = ({
   const router = useRouter();
 
   const features = getFeatures(feature_flags || "");
+  const viewOnly = useViewOnly();
   const deliveryRules = hoteldata?.delivery_rules;
   const _tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
   const isDeliveryTimeOpen = deliveryRules?.isDeliveryActive !== false &&
@@ -516,6 +518,7 @@ const V5ItemCard = ({
       // View-only (ordering + delivery both off): show VIEW instead of Add and
       // no quantity stepper — it just opens the sheet to see options + prices.
       if (!hasOrderingFeature && !hasDeliveryFeature) {
+        if (viewOnly) return null;
         return (
           <button onClick={(e) => { e.stopPropagation(); setShowVariants(true); }} className={addOutlineBtn} style={addBtnStyle}>
             <span className="text-[15px] font-extrabold uppercase tracking-wide leading-none">View</span>
