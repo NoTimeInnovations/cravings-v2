@@ -68,6 +68,9 @@ import { displayChargeName } from "@/lib/chargeLabel";
 import { taxLabel } from "@/lib/taxLabel";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
+import { AssignDriverDialog } from "./AssignDriverDialog";
+import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
+import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 import ManualPorterBookButton from "./ManualPorterBookButton";
 import PorterDispatchCountdown from "./PorterDispatchCountdown";
 import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
@@ -225,6 +228,10 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
     const [cancelOpen, setCancelOpen] = React.useState(false);
     const [cancelDeliveryOpen, setCancelDeliveryOpen] = React.useState(false);
+    // Own-driver dispatch: dispatching a delivery order opens the driver-picker
+    // popup when the partner has their own registered delivery boys.
+    const hasOwnDrivers = useHasOwnDrivers();
+    const [assignDriverOpen, setAssignDriverOpen] = React.useState(false);
     const [loyaltyInfo, setLoyaltyInfo] = React.useState<{ pointsRedeemed: number; redeemValue: number; pointsEarned: number | null } | null>(null);
 
     React.useEffect(() => {
@@ -248,6 +255,18 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 return;
             }
             setCancelOpen(true);
+            return;
+        }
+        // Dispatching a real delivery order while the partner runs their own
+        // drivers (and no 3PL/pool auto-dispatch is on) → open the driver-picker
+        // popup instead of dispatching directly. Skip for completed orders so the
+        // password gate below still guards edits to them.
+        if (
+            status === "dispatched" &&
+            order.status !== "completed" &&
+            shouldPickOwnDriverOnDispatch(order, userData as Partner, hasOwnDrivers)
+        ) {
+            setAssignDriverOpen(true);
             return;
         }
         if (order.status === "completed") {
@@ -1094,6 +1113,12 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 orderId={order.id}
                 orderShortId={order.display_id || order.id.slice(0, 8)}
                 isPetpooja={!!(userData as Partner)?.petpooja_restaurant_id}
+            />
+
+            <AssignDriverDialog
+                open={assignDriverOpen}
+                onOpenChange={setAssignDriverOpen}
+                order={order}
             />
 
             {/* Cancel the pool delivery (recall the rider) — reason shown to the rider. */}

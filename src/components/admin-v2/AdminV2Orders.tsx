@@ -68,6 +68,9 @@ import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings
 
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
+import { AssignDriverDialog } from "./AssignDriverDialog";
+import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
+import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 
 export function AdminV2Orders() {
   const { userData } = useAuthStore();
@@ -177,6 +180,13 @@ export function AdminV2Orders() {
   const cancellingOrder = activeOrders.find((o) => o.id === cancellingOrderId) || null;
   const editingOrder = activeOrders.find((o) => o.id === editingOrderId) || null;
 
+  // Own-driver dispatch: when the partner has their own registered delivery
+  // boys, dispatching a delivery order opens a driver-picker popup instead of
+  // flipping the status straight to "dispatched".
+  const hasOwnDrivers = useHasOwnDrivers();
+  const [assigningOrderId, setAssigningOrderId] = useState<string | null>(null);
+  const assigningOrder = orders.find((o) => o.id === assigningOrderId) || null;
+
   const handleDeleteOrder = async (order: Order) => {
     if (order.status === "completed") {
       setPendingAction(() => async () => {
@@ -229,6 +239,19 @@ export function AdminV2Orders() {
         return;
       }
       setCancellingOrderId(orderId);
+      return;
+    }
+
+    // Dispatching a real delivery order while the partner runs their own drivers
+    // (and no 3PL/pool auto-dispatch is on) → open the driver-picker popup
+    // instead of dispatching directly. Skip for completed orders so the password
+    // gate below still guards edits to them.
+    if (
+      status === "dispatched" &&
+      order.status !== "completed" &&
+      shouldPickOwnDriverOnDispatch(order, userData as Partner, hasOwnDrivers)
+    ) {
+      setAssigningOrderId(orderId);
       return;
     }
 
@@ -959,6 +982,14 @@ export function AdminV2Orders() {
           isPetpooja={!!(userData as Partner)?.petpooja_restaurant_id}
         />
       )}
+
+      <AssignDriverDialog
+        open={!!assigningOrderId}
+        onOpenChange={(o) => {
+          if (!o) setAssigningOrderId(null);
+        }}
+        order={assigningOrder}
+      />
     </div>
   );
 }

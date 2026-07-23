@@ -42,6 +42,13 @@ export function GeneralSettings() {
     const [autoProgressOrders, setAutoProgressOrders] = useState(false);
     const [menuLanguages, setMenuLanguages] = useState<string[]>([]);
 
+    // Menu header (V3 menu cover) — stored under storefront_settings.menuInfo
+    const [menuInfoRating, setMenuInfoRating] = useState("");
+    const [menuInfoRatingCount, setMenuInfoRatingCount] = useState("");
+    const [menuInfoDeliveryTime, setMenuInfoDeliveryTime] = useState("");
+    const [menuInfoCostForOne, setMenuInfoCostForOne] = useState("");
+    const [menuInfoCuisines, setMenuInfoCuisines] = useState("");
+
     // Official Settings (used for legal pages — Cashfree KYC etc.)
     const [officialName, setOfficialName] = useState("");
     const [aboutUs, setAboutUs] = useState("");
@@ -73,10 +80,21 @@ export function GeneralSettings() {
                 setLanguageSwitcher(!!sf?.languageSwitcher);
                 setAutoProgressOrders(!!sf?.autoProgressOrders);
                 setMenuLanguages(Array.isArray(sf?.menuLanguages) ? sf.menuLanguages : []);
+                const mi = sf?.menuInfo || {};
+                setMenuInfoRating(mi.rating || "");
+                setMenuInfoRatingCount(mi.ratingCount || "");
+                setMenuInfoDeliveryTime(mi.deliveryTime || "");
+                setMenuInfoCostForOne(mi.costForOne || "");
+                setMenuInfoCuisines(mi.cuisines || "");
             } catch {
                 setLanguageSwitcher(false);
                 setAutoProgressOrders(false);
                 setMenuLanguages([]);
+                setMenuInfoRating("");
+                setMenuInfoRatingCount("");
+                setMenuInfoDeliveryTime("");
+                setMenuInfoCostForOne("");
+                setMenuInfoCuisines("");
             }
 
             setOfficialName((userData as any).official_name || "");
@@ -128,7 +146,17 @@ export function GeneralSettings() {
             } catch {
                 sfObj = {};
             }
-            const nextStorefrontSettings = JSON.stringify({ ...sfObj, languageSwitcher, menuLanguages, autoProgressOrders });
+            // Build the V3 menu header object, keeping only the fields the
+            // partner filled in (empty inputs fall back to the design defaults
+            // in the customer-facing component).
+            const menuInfo: Record<string, string> = {};
+            if (menuInfoRating.trim()) menuInfo.rating = menuInfoRating.trim();
+            if (menuInfoRatingCount.trim()) menuInfo.ratingCount = menuInfoRatingCount.trim();
+            if (menuInfoDeliveryTime.trim()) menuInfo.deliveryTime = menuInfoDeliveryTime.trim();
+            if (menuInfoCostForOne.trim()) menuInfo.costForOne = menuInfoCostForOne.trim();
+            if (menuInfoCuisines.trim()) menuInfo.cuisines = menuInfoCuisines.trim();
+
+            const nextStorefrontSettings = JSON.stringify({ ...sfObj, languageSwitcher, menuLanguages, autoProgressOrders, menuInfo });
 
             const updates: any = {
                 store_name: storeName,
@@ -163,7 +191,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, currency, languageSwitcher, autoProgressOrders, menuLanguages, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
+    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, currency, languageSwitcher, autoProgressOrders, menuLanguages, menuInfoRating, menuInfoRatingCount, menuInfoDeliveryTime, menuInfoCostForOne, menuInfoCuisines, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -187,16 +215,19 @@ export function GeneralSettings() {
         let sfLang = false;
         let sfLangs: string[] = [];
         let sfAutoProgress = false;
+        let sfMenuInfo: any = {};
         try {
             const sfRaw = data.storefront_settings;
             const sf = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
             sfLang = !!sf?.languageSwitcher;
             sfLangs = Array.isArray(sf?.menuLanguages) ? sf.menuLanguages : [];
             sfAutoProgress = !!sf?.autoProgressOrders;
+            sfMenuInfo = sf?.menuInfo || {};
         } catch {
             sfLang = false;
             sfLangs = [];
             sfAutoProgress = false;
+            sfMenuInfo = {};
         }
         const hasChanges =
             storeName !== (data.store_name || "") ||
@@ -217,6 +248,11 @@ export function GeneralSettings() {
             officialPhoneNumber !== (data.official_phone_number || "") ||
             languageSwitcher !== sfLang ||
             autoProgressOrders !== sfAutoProgress ||
+            menuInfoRating !== (sfMenuInfo.rating || "") ||
+            menuInfoRatingCount !== (sfMenuInfo.ratingCount || "") ||
+            menuInfoDeliveryTime !== (sfMenuInfo.deliveryTime || "") ||
+            menuInfoCostForOne !== (sfMenuInfo.costForOne || "") ||
+            menuInfoCuisines !== (sfMenuInfo.cuisines || "") ||
             JSON.stringify([...menuLanguages].sort()) !== JSON.stringify([...sfLangs].sort());
         setHasChanges(hasChanges);
     }, [
@@ -239,6 +275,11 @@ export function GeneralSettings() {
         languageSwitcher,
         autoProgressOrders,
         menuLanguages,
+        menuInfoRating,
+        menuInfoRatingCount,
+        menuInfoDeliveryTime,
+        menuInfoCostForOne,
+        menuInfoCuisines,
         userData,
         setHasChanges,
     ]);
@@ -356,7 +397,7 @@ export function GeneralSettings() {
                                 <div className="flex-1">
                                     <p className="text-sm font-medium">Auto-progress orders (demo)</p>
                                     <p className="text-xs text-muted-foreground">
-                                        Automatically move new orders through Accepted → Food ready → Dispatched → Completed (about one step every 20 seconds). Test account only.
+                                        Automatically move new orders through Accepted → Food ready → Dispatched → Completed (about one step every minute). Test account only.
                                     </p>
                                 </div>
                             </div>
@@ -394,6 +435,62 @@ export function GeneralSettings() {
                                 </p>
                             </div>
                         )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Menu header (V3 menu)</CardTitle>
+                        <CardDescription>
+                            Details shown on the cover of the V3 menu layout. Leave a field blank to use the default.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>Rating</Label>
+                                <Input
+                                    value={menuInfoRating}
+                                    onChange={(e) => setMenuInfoRating(e.target.value)}
+                                    placeholder="4.5"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Rating count</Label>
+                                <Input
+                                    value={menuInfoRatingCount}
+                                    onChange={(e) => setMenuInfoRatingCount(e.target.value)}
+                                    placeholder="12.4k"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Delivery time</Label>
+                                <Input
+                                    value={menuInfoDeliveryTime}
+                                    onChange={(e) => setMenuInfoDeliveryTime(e.target.value)}
+                                    placeholder="20-30 min"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Approx cost for one</Label>
+                                <Input
+                                    value={menuInfoCostForOne}
+                                    onChange={(e) => setMenuInfoCostForOne(e.target.value)}
+                                    placeholder="200"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Plain number — the currency symbol is added automatically.
+                                </p>
+                            </div>
+                            <div className="space-y-2 sm:col-span-2">
+                                <Label>Cuisines</Label>
+                                <Input
+                                    value={menuInfoCuisines}
+                                    onChange={(e) => setMenuInfoCuisines(e.target.value)}
+                                    placeholder="North Indian · Biryani · Tandoor"
+                                />
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 

@@ -15,7 +15,7 @@ import {
   assignDeliveryBoyMutation,
 } from "@/api/deliveryBoys";
 import { Partner, useAuthStore } from "@/store/authStore";
-import { Order } from "@/store/orderStore";
+import useOrderStore, { Order } from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { Notification } from "@/app/actions/notification";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ interface DriverOption {
   id: string;
   name: string;
   phone: string;
+  is_online: boolean;
 }
 
 /**
@@ -43,6 +44,7 @@ export function AssignDriverDialog({
 }) {
   const { userData } = useAuthStore();
   const { orders, setOrders } = useOrderSubscriptionStore();
+  const { updateOrderStatus } = useOrderStore();
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,17 @@ export function AssignDriverDialog({
     setLoading(true);
     setSelectedId("");
     fetchFromHasura(getActiveDeliveryBoysQuery, { partner_id: userData.id })
-      .then((res) => setDrivers(res?.delivery_boys || []))
+      // Online riders first so the selectable ones are at the top; offline ones
+      // still show (with a marker) below and stay pickable — assignment notifies
+      // them when they come back online.
+      .then((res) =>
+        setDrivers(
+          [...(res?.delivery_boys || [])].sort(
+            (a: DriverOption, b: DriverOption) =>
+              Number(b.is_online) - Number(a.is_online),
+          ),
+        ),
+      )
       .catch(() => setDrivers([]))
       .finally(() => setLoading(false));
   }, [open, userData?.id]);
@@ -129,6 +141,25 @@ export function AssignDriverDialog({
     }
   };
 
+  // Escape hatch: mark the order dispatched without assigning one of the
+  // partner's own drivers (e.g. handed to a walk-in rider, or the partner
+  // removed all their drivers after this screen loaded). Mirrors the plain
+  // status-update path used when the partner has no own drivers.
+  const handleDispatchWithoutDriver = async () => {
+    if (!order) return;
+    setAssigning(true);
+    try {
+      await updateOrderStatus(orders, order.id, "dispatched" as any, setOrders);
+      toast.success("Order dispatched");
+      onOpenChange(false);
+    } catch (e) {
+      console.error("Error dispatching order:", e);
+      toast.error("Failed to dispatch order");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
@@ -144,9 +175,23 @@ export function AssignDriverDialog({
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : drivers.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            No active drivers. Add one in the Delivery Boys section.
-          </p>
+          <div className="space-y-3 py-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              No active drivers. Add one in the Delivery Boys section.
+            </p>
+            <Button
+              variant="outline"
+              onClick={handleDispatchWithoutDriver}
+              disabled={assigning}
+              className="w-full"
+            >
+              {assigning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Dispatch without a driver"
+              )}
+            </Button>
+          </div>
         ) : (
           <div className="max-h-[300px] space-y-2 overflow-y-auto py-1">
             {drivers.map((d) => {
@@ -172,8 +217,13 @@ export function AssignDriverDialog({
                     <Bike className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">
+                    <span className="flex items-center gap-2 truncate text-sm font-semibold">
                       {d.name}
+                      {!d.is_online && (
+                        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Offline
+                        </span>
+                      )}
                     </span>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Phone className="h-3 w-3" />

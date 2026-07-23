@@ -10,7 +10,7 @@ import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/constants";
-import { X, Plus, Minus } from "lucide-react";
+import { X } from "lucide-react";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
@@ -58,17 +58,17 @@ function V3BottomSheet({ onClose, children }: { onClose: () => void; children: R
       />
       <div
         ref={sheetRef}
-        className="relative z-10 mx-auto w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white transition-transform duration-300 ease-out"
+        className="relative z-10 mx-auto flex w-full max-w-2xl max-h-[88vh] flex-col overflow-hidden rounded-t-[22px] bg-white transition-transform duration-300 ease-out"
         style={{ transform: "translateY(100%)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={() => animateClose()}
-          className="absolute top-2.5 right-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-gray-100"
+          className="absolute top-3 right-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/50"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-4 w-4 text-white" strokeWidth={2.6} />
         </button>
-        {children}
+        <div className="flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
   );
@@ -107,29 +107,55 @@ const BottomSheetAddButton = ({
   return (
     <button
       onClick={onClose}
-      className="w-full flex items-center justify-between rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-extrabold uppercase tracking-wider text-white shadow-lg transition active:scale-[0.98]"
+      style={{ background: V3_RED, boxShadow: "0 8px 20px -8px rgba(203,32,45,.6)" }}
+      className="w-full flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[14.5px] font-extrabold text-white transition active:scale-[0.98]"
     >
       <span>Add to cart</span>
+      <span>·</span>
       <span><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(total, hoteldata?.id)} /></span>
     </button>
   );
 };
 
-function VegMark({ isVeg }: { isVeg: boolean }) {
+function VegMark({ isVeg, size = 16 }: { isVeg: boolean; size?: number }) {
+  const color = isVeg ? "#0f8a45" : "#a33a2a";
+  const dot = Math.round(size * 0.44);
   return (
-    <div
-      className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border-[1.5px] ${
-        isVeg ? "border-emerald-600" : "border-red-600"
-      }`}
+    <span
+      style={{
+        width: size,
+        height: size,
+        border: `1.6px solid ${color}`,
+        borderRadius: 3,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
     >
-      <div
-        className={`h-1.5 w-1.5 rounded-full ${
-          isVeg ? "bg-emerald-600" : "bg-red-600"
-        }`}
-      />
-    </div>
+      <span style={{ width: dot, height: dot, borderRadius: "50%", background: color }} />
+    </span>
   );
 }
+
+// Small filled star used in the "Bestseller" label (matches the design's SVG).
+function BestsellerStar({ size = 10, fill = "#e0a63a" }: { size?: number; fill?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={fill}>
+      <path d="M12 2l2.9 6.3 6.8.6-5.1 4.6 1.5 6.7L12 17.3 5.9 20.8l1.5-6.7L2.3 8.9l6.8-.6z" />
+    </svg>
+  );
+}
+
+// Shared V3 (Zomato-style) accent tokens — red pill ADD button + stepper that
+// overlaps the bottom edge of the item image.
+const V3_RED = "#cb202d";
+const addPillClass =
+  "flex items-center justify-center w-[104px] h-[38px] rounded-[10px] border border-[#e6b9bc] bg-white text-[#cb202d] text-[14px] font-extrabold tracking-[.5px] shadow-[0_6px_16px_-8px_rgba(0,0,0,.3)] transition active:scale-95";
+const stepperWrapClass =
+  "flex items-center justify-between w-[104px] h-[38px] rounded-[10px] border border-[#e6b9bc] bg-white shadow-[0_6px_16px_-8px_rgba(0,0,0,.3)] px-1";
+const stepBtnClass =
+  "flex h-full w-8 items-center justify-center text-[20px] font-bold leading-none text-[#cb202d]";
 
 const V3ItemCard = ({
   item,
@@ -303,10 +329,10 @@ const V3ItemCard = ({
 
   return (
     <>
-      {/* V3 List-style item card */}
+      {/* V3 list-style (Zomato) item card */}
       <div
         ref={inViewRef}
-        className="flex gap-3 py-3 cursor-pointer transition-all duration-500 ease-out"
+        className="flex cursor-pointer gap-3 py-3.5 transition-all duration-500 ease-out"
         style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(12px)" }}
         onClick={() => {
           pushEcommerceEvent("view_item", {
@@ -319,18 +345,19 @@ const V3ItemCard = ({
         }}
       >
         {/* Left content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
+        <div className="min-w-0 flex-1">
+          <div className="mb-[5px] flex items-center gap-2">
             {item.is_veg !== null && item.is_veg !== undefined && (
               <VegMark isVeg={item.is_veg} />
             )}
             {item.is_top && (
-              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600">
-                ⭐ Bestseller
+              <span className="inline-flex items-center gap-[3px] text-[10px] font-extrabold uppercase tracking-[.3px] text-[#c8842a]">
+                <BestsellerStar />
+                Bestseller
               </span>
             )}
           </div>
-          <h3 className="mt-1 text-sm font-bold leading-snug text-gray-900">
+          <h3 className="text-[15px] font-bold leading-[1.25] text-[#2d2d2d]">
             {offerData?.variant && !hasMultipleVariantsOnOffer
               ? `${item.name} (${offerData.variant.name})`
               : item.name}
@@ -338,7 +365,7 @@ const V3ItemCard = ({
           {item.name_secondary && (
             <p
               dir={item.name_secondary_rtl ? "rtl" : "ltr"}
-              className="v3-name-secondary mt-0.5 text-left text-xs font-medium leading-snug text-gray-500"
+              className="v3-name-secondary mt-0.5 text-left text-[13px] font-semibold leading-snug text-[#9a9a9a]"
             >
               {item.name_secondary}
             </p>
@@ -346,52 +373,56 @@ const V3ItemCard = ({
 
           {/* Price */}
           {shouldShowPrice && (
-            <div className="mt-1.5 flex items-center gap-2 text-xs font-bold">
+            <div className="mt-[5px] flex items-center gap-[7px] text-[14px] font-bold">
               {item.is_price_as_per_size !== true ? (
                 hasValidMainOffer ? (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-red-500">
+                    <span style={{ color: V3_RED }}>
                       <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(mainOfferPrice, hoteldata?.id)} />
                     </span>
                     {!hasMultipleVariantsOnOffer && hasValidMainOriginalPrice && (
-                      <span className="text-[10px] line-through opacity-40 font-normal">
+                      <span className="text-[11px] font-normal line-through opacity-40">
                         <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(mainOriginalPrice, hoteldata?.id)} />
                       </span>
                     )}
                     {discountPercentage > 0 && (
-                      <span className="text-[9px] bg-red-500 text-white px-1 py-0.5 rounded font-semibold">
+                      <span className="rounded px-1 py-0.5 text-[9px] font-semibold text-white" style={{ background: V3_RED }}>
                         {discountPercentage}% OFF
                       </span>
                     )}
                   </div>
                 ) : hasValidBasePrice ? (
-                  <span className="text-gray-900">
+                  <span className="text-[#2d2d2d]">
                     {baseItemPrice > 0 ? (
                       <>
-                        {hasVariants && <span className="text-[10px] font-normal">From </span>}
+                        {hasVariants && <span className="text-[11px] font-normal text-[#8a8a8a]">From </span>}
                         <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(baseItemPrice, hoteldata?.id)} />
                       </>
                     ) : ""}
                   </span>
                 ) : null
               ) : (
-                <span className="text-[10px] font-normal text-gray-400">Price as per size</span>
+                <span className="text-[11px] font-normal text-gray-400">Price as per size</span>
               )}
             </div>
           )}
 
           {/* Description */}
           {item.description && (
-            <p className="mt-1 line-clamp-2 whitespace-pre-line text-[11px] leading-relaxed text-gray-400">
+            <p className="mt-1.5 line-clamp-2 whitespace-pre-line text-[12px] leading-[1.45] text-[#8a8a8a]">
               {item.description}
             </p>
           )}
 
+          {/* "Customisable" hint — only when the item actually has options */}
+          {(hasVariants || item.is_price_as_per_size === true) && (
+            <p className="mt-1.5 text-[10.5px] font-semibold tracking-[.2px] text-[#a3a3a3]">Customisable</p>
+          )}
         </div>
 
-        {/* Right - Image & Add Button */}
-        <div className="relative shrink-0">
-          <div className="relative h-24 w-24 overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5 flex items-center justify-center bg-gray-100">
+        {/* Right - Image & Add button (overlaps the bottom edge of the image) */}
+        <div className="relative w-[118px] shrink-0">
+          <div className="relative flex h-[112px] w-[118px] items-center justify-center overflow-hidden rounded-[14px] bg-gray-100 shadow-[0_4px_14px_-8px_rgba(0,0,0,.3)]">
             {visible && (
               <img
                 src={item.image_url || "/image_placeholder.png"}
@@ -406,13 +437,13 @@ const V3ItemCard = ({
             )}
           </div>
 
-          {/* Add button overlay below image */}
+          {/* Add button / stepper overlay below image */}
           {isOrderable && (
-            <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2">
+            <div className="absolute -bottom-[13px] left-1/2 -translate-x-1/2">
               {offerData && item.category?.name?.toLowerCase() === "custom" ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); router.push(`/offers/${offerData.id}`); }}
-                  className="rounded-md border border-emerald-600/30 bg-white px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-md transition active:scale-95"
+                  className={addPillClass}
                 >
                   View
                 </button>
@@ -421,12 +452,12 @@ const V3ItemCard = ({
                   (!hasOrderingFeature && !hasDeliveryFeature) ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowVariants(true); }}
-                      className="rounded-md border border-emerald-600/30 bg-white px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-md transition active:scale-95"
+                      className={addPillClass}
                     >
                       Add
                     </button>
                   ) : itemQuantity > 0 ? (
-                    <div className="flex items-center gap-0.5 rounded-md border border-emerald-600/30 bg-white px-0.5 py-0.5 shadow-md">
+                    <div className={stepperWrapClass}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -436,51 +467,51 @@ const V3ItemCard = ({
                             lastVariant.quantity > 1 ? decreaseQuantity(lastVariant.id) : removeItem(lastVariant.id);
                           }
                         }}
-                        className="flex h-6 w-6 items-center justify-center rounded text-emerald-700"
+                        className={stepBtnClass}
                       >
-                        <Minus className="h-3.5 w-3.5" />
+                        −
                       </button>
-                      <span className="min-w-[16px] text-center text-xs font-extrabold text-emerald-700">{itemQuantity}</span>
+                      <span className="text-[15px] font-extrabold text-[#cb202d]">{itemQuantity}</span>
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowVariants(true); }}
-                        className="flex h-6 w-6 items-center justify-center rounded text-emerald-700"
+                        className={stepBtnClass}
                       >
-                        <Plus className="h-3.5 w-3.5" />
+                        +
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleAddItem(); }}
-                      className="rounded-md border border-emerald-600/30 bg-white px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-md transition active:scale-95"
+                      className={addPillClass}
                     >
                       Add
                     </button>
                   )
                 ) : null
               ) : showAddButton && itemQuantity > 0 ? (
-                <div className="flex items-center gap-0.5 rounded-md border border-emerald-600/30 bg-white px-0.5 py-0.5 shadow-md">
+                <div className={stepperWrapClass}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       const idToRemove = offerData?.variant ? `${item.id}|${offerData.variant.name}` : (item.id as string);
                       itemQuantity > 1 ? decreaseQuantity(idToRemove) : removeItem(idToRemove);
                     }}
-                    className="flex h-6 w-6 items-center justify-center rounded text-emerald-700"
+                    className={stepBtnClass}
                   >
-                    <Minus className="h-3.5 w-3.5" />
+                    −
                   </button>
-                  <span className="min-w-[16px] text-center text-xs font-extrabold text-emerald-700">{itemQuantity}</span>
+                  <span className="text-[15px] font-extrabold text-[#cb202d]">{itemQuantity}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleAddItem(); }}
-                    className="flex h-6 w-6 items-center justify-center rounded text-emerald-700"
+                    className={stepBtnClass}
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    +
                   </button>
                 </div>
               ) : showAddButton ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleAddItem(); }}
-                  className="rounded-md border border-emerald-600/30 bg-white px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-md transition active:scale-95"
+                  className={addPillClass}
                 >
                   Add
                 </button>
@@ -493,96 +524,87 @@ const V3ItemCard = ({
       {/* Bottom Sheet for Item Details (non-variant items) */}
       {showItemSheet && !hasVariants && typeof window !== "undefined" && createPortal(
         <V3BottomSheet onClose={() => setShowItemSheet(false)}>
-          <div className="sticky top-0 z-10 flex justify-center bg-white pt-2.5 pb-1">
-            <div className="h-1 w-8 rounded-full bg-gray-200" />
+          {/* Image header (flush to the rounded sheet top) */}
+          <div className="relative h-[174px] w-full overflow-hidden bg-gray-100">
+            {item.image_url ? (
+              <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-4xl">🍽️</div>
+            )}
           </div>
 
-          {item.image_url && (
-            <div className="mx-3 mt-1 flex h-40 items-center justify-center overflow-hidden rounded-xl bg-gray-100">
-              <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
-            </div>
-          )}
-
-          <div className="px-4 pb-5 pt-3">
-            <div className="flex items-center gap-1.5">
-              {item.is_veg !== null && item.is_veg !== undefined && (
-                <div className={`flex h-4 w-4 items-center justify-center rounded-sm border-[1.5px] ${item.is_veg ? "border-emerald-600" : "border-red-600"}`}>
-                  <div className={`h-1.5 w-1.5 rounded-full ${item.is_veg ? "bg-emerald-600" : "bg-red-600"}`} />
-                </div>
-              )}
+          <div className="px-[18px] pt-4">
+            <div className="flex items-center gap-2">
+              {item.is_veg !== null && item.is_veg !== undefined && <VegMark isVeg={item.is_veg} />}
               {item.is_top && (
-                <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700">
-                  ⭐ Bestseller
+                <span className="inline-flex items-center gap-[3px] text-[11px] font-bold text-[#c8842a]">
+                  <BestsellerStar />
+                  Bestseller
                 </span>
               )}
             </div>
-            <h2 className="mt-1.5 text-lg font-extrabold tracking-tight text-gray-900">{item.name}</h2>
+            <h2 className="mt-[7px] text-[19px] font-extrabold tracking-tight text-[#2d2d2d]">{item.name}</h2>
             {item.name_secondary && (
               <p
                 dir={item.name_secondary_rtl ? "rtl" : "ltr"}
-                className="v3-name-secondary mt-0.5 text-left text-sm font-medium leading-snug text-gray-500"
+                className="v3-name-secondary mt-0.5 text-left text-[15px] font-semibold leading-snug text-[#9a9a9a]"
               >
                 {item.name_secondary}
               </p>
             )}
 
             {shouldShowPrice && (
-              <div className="mt-1 flex items-center gap-2">
+              <div className="mt-1.5 flex items-center gap-2">
                 {hasValidMainOffer && !isUpcomingOffer ? (
                   <>
-                    <span className="text-base font-extrabold text-red-500"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(offerData!.offer_price!, hoteldata?.id)} /></span>
+                    <span className="text-[14px] font-bold" style={{ color: V3_RED }}><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(offerData!.offer_price!, hoteldata?.id)} /></span>
                     {hasValidMainOriginalPrice && mainOriginalPrice > offerData!.offer_price! && (
-                      <span className="line-through text-gray-400 text-sm"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(mainOriginalPrice, hoteldata?.id)} /></span>
+                      <span className="text-[13px] font-normal text-gray-400 line-through"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(mainOriginalPrice, hoteldata?.id)} /></span>
                     )}
                   </>
                 ) : hasValidBasePrice && baseItemPrice > 0 ? (
-                  <span className="text-base font-extrabold text-gray-900"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(baseItemPrice, hoteldata?.id)} /></span>
+                  <span className="text-[14px] font-bold text-[#2d2d2d]"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(baseItemPrice, hoteldata?.id)} /></span>
                 ) : null}
               </div>
             )}
 
             {item.description && (
-              <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-gray-400">{item.description}</p>
+              <p className="mt-2 whitespace-pre-line text-[12.5px] leading-[1.5] text-[#8a8a8a]">{item.description}</p>
             )}
+            <div className="h-3.5" />
+          </div>
 
-            {isOrderable && showAddButton && (
-              <div className="mt-4">
-                {itemQuantity === 0 ? (
+          {/* Footer: qty stepper + Add item */}
+          {isOrderable && showAddButton && (
+            <div className="sticky bottom-0 flex items-center gap-3.5 bg-white px-[18px] pb-6 pt-3 shadow-[0_-6px_18px_-12px_rgba(0,0,0,.2)]">
+              {itemQuantity > 0 && (
+                <div className="flex items-center overflow-hidden rounded-[11px] border-[1.5px] border-[#e6b9bc]">
+                  <button
+                    onClick={() => { if (itemQuantity === 1) removeItem(item.id as string); else decreaseQuantity(item.id as string); }}
+                    className="flex h-[46px] w-[38px] items-center justify-center text-[20px] font-bold text-[#cb202d]"
+                  >
+                    −
+                  </button>
+                  <span className="w-[30px] text-center text-[15px] font-extrabold text-[#cb202d]">{itemQuantity}</span>
                   <button
                     onClick={() => handleAddItem()}
-                    className="flex w-full items-center justify-between rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-extrabold uppercase tracking-wider text-white shadow-lg transition active:scale-[0.98]"
+                    className="flex h-[46px] w-[38px] items-center justify-center text-[20px] font-bold text-[#cb202d]"
                   >
-                    <span>Add to cart</span>
-                    <span><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice, hoteldata?.id || "")} /></span>
+                    +
                   </button>
-                ) : (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-1 rounded-xl border-2 border-emerald-600/30 bg-emerald-50 px-1.5 py-1">
-                      <button
-                        onClick={() => { if (itemQuantity === 1) removeItem(item.id as string); else decreaseQuantity(item.id as string); }}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-emerald-700"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="min-w-[2ch] text-center text-sm font-extrabold text-emerald-700">{itemQuantity}</span>
-                      <button
-                        onClick={() => handleAddItem()}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-emerald-700"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-gray-400">Total</p>
-                      <p className="text-base font-extrabold text-gray-900">
-                        <MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice((hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice) * itemQuantity, hoteldata?.id || "")} />
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+              <button
+                onClick={() => (itemQuantity > 0 ? setShowItemSheet(false) : handleAddItem())}
+                style={{ background: V3_RED, boxShadow: "0 8px 20px -8px rgba(203,32,45,.6)" }}
+                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl text-[14.5px] font-extrabold text-white transition active:scale-[0.98]"
+              >
+                <span>{itemQuantity > 0 ? "Done" : "Add item"}</span>
+                <span>·</span>
+                <span><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice((hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice) * (itemQuantity || 1), hoteldata?.id || "")} /></span>
+              </button>
+            </div>
+          )}
         </V3BottomSheet>,
         document.body
       )}
@@ -590,50 +612,42 @@ const V3ItemCard = ({
       {/* Bottom Sheet for Variants */}
       {showVariants && hasVariants && typeof window !== "undefined" && createPortal(
         <V3BottomSheet onClose={() => setShowVariants(false)}>
-          <div className="sticky top-0 z-10 flex justify-center bg-white pt-2.5 pb-1">
-            <div className="h-1 w-8 rounded-full bg-gray-200" />
-          </div>
-
-          {item.image_url && (
-            <div className="mx-3 mt-1 flex h-40 items-center justify-center overflow-hidden rounded-xl">
+          {/* Image header (flush to the rounded sheet top) */}
+          <div className="relative h-[174px] w-full overflow-hidden bg-gray-100">
+            {item.image_url ? (
               <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
-            </div>
-          )}
-
-          <div className="p-4 pb-2 flex justify-between items-start gap-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                {item.is_veg !== null && item.is_veg !== undefined && <VegMark isVeg={item.is_veg} />}
-                <h3 className="font-bold text-lg text-gray-900">{item.name}</h3>
-              </div>
-              {item.name_secondary && (
-                <p
-                  dir={item.name_secondary_rtl ? "rtl" : "ltr"}
-                  className="v3-name-secondary text-left text-sm font-medium leading-snug text-gray-500"
-                >
-                  {item.name_secondary}
-                </p>
-              )}
-              {item.description && (
-                <p className="text-sm text-gray-400 mt-1 leading-relaxed whitespace-pre-line">{item.description}</p>
-              )}
-            </div>
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-4xl">🍽️</div>
+            )}
           </div>
 
-          <div className="border-t border-gray-100 mx-4" />
-
-          <div className="p-4">
-            {(hasOrderingFeature || hasDeliveryFeature) && (
-              <>
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="font-bold text-base text-gray-900">Quantity</h4>
-                  <span className="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-medium border border-emerald-200">Required</span>
-                </div>
-                <p className="text-sm text-gray-400 mb-3">Select options</p>
-              </>
+          <div className="px-[18px] pt-4">
+            <div className="flex items-center gap-2">
+              {item.is_veg !== null && item.is_veg !== undefined && <VegMark isVeg={item.is_veg} />}
+              <h3 className="text-[19px] font-extrabold tracking-tight text-[#2d2d2d]">{item.name}</h3>
+            </div>
+            {item.name_secondary && (
+              <p
+                dir={item.name_secondary_rtl ? "rtl" : "ltr"}
+                className="v3-name-secondary mt-0.5 text-left text-[15px] font-semibold leading-snug text-[#9a9a9a]"
+              >
+                {item.name_secondary}
+              </p>
             )}
+            {item.description && (
+              <p className="mt-2 whitespace-pre-line text-[12.5px] leading-[1.5] text-[#8a8a8a]">{item.description}</p>
+            )}
+          </div>
 
-            <div className="divide-y divide-gray-100">
+          <div className="px-[18px] pt-4">
+            <div className="mb-1 text-[13px] font-extrabold text-[#2d2d2d]">
+              Choose an option
+              {(hasOrderingFeature || hasDeliveryFeature) && (
+                <span className="ml-1 text-[11px] font-semibold text-[#a3a3a3]">· Required</span>
+              )}
+            </div>
+
+            <div className="divide-y divide-[#f4f4f2]">
               {(() => {
                 if (isOfferCategory && hasMultipleVariantsOnOffer) {
                   return allItemOffers?.map((offer) => offer.variant!).filter(Boolean) || [];
@@ -654,29 +668,20 @@ const V3ItemCard = ({
                   const qty = getVariantQuantity(variant.name);
 
                   return (
-                    <div key={variant.name} className="py-3 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                        {item.is_veg !== null && item.is_veg !== undefined && (
-                          <div className="flex-shrink-0">
-                            <div className={`w-3 h-3 border-[1.5px] flex items-center justify-center ${item.is_veg ? "border-emerald-600" : "border-red-600"}`}>
-                              <div className={`w-1.5 h-1.5 rounded-full ${item.is_veg ? "bg-emerald-600" : "bg-red-600"}`} />
-                            </div>
-                          </div>
-                        )}
-                        <span className="font-medium text-sm text-gray-900 flex-1 min-w-0">{variant.name}</span>
-                      </div>
+                    <div key={variant.name} className="flex items-center gap-3 py-[11px]">
+                      <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-[#2d2d2d]">{variant.name}</span>
 
                       {shouldShowPrice && !item.is_price_as_per_size && (
-                        <div className="text-sm font-semibold flex-shrink-0">
+                        <div className="flex-shrink-0 text-[12.5px] font-semibold text-[#828282]">
                           {hasValidVariantOffer ? (
                             <div className="flex items-center gap-1.5">
-                              <span className="text-red-500"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(variantOffer.offer_price!, hoteldata?.id)} /></span>
+                              <span style={{ color: V3_RED }}><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(variantOffer.offer_price!, hoteldata?.id)} /></span>
                               {hasValidOriginalPrice && originalVariantPrice > variantOffer.offer_price! && (
-                                <span className="line-through text-gray-400 text-xs font-normal"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(originalVariantPrice, hoteldata?.id)} /></span>
+                                <span className="text-xs font-normal text-gray-400 line-through"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(originalVariantPrice, hoteldata?.id)} /></span>
                               )}
                             </div>
                           ) : hasValidOriginalPrice && originalVariantPrice > 0 ? (
-                            <span className="text-gray-700"><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(originalVariantPrice, hoteldata?.id)} /></span>
+                            <span><MenuPrice currency={hoteldata?.currency || "₹"} amount={formatPrice(originalVariantPrice, hoteldata?.id)} /></span>
                           ) : null}
                         </div>
                       )}
@@ -684,19 +689,15 @@ const V3ItemCard = ({
                       {showVariantAddButton && !isMenuOnly && (
                         <div className="flex-shrink-0">
                           {qty > 0 ? (
-                            <div className="flex items-center gap-0.5 rounded-md border border-emerald-600/30 bg-emerald-50 px-0.5 py-0.5">
-                              <button onClick={() => handleVariantRemove(variant)} className="flex h-6 w-6 items-center justify-center rounded text-emerald-700">
-                                <Minus className="h-3.5 w-3.5" />
-                              </button>
-                              <span className="text-xs font-extrabold text-emerald-700 min-w-[16px] text-center">{qty}</span>
-                              <button onClick={() => handleVariantAdd(variant)} className="flex h-6 w-6 items-center justify-center rounded text-emerald-700">
-                                <Plus className="h-3.5 w-3.5" />
-                              </button>
+                            <div className="flex items-center rounded-[10px] border border-[#e6b9bc] bg-white">
+                              <button onClick={() => handleVariantRemove(variant)} className="flex h-8 w-8 items-center justify-center text-[18px] font-bold text-[#cb202d]">−</button>
+                              <span className="min-w-[18px] text-center text-[13px] font-extrabold text-[#cb202d]">{qty}</span>
+                              <button onClick={() => handleVariantAdd(variant)} className="flex h-8 w-8 items-center justify-center text-[18px] font-bold text-[#cb202d]">+</button>
                             </div>
                           ) : (
                             <button
                               onClick={() => handleVariantAdd(variant)}
-                              className="rounded-md border border-emerald-600/30 bg-white px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-sm transition active:scale-95"
+                              className="rounded-[10px] border border-[#e6b9bc] bg-white px-5 py-1.5 text-[12px] font-extrabold uppercase tracking-[.5px] text-[#cb202d] shadow-sm transition active:scale-95"
                             >
                               Add
                             </button>
@@ -710,7 +711,7 @@ const V3ItemCard = ({
           </div>
 
           {showAddButton && (
-            <div className="sticky bottom-0 p-4 bg-white border-t border-gray-100">
+            <div className="sticky bottom-0 bg-white px-[18px] pb-6 pt-3 shadow-[0_-6px_18px_-12px_rgba(0,0,0,.2)]">
               <BottomSheetAddButton
                 item={item}
                 hoteldata={hoteldata}

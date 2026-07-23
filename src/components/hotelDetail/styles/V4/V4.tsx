@@ -36,8 +36,6 @@ import { LoyaltyPointsBadge } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 import { readableTextColor } from "@/lib/brandColor";
 
-type VegFilter = "all" | "veg" | "nonveg";
-
 // Core layout dimensions applied via inline styles (not Tailwind arbitrary
 // classes) so they are guaranteed to render at a fixed size in every
 // environment — keeps the hero banner, category rail and thumbnails stable.
@@ -229,7 +227,8 @@ const V4 = ({
   // dark brand colors, near-black on light ones). Used by the hours pill.
   const onAccent = readableTextColor(accent);
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
-  const [vegFilter, setVegFilter] = useState<VegFilter>("all");
+  // Veg quick-filter: off = all items, on = vegetarian only (simple toggle).
+  const [vegOnly, setVegOnly] = useState(false);
 
   const categoryHeadersRef = useRef<(HTMLElement | null)[]>([]);
   const railContainerRef = useRef<HTMLDivElement>(null);
@@ -352,19 +351,17 @@ const V4 = ({
     return result;
   }, [allCategoriesUnfiltered, hoteldata, offers, topItems]);
 
-  // Apply the VEG / NON-VEG quick filter. Categories left with no matching
-  // items drop out of both the rail and the list.
+  // Apply the "Veg only" quick filter. Categories left with no matching items
+  // drop out of both the rail and the list.
   const groups = useMemo(() => {
-    if (vegFilter === "all") return baseGroups;
+    if (!vegOnly) return baseGroups;
     return baseGroups
       .map((g) => ({
         category: g.category,
-        items: g.items.filter((it) =>
-          vegFilter === "veg" ? it.is_veg === true : it.is_veg === false,
-        ),
+        items: g.items.filter((it) => it.is_veg === true),
       }))
       .filter((g) => g.items.length > 0);
-  }, [baseGroups, vegFilter]);
+  }, [baseGroups, vegOnly]);
 
   const searchableMenu = useMemo(() => {
     const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
@@ -468,15 +465,6 @@ const V4 = ({
     scrollRailIntoView(index);
   };
 
-  const cycleVegFilter = () =>
-    setVegFilter((f) => (f === "all" ? "veg" : f === "veg" ? "nonveg" : "all"));
-  const vegMeta =
-    vegFilter === "veg"
-      ? { label: "VEG", dot: "#16a34a", text: "text-emerald-700", ring: "border-emerald-300" }
-      : vegFilter === "nonveg"
-        ? { label: "NON-VEG", dot: "#dc2626", text: "text-red-700", ring: "border-red-300" }
-        : { label: "ALL", dot: "#9ca3af", text: "text-gray-700", ring: "border-gray-200" };
-
   // Rail thumbnail for a group: first item image, else a fallback icon.
   const railThumb = (group: { category: any; items: any[] }) => {
     const img = group.items.find((i) => i.image_url)?.image_url as string | undefined;
@@ -570,44 +558,52 @@ const V4 = ({
             )}
           </div>
 
-          {/* Bottom overlay: name + hours (left), contacts (right). Extra
-              bottom padding keeps the content clear of the white sheet that
-              rises over the banner below. */}
-          {!hideStoreIdentity && (
-            <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 px-5 pb-12">
-              <div className="min-w-0 flex-1">
-                <h1
-                  translate="no"
-                  className={`notranslate truncate font-extrabold leading-tight text-white drop-shadow-md${
-                    (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
-                  }`}
-                  style={
-                    (hoteldata as any)?.username === "nila"
-                      ? { fontSize: 27 }
-                      : { fontFamily: "'Playfair Display', Georgia, serif", fontSize: 27 }
-                  }
+          {/* Bottom overlay: a stylish restaurant name + location (always
+              shown, so the banner never reads as "just an image"), plus the
+              hours pill and contacts when the identity isn't already surfaced
+              earlier in the flow. Extra bottom padding keeps everything clear
+              of the white sheet that rises over the banner below. */}
+          <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 px-5 pb-12">
+            <div className="min-w-0 flex-1">
+              <h1
+                translate="no"
+                className={`notranslate truncate font-extrabold leading-tight text-white${
+                  (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
+                }`}
+                style={
+                  (hoteldata as any)?.username === "nila"
+                    ? { fontSize: 29, textShadow: "0 2px 14px rgba(0,0,0,0.55)" }
+                    : {
+                        fontFamily: "'Playfair Display', Georgia, serif",
+                        fontSize: 29,
+                        textShadow: "0 2px 14px rgba(0,0,0,0.55)",
+                      }
+                }
+              >
+                {hoteldata?.store_name}
+              </h1>
+              {locationText && (
+                <div className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-black/30 px-2.5 py-1 ring-1 ring-white/25 backdrop-blur-sm">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-white" />
+                  <span className="truncate text-[12px] font-semibold text-white">
+                    {locationText}
+                  </span>
+                </div>
+              )}
+              {showHours && !hideStoreIdentity && (
+                <div
+                  className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 shadow-sm"
+                  style={{ backgroundColor: accent, color: onAccent }}
                 >
-                  {hoteldata?.store_name}
-                </h1>
-                {((hoteldata as any)?.store_tagline || locationText) && (
-                  <p className="mt-0.5 truncate text-xs font-medium text-white/85 drop-shadow">
-                    {(hoteldata as any)?.store_tagline || locationText}
-                  </p>
-                )}
-                {showHours && (
-                  <div
-                    className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 shadow-sm"
-                    style={{ backgroundColor: accent, color: onAccent }}
-                  >
-                    <Clock className="h-4 w-4" />
-                    <span className="text-[13px] font-bold">
-                      {openFrom} - {openTo}
-                    </span>
-                  </div>
-                )}
-              </div>
+                  <Clock className="h-4 w-4" />
+                  <span className="text-[13px] font-bold">
+                    {openFrom} - {openTo}
+                  </span>
+                </div>
+              )}
+            </div>
 
-              {hasContacts && (
+            {hasContacts && !hideStoreIdentity && (
                 <div className="flex shrink-0 items-center gap-2">
                   {phoneHref && (
                     <a href={phoneHref} className="flex h-11 w-11 items-center justify-center rounded-full bg-black/45 text-white shadow-sm backdrop-blur-sm transition hover:bg-black/60">
@@ -637,7 +633,6 @@ const V4 = ({
                 </div>
               )}
             </div>
-          )}
         </section>
 
         {/* ===== STICKY SEARCH + VEG FILTER (measured for rail offset) =====
@@ -655,22 +650,26 @@ const V4 = ({
               ) : (
                 <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
               )}
-              <div className="min-w-0 leading-tight">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  {isPickupMode ? "Pickup from" : "Deliver to"}
-                </span>
-                <p
-                  className="truncate text-xs font-bold"
-                  style={{ color: isPickupMode ? "#111827" : accent }}
+              {/* Label + value on a single line */}
+              <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                {isPickupMode ? "Pickup from" : "Deliver to"}
+              </span>
+              {isPickupMode ? (
+                <span
+                  translate="no"
+                  className="notranslate min-w-0 truncate text-[13px] font-bold text-gray-900"
                 >
-                  {isPickupMode ? (
-                    <span translate="no" className="notranslate">{outletName}</span>
-                  ) : (
-                    userAddress || "Add delivery address"
-                  )}
-                </p>
-              </div>
-              {!isPickupMode && <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />}
+                  {outletName}
+                </span>
+              ) : (
+                <span
+                  className="min-w-0 truncate text-[13px] font-bold"
+                  style={{ color: accent }}
+                >
+                  {userAddress || "Add delivery address"}
+                </span>
+              )}
+              {!isPickupMode && <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-gray-400" />}
             </button>
           )}
 
@@ -682,13 +681,27 @@ const V4 = ({
               <Search className="h-[18px] w-[18px] text-gray-400" />
               <span className="text-sm">Search items...</span>
             </button>
+            {/* All / Veg-only toggle */}
             <button
-              onClick={cycleVegFilter}
-              className={`flex h-12 shrink-0 items-center gap-2 rounded-full border bg-white px-4 transition ${vegMeta.ring}`}
-              aria-label="Filter by veg / non-veg"
+              onClick={() => setVegOnly((v) => !v)}
+              className={`flex h-12 shrink-0 items-center gap-2 rounded-full border px-4 transition ${
+                vegOnly ? "border-emerald-300 bg-emerald-50" : "border-gray-200 bg-white"
+              }`}
+              aria-pressed={vegOnly}
+              aria-label="Show vegetarian items only"
             >
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: vegMeta.dot }} />
-              <span className={`text-xs font-bold ${vegMeta.text}`}>{vegMeta.label}</span>
+              <span
+                className="relative h-5 w-[34px] shrink-0 rounded-full transition-colors"
+                style={{ background: vegOnly ? "#16a34a" : "#d1d5db" }}
+              >
+                <span
+                  className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all"
+                  style={{ left: vegOnly ? "16px" : "2px" }}
+                />
+              </span>
+              <span className={`text-xs font-bold ${vegOnly ? "text-emerald-700" : "text-gray-600"}`}>
+                {vegOnly ? "Veg only" : "All"}
+              </span>
             </button>
           </div>
         </div>

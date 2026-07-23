@@ -2934,26 +2934,6 @@ const PlaceOrderModalV2 = ({
               ) : null
             )}
 
-            {/* Third-party rider unavailable — soft, NON-blocking notice. The
-                order can still be placed; the restaurant arranges delivery (or
-                retries) if no partner is available at pickup time. */}
-            {orderType === "delivery" &&
-              usePorterForCharge &&
-              userCoordinates &&
-              !porterQuoteLoading &&
-              porterQuote &&
-              !porterQuote.available && (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
-                  <Bike className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-amber-800">Delivery arranged by the restaurant</p>
-                    <p className="text-xs text-amber-600 mt-0.5">
-                      No delivery partner is available right now, but you can still place your order — the restaurant will arrange your delivery.
-                    </p>
-                  </div>
-                </div>
-              )}
-
             {/* Delivery charge notice */}
             {orderType === "delivery" && effectiveHideDeliveryCharge && (
               <div
@@ -3424,15 +3404,11 @@ const PlaceOrderModalV2 = ({
                           <span className="font-semibold" style={{ color: accent }}>Free</span>
                         )}
                       </div>
-                      {porterQuote?.available && typeof porterQuote.etaMins === "number" ? (
+                      {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
                         <div className="text-xs text-gray-400 mt-0.5">
                           ETA {porterQuote.etaMins} min · via Porter
                         </div>
-                      ) : !porterQuoteLoading && porterQuote && !porterQuote.available ? (
-                        <div className="text-xs text-amber-600 mt-0.5">
-                          Restaurant will arrange delivery
-                        </div>
-                      ) : null}
+                      )}
                     </div>
                   )}
                   {orderType === "delivery" && effectiveHideDeliveryCharge && (

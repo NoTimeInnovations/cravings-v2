@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { MapPin, Phone, Star, ChevronRight, ShoppingBag, Search, Store, ChevronDown, LocateFixed, Loader2, X, ArrowLeft, User } from "lucide-react";
+import { MapPin, Phone, Star, ShoppingBag, Search, Store, ChevronDown, X, ArrowLeft, User } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { applyVisibilityState, getItemDisplayState } from "@/lib/visibility";
@@ -53,6 +53,7 @@ const V3 = ({
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
   const [bannerError, setBannerError] = useState(false);
+  const [vegOnly, setVegOnly] = useState(false);
 
   const categoryHeadersRef = useRef<(HTMLHeadingElement | null)[]>([]);
   const categoriesContainerRef = useRef<HTMLDivElement>(null);
@@ -138,6 +139,44 @@ const V3 = ({
     const bgColor = typeof bl?.bgColor === "string" && bl.bgColor ? bl.bgColor : null;
     return { scale, bgColor };
   }, [(hoteldata as any)?.storefront_settings]);
+
+  // V3 menu-header display info (rating / delivery time / approx cost / cuisines)
+  // stored under storefront_settings.menuInfo. Falls back to the design's sample
+  // values so the info strip always renders; editable in Store Settings →
+  // "Menu header (V3 menu)".
+  const menuInfo = useMemo(() => {
+    const raw = (hoteldata as any)?.storefront_settings;
+    let parsed: any = null;
+    try {
+      parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch {
+      parsed = null;
+    }
+    const mi = parsed?.menuInfo || {};
+    const pick = (v: any, fallback: string) =>
+      v != null && String(v).trim() ? String(v).trim() : fallback;
+    return {
+      rating: pick(mi.rating, "4.5"),
+      ratingCount: pick(mi.ratingCount, "12.4k"),
+      deliveryTime: pick(mi.deliveryTime, "20-30 min"),
+      costForOne: pick(mi.costForOne, "200"),
+      cuisines: pick(mi.cuisines, ""),
+    };
+  }, [(hoteldata as any)?.storefront_settings]);
+
+  // Highest discount across live offers — powers the "N% OFF" offer strip.
+  const maxOfferPct = useMemo(() => {
+    if (!offers?.length) return 0;
+    let max = 0;
+    for (const o of offers as any[]) {
+      const orig = o?.variant?.price ?? o?.menu?.price;
+      const off = o?.offer_price;
+      if (typeof orig === "number" && typeof off === "number" && orig > 0 && orig > off) {
+        max = Math.max(max, Math.round(((orig - off) / orig) * 100));
+      }
+    }
+    return max;
+  }, [offers]);
 
   // Scroll spy
   useEffect(() => {
@@ -240,7 +279,16 @@ const V3 = ({
     return result;
   }, [allCategoriesUnfiltered, hoteldata, offers, topItems]);
 
-  const allCategories = useMemo(() => categoriesWithItems.map((g) => g.category), [categoriesWithItems]);
+  // Veg-only filter (design's Veg toggle) — drops non-veg items and any category
+  // left empty. Chip list and section list stay index-aligned for scroll-spy.
+  const displayGroups = useMemo(() => {
+    if (!vegOnly) return categoriesWithItems;
+    return categoriesWithItems
+      .map((g) => ({ category: g.category, items: g.items.filter((it: any) => it.is_veg === true) }))
+      .filter((g) => g.items.length > 0);
+  }, [categoriesWithItems, vegOnly]);
+
+  const allCategories = useMemo(() => displayGroups.map((g) => g.category), [displayGroups]);
 
   // Search input feeds off the same visibility/availability rules so hidden
   // items don't leak into search results, and unavailable items show with the
@@ -309,13 +357,13 @@ const V3 = ({
   return (
     <div
       style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
-      className="no-image-save min-h-screen bg-white antialiased"
+      className="no-image-save min-h-screen bg-[#f4f4f2] antialiased"
       onContextMenu={(e) => {
         if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
       }}
     >
       <PullToRefresh />
-      <main className="max-w-2xl mx-auto relative pb-24">
+      <main className="max-w-2xl mx-auto relative bg-[#f4f4f2] pb-24">
         <ShopClosedModalWarning
           hotelId={hoteldata?.id}
           isShopOpen={hoteldata?.is_shop_open}
@@ -368,15 +416,8 @@ const V3 = ({
               <div className="flex-1" />
             )}
 
-            {/* Right: Search icon + Profile icon + Shopping bag icon */}
+            {/* Right: Profile icon + Shopping bag icon (search lives in the sticky bar) */}
             <div className="ml-auto flex items-center gap-0.5">
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
-                aria-label="Search menu"
-              >
-                <Search className="h-[18px] w-[18px] text-gray-900" />
-              </button>
               {/* Profile + Orders only for logged-in customers.
                   Use the live auth store (authUser) rather than the server
                   `auth` snapshot, which can be stale after a client-side
@@ -432,104 +473,153 @@ const V3 = ({
           />
         )}
 
-        {/* ===== HERO SECTION - Compact (same as cravings-v3) ===== */}
+        {/* ===== HERO — cover photo (banner) + name/cuisine overlay ===== */}
         {!hideStoreIdentity && (
-        <section className="px-4 pt-3">
-          <div className="flex items-center gap-3">
-            {/* Logo */}
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5"
-              style={{ background: bannerLogo.bgColor || "#ffffff" }}
-            >
-              {showBanner ? (
-                isVideoUrl(storeBanner) ? (
-                  <video
-                    src={storeBanner}
-                    poster={getVideoThumbnailUrl(storeBanner)}
-                    preload="metadata"
-                    muted
-                    playsInline
-                    className="h-full w-full object-contain"
-                    style={{ transform: `scale(${bannerLogo.scale})` }}
-                  />
-                ) : (
-                  <img
-                    src={storeBanner}
-                    alt={hoteldata?.store_name}
-                    className="h-full w-full object-contain"
-                    style={{ transform: `scale(${bannerLogo.scale})` }}
-                    onError={() => setBannerError(true)}
-                  />
-                )
+        <section>
+          <div
+            className="relative h-[230px] w-full overflow-hidden"
+            style={{ background: bannerLogo.bgColor || "#1a1a1a" }}
+          >
+            {showBanner ? (
+              isVideoUrl(storeBanner) ? (
+                <video
+                  src={storeBanner}
+                  poster={getVideoThumbnailUrl(storeBanner)}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  autoPlay
+                  loop
+                  className="h-full w-full object-cover"
+                />
               ) : (
-                <span className="text-2xl">🍽️</span>
-              )}
-            </div>
-
-            {/* Name + tagline */}
-            <div className="min-w-0 flex-1">
+                <img
+                  src={storeBanner}
+                  alt={hoteldata?.store_name}
+                  className="h-full w-full object-cover"
+                  onError={() => setBannerError(true)}
+                />
+              )
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-6xl">🍽️</div>
+            )}
+            {/* gradient overlay */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,0) 34%,rgba(0,0,0,.72) 100%)",
+              }}
+            />
+            {/* name + cuisine */}
+            <div className="absolute inset-x-4 bottom-3.5 text-white">
               <h1
                 translate="no"
-                className={`notranslate truncate text-lg font-extrabold tracking-tight text-gray-900${
+                className={`notranslate text-[25px] font-extrabold leading-tight tracking-[-.02em]${
                   (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
                 }`}
-                style={
-                  (hoteldata as any)?.username === "nila"
-                    ? undefined
-                    : { fontFamily: "'Playfair Display', Georgia, serif" }
-                }
               >
                 {hoteldata?.store_name}
               </h1>
-              {((hoteldata as any)?.store_tagline || locationText) && (
-                <p className="truncate text-[11px] text-gray-400">
-                  {(hoteldata as any)?.store_tagline || locationText}
+              {(menuInfo.cuisines || (hoteldata as any)?.store_tagline || locationText) && (
+                <p className="mt-0.5 text-[12.5px] opacity-90">
+                  {menuInfo.cuisines || (hoteldata as any)?.store_tagline || locationText}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Contact row - all icons black */}
+          {/* info strip — rating / delivery time / approx cost */}
+          <div className="relative z-[2] mx-3 -mt-px flex items-center rounded-[14px] bg-white px-4 py-3.5 shadow-[0_6px_22px_-12px_rgba(0,0,0,.22)]">
+            <div className="flex-1 text-center">
+              <div
+                className="inline-flex items-center gap-1 rounded-md px-[7px] py-[3px] text-[13px] font-extrabold text-white"
+                style={{ background: "#267e3e" }}
+              >
+                {menuInfo.rating}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="#fff">
+                  <path d="M12 2l2.9 6.3 6.8.6-5.1 4.6 1.5 6.7L12 17.3 5.9 20.8l1.5-6.7L2.3 8.9l6.8-.6z" />
+                </svg>
+              </div>
+              <div className="mt-[5px] text-[10.5px] font-semibold text-[#828282]">{menuInfo.ratingCount} ratings</div>
+            </div>
+            <div className="h-9 w-px bg-[#f0f0ee]" />
+            <div className="flex-1 text-center">
+              <div className="text-[14px] font-extrabold text-[#2d2d2d]">{menuInfo.deliveryTime}</div>
+              <div className="mt-[5px] text-[10.5px] font-semibold text-[#828282]">Delivery time</div>
+            </div>
+            <div className="h-9 w-px bg-[#f0f0ee]" />
+            <div className="flex-1 text-center">
+              <div className="text-[14px] font-extrabold text-[#2d2d2d]">
+                {hoteldata?.currency || "₹"}{menuInfo.costForOne}
+                <span className="text-[10px] font-extrabold"> for one</span>
+              </div>
+              <div className="mt-[5px] text-[10.5px] font-semibold text-[#828282]">Approx cost</div>
+            </div>
+          </div>
+
+          {/* offer strip — only when real offers exist */}
+          {hasOffers && (
+            <button
+              onClick={() => {
+                const el = document.getElementById("v3-cat-offers");
+                if (el) {
+                  const y = el.getBoundingClientRect().top + window.pageYOffset - 120;
+                  window.scrollTo({ top: y, behavior: "smooth" });
+                }
+              }}
+              className="mx-3 mt-3 flex items-center gap-[11px] rounded-[12px] border border-dashed px-3.5 py-3 text-left"
+              style={{ borderColor: "#f0b3b3", background: "linear-gradient(100deg,#fff 60%,#fff2f0)" }}
+            >
+              <div
+                className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px]"
+                style={{ background: "#fdecec" }}
+              >
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#cb202d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.6 13.4L11 3.8V3H3.8v7.2h.8l9.6 9.6a2 2 0 0 0 2.8 0l3.6-3.6a2 2 0 0 0 0-2.8Z" />
+                  <circle cx="7.5" cy="7.5" r="1.2" fill="#cb202d" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-extrabold text-[#2d2d2d]">
+                  {maxOfferPct > 0 ? `${maxOfferPct}% OFF` : "Offers available"}
+                </div>
+                <div className="mt-px text-[11px] text-[#828282]">
+                  Auto-applied on select items · <b style={{ color: "#cb202d" }}>Tap to view</b>
+                </div>
+              </div>
+            </button>
+          )}
+
+          {/* Contact row */}
           {hasContacts && (
-            <div className="mt-3 flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-0.5 -mx-1 px-1">
+            <div className="mt-3 flex items-center gap-1.5 overflow-x-auto scrollbar-hide px-3 pb-0.5">
               {phoneHref && (
-                <a href={phoneHref} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50 transition">
+                <a href={phoneHref} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition">
                   <Phone className="h-4 w-4 text-gray-900" />
                 </a>
               )}
               {whatsappHref && (
-                <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50 transition">
+                <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition">
                   <FaWhatsapp size={16} className="text-gray-900" />
                 </a>
               )}
               {mapHref && (
-                <a href={mapHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50 transition">
+                <a href={mapHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition">
                   <MapPin className="h-4 w-4 text-gray-900" />
                 </a>
               )}
               {instagramHref && (
-                <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50 transition">
+                <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition">
                   <FaInstagram size={16} className="text-gray-900" />
                 </a>
               )}
               {reviewHref && (
-                <a href={reviewHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50 transition">
+                <a href={reviewHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition">
                   <Star className="h-4 w-4 text-gray-900" />
                 </a>
               )}
             </div>
-          )}
-
-          {/* View-only menus: search lives here (the top navbar is hidden). */}
-          {showHeroSearch && (
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="mt-3 flex w-full items-center gap-2.5 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-left transition hover:bg-gray-100 active:scale-[0.99]"
-              aria-label="Search menu"
-            >
-              <Search className="h-[18px] w-[18px] text-gray-500" strokeWidth={2.2} />
-              <span className="text-sm font-medium text-gray-400">Search the menu…</span>
-            </button>
           )}
         </section>
         )}
@@ -556,51 +646,86 @@ const V3 = ({
           </div>
         )}
 
-        {/* Category pills - sticky below header (docks to top when the navbar is hidden) */}
-        <div className={`sticky ${showHeroSearch ? "top-0" : "top-14"} z-20 mt-3 border-b border-gray-200/60 bg-white/90 backdrop-blur-xl`}>
+        {/* Sticky control bar: Veg toggle + Search + category pills */}
+        <div className={`sticky ${showHeroSearch ? "top-0" : "top-14"} z-20 mt-1 bg-[#f4f4f2] px-3 pb-2 pt-3.5`}>
+          <div className="flex items-center gap-2.5">
+            {/* Veg toggle */}
+            <button
+              onClick={() => setVegOnly((v) => !v)}
+              className="flex shrink-0 items-center gap-2 rounded-[10px] border border-[#ececea] bg-white px-3 py-2"
+              aria-pressed={vegOnly}
+            >
+              <span
+                className="relative h-5 w-[34px] rounded-[11px] transition-colors"
+                style={{ background: vegOnly ? "#0f8a45" : "#d5d5d5" }}
+              >
+                <span
+                  className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all"
+                  style={{ left: vegOnly ? "16px" : "2px" }}
+                />
+              </span>
+              <span className="text-[12.5px] font-bold text-[#2d2d2d]">Veg</span>
+            </button>
+            {/* Search */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex flex-1 items-center gap-2 rounded-[10px] border border-[#ececea] bg-white px-3 py-[9px] text-left"
+              aria-label="Search menu"
+            >
+              <Search className="h-4 w-4 text-[#a3a3a3]" strokeWidth={2.2} />
+              <span className="text-[12.5px] text-[#a3a3a3]">Search in menu</span>
+            </button>
+          </div>
+          {/* category pills */}
           <div
             ref={categoriesContainerRef}
-            className="flex gap-1.5 overflow-x-auto px-4 py-2 scrollbar-hide"
+            className="mt-2.5 flex gap-2 overflow-x-auto pb-0.5 scrollbar-hide"
           >
-            {allCategories.map((category, index) => (
-              <div
-                key={category.id}
-                ref={(el) => { categoryElementsRef.current[index] = el; }}
-                onClick={() => handleCategoryClick(index, category)}
-                className={`shrink-0 cursor-pointer rounded-full px-3 py-1 text-[11px] font-bold transition ${
-                  activeCatIndex === index
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-                }`}
-              >
-                {formatDisplayName(category.name)}
-              </div>
-            ))}
+            {allCategories.map((category, index) => {
+              const active = activeCatIndex === index;
+              return (
+                <div
+                  key={category.id}
+                  ref={(el) => { categoryElementsRef.current[index] = el; }}
+                  onClick={() => handleCategoryClick(index, category)}
+                  className="shrink-0 cursor-pointer rounded-[20px] px-3.5 py-[7px] text-[12.5px] font-bold transition"
+                  style={{
+                    background: active ? "#cb202d" : "#fff",
+                    color: active ? "#fff" : "#5a5a5a",
+                    border: `1px solid ${active ? "#cb202d" : "#e4e4e2"}`,
+                  }}
+                >
+                  {formatDisplayName(category.name)}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Menu sections */}
-        <div className="px-4">
-          {categoriesWithItems.map(({ category, items: itemsToDisplay }, index) => {
+        <div className="px-3 pt-0.5">
+          {displayGroups.map(({ category, items: itemsToDisplay }, index) => {
             return (
               <section
                 key={category.id}
                 id={`v3-cat-${category.id}`}
-                className="scroll-mt-28 pt-4"
+                className="scroll-mt-28 pt-3.5"
               >
                 <div
                   ref={(el) => { categoryHeadersRef.current[index] = el; }}
-                  className="flex items-center gap-2"
+                  className="mx-0.5 mb-2.5 mt-0.5 flex items-center gap-2.5"
                 >
-                  <h2 className="text-sm font-extrabold tracking-tight text-gray-900">
-                    {formatDisplayName(category.name)}
-                  </h2>
-                  <span className="text-[11px] text-gray-400">
-                    ({itemsToDisplay.length})
+                  <span className="text-[13px] font-extrabold tracking-[.2px] text-[#2d2d2d]">
+                    {formatDisplayName(category.name)}{" "}
+                    <span className="text-[#a3a3a3]">({itemsToDisplay.length})</span>
                   </span>
+                  <span
+                    className="h-px flex-1"
+                    style={{ background: "linear-gradient(90deg,#ddd,transparent)" }}
+                  />
                 </div>
 
-                <div className="divide-y divide-gray-200/60">
+                <div className="divide-y divide-[#ececea]">
                   {itemsToDisplay.map((item) => {
                     const itemOffers = offers?.filter((offer) => offer.menu.id === item.id) || [];
                     let offerData: any = undefined;
@@ -668,7 +793,7 @@ const V3 = ({
             );
           })}
 
-          <p translate="no" className="notranslate py-4 text-center text-[10px] text-gray-400">{hoteldata?.store_name}</p>
+          <p translate="no" className="notranslate py-5 text-center text-[11px] font-semibold tracking-[.3px] text-[#b5b5b5]">{hoteldata?.store_name}</p>
         </div>
 
         {/* Order Drawer only - single floating cart button */}

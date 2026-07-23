@@ -858,13 +858,11 @@ const BillCard = ({
                 <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>Free</span>
               )}
             </div>
-            {porterQuote?.available && typeof porterQuote.etaMins === "number" ? (
+            {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
               <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
                 ETA {porterQuote.etaMins} min · via Porter
               </div>
-            ) : !porterQuoteLoading && porterQuote && !porterQuote.available ? (
-              <div className="text-xs mt-0.5 text-amber-600">Restaurant will arrange delivery</div>
-            ) : null}
+            )}
           </div>
         )}
 
@@ -4156,24 +4154,6 @@ const PlaceOrderModal = ({
                         : "Delivery partner can't serve this address right now."}
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Porter/3PL unavailable — soft, NON-blocking notice. Order stays
-                  placeable; the restaurant arranges delivery if no rider is found. */}
-              {isDelivery && !isQrScan && orderType === "delivery" && usePorterForCharge && selectedCoords && !porterQuoteLoading && porterQuote && !porterQuote.available && (
-                <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-200 bg-amber-50">
-                  <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-amber-800">
-                      Delivery arranged by the restaurant
-                    </p>
-                    <p className="mt-0.5 text-xs text-amber-700/90 leading-snug">
-                      No delivery partner is available right now, but you can still place your order — the restaurant will arrange your delivery.
-                    </p>
-                  </div>
                 </div>
               )}
 

@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import useOrderStore, { Order } from "@/store/orderStore";
 import { useAdminStore } from "@/store/adminStore";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { toast } from "sonner";
-import { fetchFromHasura } from "@/lib/hasuraClient";
-import { getActiveDeliveryBoysQuery } from "@/api/deliveryBoys";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { AssignDriverDialog } from "./AssignDriverDialog";
 import { LiveOrderCard } from "./LiveOrderCard";
+import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
+import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 
 // Statuses that keep an order "live" on the dashboard. The card stays pinned at
 // the top until the order is completed (or cancelled), at which point it drops
@@ -41,13 +41,7 @@ export function DashboardLiveOrders() {
 
   // Whether this partner has any of their own drivers registered. When they do,
   // dispatching opens the driver-picker popup instead of going out directly.
-  const [hasOwnDrivers, setHasOwnDrivers] = useState(false);
-  useEffect(() => {
-    if (!userData?.id) return;
-    fetchFromHasura(getActiveDeliveryBoysQuery, { partner_id: userData.id })
-      .then((res) => setHasOwnDrivers((res?.delivery_boys?.length ?? 0) > 0))
-      .catch(() => {});
-  }, [userData?.id]);
+  const hasOwnDrivers = useHasOwnDrivers();
 
   const liveOrders = orders
     .filter((o) => LIVE_STATUSES.has(o.status))
@@ -65,12 +59,12 @@ export function DashboardLiveOrders() {
   };
 
   const advance = async (order: Order, nextStatus: string) => {
-    // Dispatching a delivery order while the partner runs their own drivers →
-    // open the driver-picker popup instead of dispatching directly.
+    // Dispatching a real delivery order while the partner runs their own drivers
+    // (and no 3PL/pool auto-dispatch is on) → open the driver-picker popup
+    // instead of dispatching directly.
     if (
       nextStatus === "dispatched" &&
-      order.type === "delivery" &&
-      hasOwnDrivers
+      shouldPickOwnDriverOnDispatch(order, userData as Partner, hasOwnDrivers)
     ) {
       setAssigningId(order.id);
       return;
