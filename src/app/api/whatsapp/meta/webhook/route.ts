@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { getPartnerByPhoneNumberIdCached } from "@/lib/whatsapp-meta";
+import { getPartnerByPhoneNumberIdCached, type BranchCandidate } from "@/lib/whatsapp-meta";
 import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
 import { normalizePhone } from "@/lib/whatsapp-broadcast";
 import { getBusinessCurrency } from "@/lib/whatsapp-cost";
@@ -217,6 +217,42 @@ function normalizeFlowInput(msg: any): FlowInput | null {
       return null;
   }
   return { text: text ?? "", normalized: String(text ?? "").trim().toLowerCase(), replyId, type };
+}
+
+/**
+ * Shared-number brand routing: does the inbound text NAME one of the brand's
+ * outlets? Matches the message against each candidate's username / store_name,
+ * space/underscore/case-insensitively, but only as a contiguous run of whole
+ * words — so a short name like "cipo" can't false-match inside another word
+ * ("recipone"). Returns the most specific (longest-name) match, else null.
+ * e.g. "i want to order from spicechick" → the spice_chick outlet.
+ */
+function matchBranchCandidate(
+  normalizedText: string,
+  candidates: BranchCandidate[],
+): BranchCandidate | null {
+  const tokens = (normalizedText || "").match(/[a-z0-9]+/g) || [];
+  if (!tokens.length) return null;
+  const keyOf = (s: string | null) =>
+    (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  let best: { c: BranchCandidate; len: number } | null = null;
+  for (const c of candidates) {
+    for (const raw of [c.username, c.store_name]) {
+      const key = keyOf(raw);
+      if (key.length < 4) continue; // too short/generic to match safely
+      let hit = false;
+      for (let i = 0; i < tokens.length && !hit; i++) {
+        let acc = "";
+        for (let j = i; j < tokens.length; j++) {
+          acc += tokens[j];
+          if (acc === key) { hit = true; break; }
+          if (acc.length >= key.length) break; // overshot — no run equals key
+        }
+      }
+      if (hit && (!best || key.length > best.len)) best = { c, len: key.length };
+    }
+  }
+  return best?.c ?? null;
 }
 
 async function persistIncoming(
@@ -792,6 +828,32 @@ export async function POST(req: NextRequest) {
 
             const flowInput = normalizeFlowInput(msg);
 
+            // Shared-number brands (e.g. Televery): if the customer NAMES one of
+            // the brand's outlets ("...order from spicechick"), run THAT branch's
+            // flows so the welcome + order link are the branch's, not the brand
+            // parent's. A plain "hi" (no branch named) — OR a named branch whose
+            // own WhatsApp Ordering is off — falls through to the brand parent
+            // rather than dropping the message silently.
+            const named =
+              flowInput?.type === "text" && partner.branchCandidates?.length
+                ? matchBranchCandidate(flowInput.normalized, partner.branchCandidates)
+                : null;
+            const branch =
+              named &&
+              whatsappEnabledFromFlags(named.feature_flags) &&
+              named.flow_enabled !== false
+                ? named
+                : null;
+            const runPartnerId = branch?.partner_id ?? partner.partner_id;
+            const runSendToken =
+              (branch?.access_token ?? partner.access_token) || undefined;
+            // A matched branch is kept only when it can actually run (checked
+            // above), so it's WA-enabled here; everything else stays on the parent.
+            const runWaEnabled = branch ? true : waEnabled;
+            const runFlowTyping = branch
+              ? flowTypingEnabledFromFlags(branch.feature_flags)
+              : flowTyping;
+
             // NO read receipt / blue tick on inbound session messages. WhatsApp's
             // typing indicator and the read receipt are the same API call, so we
             // deliberately send neither: every inbound stays UNREAD so the owner
@@ -808,20 +870,23 @@ export async function POST(req: NextRequest) {
             // Run the partner's WhatsApp flows for this inbound. Idempotent and
             // self-contained; never let it throw out of the webhook loop. Skipped
             // entirely when WhatsApp Ordering is OFF for this partner.
-            if (waEnabled && flowInput && msg.id && phoneNumberId) {
+            if (runWaEnabled && flowInput && msg.id && phoneNumberId) {
               try {
                 await runFlowForInbound({
-                  partnerId: partner.partner_id,
+                  // Branch-scoped when the customer named an outlet, else the
+                  // brand parent. partnerId is the single lever — the engine
+                  // re-derives store_name + order_link from it.
+                  partnerId: runPartnerId,
                   phoneNumberId,
                   contactPhone: msg.from,
                   waMessageId: msg.id,
                   input: flowInput,
                   contactName,
-                  // Reuse the token already on the partner row from the lookup
-                  // above so the flow's send path doesn't re-query it.
-                  sendToken: partner.access_token || undefined,
+                  // Same physical number → the parent's token also sends for its
+                  // outlets; a branch's own copied token is equivalent.
+                  sendToken: runSendToken,
                   // Send read+typing only if the welcome flow actually runs.
-                  flowTyping,
+                  flowTyping: runFlowTyping,
                 });
               } catch (e) {
                 console.error("Flow engine error:", e);

@@ -429,6 +429,16 @@ export async function getPartnerByWabaId(wabaId: string) {
   return res?.whatsapp_business_integrations?.[0] || null;
 }
 
+/** A brand outlet that shares ONE WhatsApp number with the brand parent. */
+export type BranchCandidate = {
+  partner_id: string;
+  access_token: string;
+  flow_enabled: boolean;
+  feature_flags: string | null;
+  username: string | null;
+  store_name: string | null;
+};
+
 // ─── Lookup partner by Phone Number ID ───────────────────────────
 export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
   const query = `
@@ -442,7 +452,7 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
         phone_number_id
         access_token
         flow_enabled
-        partner { feature_flags branch { parent_partner_id } }
+        partner { feature_flags username store_name branch { parent_partner_id } }
       }
     }
   `;
@@ -456,7 +466,12 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
     phone_number_id: string;
     access_token: string;
     flow_enabled: boolean;
-    partner?: { feature_flags?: string | null; branch?: { parent_partner_id?: string | null } | null } | null;
+    partner?: {
+      feature_flags?: string | null;
+      username?: string | null;
+      store_name?: string | null;
+      branch?: { parent_partner_id?: string | null } | null;
+    } | null;
   }>;
   if (!rows.length) return null;
   // A brand can COPY its WhatsApp integration to every outlet (a shared number),
@@ -474,6 +489,28 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
         !!r.partner?.branch?.parent_partner_id &&
         r.partner.branch.parent_partner_id === r.partner_id,
     ) ?? rows[0];
+  // A shared number's OTHER rows are the brand's outlets. Surface the ones that
+  // belong to THIS brand (their branch parent IS the chosen parent) so the
+  // webhook can switch to a branch when the customer names it ("order from
+  // spicechick") — reusing rows already in hand, no extra round-trip. Unrelated
+  // shops that merely ride the same reseller number (branch parent unset/other)
+  // are excluded, so a customer can never be handed a stranger's order link.
+  const parentId = row.partner_id;
+  const branchCandidates: BranchCandidate[] = rows
+    .filter(
+      (r) =>
+        r.partner_id !== parentId &&
+        !!r.partner?.branch?.parent_partner_id &&
+        r.partner.branch.parent_partner_id === parentId,
+    )
+    .map((r) => ({
+      partner_id: r.partner_id,
+      access_token: r.access_token,
+      flow_enabled: r.flow_enabled,
+      feature_flags: r.partner?.feature_flags ?? null,
+      username: r.partner?.username ?? null,
+      store_name: r.partner?.store_name ?? null,
+    }));
   // Flatten feature_flags onto the row so the cached webhook lookup can gate
   // WhatsApp features without an extra round-trip.
   return {
@@ -483,6 +520,7 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
     access_token: row.access_token,
     flow_enabled: row.flow_enabled,
     feature_flags: row.partner?.feature_flags ?? null,
+    branchCandidates,
   };
 }
 
@@ -499,6 +537,7 @@ type PhoneNumberPartner = {
   access_token: string;
   flow_enabled: boolean;
   feature_flags: string | null;
+  branchCandidates: BranchCandidate[];
 } | null;
 
 const PARTNER_BY_PHONE_TTL_MS = 60_000;
