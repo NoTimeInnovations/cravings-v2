@@ -74,6 +74,45 @@ interface CreatedInfo {
   menuLink: string;
 }
 
+// delivery_rules is a JSON blob that may be stored as an object OR a stringified
+// JSON — parse-check both on read (see CLAUDE.md data-model notes).
+const parsePartnerDeliveryRules = (dr: unknown): Record<string, any> => {
+  if (!dr) return {};
+  if (typeof dr === "string") {
+    try {
+      return JSON.parse(dr) as Record<string, any>;
+    } catch {
+      return {};
+    }
+  }
+  return typeof dr === "object" ? (dr as Record<string, any>) : {};
+};
+
+// Petpooja partners bill to whole-rupee totals, so their menus/bills assume
+// round-off is ON — previously toggled on by hand in Payment settings after
+// each PP onboarding. Enable it automatically here. round_off lives INSIDE the
+// delivery_rules JSON, so read the current value and merge (never overwrite) to
+// preserve delivery windows, VAT, TRN and any other keys. Best-effort: a failure
+// must not block the onboarding it runs alongside.
+const enableRoundOff = async (partnerId: string) => {
+  if (!partnerId) return;
+  try {
+    const data = await fetchFromHasura(
+      `query PartnerDeliveryRules($id: uuid!) {
+        partners_by_pk(id: $id) { delivery_rules }
+      }`,
+      { id: partnerId },
+    );
+    const current = parsePartnerDeliveryRules(data?.partners_by_pk?.delivery_rules);
+    if (current.round_off === true) return; // already on — nothing to do
+    await updatePartner(partnerId, {
+      delivery_rules: { ...current, round_off: true },
+    });
+  } catch (err) {
+    console.error("Failed to enable round-off for Petpooja partner", partnerId, err);
+  }
+};
+
 const CreatePartnerPage = () => {
   // Mode: attach a Petpooja id to an existing partner, or create a brand new
   // customer (website + menu) the same way the "/" → /signup-from-google flow does.
@@ -320,6 +359,8 @@ const CreatePartnerPage = () => {
             ? { name }
             : {}),
         });
+        // They just became a Petpooja customer → turn on round-off.
+        await enableRoundOff(selectedPartner.id);
         if (sendEmail) {
           const res = await sendOnboardingEmail();
           alert(
@@ -364,6 +405,7 @@ const CreatePartnerPage = () => {
       // 2. Create the partner. With a place → full Google website; without →
       // a partner with no website (storefront menu still works).
       let username: string;
+      let newPartnerId: string;
       if (selectedPlace) {
         const result = await quickSignupFromGoogle({
           placeId: selectedPlace.placeId,
@@ -379,6 +421,7 @@ const CreatePartnerPage = () => {
             console.error("Failed to set petpooja id on new partner", err);
           }
         }
+        newPartnerId = result.partnerId;
         username = result.username;
       } else {
         const result = await createPetpoojaPartnerNoWebsite({
@@ -389,8 +432,13 @@ const CreatePartnerPage = () => {
           taxType: ppConfig.petpooja_tax_type,
           menuType: ppConfig.petpooja_menu_type,
         });
+        newPartnerId = result.partnerId;
         username = result.username;
       }
+
+      // Petpooja partners bill to whole-rupee totals — enable round-off on the
+      // freshly created partner (previously toggled on by hand in settings).
+      await enableRoundOff(newPartnerId);
 
       setCreatedInfo({
         username,
