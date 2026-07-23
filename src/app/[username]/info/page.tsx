@@ -477,7 +477,7 @@ export default async function PartnerInfoPage({
             background: "#fffdfa",
             padding: "12px 22px 40px",
             gap: 14,
-            height: "46%",
+            minHeight: "46%",
           }}
         >
           <div className="text-center">
@@ -555,7 +555,9 @@ export default async function PartnerInfoPage({
               rel="noopener noreferrer"
               className="info-btn-press flex items-center justify-center text-white"
               style={{
-                height: 56,
+                minHeight: 58,
+                flexShrink: 0,
+                padding: "16px 24px",
                 borderRadius: 16,
                 background: "#25D366",
                 fontSize: 16,

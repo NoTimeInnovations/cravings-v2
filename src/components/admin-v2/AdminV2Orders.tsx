@@ -72,6 +72,19 @@ import { AssignDriverDialog } from "./AssignDriverDialog";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 
+// Payment mode label for the orders list. An order counts as "prepaid" only
+// when its money is already in via an online gateway — paid AND not cash.
+// Everything else (cash, or not-yet-paid) is COD. Mirrors the prepaid/COD split
+// used by Settlements and daily revenue so the whole dashboard agrees.
+const getPaymentModeLabel = (
+  order: Pick<Order, "is_paid" | "payment_method">,
+): string => {
+  const isPrepaid =
+    order.is_paid === true &&
+    (order.payment_method ?? "").toLowerCase() !== "cash";
+  return isPrepaid ? order.payment_method || "Online" : "COD";
+};
+
 export function AdminV2Orders() {
   const { userData } = useAuthStore();
   const { selectedOrderId, setSelectedOrderId, setActiveView } =
@@ -646,7 +659,7 @@ export function AdminV2Orders() {
                     variant="outline"
                     className="bg-gray-50 text-black dark:text-black"
                   >
-                    {order.payment_method || "N/A"}
+                    {getPaymentModeLabel(order)}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -862,12 +875,10 @@ export function AdminV2Orders() {
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <span>{format(new Date(order.createdAt), "hh:mm a")}</span>
                   </div>
-                  {order.payment_method && (
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-muted-foreground" />
-                      <span className="capitalize">{order.payment_method}</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <span className="capitalize">{getPaymentModeLabel(order)}</span>
+                  </div>
                 </div>
                 {showGrowjetColumn && (
                   <div className="flex items-center gap-2">

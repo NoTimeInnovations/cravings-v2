@@ -49,7 +49,9 @@ export default function DownloadAppButton({
       rel="noopener noreferrer"
       className="info-btn-press flex items-center justify-center text-white"
       style={{
-        height: 56,
+        minHeight: 58,
+        flexShrink: 0,
+        padding: "16px 24px",
         borderRadius: 16,
         background: buttonColor,
         fontSize: 16,
