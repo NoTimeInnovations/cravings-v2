@@ -239,15 +239,50 @@ export function AdminV2Menu() {
     }
   }, [lastEditedItemId, filteredGroupedItems, activeAccordionItems]);
 
+  // Simple item on/off (is_available). Turning ON also clears any pending
+  // scheduled auto-reactivation. Goes through the shared menu store, so the
+  // change is mirrored in the Availability manager (and vice-versa).
   const handleAvailabilityToggle = async (item: MenuItem) => {
+    const currentlyAvailable = item.is_available !== false;
+    const patch: Partial<MenuItem> = currentlyAvailable
+      ? { is_available: false }
+      : { is_available: true, reactivate_at: null };
     try {
-      await updateItem(item.id!, { is_available: !item.is_available });
-      toast.success(
-        `Item marked as ${!item.is_available ? "available" : "unavailable"}`,
-      );
+      await updateItem(item.id!, patch);
     } catch (error) {
       console.error("Failed to update availability:", error);
       toast.error("Failed to update availability");
+    }
+  };
+
+  // Simple category on/off (is_active). Uses the category store's updateCategory
+  // so both stores stay in sync and the change mirrors the Availability manager.
+  const handleCategoryActiveToggle = async (
+    categoryId: string,
+    items: MenuItem[],
+  ) => {
+    const categoryFromStore = categories.find((c) => c.id === categoryId);
+    const currentActive = categoryFromStore
+      ? categoryFromStore.is_active !== false
+      : items[0]?.category?.is_active !== false;
+    const nextActive = !currentActive;
+    try {
+      if (categoryFromStore) {
+        await updateCategory({ ...categoryFromStore, is_active: nextActive });
+      } else if (items[0]?.category) {
+        const c = items[0].category;
+        await updateCategory({
+          id: categoryId,
+          name: c.name,
+          priority: c.priority,
+          is_active: nextActive,
+          visibility_config: c.visibility_config,
+        });
+      }
+      toast.success(`Category ${nextActive ? "enabled" : "disabled"}`);
+    } catch (error) {
+      console.error("Failed to update category:", error);
+      toast.error("Failed to update category");
     }
   };
 
@@ -639,13 +674,37 @@ export function AdminV2Menu() {
           >
             {Object.entries(filteredGroupedItems).map(([category, items]) => {
               const categoryId = groupedItems[category]?.[0]?.category?.id;
+              const categoryFromStore = categories.find(
+                (c) => c.id === categoryId,
+              );
+              const isCategoryActive = categoryFromStore
+                ? categoryFromStore.is_active !== false
+                : items[0]?.category?.is_active !== false;
               return (
                 <AccordionItem
                   key={category}
                   value={category}
                   className="border rounded-lg bg-card px-4"
                 >
-                  <AccordionTrigger className="hover:no-underline py-4 group">
+                  <AccordionTrigger
+                    className="hover:no-underline py-4 group"
+                    extraAction={
+                      categoryId ? (
+                        <div className="flex items-center gap-2">
+                          <span className="hidden sm:inline text-xs font-normal text-muted-foreground">
+                            {isCategoryActive ? "On" : "Off"}
+                          </span>
+                          <Switch
+                            checked={isCategoryActive}
+                            onCheckedChange={() =>
+                              handleCategoryActiveToggle(categoryId, items)
+                            }
+                            aria-label={`Turn ${formatDisplayName(category)} ${isCategoryActive ? "off" : "on"}`}
+                          />
+                        </div>
+                      ) : undefined
+                    }
+                  >
                     <div className="flex items-center gap-3 overflow-hidden flex-1">
                       {editingCategory?.id === categoryId ? (
                         <div
@@ -757,6 +816,9 @@ export function AdminV2Menu() {
                               <TableHead className="hidden md:table-cell">
                                 Description
                               </TableHead>
+                              <TableHead className="w-[100px] text-center">
+                                Available
+                              </TableHead>
                               <TableHead className="w-[110px] text-right">
                                 Action
                               </TableHead>
@@ -822,6 +884,17 @@ export function AdminV2Menu() {
                                   >
                                     {item.description || "-"}
                                   </p>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <div className="flex justify-center">
+                                    <Switch
+                                      checked={item.is_available !== false}
+                                      onCheckedChange={() =>
+                                        handleAvailabilityToggle(item)
+                                      }
+                                      aria-label={`Turn ${item.name} ${item.is_available !== false ? "off" : "on"}`}
+                                    />
+                                  </div>
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex items-center justify-end gap-0.5">

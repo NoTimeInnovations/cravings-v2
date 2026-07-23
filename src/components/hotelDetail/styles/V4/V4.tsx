@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import Link from "next/link";
 import {
   MapPin, Phone, Star, ShoppingBag, Search, Store, ChevronDown,
-  ArrowLeft, User, Clock, Sparkles, Tag, UtensilsCrossed,
+  ArrowLeft, User, Clock, Sparkles, Tag, UtensilsCrossed, Check,
 } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -682,23 +682,40 @@ const V4 = ({
               <Search className="h-[18px] w-[18px] text-gray-400" />
               <span className="text-sm">Search items...</span>
             </button>
-            {/* Veg toggle — fixed, borderless, SOLID colour so the state is
-                unmistakable: dark black/white = All, green = Veg only.
-                Two lines: veg mark on top, label below. */}
+            {/* Veg-only filter — same fixed size/ratio. UI principles applied:
+                (1) affordance — a real border in the off state so it visibly
+                reads as a tappable control; (2) a CENTERED checkbox that fills
+                with a check when on (stays centered in both states, unlike a
+                sliding knob that lands in a corner); (3) clear state — outlined
+                = off, solid green + white check = on; (4) a constant "Veg only"
+                label stating exactly what it filters. */}
             <button
               onClick={() => setVegOnly((v) => !v)}
-              className="flex h-12 w-[76px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl transition-colors"
-              style={{ backgroundColor: vegOnly ? "#16a34a" : "#111827" }}
+              className="flex h-12 w-[76px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border-[1.5px] transition-colors"
+              style={{
+                backgroundColor: vegOnly ? "#16a34a" : "#ffffff",
+                borderColor: vegOnly ? "#16a34a" : "#cbd5e1",
+              }}
               aria-pressed={vegOnly}
-              aria-label="Toggle vegetarian-only items"
+              aria-label="Show vegetarian items only"
             >
-              {/* veg mark — top line */}
-              <span className="flex h-[15px] w-[15px] items-center justify-center rounded-[3px] border-[1.5px] border-white">
-                <span className="h-1.5 w-1.5 rounded-full bg-white" />
-              </span>
-              {/* label — bottom line */}
-              <span className="whitespace-nowrap text-[11px] font-extrabold leading-none text-white">
-                {vegOnly ? "Veg only" : "All"}
+              {/* centered checkbox — outlined when off, white w/ green check on */}
+              {vegOnly ? (
+                <span className="flex h-4 w-4 items-center justify-center rounded-[4px] bg-white">
+                  <Check className="h-3 w-3" strokeWidth={3.5} style={{ color: "#16a34a" }} />
+                </span>
+              ) : (
+                <span
+                  className="h-4 w-4 rounded-[4px] border-[1.5px]"
+                  style={{ borderColor: "#9ca3af" }}
+                />
+              )}
+              {/* constant label */}
+              <span
+                className="whitespace-nowrap text-[11px] font-extrabold leading-none transition-colors"
+                style={{ color: vegOnly ? "#ffffff" : "#374151" }}
+              >
+                Veg only
               </span>
             </button>
           </div>
