@@ -673,7 +673,8 @@ const V4 = ({
             </button>
           )}
 
-          <div className="flex items-center gap-2 px-5 py-3">
+          <div className="flex items-stretch gap-2.5 px-5 py-3">
+            {/* Search — fills the whole row except the fixed toggle (~85-90%) */}
             <button
               onClick={() => setSearchOpen(true)}
               className="flex h-12 flex-1 items-center gap-2.5 rounded-full bg-gray-100 px-4 text-left text-gray-400 transition hover:bg-gray-200/70"
@@ -681,25 +682,22 @@ const V4 = ({
               <Search className="h-[18px] w-[18px] text-gray-400" />
               <span className="text-sm">Search items...</span>
             </button>
-            {/* All / Veg-only toggle */}
+            {/* Veg toggle — fixed, borderless, SOLID colour so the state is
+                unmistakable: dark black/white = All, green = Veg only.
+                Two lines: veg mark on top, label below. */}
             <button
               onClick={() => setVegOnly((v) => !v)}
-              className={`flex h-12 shrink-0 items-center gap-2 rounded-full border px-4 transition ${
-                vegOnly ? "border-emerald-300 bg-emerald-50" : "border-gray-200 bg-white"
-              }`}
+              className="flex h-12 w-[76px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl transition-colors"
+              style={{ backgroundColor: vegOnly ? "#16a34a" : "#111827" }}
               aria-pressed={vegOnly}
-              aria-label="Show vegetarian items only"
+              aria-label="Toggle vegetarian-only items"
             >
-              <span
-                className="relative h-5 w-[34px] shrink-0 rounded-full transition-colors"
-                style={{ background: vegOnly ? "#16a34a" : "#d1d5db" }}
-              >
-                <span
-                  className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all"
-                  style={{ left: vegOnly ? "16px" : "2px" }}
-                />
+              {/* veg mark — top line */}
+              <span className="flex h-[15px] w-[15px] items-center justify-center rounded-[3px] border-[1.5px] border-white">
+                <span className="h-1.5 w-1.5 rounded-full bg-white" />
               </span>
-              <span className={`text-xs font-bold ${vegOnly ? "text-emerald-700" : "text-gray-600"}`}>
+              {/* label — bottom line */}
+              <span className="whitespace-nowrap text-[11px] font-extrabold leading-none text-white">
                 {vegOnly ? "Veg only" : "All"}
               </span>
             </button>
