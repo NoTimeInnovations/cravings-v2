@@ -678,11 +678,11 @@ export function AdminV2QrCodes() {
 
             {/* Edit Dialog */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent>
+                <DialogContent className="flex max-h-[90vh] flex-col">
                     <DialogHeader>
                         <DialogTitle>Edit QR Code</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+                    <div className="flex-1 space-y-4 overflow-y-auto py-4">
                         <div className="space-y-2">
                             <Label htmlFor="t_no">Table Number</Label>
                             <Input
