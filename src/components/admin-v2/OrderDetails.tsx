@@ -70,7 +70,7 @@ import { getDiscountAmount } from "@/lib/discountUtils";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
 import { AssignDriverDialog } from "./AssignDriverDialog";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
-import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
+import { shouldPickOwnDriverOnDispatch, isRealDeliveryOrder } from "@/lib/ownDriverDispatch";
 import ManualPorterBookButton from "./ManualPorterBookButton";
 import PorterDispatchCountdown from "./PorterDispatchCountdown";
 import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
@@ -561,7 +561,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 {/* Manual delivery-partner assignment. Hidden for auto-dispatch
                     providers — porter-bridge and the Menuthere delivery pool both
                     assign riders automatically, so the manual card isn't needed. */}
-                {order.type === "delivery" &&
+                {isRealDeliveryOrder(order) &&
                     !getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled &&
                     !getFeatures((userData as Partner)?.feature_flags || null).delivery_pool.enabled && (
                         <DeliveryBoyAssignment order={order} />
@@ -573,7 +573,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     time. Only while genuinely pending: future due_at, no dispatch
                     attempted yet (a stale past stamp can linger next to a
                     cancelled dispatch — don't show the countdown for that). */}
-                {order.type === "delivery" &&
+                {isRealDeliveryOrder(order) &&
                     getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled &&
                     !!order.porter_dispatch_due_at &&
                     !(order as any).delivery_provider_meta?.dispatchId &&
@@ -590,7 +590,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     alone kept the button hidden forever once anything was booked.
                     Treat cancelled/failed as re-bookable; any other state with a
                     dispatchId is a live ride. */}
-                {order.type === "delivery" &&
+                {isRealDeliveryOrder(order) &&
                     getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled &&
                     !!(order as any).delivery_location?.coordinates &&
                     !(

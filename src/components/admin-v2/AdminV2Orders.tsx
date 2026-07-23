@@ -85,6 +85,20 @@ const getPaymentModeLabel = (
   return isPrepaid ? order.payment_method || "Online" : "COD";
 };
 
+// "Table / Location" column value, by order type:
+//  - dine-in / table order → "Table: <number>" (or the table's name if unnumbered)
+//  - takeaway (a delivery order with no drop address) → "Takeaway"
+//  - real delivery → the drop address (as before)
+const getTableLocationLabel = (order: Order): string => {
+  if (order.type === "table_order" || order.tableNumber != null || order.tableName) {
+    if (order.tableNumber != null) return `Table: ${order.tableNumber}`;
+    if (order.tableName) return order.tableName;
+    return "Table";
+  }
+  if (order.type === "delivery" && !order.deliveryAddress) return "Takeaway";
+  return order.deliveryAddress || "N/A";
+};
+
 export function AdminV2Orders() {
   const { userData } = useAuthStore();
   const { selectedOrderId, setSelectedOrderId, setActiveView } =
@@ -649,10 +663,7 @@ export function AdminV2Orders() {
                   {order.id.slice(0, 8)}
                 </TableCell>
                 <TableCell>
-                  {order.tableName ||
-                    order.tableNumber ||
-                    order.deliveryAddress ||
-                    "N/A"}
+                  {getTableLocationLabel(order)}
                 </TableCell>
                 <TableCell>
                   <Badge
@@ -843,10 +854,7 @@ export function AdminV2Orders() {
                       <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
                     )}
                     <span className="font-medium break-words">
-                      {order.tableName ||
-                        order.tableNumber ||
-                        order.deliveryAddress ||
-                        "N/A"}
+                      {getTableLocationLabel(order)}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1 justify-end">
