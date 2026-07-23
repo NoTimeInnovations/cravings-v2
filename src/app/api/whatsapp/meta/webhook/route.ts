@@ -219,37 +219,72 @@ function normalizeFlowInput(msg: any): FlowInput | null {
   return { text: text ?? "", normalized: String(text ?? "").trim().toLowerCase(), replyId, type };
 }
 
+// Generic lead words that would make a short outlet-name prefix ambiguous
+// ("the grand ...") — a prefix match is skipped when the name leads with one.
+const BRANCH_MATCH_STOPWORDS = new Set([
+  "the", "a", "an", "and", "of", "for", "to", "at", "in", "on", "my", "your",
+  "i", "we", "order", "from", "want", "need", "hi", "hello", "hey", "please",
+  "some", "this", "that",
+]);
+
 /**
  * Shared-number brand routing: does the inbound text NAME one of the brand's
- * outlets? Matches the message against each candidate's username / store_name,
- * space/underscore/case-insensitively, but only as a contiguous run of whole
- * words — so a short name like "cipo" can't false-match inside another word
- * ("recipone"). Returns the most specific (longest-name) match, else null.
- * e.g. "i want to order from spicechick" → the spice_chick outlet.
+ * outlets? Matches the message against each candidate's username / store_name
+ * (space/underscore/case-insensitive) as a contiguous run of WHOLE words — so a
+ * short name like "cipo" can't false-match inside another word ("recipone").
+ * Accepts the FULL name, or (failing that) a distinctive leading run: >= 2
+ * name-words (>= 6 chars) like "al arab", OR a single long word (>= 7 chars)
+ * like "jamsheena" — never led by a generic stop word. So "order from al arab
+ * kuzhimandi" routes via "al arab" and "order from jamsheena" via "jamsheena",
+ * even when the rest is partial/misspelled. A full match beats a prefix; the
+ * longest wins. Returns null when nothing is named.
  */
 function matchBranchCandidate(
   normalizedText: string,
   candidates: BranchCandidate[],
 ): BranchCandidate | null {
-  const tokens = (normalizedText || "").match(/[a-z0-9]+/g) || [];
-  if (!tokens.length) return null;
-  const keyOf = (s: string | null) =>
-    (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  let best: { c: BranchCandidate; len: number } | null = null;
+  const msgTokens = (normalizedText || "").match(/[a-z0-9]+/g) || [];
+  if (!msgTokens.length) return null;
+  const tokenize = (s: string | null) =>
+    (s || "").toLowerCase().match(/[a-z0-9]+/g) || [];
+  // Does the message contain `needle` as a contiguous run of WHOLE tokens?
+  const messageHasRun = (needle: string): boolean => {
+    for (let i = 0; i < msgTokens.length; i++) {
+      let acc = "";
+      for (let j = i; j < msgTokens.length; j++) {
+        acc += msgTokens[j];
+        if (acc === needle) return true;
+        if (acc.length >= needle.length) break; // overshot — no run equals needle
+      }
+    }
+    return false;
+  };
+  let best: { c: BranchCandidate; score: number } | null = null;
   for (const c of candidates) {
     for (const raw of [c.username, c.store_name]) {
-      const key = keyOf(raw);
-      if (key.length < 4) continue; // too short/generic to match safely
-      let hit = false;
-      for (let i = 0; i < tokens.length && !hit; i++) {
-        let acc = "";
-        for (let j = i; j < tokens.length; j++) {
-          acc += tokens[j];
-          if (acc === key) { hit = true; break; }
-          if (acc.length >= key.length) break; // overshot — no run equals key
+      const nameTokens = tokenize(raw);
+      if (!nameTokens.length) continue;
+      // Try the full name, then shrinking leading whole-word runs; take the
+      // longest that the message contains.
+      for (let n = nameTokens.length; n >= 1; n--) {
+        const isWhole = n === nameTokens.length;
+        const key = nameTokens.slice(0, n).join("");
+        if (isWhole) {
+          if (key.length < 4) continue;
+        } else {
+          // A prefix (not the full name): a distinctive leading run, not led by
+          // a generic word — >= 2 words (>= 6 chars) like "al arab", or a single
+          // long word (>= 7 chars) like "jamsheena".
+          if (BRANCH_MATCH_STOPWORDS.has(nameTokens[0] ?? "")) continue;
+          const okMulti = n >= 2 && key.length >= 6;
+          const okSingle = n === 1 && key.length >= 7;
+          if (!okMulti && !okSingle) continue;
         }
+        if (!messageHasRun(key)) continue;
+        const score = (isWhole ? 1000 : 0) + key.length; // full match wins
+        if (!best || score > best.score) best = { c, score };
+        break; // longest match for this name found
       }
-      if (hit && (!best || key.length > best.len)) best = { c, len: key.length };
     }
   }
   return best?.c ?? null;
