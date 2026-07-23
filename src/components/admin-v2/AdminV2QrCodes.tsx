@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Copy, Trash2, Edit, FileSpreadsheet, Eye, Plus, Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -51,6 +52,7 @@ type QrCode = {
     created_at: string;
     no_of_scans: number;
     price_adjustment: number | null;
+    view_only?: boolean | null;
 };
 
 // Query to get ONLY the current partner's QRs
@@ -64,6 +66,7 @@ const GET_PARTNER_QRS_QUERY = `
       partner_id
       no_of_scans
       price_adjustment
+      view_only
       partner {
         store_name
       }
@@ -103,8 +106,8 @@ const DELETE_QRS_MUTATION = `
 `;
 
 const UPDATE_QR_DETAILS_MUTATION = `
-  mutation UpdateQrDetails($qrId: uuid!, $tableNumber: Int, $tableName: String, $price_adjustment: Int) {
-    update_qr_codes_by_pk(pk_columns: {id: $qrId}, _set: {table_number: $tableNumber, table_name: $tableName, price_adjustment: $price_adjustment}) {
+  mutation UpdateQrDetails($qrId: uuid!, $tableNumber: Int, $tableName: String, $price_adjustment: Int, $viewOnly: Boolean) {
+    update_qr_codes_by_pk(pk_columns: {id: $qrId}, _set: {table_number: $tableNumber, table_name: $tableName, price_adjustment: $price_adjustment, view_only: $viewOnly}) {
       id
     }
   }
@@ -139,7 +142,7 @@ export function AdminV2QrCodes() {
 
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingQr, setEditingQr] = useState<QrCode | null>(null);
-    const [editForm, setEditForm] = useState({ table_number: "", table_name: "", price_adjustment: "" });
+    const [editForm, setEditForm] = useState({ table_number: "", table_name: "", price_adjustment: "", view_only: false });
 
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [viewingQr, setViewingQr] = useState<QrCode | null>(null);
@@ -191,6 +194,7 @@ export function AdminV2QrCodes() {
                         partner_id
                         no_of_scans
                         price_adjustment
+                        view_only
                         partner {
                             store_name
                         }
@@ -330,7 +334,8 @@ export function AdminV2QrCodes() {
         setEditForm({
             table_number: qr.table_number?.toString() || "",
             table_name: qr.table_name || "",
-            price_adjustment: qr.price_adjustment?.toString() || ""
+            price_adjustment: qr.price_adjustment?.toString() || "",
+            view_only: qr.view_only ?? false
         });
         setIsEditOpen(true);
     };
@@ -344,7 +349,8 @@ export function AdminV2QrCodes() {
                 qrId: editingQr.id,
                 tableNumber: editForm.table_number ? parseInt(editForm.table_number) : null,
                 tableName: editForm.table_name || null,
-                price_adjustment: editForm.price_adjustment ? parseInt(editForm.price_adjustment) : null
+                price_adjustment: editForm.price_adjustment ? parseInt(editForm.price_adjustment) : null,
+                viewOnly: editForm.view_only
             });
             toast.success("QR Code updated");
             setIsEditOpen(false);
@@ -354,7 +360,8 @@ export function AdminV2QrCodes() {
                 ...q,
                 table_number: editForm.table_number ? parseInt(editForm.table_number) : null,
                 table_name: editForm.table_name || null,
-                price_adjustment: editForm.price_adjustment ? parseInt(editForm.price_adjustment) : null
+                price_adjustment: editForm.price_adjustment ? parseInt(editForm.price_adjustment) : null,
+                view_only: editForm.view_only
             } : q));
         } catch (error) {
             console.error(error);
@@ -705,6 +712,19 @@ export function AdminV2QrCodes() {
                             <p className="text-xs text-muted-foreground">
                                 Positive = increase price, Negative = decrease price. Hidden from customers.
                             </p>
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg border p-3">
+                            <div className="space-y-0.5 pr-3">
+                                <Label htmlFor="view_only" className="text-sm font-medium">View Only</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Scanning this QR opens the menu in view-only mode — customers can browse but not order or add to cart.
+                                </p>
+                            </div>
+                            <Switch
+                                id="view_only"
+                                checked={editForm.view_only}
+                                onCheckedChange={(v) => setEditForm({ ...editForm, view_only: v })}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
