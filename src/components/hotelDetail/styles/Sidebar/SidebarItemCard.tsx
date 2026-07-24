@@ -379,7 +379,7 @@ const SidebarItemCard = ({
           {currency !== "\u{1F6AB}" && (
             <div
               className="font-bold text-[11px] mt-0.5"
-              style={{ color: !isOrderable ? "#999" : styles.accent }}
+              style={{ color: !isOrderable ? "#999" : styles.color }}
             >
               {item.is_price_as_per_size ? (
                 <span className="text-[9px] font-normal" style={{ opacity: 0.5 }}>
@@ -516,7 +516,7 @@ const SidebarItemCard = ({
                         )}
                         <div
                           className="text-xl font-bold"
-                          style={{ color: styles.accent }}
+                          style={{ color: styles.color }}
                         >
                           {hasMultipleVariantsOnOffer && (
                             <span className="text-xs font-normal">
@@ -539,7 +539,7 @@ const SidebarItemCard = ({
                         </span>
                         <div
                           className="text-xl font-bold"
-                          style={{ color: styles.accent }}
+                          style={{ color: styles.color }}
                         >
                           <MenuPrice
                             currency={currency}
@@ -555,7 +555,7 @@ const SidebarItemCard = ({
                     ) : (
                       <div
                         className="text-xl font-bold"
-                        style={{ color: styles.accent }}
+                        style={{ color: styles.color }}
                       >
                         <MenuPrice currency={currency} amount={formatPrice(item.price, hotelData?.id)} />
                       </div>
@@ -599,7 +599,7 @@ const SidebarItemCard = ({
                               </p>
                               <p
                                 className="text-sm font-bold"
-                                style={{ color: styles.accent }}
+                                style={{ color: styles.color }}
                               >
                                 {isPriceAsPerSize ? (
                                   "As per size"
