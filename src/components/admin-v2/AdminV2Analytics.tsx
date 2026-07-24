@@ -37,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download, QrCode, RefreshCcw, Crown } from "lucide-react";
+import { Loader2, IndianRupee, ShoppingBag, TrendingUp, Download, QrCode, RefreshCcw, Crown } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { downloadOrderReport } from "@/utils/downloadOrderReport";
@@ -81,6 +81,35 @@ export function AdminV2Analytics() {
     orderStatusFilter === "completed"
       ? `status: {_eq: "completed"}`
       : `_or: [{status: {_is_null: true}}, {status: {_nin: ["cancelled", "pending_payment", "expired"]}}]`;
+
+  // Sales-source breakdown, shared across the today/month/custom queries.
+  // POS (in-store, incl. captain) ⇔ source "pos"; Online (customer-placed:
+  // delivery/takeaway/QR dine-in) ⇔ source "customer". Within Online, Prepaid ⇔
+  // is_paid true (money already in via the gateway); COD is derived in JS as
+  // online − prepaid, so no second is_paid filter is needed. `dateWhere` is the
+  // created_at clause each query uses (interpolated ISO strings or $startDate/
+  // $endDate vars), so all three surfaces stay consistent with the headline.
+  const sourceAggsGql = (dateWhere: string) => {
+    const base = `${dateWhere}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}`;
+    const agg = (alias: string, extra: string) =>
+      `${alias}: orders_aggregate(where: {${base}${extra ? ", " + extra : ""}}) { aggregate { count sum { total_price } } }`;
+    return `
+      ${agg("pos_orders", `source: {_eq: "pos"}`)}
+      ${agg("online_orders", `source: {_eq: "customer"}`)}
+      ${agg("online_prepaid_orders", `source: {_eq: "customer"}, is_paid: {_eq: true}`)}
+      ${/* POS collected-at-counter split */ ""}
+      ${agg("pos_cash", `source: {_eq: "pos"}, payment_method: {_eq: "cash"}`)}
+      ${agg("pos_upi", `source: {_eq: "pos"}, payment_method: {_eq: "upi"}`)}
+      ${agg("pos_card", `source: {_eq: "pos"}, payment_method: {_eq: "card"}`)}
+      ${agg("pos_unspecified", `source: {_eq: "pos"}, payment_method: {_is_null: true}`)}
+      ${/* Fulfilment-type split. Dine-in = POS dine-in ("pos") + online table ("table_order").
+          Delivery vs takeaway both persist as type "delivery" — split on whether an
+          address is present. */ ""}
+      ${agg("dinein_orders", `type: {_in: ["pos", "table_order"]}`)}
+      ${agg("delivery_type_orders", `type: {_eq: "delivery"}, delivery_address: {_is_null: false}`)}
+      ${agg("takeaway_orders", `type: {_eq: "delivery"}, delivery_address: {_is_null: true}`)}
+`;
+  };
   const [reportData, setReportData] = useState<any>(null);
   const [scanData, setScanData] = useState<any>(null);
   const [qrCodesMap, setQrCodesMap] = useState<Map<string, any>>(new Map());
@@ -132,6 +161,7 @@ export function AdminV2Analytics() {
           sum { total_price }
         }
       }
+      ${sourceAggsGql(`created_at: {_gte: "${startISO}", _lte: "${endISO}"}`)}
       daily_sales: orders_aggregate(
         where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}
         order_by: {created_at: asc}
@@ -189,6 +219,7 @@ export function AdminV2Analytics() {
           sum { total_price }
         }
       }
+      ${sourceAggsGql(`created_at: {_gte: "${startISO}", _lte: "${endISO}"}`)}
       daily_sales: orders_aggregate(
         where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}
         order_by: {created_at: asc}
@@ -246,6 +277,7 @@ export function AdminV2Analytics() {
           sum { total_price }
         }
       }
+      ${sourceAggsGql(`created_at: {_gte: $startDate, _lte: $endDate}`)}
       daily_sales: orders_aggregate(
         where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}
         order_by: {created_at: asc}
@@ -452,8 +484,36 @@ export function AdminV2Analytics() {
   const categoryData = prepareCategoryData();
   const totalEarnings = reportData?.orders_aggregate?.aggregate?.sum?.total_price || 0;
   const totalOrders = reportData?.orders_aggregate?.aggregate?.count || 0;
-  const totalDeliveries = reportData?.delivery_orders?.aggregate?.count || 0;
   const avgOrderValue = totalOrders ? totalEarnings / totalOrders : 0;
+
+  // Sales breakdown accessor: { count, amount } for an aggregate alias.
+  const seg = (alias: string) => ({
+    count: reportData?.[alias]?.aggregate?.count || 0,
+    amount: reportData?.[alias]?.aggregate?.sum?.total_price || 0,
+  });
+
+  // POS (in-store) vs Online (customer-placed).
+  const pos = seg("pos_orders");
+  const online = seg("online_orders");
+  // POS collected-at-counter split.
+  const posCash = seg("pos_cash");
+  const posUpi = seg("pos_upi");
+  const posCard = seg("pos_card");
+  const posUnspecified = seg("pos_unspecified");
+  // Online: Prepaid (paid online up-front) vs COD (derived so the two always sum
+  // to the online total).
+  const onlinePrepaid = seg("online_prepaid_orders");
+  const onlineCod = {
+    count: Math.max(0, online.count - onlinePrepaid.count),
+    amount: Math.max(0, online.amount - onlinePrepaid.amount),
+  };
+  // Fulfilment type.
+  const dineIn = seg("dinein_orders");
+  const delivery = seg("delivery_type_orders");
+  const takeaway = seg("takeaway_orders");
+
+  const money = (n: number) => `₹${(n || 0).toLocaleString("en-IN")}`;
+  const pct = (part: number) => (totalEarnings > 0 ? ((part / totalEarnings) * 100).toFixed(1) : "0");
 
   const allOrdersIn = `
     query AllOrders($startDate: timestamptz!, $endDate: timestamptz!, $userId: uuid!) {
@@ -597,7 +657,7 @@ export function AdminV2Analytics() {
 
       {isAnyOrderingEnabled ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -624,18 +684,6 @@ export function AdminV2Analytics() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Deliveries</CardTitle>
-                <Truck className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalDeliveries}</div>
-                <p className="text-xs text-muted-foreground">
-                  Delivery orders
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Avg. Order Value</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -648,62 +696,116 @@ export function AdminV2Analytics() {
             </Card>
           </div>
 
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-1 lg:col-span-4">
-              <CardHeader>
-                <CardTitle>Payment Analysis</CardTitle>
-                <CardDescription>
-                  Breakdown of orders by payment method
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+          {/* Orders — where they came from, and how they were fulfilled */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Orders</CardTitle>
+              <CardDescription>Where orders came from, and how they were fulfilled</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">By channel</p>
+                <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    {
-                      label: "Cash",
-                      count: reportData?.cash_orders?.aggregate?.count || 0,
-                      amount: reportData?.cash_orders?.aggregate?.sum?.total_price || 0,
-                      color: "bg-green-500"
-                    },
-                    {
-                      label: "UPI",
-                      count: reportData?.upi_orders?.aggregate?.count || 0,
-                      amount: reportData?.upi_orders?.aggregate?.sum?.total_price || 0,
-                      color: "bg-blue-500"
-                    },
-                    {
-                      label: "Card",
-                      count: reportData?.card_orders?.aggregate?.count || 0,
-                      amount: reportData?.card_orders?.aggregate?.sum?.total_price || 0,
-                      color: "bg-purple-500"
-                    },
-                    {
-                      label: "Not Selected",
-                      count: reportData?.null_payment_orders?.aggregate?.count || 0,
-                      amount: reportData?.null_payment_orders?.aggregate?.sum?.total_price || 0,
-                      color: "bg-gray-500"
-                    }
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-2 h-10 rounded-full ${item.color}`} />
-                        <div>
-                          <p className="font-medium">{item.label}</p>
-                          <p className="text-sm text-muted-foreground">{item.count} orders</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold">₹{item.amount.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {totalEarnings > 0 ? ((item.amount / totalEarnings) * 100).toFixed(1) : 0}% of total
-                        </p>
+                    { label: "POS (in-store)", count: pos.count, sub: `${pct(pos.amount)}% of revenue`, color: "bg-amber-500" },
+                    { label: "Online", count: online.count, sub: `${pct(online.amount)}% of revenue`, color: "bg-blue-500" },
+                  ].map((t) => (
+                    <div key={t.label} className="flex items-center gap-3 rounded-lg border p-4">
+                      <div className={`h-10 w-1.5 rounded-full ${t.color}`} />
+                      <div className="min-w-0">
+                        <p className="text-2xl font-bold leading-none tabular-nums">{t.count}</p>
+                        <p className="mt-1 text-sm font-medium">{t.label}</p>
+                        <p className="text-xs text-muted-foreground">{t.sub}</p>
                       </div>
                     </div>
                   ))}
                 </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">By order type</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { label: "Dine-in", seg: dineIn, color: "bg-orange-500" },
+                    { label: "Takeaway", seg: takeaway, color: "bg-teal-500" },
+                    { label: "Delivery", seg: delivery, color: "bg-purple-500" },
+                  ].map((t) => (
+                    <div key={t.label} className="flex items-center gap-3 rounded-lg border p-4">
+                      <div className={`h-10 w-1.5 rounded-full ${t.color}`} />
+                      <div className="min-w-0">
+                        <p className="text-2xl font-bold leading-none tabular-nums">{t.seg.count}</p>
+                        <p className="mt-1 text-sm font-medium">{t.label}</p>
+                        <p className="text-xs text-muted-foreground">{money(t.seg.amount)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Revenue — POS (collected at counter) vs Online (prepaid / COD) */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>POS (in-store)</CardTitle>
+                  <span className="text-lg font-bold tabular-nums">{money(pos.amount)}</span>
+                </div>
+                <CardDescription>{pos.count} orders · collected at the counter · {pct(pos.amount)}% of revenue</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {[
+                  { label: "Cash", seg: posCash, color: "bg-green-500" },
+                  { label: "UPI", seg: posUpi, color: "bg-blue-500" },
+                  { label: "Card", seg: posCard, color: "bg-purple-500" },
+                  { label: "Not selected", seg: posUnspecified, color: "bg-gray-400", note: "Payment method wasn't recorded" },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-8 w-1.5 rounded-full ${row.color}`} />
+                      <div>
+                        <p className="text-sm font-medium">{row.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {row.seg.count} orders{row.note ? ` · ${row.note}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="font-semibold tabular-nums">{money(row.seg.amount)}</p>
+                  </div>
+                ))}
               </CardContent>
             </Card>
-            <Card className="col-span-1 lg:col-span-3">
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Online</CardTitle>
+                  <span className="text-lg font-bold tabular-nums">{money(online.amount)}</span>
+                </div>
+                <CardDescription>{online.count} orders · placed by customers · {pct(online.amount)}% of revenue</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {[
+                  { label: "Prepaid (paid online)", seg: onlinePrepaid, color: "bg-emerald-500", note: "Already paid — settles to your bank" },
+                  { label: "COD (pay on delivery)", seg: onlineCod, color: "bg-amber-500", note: "Collect from the customer" },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-8 w-1.5 rounded-full ${row.color}`} />
+                      <div>
+                        <p className="text-sm font-medium">{row.label}</p>
+                        <p className="text-xs text-muted-foreground">{row.seg.count} orders · {row.note}</p>
+                      </div>
+                    </div>
+                    <p className="font-semibold tabular-nums">{money(row.seg.amount)}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4">
+            <Card>
               <CardHeader>
                 <CardTitle>Top Selling Items</CardTitle>
                 <CardDescription>
