@@ -56,17 +56,19 @@ const getPartnerTimezone = `
   }
 `;
 
-// All real orders in the window. Draft (unpaid online, "pending_payment") and
-// "expired" orders are excluded to match the partner-facing order list — they
-// aren't real sales and would inflate the count. We over-fetch by a day on each
-// side (see below) and re-bucket precisely by the partner's local calendar day
-// in code, so we don't have to reason about the partner's UTC offset here.
+// Real, money-bearing orders in the window. Excluded:
+//   - "pending_payment" / "expired": unpaid online drafts (never real sales).
+//   - "cancelled": the order was voided, so its total_price is NOT revenue —
+//     counting it double-inflated the day's total (a cancelled ₹4,434 order still
+//     keeps its price on the row; cancelling only flips `status`, it isn't deleted).
+// We over-fetch by a day on each side (see below) and re-bucket precisely by the
+// partner's local calendar day in code, so we don't reason about UTC offset here.
 const getPartnerOrders = `
   query PartnerDailyOrders($pid: uuid!, $start: timestamptz!, $end: timestamptz!, $limit: Int!) {
     orders(
       where: {
         partner_id: { _eq: $pid }
-        status: { _nin: ["pending_payment", "expired"] }
+        status: { _nin: ["pending_payment", "expired", "cancelled"] }
         created_at: { _gte: $start, _lte: $end }
       }
       order_by: { created_at: desc }
@@ -78,9 +80,15 @@ const getPartnerOrders = `
       total_price
       is_paid
       payment_method
+      status
     }
   }
 `;
+
+// Statuses whose orders never count as revenue, normalised for a defensive
+// code-side check in case a row carries an odd casing/spelling the GraphQL
+// _nin (exact match) let through (e.g. "Cancelled", "canceled", stray spaces).
+const NON_REVENUE_STATUSES = new Set(["pending_payment", "expired", "cancelled", "canceled"]);
 
 const MAX_ORDERS = 20000;
 
@@ -166,6 +174,9 @@ export async function getPartnerDailyRevenue(
 
   const byDate = new Map<string, { orders: number; prepaid: number; revenue: number }>();
   for (const o of orders) {
+    // Defensive: skip any cancelled/draft/expired row that slipped past the
+    // exact-match GraphQL filter (odd casing/whitespace on the status value).
+    if (NON_REVENUE_STATUSES.has((o.status ?? "").trim().toLowerCase())) continue;
     const date = localDateInTz(o.created_at, timeZone);
     // Keep only orders whose local calendar day falls in the requested range.
     if (!date || date < range.startDate || date > range.endDate) continue;

@@ -24,24 +24,11 @@ import type {
     ConnectProvider,
     VerifyOtpSuccess,
 } from "@/lib/deliveryBridgeTypes";
-
-// Normalise a phone / WhatsApp number to the bare 10-digit local form: strips
-// spaces, "+", dashes, brackets, the country code, and any leading trunk "0".
-// So "+91 98765 43210", "098765 43210", "0 98765 43210" all become
-// "9876543210". Returns whatever digits remain if it can't reach 10 (the caller
-// validates length), so a genuinely-short entry still fails loudly.
-function sanitizeLocalPhone(raw: string, countryCode?: string): string {
-    let d = String(raw ?? "").replace(/\D/g, "");
-    const cc = String(countryCode ?? "").replace(/\D/g, "");
-    if (cc && d.length > 10 && d.startsWith(cc)) d = d.slice(cc.length);
-    d = d.replace(/^0+/, "");
-    // India local numbers are exactly 10 digits — keep the 10-digit-tail cleanup
-    // for India only. Other countries have shorter/longer local numbers (UAE 9,
-    // Qatar/Oman 8, …), so truncating to 10 would corrupt a valid number.
-    const isIndia = !cc || cc === "91";
-    if (isIndia && d.length > 10) d = d.slice(-10);
-    return d;
-}
+// Single source of truth for the WhatsApp/phone number rule (shared with the
+// missing-number banner shown in Store & Ordering settings).
+import { sanitizeLocalPhone, hasValidWhatsappNumbers } from "@/lib/whatsappNumber";
+import { WhatsappNumberBanner } from "./WhatsappNumberBanner";
+import { ContactNumbersDialog } from "./ContactNumbersDialog";
 
 export function TimePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
     const [open, setOpen] = useState(false);
@@ -312,6 +299,10 @@ export function DeliverySettings() {
         hide_delivery_charge: false,
     });
     const [whatsappNumbers, setWhatsappNumbers] = useState<{ number: string; area: string }[]>([]);
+    // Opened from the delivery save when the WhatsApp number (owned by Store
+    // settings) is missing/invalid — collects mobile + WhatsApp inline so the
+    // save can resume without discarding the partner's delivery edits.
+    const [contactDialogOpen, setContactDialogOpen] = useState(false);
     const [countryCode, setCountryCode] = useState("+91");
 
     // Delivery Bridge per-provider mobiles (partners.{porter,uber,rapido}_mobile).
@@ -563,12 +554,84 @@ export function DeliverySettings() {
         }
     }, [userData, adloggsMerchantId, setState, loadWallet]);
 
+    // Persist all the delivery-form data. `contact` lets the "add your numbers"
+    // popup inject a mobile + WhatsApp number captured there, so those get saved
+    // TOGETHER with the delivery edits the partner already made — nothing typed
+    // is discarded.
+    const commitDeliverySave = useCallback(
+        async (contact?: { phone: string; whatsapp: string }) => {
+            if (!userData) return;
+            const cleanedWhatsapp = contact
+                ? [{ number: sanitizeLocalPhone(contact.whatsapp, countryCode), area: "default" }]
+                : whatsappNumbers.map((item) => ({
+                      ...item,
+                      number: sanitizeLocalPhone(item.number, countryCode),
+                  }));
+            const cleanPorter = sanitizeLocalPhone(porterMobile, countryCode);
+            const cleanUber = sanitizeLocalPhone(uberMobile, countryCode);
+            const cleanRapido = sanitizeLocalPhone(rapidoMobile, countryCode);
+
+            setIsSaving(true);
+            try {
+                const updates: any = {
+                    delivery_rate: deliveryRate,
+                    // Read-modify-write: this section hydrates deliveryRules from a
+                    // fixed key whitelist, so spreading it over the existing blob
+                    // preserves keys owned by OTHER sections (round_off from Payment,
+                    // bill_include_category_name from Bill Printing, etc.) that would
+                    // otherwise be wiped by a full-object replacement.
+                    delivery_rules: { ...((userData as any).delivery_rules || {}), ...deliveryRules },
+                    whatsapp_numbers: cleanedWhatsapp,
+                    country_code: countryCode,
+                    price_adjustment: priceAdjustment,
+                    takeaway_price_adjustment: takeawayPriceAdjustment,
+                    porter_mobile: cleanPorter || null,
+                    uber_mobile: cleanUber || null,
+                    rapido_mobile: cleanRapido || null,
+                };
+                if (contact) updates.phone = sanitizeLocalPhone(contact.phone, countryCode);
+
+                await updatePartner(userData.id, updates);
+                await revalidateTag(userData.id);
+                await revalidateTag("hotel-data");
+                setState(updates);
+                // Reflect the cleaned values back into the inputs.
+                setWhatsappNumbers(cleanedWhatsapp);
+                setPorterMobile(cleanPorter);
+                setUberMobile(cleanUber);
+                setRapidoMobile(cleanRapido);
+                setContactDialogOpen(false);
+
+                // Push the manually-set groups to the connected bridge accounts so
+                // dispatch's `groups` resolves. Non-blocking: a bridge hiccup mustn't
+                // fail the settings save (the group is already stored on the partner).
+                if (features?.porter_bridge?.access && features?.porter_bridge?.enabled) {
+                    setProviderGroups({ partnerId: userData.id })
+                        .then((r) => {
+                            if (!r.ok) console.warn("[delivery] setProviderGroups:", r.message);
+                            // Refresh so the "N accounts in group X" status reflects the
+                            // group we just applied.
+                            loadConnections();
+                        })
+                        .catch((e) => console.warn("[delivery] setProviderGroups failed:", e));
+                }
+
+                toast.success("Delivery settings updated successfully");
+            } catch (error) {
+                console.error("Error updating delivery settings:", error);
+                toast.error("Failed to update delivery settings");
+            } finally {
+                setIsSaving(false);
+            }
+        },
+        [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, takeawayPriceAdjustment, porterMobile, uberMobile, rapidoMobile, setState, features?.porter_bridge?.access, features?.porter_bridge?.enabled, loadConnections],
+    );
+
     const handleSaveDelivery = useCallback(async () => {
         if (!userData) return;
 
         // Normalise every WhatsApp number BEFORE validating, so a pasted
-        // "+91 98765 43210", "098765 43210", or a number with spaces is accepted
-        // and saved as a clean 10-digit number instead of erroring.
+        // "+91 98765 43210", "098765 43210", or a number with spaces is accepted.
         const cleanedWhatsapp = whatsappNumbers.map((item) => ({
             ...item,
             number: sanitizeLocalPhone(item.number, countryCode),
@@ -578,28 +641,10 @@ export function DeliverySettings() {
         // reasonable 6–15 digit range elsewhere.
         const ccDigits = String(countryCode).replace(/\D/g, "");
         const isIndiaCc = !ccDigits || ccDigits === "91";
-        for (const item of cleanedWhatsapp) {
-            const validLen = isIndiaCc
-                ? item.number.length === 10
-                : item.number.length >= 6 && item.number.length <= 15;
-            if (!item.number || !validLen) {
-                toast.error(
-                    isIndiaCc
-                        ? `Please enter a valid 10-digit WhatsApp Number for ${item.area || "unnamed area"}`
-                        : `Please enter a valid WhatsApp Number for ${item.area || "unnamed area"}`,
-                );
-                return;
-            }
-            if (!item.area) {
-                toast.error("Please specify an area for each number");
-                return;
-            }
-        }
-        // Reflect the cleaned numbers in the inputs.
-        setWhatsappNumbers(cleanedWhatsapp);
 
         // Delivery Bridge mobiles — normalise, then each must be blank or a
-        // 10-digit Indian number.
+        // 10-digit Indian number. (These ARE edited on this screen, so a plain
+        // error is appropriate.)
         const cleanPorter = sanitizeLocalPhone(porterMobile, countryCode);
         const cleanUber = sanitizeLocalPhone(uberMobile, countryCode);
         const cleanRapido = sanitizeLocalPhone(rapidoMobile, countryCode);
@@ -618,57 +663,50 @@ export function DeliverySettings() {
                 return;
             }
         }
-        setPorterMobile(cleanPorter);
-        setUberMobile(cleanUber);
-        setRapidoMobile(cleanRapido);
 
-        setIsSaving(true);
-        try {
-            const updates = {
-                delivery_rate: deliveryRate,
-                // Read-modify-write: this section hydrates deliveryRules from a
-                // fixed key whitelist, so spreading it over the existing blob
-                // preserves keys owned by OTHER sections (round_off from Payment,
-                // bill_include_category_name from Bill Printing, etc.) that would
-                // otherwise be wiped by a full-object replacement.
-                delivery_rules: { ...((userData as any).delivery_rules || {}), ...deliveryRules },
-                whatsapp_numbers: cleanedWhatsapp,
-                country_code: countryCode,
-                price_adjustment: priceAdjustment,
-                takeaway_price_adjustment: takeawayPriceAdjustment,
-                porter_mobile: cleanPorter || null,
-                uber_mobile: cleanUber || null,
-                rapido_mobile: cleanRapido || null,
-            };
-
-            await updatePartner(userData.id, updates);
-
-            await revalidateTag(userData.id);
-            await revalidateTag("hotel-data");
-            setState(updates);
-
-            // Push the manually-set groups to the connected bridge accounts so
-            // dispatch's `groups` resolves. Non-blocking: a bridge hiccup mustn't
-            // fail the settings save (the group is already stored on the partner).
-            if (features?.porter_bridge?.access && features?.porter_bridge?.enabled) {
-                setProviderGroups({ partnerId: userData.id })
-                    .then((r) => {
-                        if (!r.ok) console.warn("[delivery] setProviderGroups:", r.message);
-                        // Refresh so the "N accounts in group X" status reflects the
-                        // group we just applied.
-                        loadConnections();
-                    })
-                    .catch((e) => console.warn("[delivery] setProviderGroups failed:", e));
+        // WhatsApp number is required to book Porter deliveries. When the per-area
+        // editor is shown here (multiwhatsapp) the partner can fix it inline, so a
+        // plain error is fine. Otherwise the number lives in Store → General with
+        // no field on this screen — so instead of erroring and throwing away the
+        // delivery edits, pop a dialog to collect the mobile + WhatsApp number and
+        // resume the save with everything intact.
+        const editsWhatsappHere =
+            !!features?.multiwhatsapp?.access && !!features?.multiwhatsapp?.enabled;
+        if (editsWhatsappHere) {
+            for (const item of cleanedWhatsapp) {
+                const validLen = isIndiaCc
+                    ? item.number.length === 10
+                    : item.number.length >= 6 && item.number.length <= 15;
+                if (!item.number || !validLen) {
+                    toast.error(
+                        isIndiaCc
+                            ? `Please enter a valid 10-digit WhatsApp Number for ${item.area || "unnamed area"}`
+                            : `Please enter a valid WhatsApp Number for ${item.area || "unnamed area"}`,
+                    );
+                    return;
+                }
+                if (!item.area) {
+                    toast.error("Please specify an area for each number");
+                    return;
+                }
             }
-
-            toast.success("Delivery settings updated successfully");
-        } catch (error) {
-            console.error("Error updating delivery settings:", error);
-            toast.error("Failed to update delivery settings");
-        } finally {
-            setIsSaving(false);
+        } else if (!hasValidWhatsappNumbers(cleanedWhatsapp, countryCode)) {
+            setContactDialogOpen(true);
+            return;
         }
-    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, takeawayPriceAdjustment, porterMobile, uberMobile, rapidoMobile, setState, features?.porter_bridge?.access, features?.porter_bridge?.enabled, loadConnections]);
+
+        await commitDeliverySave();
+    }, [
+        userData,
+        whatsappNumbers,
+        countryCode,
+        porterMobile,
+        uberMobile,
+        rapidoMobile,
+        features?.multiwhatsapp?.access,
+        features?.multiwhatsapp?.enabled,
+        commitDeliverySave,
+    ]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -838,6 +876,15 @@ export function DeliverySettings() {
 
     return (
         <div className="space-y-6">
+            <WhatsappNumberBanner />
+            <ContactNumbersDialog
+                open={contactDialogOpen}
+                onOpenChange={setContactDialogOpen}
+                countryCode={countryCode}
+                initialWhatsapp={whatsappNumbers[0]?.number || (userData as any)?.phone || ""}
+                saving={isSaving}
+                onSave={(whatsapp) => commitDeliverySave({ phone: whatsapp, whatsapp })}
+            />
             {features?.delivery_pool?.enabled && (
                 <Card>
                     <CardHeader>

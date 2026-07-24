@@ -97,12 +97,12 @@ const ORDERS_QUERY = `
     today_agg: orders_aggregate(where: {
       partner_id: { _eq: $partnerId },
       created_at: { _gte: $today },
-      status: { _nin: ["pending_payment", "expired"] }
+      status: { _nin: ["pending_payment", "expired", "cancelled"] }
     }) { aggregate { count, sum { total_price } } }
 
     all_agg: orders_aggregate(where: {
       partner_id: { _eq: $partnerId },
-      status: { _nin: ["pending_payment", "expired"] }
+      status: { _nin: ["pending_payment", "expired", "cancelled"] }
     }) { aggregate { count, sum { total_price } } }
 
     month_agg: orders_aggregate(where: $monthWhere) {
