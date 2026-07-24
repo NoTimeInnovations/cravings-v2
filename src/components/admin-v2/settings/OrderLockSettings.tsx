@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
@@ -24,13 +24,12 @@ const readLock = (userData: any): boolean =>
 
 export function OrderLockSettings() {
     const { userData, setState } = useAuthStore();
-    const [isSaving, setIsSaving] = useState(false);
     const [lockCompleted, setLockCompleted] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // The toggle value the user is trying to apply, held in a ref so it survives
-    // the modal's close/success ordering. (The password modal's "Verify" button
-    // auto-closes the dialog, so onClose can fire around the same time as
-    // onSuccess — a ref is immune to that render/closure timing, unlike state.)
+    // the modal's close/success ordering (the "Verify" button auto-closes the
+    // dialog, so onClose can fire around the same time as onSuccess).
     const pendingValueRef = useRef<boolean | null>(null);
     const [passwordOpen, setPasswordOpen] = useState(false);
 
@@ -38,26 +37,29 @@ export function OrderLockSettings() {
         if (userData) setLockCompleted(readLock(userData as any));
     }, [userData]);
 
+    // This section persists immediately on password-confirm, so it registers NO
+    // floating Save action — clear any one left over by a previously-open section
+    // so the global Save button doesn't linger over this screen.
+    const { setSaveAction, setHasChanges } = useAdminSettingsStore();
+    useEffect(() => {
+        setSaveAction(null);
+        setHasChanges(false);
+    }, [setSaveAction, setHasChanges]);
+
     // Clicking the switch never moves it directly — it stashes the intended value
-    // and opens the master-password prompt. The switch only flips once the
-    // password is verified (handlePasswordSuccess).
+    // and opens the master-password prompt. The switch only flips (and saves)
+    // once the password is verified.
     const requestToggle = (next: boolean) => {
         pendingValueRef.current = next;
         setPasswordOpen(true);
     };
 
-    // Runs only after the master password is verified. Applies the stashed value
-    // absolutely (idempotent) and closes the modal. The ref is intentionally NOT
-    // cleared in onClose, so this always reads the intended value.
-    const handlePasswordSuccess = () => {
-        if (pendingValueRef.current !== null) {
-            setLockCompleted(pendingValueRef.current);
-        }
-        setPasswordOpen(false);
-    };
-
-    const handleSave = useCallback(async () => {
+    // Persist the verified value straight to the partner row — no separate Save
+    // step. Optimistic on the switch; reverts if the write fails.
+    const persist = async (next: boolean) => {
         if (!userData) return;
+        const previous = lockCompleted;
+        setLockCompleted(next); // optimistic
         setIsSaving(true);
         try {
             // Read-modify-write delivery_rules so we don't clobber round-off /
@@ -66,40 +68,31 @@ export function OrderLockSettings() {
             const updates = {
                 delivery_rules: {
                     ...existingDeliveryRules,
-                    lock_completed_orders: lockCompleted,
+                    lock_completed_orders: next,
                 },
             };
 
             await updatePartner(userData.id, updates);
             revalidateTag(userData.id);
             setState(updates);
-            toast.success("Order lock setting updated");
+            toast.success(
+                next ? "Completed-order lock enabled" : "Completed-order lock disabled"
+            );
         } catch (error) {
             console.error("Error updating order lock setting:", error);
+            setLockCompleted(previous); // revert on failure
             toast.error("Failed to update order lock setting");
         } finally {
             setIsSaving(false);
         }
-    }, [userData, lockCompleted, setState]);
+    };
 
-    const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
-
-    useEffect(() => {
-        setSaveAction(handleSave);
-        return () => {
-            setSaveAction(null);
-            setHasChanges(false);
-        };
-    }, [handleSave, setSaveAction, setHasChanges]);
-
-    useEffect(() => {
-        setGlobalIsSaving(isSaving);
-    }, [isSaving, setGlobalIsSaving]);
-
-    useEffect(() => {
-        if (!userData) return;
-        setHasChanges(lockCompleted !== readLock(userData as any));
-    }, [lockCompleted, userData, setHasChanges]);
+    const handlePasswordSuccess = () => {
+        setPasswordOpen(false);
+        if (pendingValueRef.current !== null) {
+            persist(pendingValueRef.current);
+        }
+    };
 
     // This setting writes to the partner row; only render for a partner session.
     // (Placed after all hooks so hook order stays stable.)
@@ -115,7 +108,7 @@ export function OrderLockSettings() {
                     </CardTitle>
                     <CardDescription>
                         Advanced safeguard for completed orders. Turning this on or off
-                        requires the master password.
+                        requires the master password and saves immediately.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -126,13 +119,19 @@ export function OrderLockSettings() {
                                 When on, a completed order can no longer be edited anywhere
                                 (POS, captain app or dashboard) — staff can only cancel it.
                                 Use this to stop bills from being changed after an order is
-                                marked complete. Remember to press Save after changing it.
+                                marked complete.
                             </p>
                         </div>
-                        <Switch
-                            checked={lockCompleted}
-                            onCheckedChange={(next) => requestToggle(next)}
-                        />
+                        <div className="flex items-center gap-2 shrink-0">
+                            {isSaving && (
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            )}
+                            <Switch
+                                checked={lockCompleted}
+                                disabled={isSaving}
+                                onCheckedChange={requestToggle}
+                            />
+                        </div>
                     </div>
                 </CardContent>
             </Card>
