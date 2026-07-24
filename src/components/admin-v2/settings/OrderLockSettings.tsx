@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -27,29 +27,34 @@ export function OrderLockSettings() {
     const [isSaving, setIsSaving] = useState(false);
     const [lockCompleted, setLockCompleted] = useState(false);
 
-    // The toggle value the user is trying to apply, pending master-password auth.
-    const [pendingValue, setPendingValue] = useState<boolean | null>(null);
+    // The toggle value the user is trying to apply, held in a ref so it survives
+    // the modal's close/success ordering. (The password modal's "Verify" button
+    // auto-closes the dialog, so onClose can fire around the same time as
+    // onSuccess — a ref is immune to that render/closure timing, unlike state.)
+    const pendingValueRef = useRef<boolean | null>(null);
     const [passwordOpen, setPasswordOpen] = useState(false);
 
     useEffect(() => {
         if (userData) setLockCompleted(readLock(userData as any));
     }, [userData]);
 
-    // Clicking the switch never moves it directly — it opens the master-password
-    // prompt for the intended value. The switch only flips once the password is
-    // verified (applyPending).
+    // Clicking the switch never moves it directly — it stashes the intended value
+    // and opens the master-password prompt. The switch only flips once the
+    // password is verified (handlePasswordSuccess).
     const requestToggle = (next: boolean) => {
-        setPendingValue(next);
+        pendingValueRef.current = next;
         setPasswordOpen(true);
     };
 
-    // Memoized on pendingValue so the modal's onSuccess always applies the latest
-    // intended value. The modal calls onSuccess() before onClose() (which clears
-    // pendingValue), so this reads the correct value; the `prev` fallback guards
-    // against any future reordering.
-    const applyPending = useCallback(() => {
-        setLockCompleted((prev) => (pendingValue !== null ? pendingValue : prev));
-    }, [pendingValue]);
+    // Runs only after the master password is verified. Applies the stashed value
+    // absolutely (idempotent) and closes the modal. The ref is intentionally NOT
+    // cleared in onClose, so this always reads the intended value.
+    const handlePasswordSuccess = () => {
+        if (pendingValueRef.current !== null) {
+            setLockCompleted(pendingValueRef.current);
+        }
+        setPasswordOpen(false);
+    };
 
     const handleSave = useCallback(async () => {
         if (!userData) return;
@@ -135,12 +140,9 @@ export function OrderLockSettings() {
             <PasswordProtectionModal
                 isOpen={passwordOpen}
                 masterPassword={MASTER_PASSWORD}
-                actionDescription={`${pendingValue ? "enable" : "disable"} the completed-order lock`}
-                onClose={() => {
-                    setPasswordOpen(false);
-                    setPendingValue(null);
-                }}
-                onSuccess={applyPending}
+                actionDescription={`${lockCompleted ? "disable" : "enable"} the completed-order lock`}
+                onClose={() => setPasswordOpen(false)}
+                onSuccess={handlePasswordSuccess}
             />
         </div>
     );
