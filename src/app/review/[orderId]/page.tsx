@@ -91,6 +91,35 @@ type ReviewOrder = {
   reviews: { id: string; rating: number }[];
 };
 
+// Module-level so it keeps a STABLE component identity across renders. Defining
+// it inside ReviewPage made React remount the whole subtree (incl. the comment
+// textarea) on every keystroke, which stole focus after each character.
+function ReviewShell({
+  banner,
+  storeName,
+  children,
+}: {
+  banner?: string | null;
+  storeName: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-[100dvh] bg-gray-50 flex flex-col items-center px-4 py-8">
+      <div className="w-full max-w-md">
+        {banner ? (
+          <img
+            src={banner}
+            alt={storeName}
+            className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover shadow-sm"
+          />
+        ) : null}
+        <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/[0.04]">{children}</div>
+        <p className="mt-4 text-center text-[11px] text-gray-400">Powered by Menuthere</p>
+      </div>
+    </div>
+  );
+}
+
 export default function ReviewPage() {
   const params = useParams();
   const orderId = Array.isArray(params?.orderId) ? params.orderId[0] : (params?.orderId as string);
@@ -166,22 +195,6 @@ export default function ReviewPage() {
   };
 
   // ── Render states ────────────────────────────────────────────────────────
-  const Shell = ({ children }: { children: React.ReactNode }) => (
-    <div className="min-h-[100dvh] bg-gray-50 flex flex-col items-center px-4 py-8">
-      <div className="w-full max-w-md">
-        {order?.partner?.store_banner ? (
-          <img
-            src={order.partner.store_banner}
-            alt={storeName}
-            className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover shadow-sm"
-          />
-        ) : null}
-        <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/[0.04]">{children}</div>
-        <p className="mt-4 text-center text-[11px] text-gray-400">Powered by Menuthere</p>
-      </div>
-    </div>
-  );
-
   if (loading) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-gray-50">
@@ -192,12 +205,12 @@ export default function ReviewPage() {
 
   if (notFound || !order) {
     return (
-      <Shell>
+      <ReviewShell banner={order?.partner?.store_banner ?? null} storeName={storeName}>
         <p className="text-center text-lg font-bold text-gray-900">Order not found</p>
         <p className="mt-1 text-center text-sm text-gray-500">
           This review link is invalid or has expired.
         </p>
-      </Shell>
+      </ReviewShell>
     );
   }
 
@@ -206,19 +219,19 @@ export default function ReviewPage() {
   // accept a review — but still show an already-submitted/just-submitted result.
   if (!done && !existingReview && order.status !== "completed") {
     return (
-      <Shell>
+      <ReviewShell banner={order?.partner?.store_banner ?? null} storeName={storeName}>
         <p className="text-center text-lg font-bold text-gray-900">Not ready for a review yet</p>
         <p className="mt-1 text-center text-sm text-gray-500">
           You can rate your order once it&apos;s completed.
         </p>
-      </Shell>
+      </ReviewShell>
     );
   }
 
   if (done || existingReview) {
     const shownRating = done ? rating : existingReview!.rating;
     return (
-      <Shell>
+      <ReviewShell banner={order?.partner?.store_banner ?? null} storeName={storeName}>
         <div className="flex flex-col items-center text-center">
           <CheckCircle2 className="h-12 w-12 text-green-500" />
           <h1 className="mt-3 text-xl font-extrabold tracking-tight text-gray-900">
@@ -229,12 +242,12 @@ export default function ReviewPage() {
             <StarRow value={shownRating} readOnly size={28} />
           </div>
         </div>
-      </Shell>
+      </ReviewShell>
     );
   }
 
   return (
-    <Shell>
+    <ReviewShell banner={order?.partner?.store_banner ?? null} storeName={storeName}>
       <div className="text-center">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400">
           Order #{displayId}
@@ -292,6 +305,6 @@ export default function ReviewPage() {
           "Submit Review"
         )}
       </button>
-    </Shell>
+    </ReviewShell>
   );
 }

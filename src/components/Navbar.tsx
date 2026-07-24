@@ -215,6 +215,8 @@ const HIDDEN_PATHS = [
   "/flow/.*",
   "/order",
   "/order/.*",
+  "/review",
+  "/review/.*",
   "/my-orders",
   "/onboard",
   "/onboard/.*",
