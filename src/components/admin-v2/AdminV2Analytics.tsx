@@ -125,6 +125,10 @@ export function AdminV2Analytics() {
     features?.pos.enabled ||
     features?.delivery.enabled ||
     features?.captainordering.enabled;
+  // In-store (POS) channel — POS billing or captain ordering both produce
+  // source="pos" orders. When neither is enabled, hide the POS-specific
+  // breakdowns from Analytics.
+  const isPosEnabled = !!features?.pos?.enabled || !!features?.captainordering?.enabled;
 
   const TODAY_ORDERS_QUERY = (startISO: string, endISO: string) => `
     query TodayOrders {
@@ -495,6 +499,10 @@ export function AdminV2Analytics() {
   // POS (in-store) vs Online (customer-placed).
   const pos = seg("pos_orders");
   const online = seg("online_orders");
+  // Show POS sections only when the in-store channel is enabled — but never hide
+  // them while POS orders actually exist (e.g. legacy data), otherwise the
+  // channel/revenue splits wouldn't reconcile with the headline total.
+  const showPos = isPosEnabled || pos.count > 0;
   // POS collected-at-counter split.
   const posCash = seg("pos_cash");
   const posUpi = seg("pos_upi");
@@ -700,27 +708,31 @@ export function AdminV2Analytics() {
           <Card>
             <CardHeader>
               <CardTitle>Orders</CardTitle>
-              <CardDescription>Where orders came from, and how they were fulfilled</CardDescription>
+              <CardDescription>
+                {showPos ? "Where orders came from, and how they were fulfilled" : "How orders were fulfilled"}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">By channel</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {[
-                    { label: "POS (in-store)", count: pos.count, sub: `${pct(pos.amount)}% of revenue`, color: "bg-amber-500" },
-                    { label: "Online", count: online.count, sub: `${pct(online.amount)}% of revenue`, color: "bg-blue-500" },
-                  ].map((t) => (
-                    <div key={t.label} className="flex items-center gap-3 rounded-lg border p-4">
-                      <div className={`h-10 w-1.5 rounded-full ${t.color}`} />
-                      <div className="min-w-0">
-                        <p className="text-2xl font-bold leading-none tabular-nums">{t.count}</p>
-                        <p className="mt-1 text-sm font-medium">{t.label}</p>
-                        <p className="text-xs text-muted-foreground">{t.sub}</p>
+              {showPos && (
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">By channel</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      { label: "POS (in-store)", count: pos.count, sub: `${pct(pos.amount)}% of revenue`, color: "bg-amber-500" },
+                      { label: "Online", count: online.count, sub: `${pct(online.amount)}% of revenue`, color: "bg-blue-500" },
+                    ].map((t) => (
+                      <div key={t.label} className="flex items-center gap-3 rounded-lg border p-4">
+                        <div className={`h-10 w-1.5 rounded-full ${t.color}`} />
+                        <div className="min-w-0">
+                          <p className="text-2xl font-bold leading-none tabular-nums">{t.count}</p>
+                          <p className="mt-1 text-sm font-medium">{t.label}</p>
+                          <p className="text-xs text-muted-foreground">{t.sub}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">By order type</p>
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -744,7 +756,8 @@ export function AdminV2Analytics() {
           </Card>
 
           {/* Revenue — POS (collected at counter) vs Online (prepaid / COD) */}
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={`grid gap-4 ${showPos ? "md:grid-cols-2" : ""}`}>
+            {showPos && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -775,6 +788,7 @@ export function AdminV2Analytics() {
                 ))}
               </CardContent>
             </Card>
+            )}
 
             <Card>
               <CardHeader>
