@@ -21,6 +21,7 @@ import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { VariableTextInput } from "./VariableTextInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -714,6 +715,27 @@ function Inspector({
   // show it when a flow already uses it, so existing loyalty flows stay editable.
   const showLoyalty = loyaltyEnabled || data.matchType === "loyalty";
 
+  // Variables offered by the "#" picker in message fields: the ones the engine
+  // injects for this flow's trigger (order / loyalty) plus any custom variables
+  // captured by wait_for_reply / set_variable nodes in the flow.
+  const availableVariables = useMemo(() => {
+    const set = new Set<string>();
+    let hasOrder = false;
+    let hasLoyalty = false;
+    for (const n of allNodes) {
+      const d = (n.data || {}) as any;
+      if (n.type === "trigger") {
+        if (d.matchType === "order") hasOrder = true;
+        if (d.matchType === "loyalty") hasLoyalty = true;
+      }
+      if (n.type === "wait_for_reply" && d.variableName) set.add(String(d.variableName));
+      if (n.type === "set_variable" && d.name) set.add(String(d.name));
+    }
+    if (hasOrder) ORDER_FLOW_VARIABLES.forEach((v) => set.add(v));
+    if (hasLoyalty) LOYALTY_FLOW_VARIABLES.forEach((v) => set.add(v));
+    return Array.from(set);
+  }, [allNodes]);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -797,21 +819,21 @@ function Inspector({
 
       {type === "send_text" && (
         <Field label="Message">
-          <Textarea rows={5} value={data.text || ""} onChange={(e) => onChange({ text: e.target.value })} placeholder="Hi {{name}}, welcome!" />
+          <VariableTextInput multiline rows={5} variables={availableVariables} value={data.text || ""} onChange={(v) => onChange({ text: v })} placeholder="Hi {{name}}, welcome!  (type # for variables)" />
         </Field>
       )}
 
       {type === "send_image" && (
         <>
           <MediaField label="Image" accept="image/*" value={data.mediaUrl || ""} onChange={(url) => onChange({ mediaUrl: url })} />
-          <Field label="Caption"><Input value={data.caption || ""} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
+          <Field label="Caption"><VariableTextInput variables={availableVariables} value={data.caption || ""} onChange={(v) => onChange({ caption: v })} /></Field>
         </>
       )}
 
       {type === "send_video" && (
         <>
           <MediaField label="Video" accept="video/*" value={data.mediaUrl || ""} onChange={(url) => onChange({ mediaUrl: url })} />
-          <Field label="Caption"><Input value={data.caption || ""} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
+          <Field label="Caption"><VariableTextInput variables={availableVariables} value={data.caption || ""} onChange={(v) => onChange({ caption: v })} /></Field>
         </>
       )}
 
@@ -828,14 +850,14 @@ function Inspector({
             onChange={(url) => onChange({ mediaUrl: url })}
           />
           <Field label="File name"><Input value={data.filename || ""} onChange={(e) => onChange({ filename: e.target.value })} placeholder="menu.pdf" /></Field>
-          <Field label="Caption"><Input value={data.caption || ""} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
+          <Field label="Caption"><VariableTextInput variables={availableVariables} value={data.caption || ""} onChange={(v) => onChange({ caption: v })} /></Field>
         </>
       )}
 
       {type === "buttons" && (
         <>
           <Field label="Message">
-            <Textarea rows={3} value={data.text || ""} onChange={(e) => onChange({ text: e.target.value })} />
+            <VariableTextInput multiline rows={3} variables={availableVariables} value={data.text || ""} onChange={(v) => onChange({ text: v })} />
           </Field>
           <Field label="Buttons (max 3)">
             <div className="space-y-2">
@@ -884,11 +906,13 @@ function Inspector({
       {type === "link_button" && (
         <>
           <Field label="Message (caption)">
-            <Textarea
+            <VariableTextInput
+              multiline
               rows={4}
+              variables={availableVariables}
               value={data.text || ""}
-              onChange={(e) => onChange({ text: e.target.value })}
-              placeholder="Tap the button below to order."
+              onChange={(v) => onChange({ text: v })}
+              placeholder="Tap the button below to order.  (type # for variables)"
             />
           </Field>
           <Field label="Button text">
@@ -900,10 +924,11 @@ function Inspector({
             />
           </Field>
           <Field label="Link URL">
-            <Input
+            <VariableTextInput
+              variables={availableVariables}
               value={data.url || ""}
-              onChange={(e) => onChange({ url: e.target.value })}
-              placeholder="https://…  or  {{order_link}}"
+              onChange={(v) => onChange({ url: v })}
+              placeholder="https://…  or  {{review_url}}"
             />
           </Field>
         </>
@@ -922,7 +947,7 @@ function Inspector({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Retry message (optional)"><Input value={data.retryText || ""} onChange={(e) => onChange({ retryText: e.target.value })} placeholder="That doesn't look right, try again." /></Field>
+          <Field label="Retry message (optional)"><VariableTextInput variables={availableVariables} value={data.retryText || ""} onChange={(v) => onChange({ retryText: v })} placeholder="That doesn't look right, try again." /></Field>
         </>
       )}
 
@@ -1040,7 +1065,7 @@ function Inspector({
       {type === "set_variable" && (
         <>
           <Field label="Variable name"><Input value={data.name || ""} onChange={(e) => onChange({ name: e.target.value.replace(/[^\w]/g, "") })} /></Field>
-          <Field label="Value"><Input value={data.value || ""} onChange={(e) => onChange({ value: e.target.value })} placeholder="can use {{otherVar}}" /></Field>
+          <Field label="Value"><VariableTextInput variables={availableVariables} value={data.value || ""} onChange={(v) => onChange({ value: v })} placeholder="can use {{otherVar}}" /></Field>
         </>
       )}
 
