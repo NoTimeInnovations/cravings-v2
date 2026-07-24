@@ -69,7 +69,7 @@ import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { AssignDriverDialog } from "./AssignDriverDialog";
-import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
+import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 
@@ -268,6 +268,12 @@ export function AdminV2Orders() {
     if (!order) return;
 
     const lockEnabled = isCompletedOrderLockEnabled(userData);
+
+    // Cancelled orders are frozen when the lock is on — no status change at all.
+    if (lockEnabled && order.status === "cancelled") {
+      toast.error("This order is cancelled and locked. Its status can't be changed.");
+      return;
+    }
 
     // Completed-order lock: once completed, the ONLY permitted transition is
     // cancel. Block every other status change outright (no password escape).
@@ -784,6 +790,7 @@ export function AdminV2Orders() {
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <Select
                     value={order.status}
+                    disabled={isCancelledOrderFrozen(order, userData)}
                     onValueChange={(val) =>
                       handleUpdateOrderStatus(order.id, val)
                     }
@@ -883,6 +890,7 @@ export function AdminV2Orders() {
                 <div onClick={(e) => e.stopPropagation()}>
                   <Select
                     value={order.status}
+                    disabled={isCancelledOrderFrozen(order, userData)}
                     onValueChange={(val) =>
                       handleUpdateOrderStatus(order.id, val)
                     }

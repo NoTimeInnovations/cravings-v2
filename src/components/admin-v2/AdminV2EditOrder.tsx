@@ -20,7 +20,7 @@ import { useMenuStore } from "@/store/menuStore_hasura";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
-import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
+import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { taxLabel } from "@/lib/taxLabel";
@@ -432,6 +432,11 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
 
 
     const handleStatusUpdate = async (newStatus: string) => {
+        // Cancelled orders are frozen when the lock is on — no status change at all.
+        if (isCompletedOrderLockEnabled(userData) && status === "cancelled") {
+            toast.error("This order is cancelled and locked. Its status can't be changed.");
+            return;
+        }
         // Completed-order lock: a completed order can only move to cancelled.
         if (isCompletedOrderLockEnabled(userData) && status === "completed" && newStatus !== "cancelled") {
             toast.error("This order is completed and locked. You can only cancel it.");
@@ -478,6 +483,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
                     <Select
                         value={status}
+                        disabled={isCancelledOrderFrozen({ status }, userData)}
                         onValueChange={handleStatusUpdate}
                     >
                         <SelectTrigger className={`w-[130px] border-none ${getStatusColor(status)}`}>

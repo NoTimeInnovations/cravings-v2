@@ -14,7 +14,7 @@ import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
 import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { toast } from "sonner";
 import { hasuraClient, subscribeToHasura } from "@/lib/hasuraSubscription";
-import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
+import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
 import { subscriptionQuery } from "@/api/orders";
 import { startOfDay, endOfDay, parseISO, format, isSameDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -241,6 +241,11 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     };
 
     const handleStatusUpdate = async (orderId: string, status: string) => {
+        // Cancelled orders are frozen when the lock is on — no status change at all.
+        if (isCompletedOrderLockEnabled(userData) && activeOrderData?.status === "cancelled") {
+            toast.error("This order is cancelled and locked. Its status can't be changed.");
+            return;
+        }
         if (activeOrderData?.status === "completed") {
             // Completed-order lock ON: the only permitted transition is cancel
             // (runs directly, no password). Everything else is blocked. When the
@@ -976,7 +981,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                 )}
                                 <Select
                                     value={activeOrderData.status}
-                                    disabled={userData?.role === 'captain' && activeOrderData.status === 'completed'}
+                                    disabled={(userData?.role === 'captain' && activeOrderData.status === 'completed') || isCancelledOrderFrozen(activeOrderData, userData)}
                                     onValueChange={(val) => handleStatusUpdate(activeOrderData.id, val)}
                                 >
                                     <SelectTrigger className={`w-[110px] h-7 text-xs border-none ${getStatusColor(activeOrderData.status)}`}>

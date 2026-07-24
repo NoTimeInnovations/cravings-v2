@@ -55,7 +55,7 @@ import { OrderDetails } from "./OrderDetails";
 import { PickupOtpBadge } from "./PickupOtpBadge";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
-import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
+import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
@@ -192,6 +192,12 @@ export function AdminV2AllOrders() {
     if (!order) return;
 
     const lockEnabled = isCompletedOrderLockEnabled(userData);
+
+    // Cancelled orders are frozen when the lock is on — no status change at all.
+    if (lockEnabled && order.status === "cancelled") {
+      toast.error("This order is cancelled and locked. Its status can't be changed.");
+      return;
+    }
 
     if (lockEnabled && order.status === "completed") {
       // Locked completed order: cancel is the only allowed action (runs directly,
@@ -548,6 +554,7 @@ export function AdminV2AllOrders() {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={order.status}
+                        disabled={isCancelledOrderFrozen(order, userData)}
                         onValueChange={(val) =>
                           handleUpdateOrderStatus(order.id, val)
                         }
@@ -665,6 +672,7 @@ export function AdminV2AllOrders() {
                     <div onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={order.status}
+                        disabled={isCancelledOrderFrozen(order, userData)}
                         onValueChange={(val) =>
                           handleUpdateOrderStatus(order.id, val)
                         }

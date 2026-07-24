@@ -58,3 +58,13 @@ export const isOrderEditLocked = (
   order: OrderLike,
   userData: AuthUser | null | undefined
 ): boolean => isCompletedOrderLockEnabled(userData) && isOrderCompleted(order);
+
+/**
+ * True when the lock is on AND the order is already cancelled. A cancelled order
+ * is terminal — its status can no longer be changed (the status dropdown is
+ * disabled everywhere), so it stays cancelled.
+ */
+export const isCancelledOrderFrozen = (
+  order: OrderLike,
+  userData: AuthUser | null | undefined
+): boolean => isCompletedOrderLockEnabled(userData) && order?.status === "cancelled";

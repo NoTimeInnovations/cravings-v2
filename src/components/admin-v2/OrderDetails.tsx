@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
-import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
+import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
@@ -250,6 +250,11 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const lockEnabled = isCompletedOrderLockEnabled(userData);
 
     const handleUpdateOrderStatus = async (status: string) => {
+        // Cancelled orders are frozen when the lock is on — no status change at all.
+        if (lockEnabled && order.status === "cancelled") {
+            toast.error("This order is cancelled and locked. Its status can't be changed.");
+            return;
+        }
         // Completed-order lock: once completed, the ONLY permitted transition is
         // cancel. Block every other status change outright (no password escape).
         if (lockEnabled && order.status === "completed" && status !== "cancelled") {
@@ -405,6 +410,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     <Select
                         value={order.status}
+                        disabled={isCancelledOrderFrozen(order, userData)}
                         onValueChange={handleUpdateOrderStatus}
                     >
                         <SelectTrigger className={`w-[130px] ${getStatusColor(order.status)} border-none shrink-0`}>
