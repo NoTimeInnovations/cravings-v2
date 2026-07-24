@@ -1912,8 +1912,10 @@ const PlaceOrderModal = ({
     enabled: boolean;
     balance: number;
     pointValue: number;
-    minRedeemPoints: number;
-    maxRedeemPercent: number;
+    byType: Record<
+      "delivery" | "takeaway" | "dine_in",
+      { enabled: boolean; minRedeemPoints: number; maxRedeemPercent: number }
+    >;
   } | null>(null);
   const [redeemPoints, setRedeemPoints] = useState(0);
   const [loyaltyHistoryOpen, setLoyaltyHistoryOpen] = useState(false);
@@ -1928,10 +1930,11 @@ const PlaceOrderModal = ({
     return () => { cancelled = true; };
   }, [open_place_order_modal, (user as any)?.id, hotelData?.id]);
 
-  // Clear any points selection whenever the sheet closes.
+  // Clear any points selection whenever the sheet closes or the order type
+  // changes (a different type may have a lower cap or loyalty turned off).
   useEffect(() => {
-    if (!open_place_order_modal) setRedeemPoints(0);
-  }, [open_place_order_modal]);
+    setRedeemPoints(0);
+  }, [open_place_order_modal, orderType]);
 
   // Compute delivery distance + cost when a delivery address is already set on
   // open (e.g. chosen in the onboarding flow) — without this the charge/distance
@@ -3695,12 +3698,22 @@ const PlaceOrderModal = ({
   // `_barGrandTotal` is the pre-redemption total. Max points are bounded by the
   // balance and the partner's bill cap; the value is subtracted to get what's payable.
   const loyaltyPointValue = loyaltyCtx?.pointValue && loyaltyCtx.pointValue > 0 ? loyaltyCtx.pointValue : 1;
-  const loyaltyMaxPoints = loyaltyCtx?.enabled
-    ? computeMaxRedeemable(_barGrandTotal, loyaltyCtx.balance, {
+  // Loyalty rules are per order type — pick the block for the current selection.
+  // In QR/table dine-in checkout the type switcher is hidden and orderType stays
+  // null, but the order IS dine-in — resolve to dine_in (matching the server).
+  const loyaltyOrderType =
+    orderType ?? (isQrScan || (tableNumber ?? 0) > 0 ? "dine_in" : undefined);
+  const loyaltyType =
+    loyaltyCtx && loyaltyOrderType && loyaltyOrderType in loyaltyCtx.byType
+      ? loyaltyCtx.byType[loyaltyOrderType as "delivery" | "takeaway" | "dine_in"]
+      : undefined;
+  const loyaltyRedeemable = !!(loyaltyCtx?.enabled && loyaltyType?.enabled);
+  const loyaltyMaxPoints = loyaltyRedeemable
+    ? computeMaxRedeemable(_barGrandTotal, loyaltyCtx!.balance, {
         earn_percent: 0,
         min_order_amount: 0,
-        max_redeem_percent: loyaltyCtx.maxRedeemPercent,
-        min_redeem_points: loyaltyCtx.minRedeemPoints,
+        max_redeem_percent: loyaltyType!.maxRedeemPercent,
+        min_redeem_points: loyaltyType!.minRedeemPoints,
         point_value: loyaltyPointValue,
       })
     : 0;
@@ -4090,13 +4103,13 @@ const PlaceOrderModal = ({
               </div>
 
               {/* Loyalty points redemption */}
-              {user && loyaltyCtx?.enabled && loyaltyCtx.balance > 0 && (
+              {user && loyaltyRedeemable && loyaltyCtx!.balance > 0 && (
                 <LoyaltyRedeemCard
                   currency={hotelData?.currency || "₹"}
-                  balance={loyaltyCtx.balance}
+                  balance={loyaltyCtx!.balance}
                   pointValue={loyaltyPointValue}
                   maxPoints={loyaltyMaxPoints}
-                  minRedeemPoints={loyaltyCtx.minRedeemPoints}
+                  minRedeemPoints={loyaltyType!.minRedeemPoints}
                   points={effectiveRedeemPoints}
                   value={loyaltyRedeemValue}
                   onChange={(p) => setRedeemPoints(Math.max(0, Math.min(p, loyaltyMaxPoints)))}
