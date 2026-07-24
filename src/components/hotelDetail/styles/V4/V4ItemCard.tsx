@@ -15,6 +15,7 @@ import { X, Plus, Minus } from "lucide-react";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
+import PairingRecommendations from "@/components/hotelDetail/shared/PairingRecommendations";
 
 // Fixed thumbnail box for every V4 list row. Kept as plain numbers (applied via
 // inline style) so the size is guaranteed and uniform across all items.
@@ -338,6 +339,9 @@ const V4ItemCard = ({
 
   return (
     <>
+      {/* Wrapper keeps the V4 list's divide-y divider between whole cards, not
+          between a row and its own recommendation strip. */}
+      <div>
       {/* V4 list-style item row — tapping anywhere opens the detail / variant
           bottom sheet (same behaviour as V3); the row itself carries no inline
           add control, matching the source design. */}
@@ -529,6 +533,15 @@ const V4ItemCard = ({
             </div>
           )}
         </div>
+      </div>
+        <PairingRecommendations
+          item={item}
+          hoteldata={hoteldata}
+          accent={styles.accent}
+          canOrder={!!(hasOrderingFeature || hasDeliveryFeature)}
+          isPartnersRole={isPartnersRole}
+          hasStockFeature={!!hasStockFeature}
+        />
       </div>
 
       {/* Bottom Sheet for Item Details (non-variant items) */}

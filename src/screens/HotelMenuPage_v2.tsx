@@ -26,6 +26,7 @@ import V3 from "@/components/hotelDetail/styles/V3/V3";
 import V4 from "@/components/hotelDetail/styles/V4/V4";
 import V5 from "@/components/hotelDetail/styles/V5/V5";
 import V6 from "@/components/hotelDetail/styles/V6/V6";
+import AddedRecommendationsSheet from "@/components/hotelDetail/shared/AddedRecommendationsSheet";
 import { LanguageSwitcher } from "@/components/hotelDetail/LanguageSwitcher";
 import { shortCurrencySymbol } from "@/lib/currencyDisplay";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
@@ -709,6 +710,18 @@ const HotelMenuPage = ({
               />
             )}
           {renderPage()}
+          {/* Dense layouts (Sidebar, V6) can't fit recommendations inline, so a
+              shared bottom sheet surfaces an added item's pairings on add. The
+              roomy layouts show them inline via <PairingRecommendations>. */}
+          {(theme?.menuStyle === "sidebar" || theme?.menuStyle === "v6") && (
+            <AddedRecommendationsSheet
+              hoteldata={hoteldata}
+              accent={styles.accent}
+              feature_flags={effectiveFeatureFlags}
+              tableNumber={tableNumber}
+              auth={auth}
+            />
+          )}
           {/* v6 renders its own inline language switcher inside its brand header,
               so skip the floating one there to avoid a duplicate + double init. */}
           {theme?.menuStyle !== "v6" && (

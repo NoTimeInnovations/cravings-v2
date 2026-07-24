@@ -17,6 +17,7 @@ import { getTagColor } from "@/data/foodTags";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
+import PairingRecommendations from "@/components/hotelDetail/shared/PairingRecommendations";
 
 // Bottom sheet footer button with total calculation
 const BottomSheetAddButton = ({
@@ -334,6 +335,9 @@ const ItemCard = ({
 
   return (
     <>
+      {/* Wrapper keeps the parent grid's divider between whole cards, not
+          between a row and its own recommendation strip. */}
+      <div>
       <div className="py-4 flex gap-3 relative md:border-b md:border-gray-100 cursor-pointer" onClick={() => { pushEcommerceEvent("view_item", { currency: resolveCurrencyCode(hoteldata?.currency), value: item.price, items: [{ item_id: baseItemId(item.id), item_name: item.name, item_category: categoryName(item.category), price: item.price }] }); if (hasVariants) setShowVariants(true); else setShowItemSheet(true); }}>
         {/* Left Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-start pt-0.5">
@@ -562,6 +566,15 @@ const ItemCard = ({
           {/* Spacing below button */}
           {isOrderable && <div className="h-3" />}
         </div>
+      </div>
+        <PairingRecommendations
+          item={item}
+          hoteldata={hoteldata}
+          accent={styles.accent}
+          canOrder={!!(hasOrderingFeature || hasDeliveryFeature)}
+          isPartnersRole={isPartnersRole}
+          hasStockFeature={!!hasStockFeature}
+        />
       </div>
       {/* Bottom Sheet for Item Details (non-variant items) */}
       {showItemSheet && !hasVariants && typeof window !== "undefined" && createPortal(

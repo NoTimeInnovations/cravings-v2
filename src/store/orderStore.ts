@@ -544,6 +544,10 @@ interface OrderState {
   setPendingCheckoutOpen: (open: boolean) => void;
   lastOrderPlacedAt: number;
   notifyOrderPlaced: () => void;
+  // Transient add-to-cart signal consumed by the global "you'll love pairing it
+  // with" sheet (dense layouts). Set once inside addItem; never persisted.
+  lastAddedItem: HotelDataMenus | null;
+  lastItemAddedAt: number;
   orderType: "takeaway" | "delivery" | "dine_in" | null;
   setOrderType: (type: "takeaway" | "delivery" | "dine_in") => void;
   setOpenDrawerBottom: (open: boolean) => void;
@@ -650,6 +654,8 @@ const useOrderStore = create(
       orderType: null,
       lastOrderPlacedAt: 0,
       notifyOrderPlaced: () => set({ lastOrderPlacedAt: Date.now() }),
+      lastAddedItem: null,
+      lastItemAddedAt: 0,
 
       setOrderType: (type: "takeaway" | "delivery" | "dine_in") => {
         set({ orderType: type });
@@ -1296,6 +1302,11 @@ const useOrderStore = create(
             },
           ],
         });
+
+        // Signal the global recommendation sheet that an item was just added.
+        // addItem is the single choke point every layout's add path funnels
+        // through, so one signal here reaches all of them.
+        set({ lastAddedItem: item, lastItemAddedAt: Date.now() });
       },
 
       removeItem: (itemId) => {
@@ -2318,8 +2329,15 @@ const useOrderStore = create(
       storage: createJSONStorage(() => getSafeStorage()),
       partialize: (state) => {
         // pendingCheckoutOpen is a transient one-shot intent — never persist it.
-        const { orderType: _orderType, pendingCheckoutOpen: _pco, ...rest } =
-          state as any;
+        // lastAddedItem / lastItemAddedAt are transient add-to-cart signals for
+        // the recommendation sheet — persisting them would fire it on reload.
+        const {
+          orderType: _orderType,
+          pendingCheckoutOpen: _pco,
+          lastAddedItem: _lai,
+          lastItemAddedAt: _liat,
+          ...rest
+        } = state as any;
         return rest;
       },
     }
