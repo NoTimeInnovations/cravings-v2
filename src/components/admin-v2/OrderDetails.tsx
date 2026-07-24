@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
+import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
@@ -246,9 +247,22 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
 
     if (!order) return null;
 
+    const lockEnabled = isCompletedOrderLockEnabled(userData);
+
     const handleUpdateOrderStatus = async (status: string) => {
+        // Completed-order lock: once completed, the ONLY permitted transition is
+        // cancel. Block every other status change outright (no password escape).
+        if (lockEnabled && order.status === "completed" && status !== "cancelled") {
+            toast.error("This order is completed and locked. You can only cancel it.");
+            return;
+        }
         if (status === "cancelled") {
-            if (order.status !== "pending") {
+            // Pending orders are cancellable as before; a completed order is also
+            // cancellable by staff when the lock is on (voiding a finished bill).
+            const cancellable =
+                order.status === "pending" ||
+                (lockEnabled && order.status === "completed");
+            if (!cancellable) {
                 toast.error(
                     `Only pending orders can be cancelled (current status: ${order.status})`,
                 );
@@ -397,12 +411,21 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="accepted">Accepted</SelectItem>
-                            <SelectItem value="food_ready">Food Ready</SelectItem>
-                            <SelectItem value="dispatched">Dispatched</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            {lockEnabled && order.status === "completed" ? (
+                                <>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                                </>
+                            ) : (
+                                <>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="accepted">Accepted</SelectItem>
+                                    <SelectItem value="food_ready">Food Ready</SelectItem>
+                                    <SelectItem value="dispatched">Dispatched</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                                </>
+                            )}
                         </SelectContent>
                     </Select>
 
@@ -423,7 +446,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {onEdit && (
+                    {onEdit && !(lockEnabled && order.status === "completed") && (
                         <Button variant="outline" size="sm" onClick={onEdit} className="shrink-0">
                             <Edit className="h-4 w-4 mr-2" />
                             Edit

@@ -28,6 +28,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems } from "@/lib/takeawayPricing";
 import { findOrCreateUserByPhone } from "@/lib/whatsappFlow/silentUser";
 import { ROUND_OFF_NAME, computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
+import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -53,6 +54,20 @@ const resolveTakeawayAdjustment = (): number => {
       ? (userData as Captain).partner
       : (userData as Partner);
   return getTakeawayAdjustment(partner as any);
+};
+
+// True when the order currently loaded into the POS cart for editing is a
+// COMPLETED order and the partner has enabled the completed-order lock. When
+// true, every cart-mutation action below becomes a no-op so a locked completed
+// order can no longer be edited. The Edit entry-point is already hidden for such
+// orders; this store guard also covers the rare race where an order flips to
+// "completed" via the live subscription while its cart is still open for edit.
+const isEditingLockedOrder = (get: any): boolean => {
+  const editingId = get().editingOrderId;
+  if (!editingId) return false;
+  if (!isCompletedOrderLockEnabled(useAuthStore.getState().userData)) return false;
+  const loaded = (get().pastBills || []).find((b: any) => b.id === editingId);
+  return loaded?.status === "completed";
 };
 
 interface CartItem extends MenuItem {
@@ -425,6 +440,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   addCustomItem: (name: string, price: number) => {
+    if (isEditingLockedOrder(get)) return;
     const trimmed = name.trim();
     if (!trimmed || !(price > 0)) return;
     // Synthetic, unique id so each custom line stays its own cart entry and is
@@ -451,6 +467,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   removeFromCart: (itemId: string) => {
+    if (isEditingLockedOrder(get)) return;
     const { cartItems } = get();
     const item = cartItems.find((item) => item.id === itemId);
 
@@ -463,6 +480,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   increaseQuantity: (itemId: string) => {
+    if (isEditingLockedOrder(get)) return;
     set((state) => ({
       cartItems: state.cartItems.map((item) =>
         item.id === itemId ? { ...item, quantity: item.quantity + 1 } : item
@@ -474,6 +492,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   decreaseQuantity: (itemId: string) => {
+    if (isEditingLockedOrder(get)) return;
     const { cartItems } = get();
     const item = cartItems.find((item) => item.id === itemId);
 
@@ -496,6 +515,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   // blank value removes the line. totalAmount is recomputed from the whole cart so
   // it stays exact regardless of the jump size.
   setQuantity: (itemId: string, quantity: number) => {
+    if (isEditingLockedOrder(get)) return;
     const q = Math.floor(Number(quantity));
     if (!Number.isFinite(q) || q <= 0) {
       get().removeFromCart(itemId);
@@ -574,6 +594,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
     } = get();
 
     if (!editingOrderId) return;
+
+    // Completed-order lock: never persist edits to a completed order (backstop
+    // for the UI-level guards).
+    if (isEditingLockedOrder(get)) {
+      toast.error("This order is completed and locked — it cannot be edited.");
+      return;
+    }
 
     set({ loading: true });
     try {
@@ -662,6 +689,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   addExtraCharge: (charge: Omit<ExtraCharge, "id">) => {
+    if (isEditingLockedOrder(get)) return;
     const newCharge = {
       ...charge,
       id: uuidv4(),
@@ -672,6 +700,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   removeExtraCharge: (chargeId: string) => {
+    if (isEditingLockedOrder(get)) return;
     set((state) => ({
       extraCharges: state.extraCharges.filter(
         (charge) => charge.id !== chargeId
@@ -680,6 +709,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   addDiscount: (discount: Omit<Discount, "id">) => {
+    if (isEditingLockedOrder(get)) return;
     const newDiscount = {
       ...discount,
       id: uuidv4(),
@@ -690,6 +720,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   removeDiscount: (discountId: string) => {
+    if (isEditingLockedOrder(get)) return;
     set((state) => ({
       discounts: state.discounts.filter(
         (discount) => discount.id !== discountId
@@ -1321,7 +1352,10 @@ export const usePOSStore = create<POSState>((set, get) => ({
     }
   },
 
-  setOrderNote: (note: string) => set({ orderNote: note }),
+  setOrderNote: (note: string) => {
+    if (isEditingLockedOrder(get)) return;
+    set({ orderNote: note });
+  },
 
   refreshOrdersAfterUpdate: () => {
     // This function will be used to trigger order refresh in components

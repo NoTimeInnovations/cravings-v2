@@ -55,6 +55,7 @@ import { OrderDetails } from "./OrderDetails";
 import { PickupOtpBadge } from "./PickupOtpBadge";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
+import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
@@ -169,6 +170,14 @@ export function AdminV2AllOrders() {
 
   const handleEditOrder = (order: Order) => {
     if (order.status === "completed") {
+      // Completed-order lock ON → editing is fully disabled (only cancel is
+      // allowed); no password escape. OFF → keep the legacy password-gated edit.
+      if (isCompletedOrderLockEnabled(userData)) {
+        toast.error(
+          "This order is completed and locked — editing is disabled. You can only cancel it.",
+        );
+        return;
+      }
       setPendingAction(() => () => setEditingOrderId(order.id));
       setActionDescription("edit this completed order");
       setPasswordModalOpen(true);
@@ -181,6 +190,24 @@ export function AdminV2AllOrders() {
     const order = orders.find((o) => o.id === orderId);
 
     if (!order) return;
+
+    const lockEnabled = isCompletedOrderLockEnabled(userData);
+
+    if (lockEnabled && order.status === "completed") {
+      // Locked completed order: cancel is the only allowed action (runs directly,
+      // no password); every other transition is blocked.
+      if (status !== "cancelled") {
+        toast.error("This order is completed and locked. You can only cancel it.");
+        return;
+      }
+      try {
+        await updateOrderStatus(orders, orderId, status as any, setOrders);
+        toast.success("Order cancelled");
+      } catch (error) {
+        toast.error("Failed to cancel order");
+      }
+      return;
+    }
 
     if (order.status === "completed") {
       setPendingAction(() => async () => {
@@ -531,12 +558,21 @@ export function AdminV2AllOrders() {
                           <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="accepted">Accepted</SelectItem>
-                          <SelectItem value="food_ready">Food Ready</SelectItem>
-                          <SelectItem value="dispatched">Dispatched</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          {isCompletedOrderLockEnabled(userData) && order.status === "completed" ? (
+                            <>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="accepted">Accepted</SelectItem>
+                              <SelectItem value="food_ready">Food Ready</SelectItem>
+                              <SelectItem value="dispatched">Dispatched</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                     </TableCell>
@@ -639,12 +675,21 @@ export function AdminV2AllOrders() {
                           <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="accepted">Accepted</SelectItem>
-                          <SelectItem value="food_ready">Food Ready</SelectItem>
-                          <SelectItem value="dispatched">Dispatched</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          {isCompletedOrderLockEnabled(userData) && order.status === "completed" ? (
+                            <>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="accepted">Accepted</SelectItem>
+                              <SelectItem value="food_ready">Food Ready</SelectItem>
+                              <SelectItem value="dispatched">Dispatched</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>

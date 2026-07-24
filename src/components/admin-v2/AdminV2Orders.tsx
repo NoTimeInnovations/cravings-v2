@@ -69,6 +69,7 @@ import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { AssignDriverDialog } from "./AssignDriverDialog";
+import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 
@@ -245,6 +246,14 @@ export function AdminV2Orders() {
 
   const handleEditOrder = (order: Order) => {
     if (order.status === "completed") {
+      // Completed-order lock ON → editing is fully disabled (only cancel is
+      // allowed); no password escape. OFF → keep the legacy password-gated edit.
+      if (isCompletedOrderLockEnabled(userData)) {
+        toast.error(
+          "This order is completed and locked — editing is disabled. You can only cancel it.",
+        );
+        return;
+      }
       setPendingAction(() => () => setEditingOrderId(order.id));
       setActionDescription("edit this completed order");
       setPasswordModalOpen(true);
@@ -258,8 +267,24 @@ export function AdminV2Orders() {
 
     if (!order) return;
 
+    const lockEnabled = isCompletedOrderLockEnabled(userData);
+
+    // Completed-order lock: once completed, the ONLY permitted transition is
+    // cancel. Block every other status change outright (no password escape).
+    if (lockEnabled && order.status === "completed" && status !== "cancelled") {
+      toast.error(
+        "This order is completed and locked. You can only cancel it.",
+      );
+      return;
+    }
+
     if (status === "cancelled") {
-      if (order.status !== "pending") {
+      // Pending orders are cancellable as before; a completed order is also
+      // cancellable by staff when the lock is on (voiding a finished bill).
+      const cancellable =
+        order.status === "pending" ||
+        (lockEnabled && order.status === "completed");
+      if (!cancellable) {
         toast.error(
           `Only pending orders can be cancelled (current status: ${order.status})`,
         );
@@ -366,6 +391,31 @@ export function AdminV2Orders() {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  // When the completed-order lock is on, a completed order's status dropdown
+  // only offers "Cancelled" (plus its current "Completed" value) — every other
+  // transition is hidden so cancel is the sole action.
+  const lockEnabled = isCompletedOrderLockEnabled(userData);
+  const renderStatusOptions = (order: Order) => {
+    if (lockEnabled && order.status === "completed") {
+      return (
+        <>
+          <SelectItem value="completed">Completed</SelectItem>
+          <SelectItem value="cancelled">Cancelled</SelectItem>
+        </>
+      );
+    }
+    return (
+      <>
+        <SelectItem value="pending">Pending</SelectItem>
+        <SelectItem value="accepted">Accepted</SelectItem>
+        <SelectItem value="food_ready">Food Ready</SelectItem>
+        <SelectItem value="dispatched">Dispatched</SelectItem>
+        <SelectItem value="completed">Completed</SelectItem>
+        <SelectItem value="cancelled">Cancelled</SelectItem>
+      </>
+    );
   };
 
   if (editingOrderId && editingOrder) {
@@ -743,14 +793,7 @@ export function AdminV2Orders() {
                     >
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="accepted">Accepted</SelectItem>
-                      <SelectItem value="food_ready">Food Ready</SelectItem>
-                      <SelectItem value="dispatched">Dispatched</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
+                    <SelectContent>{renderStatusOptions(order)}</SelectContent>
                   </Select>
                 </TableCell>
                 <TableCell className="text-right">
@@ -849,14 +892,7 @@ export function AdminV2Orders() {
                     >
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="accepted">Accepted</SelectItem>
-                      <SelectItem value="food_ready">Food Ready</SelectItem>
-                      <SelectItem value="dispatched">Dispatched</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
+                    <SelectContent>{renderStatusOptions(order)}</SelectContent>
                   </Select>
                 </div>
               </div>

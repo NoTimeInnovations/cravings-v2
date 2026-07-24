@@ -14,6 +14,7 @@ import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
 import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { toast } from "sonner";
 import { hasuraClient, subscribeToHasura } from "@/lib/hasuraSubscription";
+import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
 import { subscriptionQuery } from "@/api/orders";
 import { startOfDay, endOfDay, parseISO, format, isSameDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +101,13 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     // Fresh version of the selected order from the store's list
     const activeOrderData = selectedOrder ? (pastBills.find(o => o.id === selectedOrder.id) || selectedOrder) : null;
 
+    // True when the order currently loaded into the cart for editing is a locked
+    // completed order (covers the race where it completes via live subscription
+    // mid-edit). Store guards make the cart mutations no-ops; this also disables
+    // the Update button in the UI.
+    const editingLoadedOrder = editingOrderId ? pastBills.find((b) => b.id === editingOrderId) : null;
+    const editLocked = !!editingLoadedOrder && isCompletedOrderLockEnabled(userData) && editingLoadedOrder.status === "completed";
+
     const [isAddingExtraCharge, setIsAddingExtraCharge] = useState(false);
     const [isAddingCustomItem, setIsAddingCustomItem] = useState(false);
     const [customItemName, setCustomItemName] = useState("");
@@ -172,6 +180,16 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     };
 
     const handlePlaceOrder = async () => {
+        // Completed-order lock: never allow re-saving a completed order (the Edit
+        // entry point is already blocked; this is defense in depth).
+        if (editingOrderId && isCompletedOrderLockEnabled(userData)) {
+            const editing = pastBills.find((b) => b.id === editingOrderId);
+            if (editing?.status === "completed") {
+                toast.error("This order is completed and locked — it cannot be edited.");
+                return;
+            }
+        }
+
         if (posOrderType === "dine-in" && !tableNumber) {
             toast.error("Please select a table for Dine-in orders");
             return;
@@ -224,6 +242,21 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
     const handleStatusUpdate = async (orderId: string, status: string) => {
         if (activeOrderData?.status === "completed") {
+            // Completed-order lock ON: the only permitted transition is cancel
+            // (runs directly, no password). Everything else is blocked. When the
+            // lock is OFF, keep the legacy password-gated behavior.
+            if (isCompletedOrderLockEnabled(userData)) {
+                if (status !== "cancelled") {
+                    toast.error("This order is completed and locked. You can only cancel it.");
+                    return;
+                }
+                await updateOrderStatus(orderId, status);
+                if (activeOrderData && activeOrderData.id === orderId) {
+                    setSelectedOrder({ ...activeOrderData, status });
+                }
+                return;
+            }
+
             setPendingAction(() => async () => {
                 await updateOrderStatus(orderId, status);
                 if (activeOrderData && activeOrderData.id === orderId) {
@@ -890,7 +923,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                 size="lg"
                                 className={`w-full ${editingOrderId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'} text-white shadow-md hover:shadow-lg transition-all`}
                                 onClick={handlePlaceOrder}
-                                disabled={(cartItems.length === 0 && extraChargesTotal === 0) || isPlacingOrder}
+                                disabled={(cartItems.length === 0 && extraChargesTotal === 0) || isPlacingOrder || editLocked}
                             >
                                 {isPlacingOrder ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -927,7 +960,8 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                 </p>
                             </div>
                             <div className="ml-auto flex items-center gap-2">
-                                {(userData?.role !== 'captain' || activeOrderData.status !== 'completed') && (
+                                {(userData?.role !== 'captain' || activeOrderData.status !== 'completed') &&
+                                  !(isCompletedOrderLockEnabled(userData) && activeOrderData.status === 'completed') && (
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -949,12 +983,21 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         <SelectValue placeholder="Status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="accepted">Accepted</SelectItem>
-                                        <SelectItem value="food_ready">Food Ready</SelectItem>
-                                        <SelectItem value="dispatched">Dispatched</SelectItem>
-                                        <SelectItem value="completed">Completed</SelectItem>
-                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                        {isCompletedOrderLockEnabled(userData) && activeOrderData.status === 'completed' ? (
+                                            <>
+                                                <SelectItem value="completed">Completed</SelectItem>
+                                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <SelectItem value="pending">Pending</SelectItem>
+                                                <SelectItem value="accepted">Accepted</SelectItem>
+                                                <SelectItem value="food_ready">Food Ready</SelectItem>
+                                                <SelectItem value="dispatched">Dispatched</SelectItem>
+                                                <SelectItem value="completed">Completed</SelectItem>
+                                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                                            </>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1081,7 +1124,8 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         <FileText className="h-4 w-4 mr-2" />
                                         KOT
                                     </Button>
-                                    {(userData?.role !== 'captain' || activeOrderData.status !== 'completed') && (
+                                    {(userData?.role !== 'captain' || activeOrderData.status !== 'completed') &&
+                                      !(isCompletedOrderLockEnabled(userData) && activeOrderData.status === 'completed') && (
                                         <Button
                                             variant="outline"
                                             className="w-full col-span-2 border-primary/20 hover:bg-primary/5 text-primary"

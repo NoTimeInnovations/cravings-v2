@@ -119,6 +119,14 @@ export interface DeliveryRules {
   parcel_charge_items?: Record<string, number>;
   hide_delivery_charge?: boolean;
   /**
+   * When true, a COMPLETED order can no longer be edited by staff anywhere
+   * (partner POS, captain POS or the dashboard) — the only remaining action is
+   * Cancel. Toggled from Settings → Store → Order Lock behind a hard-coded
+   * master password. Unset/false = legacy behaviour (completed orders remain
+   * editable via the per-partner password prompt).
+   */
+  lock_completed_orders?: boolean;
+  /**
    * When true (and `feature_flags.delivery_agent.enabled`), the delivery
    * charge comes from delivery-agents-server's availability endpoint
    * instead of any of the internal range/rate/fixed-rate config. All those

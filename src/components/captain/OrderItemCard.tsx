@@ -9,6 +9,7 @@ import Link from "next/link";
 // import BillTemplate from "@/components/captain/pos/BillTemplate";
 // import KOTTemplate from "@/components/captain/pos/KOTTemplate";
 import { Captain, useAuthStore } from "@/store/authStore";
+import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -282,21 +283,24 @@ const OrderItemCard = ({
             )}
           </div>
 
-          {/* Right side - Edit button */}
-          <div className="w-full sm:w-auto mt-2 sm:mt-0">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setOrder(order);
-                setEditOrderModalOpen(true);
-              }}
-              className="w-full sm:w-auto flex items-center justify-center gap-1.5 py-1 px-2.5 h-8 text-xs"
-              disabled={!order.items || order.items.length === 0}
-            >
-              <Edit className="h-3 w-3" />
-              Edit Order
-            </Button>
-          </div>
+          {/* Right side - Edit button. Hidden for a completed order when the
+              completed-order lock is on — such orders are cancel-only. */}
+          {!(isCompletedOrderLockEnabled(userData) && order.status === "completed") && (
+            <div className="w-full sm:w-auto mt-2 sm:mt-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setOrder(order);
+                  setEditOrderModalOpen(true);
+                }}
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 py-1 px-2.5 h-8 text-xs"
+                disabled={!order.items || order.items.length === 0}
+              >
+                <Edit className="h-3 w-3" />
+                Edit Order
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
 

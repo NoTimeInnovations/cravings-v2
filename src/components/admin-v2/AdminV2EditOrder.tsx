@@ -20,6 +20,7 @@ import { useMenuStore } from "@/store/menuStore_hasura";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
+import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { taxLabel } from "@/lib/taxLabel";
@@ -244,7 +245,13 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         fetchQrGroupForTable(newTableNumber);
     };
 
+    // Completed-order lock: block every item edit when the order is completed and
+    // the lock is on. Keyed on the live `status` (not the order prop) so it also
+    // fires if the order is marked completed from the dropdown while open here.
+    const editLocked = () => isCompletedOrderLockEnabled(userData) && status === "completed";
+
     const handleQuantityChange = (index: number, newQuantity: number) => {
+        if (editLocked()) return;
         if (newQuantity < 1) return;
         const updatedItems = [...items];
         updatedItems[index].quantity = newQuantity;
@@ -252,12 +259,14 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     };
 
     const handleRemoveItem = (index: number) => {
+        if (editLocked()) return;
         const updatedItems = [...items];
         updatedItems.splice(index, 1);
         setItems(updatedItems);
     };
 
     const handleAddItem = () => {
+        if (editLocked()) return;
         if (!newItemId) return;
 
         const [baseId, variantName] = newItemId.split("|");
@@ -310,6 +319,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     };
 
     const handleAddExtraCharge = () => {
+        if (editLocked()) return;
         if (!newExtraCharge.name || newExtraCharge.amount <= 0) {
             toast.error("Please enter a valid charge name and amount");
             return;
@@ -324,12 +334,20 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     };
 
     const handleRemoveExtraCharge = (index: number) => {
+        if (editLocked()) return;
         const updatedCharges = [...extraCharges];
         updatedCharges.splice(index, 1);
         setExtraCharges(updatedCharges);
     };
 
     const handleUpdateOrder = async () => {
+        // Defense in depth: a completed order under the lock must never be saved,
+        // even if the editor was somehow reached (e.g. the order completed while
+        // open). Entry points already block this earlier.
+        if (editLocked()) {
+            toast.error("This order is completed and locked — editing is disabled.");
+            return;
+        }
         if (!items || items.length === 0) {
             toast.error("Cannot save order with no items");
             return;
@@ -414,6 +432,11 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
 
 
     const handleStatusUpdate = async (newStatus: string) => {
+        // Completed-order lock: a completed order can only move to cancelled.
+        if (isCompletedOrderLockEnabled(userData) && status === "completed" && newStatus !== "cancelled") {
+            toast.error("This order is completed and locked. You can only cancel it.");
+            return;
+        }
         try {
             setStatus(newStatus); // Optimistic update
             await updateOrderStatus(orders, order.id, newStatus as any, setOrders);
@@ -461,18 +484,27 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="accepted">Accepted</SelectItem>
-                            <SelectItem value="food_ready">Food Ready</SelectItem>
-                            <SelectItem value="dispatched">Dispatched</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            {isCompletedOrderLockEnabled(userData) && status === "completed" ? (
+                                <>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                                </>
+                            ) : (
+                                <>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="accepted">Accepted</SelectItem>
+                                    <SelectItem value="food_ready">Food Ready</SelectItem>
+                                    <SelectItem value="dispatched">Dispatched</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                                </>
+                            )}
                         </SelectContent>
                     </Select>
 
                     <Button
                         onClick={handleUpdateOrder}
-                        disabled={updating || loading || !items || items.length === 0}
+                        disabled={updating || loading || !items || items.length === 0 || editLocked()}
                         size="sm"
                         className="flex-1 sm:flex-none"
                     >
@@ -528,6 +560,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                             variant="outline"
                                                             size="icon"
                                                             className="h-7 w-7 shrink-0"
+                                                            disabled={editLocked()}
                                                             onClick={() =>
                                                                 handleQuantityChange(index, item.quantity - 1)
                                                             }
@@ -543,6 +576,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                             variant="outline"
                                                             size="icon"
                                                             className="h-7 w-7 shrink-0"
+                                                            disabled={editLocked()}
                                                             onClick={() =>
                                                                 handleQuantityChange(index, item.quantity + 1)
                                                             }
@@ -554,6 +588,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                             variant="ghost"
                                                             size="icon"
                                                             className="h-7 w-7 text-destructive ml-1 shrink-0"
+                                                            disabled={editLocked()}
                                                             onClick={() => handleRemoveItem(index)}
                                                         >
                                                             <X className="h-3 w-3" />
@@ -629,7 +664,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                     {currency}{selectedItemDetails.price.toFixed(2)}
                                                 </div>
                                             </div>
-                                            <Button onClick={handleAddItem}>
+                                            <Button onClick={handleAddItem} disabled={editLocked()}>
                                                 Add to Order
                                             </Button>
                                         </div>
@@ -712,7 +747,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                         }
                                         className="w-24"
                                     />
-                                    <Button size="icon" onClick={handleAddExtraCharge}>
+                                    <Button size="icon" onClick={handleAddExtraCharge} disabled={editLocked()}>
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -735,6 +770,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-6 w-6 text-destructive"
+                                                    disabled={editLocked()}
                                                     onClick={() => handleRemoveExtraCharge(index)}
                                                 >
                                                     <X className="h-3 w-3" />

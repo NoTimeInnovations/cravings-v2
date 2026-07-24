@@ -20,6 +20,12 @@ interface PasswordProtectionModalProps {
     onClose: () => void;
     onSuccess: () => void;
     actionDescription?: string;
+    /**
+     * When provided, the entered password is checked locally against this exact
+     * string instead of the signed-in user's DB password. Used to guard "extreme"
+     * settings (e.g. the completed-order lock) behind a hard-coded master password.
+     */
+    masterPassword?: string;
 }
 
 export function PasswordProtectionModal({
@@ -27,6 +33,7 @@ export function PasswordProtectionModal({
     onClose,
     onSuccess,
     actionDescription = "continue",
+    masterPassword,
 }: PasswordProtectionModalProps) {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -38,12 +45,26 @@ export function PasswordProtectionModal({
 
         setLoading(true);
         try {
+            let isValid = false;
+
+            // Master-password mode: verify locally against the hard-coded string
+            // (no user/DB lookup needed).
+            if (masterPassword) {
+                isValid = password === masterPassword;
+                if (isValid) {
+                    setPassword("");
+                    onSuccess();
+                    onClose();
+                } else {
+                    toast.error("Incorrect password");
+                }
+                return;
+            }
+
             if (!userData) {
                 toast.error("User not verified");
                 return;
             }
-
-            let isValid = false;
 
             if (userData.role === "partner") {
                 const response = await fetchFromHasura(

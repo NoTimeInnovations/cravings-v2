@@ -23,6 +23,7 @@ import { useMenuStore } from "@/store/menuStore_hasura";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
+import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { taxLabel } from "@/lib/taxLabel";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
@@ -334,6 +335,12 @@ export const EditOrderModal = () => {
   };
 
   const handleUpdateOrder = async () => {
+    // Completed-order lock: a completed order can no longer be edited by staff
+    // (partner or captain) — only cancelled. Hard-block the save.
+    if (isCompletedOrderLockEnabled(userData) && order?.status === "completed") {
+      toast.error("This order is completed and locked — editing is disabled. You can only cancel it.");
+      return;
+    }
     if (!items || items.length === 0) {
       toast.error("Cannot save order with no items");
       return;
