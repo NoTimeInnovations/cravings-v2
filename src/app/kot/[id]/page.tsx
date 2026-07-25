@@ -4,6 +4,8 @@ import { getDateOnly } from "@/lib/formatDate";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { RECEIPT_FONT_FAMILY } from "@/lib/receiptFont";
+import { isFullArabic } from "@/lib/printLayout";
+import { makeLabeler } from "@/lib/arabicBillLabels";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { ExtraCharge } from "@/store/posStore";
@@ -145,6 +147,10 @@ const PrintKOTPage = () => {
                 isBillCategoryNameEnabled(orders_by_pk.partner?.delivery_rules)
               ),
               generated_at: new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date()),
+              // Full Arabic print option (delivery_rules). The desktop app reads
+              // this from the payload; its presence also tells the desktop this web
+              // build already rendered the Arabic labels itself.
+              full_arabic: isFullArabic(orders_by_pk.partner?.delivery_rules),
             },
             null,
             2
@@ -182,7 +188,9 @@ const PrintKOTPage = () => {
   if (error) return <div>{error}</div>;
   if (!order) return <div>Order not found</div>;
 
-
+  // Full Arabic print option (delivery_rules) — translate the KOT's static labels.
+  const fullArabic = isFullArabic(order?.partner?.delivery_rules);
+  const L = makeLabeler(fullArabic);
 
   return (
     <div className="">
@@ -221,7 +229,7 @@ const PrintKOTPage = () => {
         {/* Order Info */}
         <div className="grid grid-cols-2 gap-2 text-sm mb-2">
           <div>
-            <span className="font-medium">Order :</span>
+            <span className="font-medium">{L("Order :")}</span>
             <br />
             <span>
               {(Number(order.display_id) ?? 0) > 0
@@ -230,18 +238,18 @@ const PrintKOTPage = () => {
             </span>
           </div>
           <div className="text-right">
-            <span className="font-medium">Type:</span>
+            <span className="font-medium">{L("Type:")}</span>
             <span> {getOrderTypeText(order)}</span>
           </div>
           <div>
-            <span className="font-medium">Date:</span>
+            <span className="font-medium">{L("Date:")}</span>
             <span>
               {" "}
               {new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date(order.created_at))}
             </span>
           </div>
           <div className="text-right">
-            <span className="font-medium">Time:</span>
+            <span className="font-medium">{L("Time:")}</span>
             <span>
               {" "}
               {new Intl.DateTimeFormat("en-GB", {
@@ -290,7 +298,7 @@ const PrintKOTPage = () => {
             </h2>
           )}
           {!DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(order?.partner_id) && (
-            <p className="mt-2 text-xs text-gray-500">Powered By Menuthere</p>
+            <p className="mt-2 text-xs text-gray-500">{L("Powered By Menuthere")}</p>
           )}
         </div>
       </div>

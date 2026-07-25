@@ -8,9 +8,12 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { isVatEnabled, getTrn } from "@/lib/taxLabel";
+import { getBillLayout, isFullArabic } from "@/lib/printLayout";
+import { makeLabeler } from "@/lib/arabicBillLabels";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
-import { RECEIPT_FONT_FAMILY } from "@/lib/receiptFont";
+import { RECEIPT_FONT_FAMILY, RECEIPT_FONT_FAMILY_INVOICE } from "@/lib/receiptFont";
+import { InvoiceLayout, UaeInvoiceLayout, type BillLayoutData } from "./billLayouts";
 import { OrderItem } from "@/store/orderStore";
 import { ExtraCharge } from "@/store/posStore";
 import { useParams, useSearchParams } from "next/navigation";
@@ -334,6 +337,13 @@ const PrintOrderPage = () => {
               country: formattedOrder.partner?.country,
               payment_upi_string: upiString,
               show_powered_by_cravings: !DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(formattedOrder.partner_id),
+              // Bill-printing layout config (set in the dashboard, stored in
+              // delivery_rules). The desktop print app reads these from this
+              // payload; `full_arabic` being a boolean also signals to the
+              // desktop that this (new) web build already renders the layout +
+              // Arabic itself, so it should just capture the page.
+              bill_layout: getBillLayout(formattedOrder.partner?.delivery_rules),
+              full_arabic: isFullArabic(formattedOrder.partner?.delivery_rules),
             },
             null,
             2
@@ -424,34 +434,111 @@ const PrintOrderPage = () => {
 
   const grandTotal = order.total_price;
 
+  // Bill-printing layout config, chosen in the dashboard (delivery_rules).
+  const billLayout = getBillLayout(order?.partner?.delivery_rules);
+  const fullArabic = isFullArabic(order?.partner?.delivery_rules);
+  const isInvoiceLayout = billLayout === "invoice" || billLayout === "uae";
+  // Labeler for the default layout's static labels (Full Arabic option).
+  const L = makeLabeler(fullArabic);
+
+  // Formatted date/time shared by the default layout and the invoice data.
+  const createdAtStr = new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
+    new Date(order.created_at)
+  );
+  const timeStr = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: tz,
+  }).format(new Date(order.created_at));
+
+  // Data for the tax-invoice layouts — same shape/values the console payload
+  // logs, so the browser render matches what the desktop app receives.
+  const billData: BillLayoutData = {
+    store_name: order?.partner?.store_name,
+    address: order?.address,
+    phone: order?.partner?.phone,
+    gst_no: order?.partner?.gst_no,
+    trn,
+    type: getOrderTypeText(order),
+    payment_method: order?.payment_method,
+    customer_name: order?.user?.full_name,
+    created_at: createdAtStr,
+    time: timeStr,
+    display_id: order?.display_id,
+    id: order?.id,
+    order_items: withCategoryInName(
+      order?.items || [],
+      isBillCategoryNameEnabled(order?.partner?.delivery_rules)
+    ).map((it: any) => ({
+      name: it.name,
+      // Price freebies at 0 (as the default layout does) so the invoice
+      // reconciles: a POS freebie sits in order_items at full price with a
+      // freebie-type discount that discountAmount excludes — leaving the item
+      // total unmatched by any discount line otherwise.
+      price: it.is_freebie ? 0 : it.price,
+      quantity: it.quantity,
+    })),
+    extra_charges: (order?.extra_charges || []).map((charge: any) => ({
+      name: displayChargeName(charge.name),
+      price: getExtraCharge(
+        order?.items || [],
+        charge.amount || 0,
+        charge.charge_type as QrGroup["charge_type"]
+      ),
+    })),
+    calculations: {
+      gst_percentage: gstPercentage,
+      gst_amount: gstAmount,
+      grand_total: grandTotal,
+      discount_amount: discountAmount,
+      subtotal,
+    },
+  };
+
+  // The default layout keeps its monospace receipt look; the invoice layouts use
+  // a proportional face and a fixed width (matching the desktop's geometry).
+  const containerStyle: React.CSSProperties = isInvoiceLayout
+    ? {
+        fontFamily: RECEIPT_FONT_FAMILY_INVOICE,
+        width: printWidth,
+        boxSizing: "border-box",
+        padding: "6px 8px",
+        color: "#000",
+        fontSize: "12px",
+        lineHeight: billLayout === "uae" ? 1.4 : 1.35,
+        ...(silentPrint ? {} : { margin: "0 auto", backgroundColor: "#fff" }),
+      }
+    : silentPrint
+    ? { fontFamily: RECEIPT_FONT_FAMILY, maxWidth: printWidth }
+    : {
+        fontFamily: RECEIPT_FONT_FAMILY,
+        maxWidth: printWidth,
+        margin: "0 auto",
+        padding: "16px",
+        backgroundColor: "transparent",
+      };
+
   return (
     <div className="">
       <div
         ref={printRef}
         id="printable-content"
-        className="bill-template "
-        style={
-          silentPrint
-            ? {
-              fontFamily: RECEIPT_FONT_FAMILY,
-              maxWidth: printWidth,
-            }
-            : {
-              fontFamily: RECEIPT_FONT_FAMILY,
-              maxWidth: printWidth,
-              margin: "0 auto",
-              padding: "16px",
-              backgroundColor: "transparent",
-            }
-        }
+        className={isInvoiceLayout ? "bill-template bill-invoice" : "bill-template "}
+        style={containerStyle}
       >
+        {billLayout === "invoice" ? (
+          <InvoiceLayout data={billData} fullArabic={fullArabic} />
+        ) : billLayout === "uae" ? (
+          <UaeInvoiceLayout data={billData} fullArabic={fullArabic} />
+        ) : (
+        <>
         {/* Header */}
         <h2 className="text-xl font-bold text-center uppercase">
           {order?.partner?.store_name || "Restaurant"}
         </h2>
         <p className="text-center text-sm mb-1">{order?.address || ""}</p>
         <p className="text-center text-sm mb-1">
-          {order?.partner?.phone ? `Tel: ${order?.partner.phone}` : ""}
+          {order?.partner?.phone ? `${L("Tel:")} ${order?.partner.phone}` : ""}
         </p>
 
         <div className="border-b border-black my-2"></div>
@@ -459,7 +546,7 @@ const PrintOrderPage = () => {
         {/* Order Info */}
         <div className="grid grid-cols-2 gap-2 text-sm mb-2">
           <div className=" gap-2">
-            <span className="font-medium">Order :</span>
+            <span className="font-medium">{L("Order :")}</span>
             <br />
             <span>
               {" "}
@@ -469,7 +556,7 @@ const PrintOrderPage = () => {
             </span>
           </div>
           <div className="text-right">
-            <span className="font-medium">Date:</span>
+            <span className="font-medium">{L("Date:")}</span>
             <span>
               {" "}
               {new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
@@ -478,11 +565,11 @@ const PrintOrderPage = () => {
             </span>
           </div>
           <div>
-            <span className="font-medium">Type:</span>
+            <span className="font-medium">{L("Type:")}</span>
             <span> {getOrderTypeText(order)}</span>
           </div>
           <div className="text-right">
-            <span className="font-medium">Time:</span>
+            <span className="font-medium">{L("Time:")}</span>
             <span>
               {" "}
               {new Intl.DateTimeFormat("en-GB", {
@@ -502,7 +589,7 @@ const PrintOrderPage = () => {
               <div className="border-t border-black my-2"></div>
               <div className="text-sm">
                 <div className="font-bold text-sm uppercase mb-1">
-                  Order Details:
+                  {L("Order Details:")}
                 </div>
                 {/* Takeaway Phone */}
                 {(order.user?.phone || order.phone) && (
@@ -554,7 +641,7 @@ const PrintOrderPage = () => {
                 {order.payment_method && (
                   <div className="flex gap-2">
                     <div className="font-bold text-sm uppercase mb-1">
-                      Pay Via:
+                      {L("Pay Via:")}
                     </div>
                     <div className="text-sm mb-1 whitespace-pre-wrap uppercase">
                       {order.payment_method || "N/A"}
@@ -568,7 +655,7 @@ const PrintOrderPage = () => {
         <div className="border-b border-black my-2"></div>
 
         {/* Order Items */}
-        <h3 className="font-bold text-sm uppercase mb-1">Items Ordered</h3>
+        <h3 className="font-bold text-sm uppercase mb-1">{L("Items Ordered")}</h3>
         <ul className="space-y-1 text-sm">
           {(order?.items ?? []).map((item: any) => (
             <li key={item.id} className="flex justify-between">
@@ -644,7 +731,7 @@ const PrintOrderPage = () => {
         <div className="border-t border-black my-2"></div>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span>Subtotal:</span>
+            <span>{L("Subtotal:")}</span>
             <span>
               {currency}
               {subtotal.toFixed(2)}
@@ -695,7 +782,7 @@ const PrintOrderPage = () => {
             </div>
           )}
           <div className="flex justify-between font-bold text-base mt-2 border-t border-black pt-1">
-            <span>TOTAL:</span>
+            <span>{L("TOTAL:")}</span>
             <span>
               {currency}
               {grandTotal.toFixed(2)}
@@ -705,7 +792,7 @@ const PrintOrderPage = () => {
 
         {/* Footer */}
         <div className="text-center text-sm mt-4 pt-2 border-t border-dashed border-gray-400">
-          <p>Thank you for your visit!</p>
+          <p>{L("Thank you for your visit!")}</p>
           <p className="mt-1">
             {order?.partner?.gst_no
               ? `${showVat ? "VAT" : "GST"}: ${order?.partner.gst_no}`
@@ -744,9 +831,11 @@ const PrintOrderPage = () => {
           )}
 
           {!DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(order?.partner_id) && (
-            <p className="mt-2 text-xs text-gray-500">Powered By Menuthere</p>
+            <p className="mt-2 text-xs text-gray-500">{L("Powered By Menuthere")}</p>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
