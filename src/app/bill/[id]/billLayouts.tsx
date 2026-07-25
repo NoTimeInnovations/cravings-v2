@@ -43,7 +43,7 @@ const money = (n: unknown) => (Number(n) || 0).toFixed(2);
 
 // Bill-detail QR (customer scans to open the order online). Shared by both
 // invoice layouts; renders nothing when the toggle is off (src null).
-function DetailQr({ src }: { src?: string | null }) {
+function DetailQr({ src, size = 96 }: { src?: string | null; size?: number }) {
   if (!src) return null;
   return (
     <div className="c" style={{ marginTop: 6 }}>
@@ -53,7 +53,7 @@ function DetailQr({ src }: { src?: string | null }) {
       <img
         src={src}
         alt="Bill detail QR code"
-        style={{ width: 96, height: 96, display: "block", margin: "0 auto" }}
+        style={{ width: size, height: size, display: "block", margin: "0 auto" }}
       />
     </div>
   );
@@ -77,10 +77,12 @@ export function InvoiceLayout({
   data,
   fullArabic = false,
   detailQr = null,
+  qrSize = 96,
 }: {
   data: BillLayoutData;
   fullArabic?: boolean;
   detailQr?: string | null;
+  qrSize?: number;
 }) {
   const c = data.calculations || {};
   const vatPct = c.gst_percentage != null ? c.gst_percentage : 15;
@@ -183,7 +185,7 @@ export function InvoiceLayout({
       </div>
       <div className="cust">{customer}</div>
       <div className="thanks">*** THANK YOU ***</div>
-      <DetailQr src={detailQr} />
+      <DetailQr src={detailQr} size={qrSize} />
     </>
   );
 }
@@ -233,10 +235,12 @@ export function UaeInvoiceLayout({
   data,
   fullArabic = false,
   detailQr = null,
+  qrSize = 96,
 }: {
   data: BillLayoutData;
   fullArabic?: boolean;
   detailQr?: string | null;
+  qrSize?: number;
 }) {
   const c = data.calculations || {};
   const vatPct = c.gst_percentage != null ? c.gst_percentage : 5;
@@ -335,7 +339,7 @@ export function UaeInvoiceLayout({
         <span className="n">{money(grand)}</span>
       </div>
       <div className="thanks">*** THANK YOU ***</div>
-      <DetailQr src={detailQr} />
+      <DetailQr src={detailQr} size={qrSize} />
     </>
   );
 }

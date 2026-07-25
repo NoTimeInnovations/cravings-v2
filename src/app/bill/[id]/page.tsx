@@ -267,7 +267,7 @@ const PrintOrderPage = () => {
           billDetailUrl = `https://menuthere.com/bill/${formattedOrder.id}?print=false`;
           try {
             const detailQr = await QRCode.toDataURL(billDetailUrl, {
-              width: 200,
+              width: 400,
               margin: 1,
             });
             setDetailQrCode(detailQr);
@@ -461,6 +461,16 @@ const PrintOrderPage = () => {
   // Labeler for the default layout's static labels (Full Arabic option).
   const L = makeLabeler(fullArabic);
 
+  // QR display size, scaled to the paper: bigger on 80 mm than 58 mm. printWidth is
+  // the desktop's layout width ("<n>px", ~360 for 80 mm / ~240 for 58 mm) or "72mm"
+  // when viewed in a browser.
+  const qrSize = (() => {
+    const px = /^(\d+(?:\.\d+)?)px$/.exec(printWidth);
+    const mm = /^(\d+(?:\.\d+)?)mm$/.exec(printWidth);
+    const layoutPx = px ? parseFloat(px[1]) : mm ? parseFloat(mm[1]) * 3.78 : 240;
+    return Math.max(96, Math.min(240, Math.round(layoutPx * 0.5)));
+  })();
+
   // Formatted date/time shared by the default layout and the invoice data.
   const createdAtStr = new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
     new Date(order.created_at)
@@ -547,9 +557,9 @@ const PrintOrderPage = () => {
         style={containerStyle}
       >
         {billLayout === "invoice" ? (
-          <InvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} />
+          <InvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} qrSize={qrSize} />
         ) : billLayout === "uae" ? (
-          <UaeInvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} />
+          <UaeInvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} qrSize={qrSize} />
         ) : (
         <>
         {/* Header */}
@@ -858,7 +868,7 @@ const PrintOrderPage = () => {
                 <img
                   src={detailQrCode}
                   alt="Bill detail QR code"
-                  className="w-28 h-28"
+                  style={{ width: qrSize, height: qrSize }}
                 />
               </div>
             </div>
