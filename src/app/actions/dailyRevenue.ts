@@ -8,9 +8,10 @@
  * cash / pay-at-counter ("COD"), and the day's total revenue (prepaid + COD).
  *
  * "Prepaid" = an order whose money is already in through an online gateway
- * (is_paid AND payment_method is not cash). Everything else — unpaid orders and
- * cash orders — is COD. revenue = prepaid + cod always holds, so cod is derived
- * as revenue − prepaid rather than summed independently.
+ * (is_paid = true, on a non-POS order). Everything else — POS/counter orders
+ * (cash, UPI, card) and unpaid pay-on-delivery orders — is COD. revenue =
+ * prepaid + cod always holds, so cod is derived as revenue − prepaid rather than
+ * summed independently.
  */
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -81,6 +82,7 @@ const getPartnerOrders = `
       is_paid
       payment_method
       status
+      source
     }
   }
 `;
@@ -123,9 +125,23 @@ function localDateInTz(iso: string, timeZone: string): string | null {
   return y && m && day ? `${y}-${m}-${day}` : null;
 }
 
-/** An order counts as prepaid when its money is already in via an online gateway. */
-function isPrepaid(o: { is_paid?: boolean | null; payment_method?: string | null }): boolean {
-  return o.is_paid === true && (o.payment_method ?? "").toLowerCase() !== "cash";
+/**
+ * Prepaid = the money is already in via the ONLINE gateway (Cashfree/Razorpay),
+ * i.e. `is_paid = true` on a customer-placed order. Everything else — POS/counter
+ * (cash, UPI, card) and pay-on-delivery — is collected directly ("COD" bucket).
+ *
+ * We exclude only `source === "pos"` rather than requiring `source === "customer"`:
+ * `is_paid = true` is written ONLY by the gateway finalizers, so it reliably means
+ * gateway money — including legacy orders placed before the `source` column
+ * existed (`source = null`), which must stay Prepaid. The only thing to keep out
+ * is a POS order manually marked paid (`source = "pos"`), which is counter money,
+ * not a bank-settled gateway payment.
+ */
+function isPrepaid(o: {
+  is_paid?: boolean | null;
+  source?: string | null;
+}): boolean {
+  return o.is_paid === true && (o.source ?? "") !== "pos";
 }
 
 /**

@@ -4,10 +4,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   format,
   subDays,
-  startOfMonth,
   startOfDay,
   endOfDay,
 } from "date-fns";
+import * as ptime from "@/lib/partnerTime";
 import {
   Card,
   CardContent,
@@ -45,16 +45,27 @@ import { isFreePlan } from "@/lib/getPlanLimits";
 
 const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
 
-const toLocalStartISO = (date: Date) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-};
-
-const toLocalEndISO = (date: Date) => {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d.toISOString();
+/**
+ * UTC [start,end] for an analytics tab, bucketed by the PARTNER's timezone (not
+ * the browser's) so "today"/"this month" are correct worldwide. `customStart/
+ * customEnd` are the picked calendar dates for the custom tab.
+ */
+const buildRange = (
+  tab: "today" | "month" | "custom",
+  tz: string | null | undefined,
+  customStart: Date,
+  customEnd: Date,
+): { start: string; end: string } => {
+  if (tab === "today") {
+    const r = ptime.todayRange(tz);
+    return { start: r.startISO, end: r.endISO };
+  }
+  if (tab === "month") {
+    // Month-to-date in the partner's timezone.
+    return { start: ptime.monthRange(tz).startISO, end: ptime.todayRange(tz).endISO };
+  }
+  const r = ptime.dateRange(formatDate(customStart), formatDate(customEnd), tz);
+  return { start: r.startISO, end: r.endISO };
 };
 
 export function AdminV2Analytics() {
@@ -76,7 +87,9 @@ export function AdminV2Analytics() {
     });
   }, []);
   const [activeTab, setActiveTab] = useState<"today" | "month" | "custom">("today");
-  const [orderStatusFilter, setOrderStatusFilter] = useState<"completed" | "non_cancelled">("completed");
+  // Default to the same set as Settlements (all non-cancelled, non-draft) so the
+  // two screens reconcile; the toggle still offers completed-only.
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"completed" | "non_cancelled">("non_cancelled");
   const statusFilterGql =
     orderStatusFilter === "completed"
       ? `status: {_eq: "completed"}`
@@ -318,20 +331,8 @@ export function AdminV2Analytics() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const now = new Date();
-
-      let start, end;
-
-      if (activeTab === "today") {
-        start = toLocalStartISO(now);
-        end = toLocalEndISO(now);
-      } else if (activeTab === "month") {
-        start = toLocalStartISO(startOfMonth(now));
-        end = toLocalEndISO(now);
-      } else {
-        start = toLocalStartISO(dateRange.startDate);
-        end = toLocalEndISO(dateRange.endDate);
-      }
+      const tz = (userData as any)?.timezone;
+      const { start, end } = buildRange(activeTab, tz, dateRange.startDate, dateRange.endDate);
 
       const fetchOrders = async () => {
         switch (activeTab) {
@@ -551,19 +552,8 @@ export function AdminV2Analytics() {
 
   const prepareAllOrdersData = async () => {
     try {
-      let start;
-      let end;
-
-      if (activeTab === "today") {
-        start = toLocalStartISO(new Date());
-        end = toLocalEndISO(new Date());
-      } else if (activeTab === "month") {
-        start = toLocalStartISO(startOfMonth(new Date()));
-        end = toLocalEndISO(new Date());
-      } else {
-        start = toLocalStartISO(dateRange.startDate);
-        end = toLocalEndISO(dateRange.endDate);
-      }
+      const tz = (userData as any)?.timezone;
+      const { start, end } = buildRange(activeTab, tz, dateRange.startDate, dateRange.endDate);
 
       const { orders } = await fetchFromHasura(allOrdersIn, {
         startDate: start,

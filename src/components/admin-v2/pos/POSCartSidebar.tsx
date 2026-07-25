@@ -16,7 +16,8 @@ import { toast } from "sonner";
 import { hasuraClient, subscribeToHasura } from "@/lib/hasuraSubscription";
 import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
 import { subscriptionQuery } from "@/api/orders";
-import { startOfDay, endOfDay, parseISO, format, isSameDay } from "date-fns";
+import { parseISO, format } from "date-fns";
+import { todayRange, todayLocalDate, localDateInTz } from "@/lib/partnerTime";
 import { Badge } from "@/components/ui/badge";
 import {
     DropdownMenu,
@@ -129,8 +130,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     useEffect(() => {
         if (!userData?.id) return;
 
-        const todayStart = startOfDay(new Date()).toISOString();
-        const todayEnd = endOfDay(new Date()).toISOString();
+        // "Today" in the partner's own timezone (not the cashier's device), so a
+        // POS near local midnight or in a different tz still lists the right bills.
+        const { startISO: todayStart, endISO: todayEnd } = todayRange((userData as any)?.timezone);
 
         // Use the subscription to get real-time updates for today's orders
         const unsubscribe = subscribeToHasura({
@@ -169,7 +171,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                 (unsubscribe as any).dispose();
             }
         };
-    }, [userData?.id]);
+        // Re-open the window if the partner changes their timezone mid-session, so
+        // the fetched "today" span stays in sync with the tz-based display filter.
+    }, [userData?.id, (userData as any)?.timezone]);
 
     const handleOrderTypeChange = (type: "dine-in" | "takeaway" | "delivery") => {
         setPosOrderType(type);
@@ -334,8 +338,11 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         setIsAddingDiscount(false);
     };
 
+    // Filter to the partner's local "today" (not the device's day).
+    const partnerTz = (userData as any)?.timezone;
+    const todayLocal = todayLocalDate(partnerTz);
     const todaysOrders = pastBills.filter(order =>
-        order.createdAt && isSameDay(parseISO(order.createdAt), new Date())
+        order.createdAt && localDateInTz(order.createdAt, partnerTz) === todayLocal
     ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const hasPendingOrders = todaysOrders.some(order => order.status === 'pending');

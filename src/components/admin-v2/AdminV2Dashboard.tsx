@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { startOfMonth } from "date-fns";
+import * as ptime from "@/lib/partnerTime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -103,13 +103,10 @@ export function AdminV2Dashboard() {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const now = new Date();
-        const monthStart = new Date(startOfMonth(now));
-        monthStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(now);
-        dayEnd.setHours(23, 59, 59, 999);
-        const start = monthStart.toISOString();
-        const end = dayEnd.toISOString();
+        // Month-to-date in the partner's own timezone (not the browser's).
+        const tz = (userData as any)?.timezone;
+        const start = ptime.monthRange(tz).startISO;
+        const end = ptime.todayRange(tz).endISO;
 
         const qrCodesRes = await fetchFromHasura(GET_QR_CODES_BY_PARTNER, {
           partner_id: userData.id,
