@@ -63,10 +63,10 @@ export default function V6BrandHeader({
             <ArrowLeft className="h-[17px] w-[17px]" />
           </button>
         )}
-        {/* Logo — full logo (no border / rounding) in a compact square; the
-            partner's logo scale zooms past the image's whitespace so the mark
-            fills the box and the name stays tight on the left. */}
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden">
+        {/* Logo — full logo (no border / rounding); sized so the mark reads
+            clearly next to the store name. The partner's logo scale zooms past
+            the image's whitespace so the mark fills the box. */}
+        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden">
           {showBanner ? (
             isVideoUrl(storeBanner as string) ? (
               <video
