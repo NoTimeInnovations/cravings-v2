@@ -264,7 +264,7 @@ const PrintOrderPage = () => {
         // when the partner enabled it in Bill Printing settings.
         let billDetailUrl: string | null = null;
         if (isBillDetailQrEnabled(orders_by_pk.partner?.delivery_rules)) {
-          billDetailUrl = `https://menuthere.com/order/${formattedOrder.id}`;
+          billDetailUrl = `https://menuthere.com/bill/${formattedOrder.id}?print=false`;
           try {
             const detailQr = await QRCode.toDataURL(billDetailUrl, {
               width: 200,

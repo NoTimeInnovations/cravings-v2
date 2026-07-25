@@ -48,7 +48,13 @@ function DetailQr({ src }: { src?: string | null }) {
   return (
     <div className="c" style={{ marginTop: 6 }}>
       <div style={{ fontSize: 10, marginBottom: 2 }}>Scan for bill details</div>
-      <img src={src} alt="Bill detail QR code" style={{ width: 96, height: 96 }} />
+      {/* margin auto centers it: the img is display:block (Tailwind preflight),
+          so text-align on the parent can't center it. */}
+      <img
+        src={src}
+        alt="Bill detail QR code"
+        style={{ width: 96, height: 96, display: "block", margin: "0 auto" }}
+      />
     </div>
   );
 }
