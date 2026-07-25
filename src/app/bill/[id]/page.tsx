@@ -267,7 +267,7 @@ const PrintOrderPage = () => {
           billDetailUrl = `https://menuthere.com/bill/${formattedOrder.id}?print=false`;
           try {
             const detailQr = await QRCode.toDataURL(billDetailUrl, {
-              width: 400,
+              width: 256,
               margin: 1,
             });
             setDetailQrCode(detailQr);
@@ -479,7 +479,9 @@ const PrintOrderPage = () => {
     const px = /^(\d+(?:\.\d+)?)px$/.exec(printWidth);
     const mm = /^(\d+(?:\.\d+)?)mm$/.exec(printWidth);
     const layoutPx = px ? parseFloat(px[1]) : mm ? parseFloat(mm[1]) * 3.78 : 240;
-    return Math.max(96, Math.min(240, Math.round(layoutPx * 0.5)));
+    // ~40% of the paper width, clamped. Kept modest so it decodes fast and prints
+    // whole even on slow connections (a large QR could be captured half-decoded).
+    return Math.max(80, Math.min(150, Math.round(layoutPx * 0.4)));
   })();
 
   // Formatted date/time shared by the default layout and the invoice data.
