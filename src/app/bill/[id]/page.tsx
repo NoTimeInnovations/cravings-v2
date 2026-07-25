@@ -547,9 +547,9 @@ const PrintOrderPage = () => {
         style={containerStyle}
       >
         {billLayout === "invoice" ? (
-          <InvoiceLayout data={billData} fullArabic={fullArabic} />
+          <InvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} />
         ) : billLayout === "uae" ? (
-          <UaeInvoiceLayout data={billData} fullArabic={fullArabic} />
+          <UaeInvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} />
         ) : (
         <>
         {/* Header */}
