@@ -353,7 +353,7 @@ const V6ItemCard = ({
     ...variantPrices,
   );
   const hasPrice = maxAvailablePrice > 0;
-  const showAddButton = isOrderable && hasPrice && (hasOrderingFeature || hasDeliveryFeature) && !item.is_price_as_per_size && !isPartnersRole;
+  const showAddButton = isOrderable && hasPrice && (hasOrderingFeature || hasDeliveryFeature) && !item.is_price_as_per_size;
 
   const { ref: inViewRef, visible } = useInView();
 

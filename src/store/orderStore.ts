@@ -10,6 +10,7 @@ import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { getTakeawayAdjustment, applyTakeawayAdjustment } from "@/lib/takeawayPricing";
 import { ROUND_OFF_NAME, computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { getFeatures } from "@/lib/getFeatures";
+import { findOrCreateUserByPhone } from "@/lib/whatsappFlow/silentUser";
 import { getSafeStorage } from "@/lib/safeStorage";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -1594,9 +1595,32 @@ const useOrderStore = create(
           }
 
           const userData = useAuthStore.getState().userData;
-          if (!userData?.id || userData?.role !== "user") {
-            toast.error("Please login as user to place order");
+          // Allow a real customer (role "user") OR a partner/admin (role
+          // "partner") to place a customer-style order. Other roles (superadmin,
+          // captain) still can't order from the storefront.
+          if (!userData?.id || (userData.role !== "user" && userData.role !== "partner")) {
+            toast.error("Please login to place order");
             return null;
+          }
+
+          // Resolve the customer this order belongs to. A real customer already
+          // owns a `users` row (userData.id). A partner/admin has NO customer row
+          // — userData.id is the PARTNER id — so attach the order to a genuine
+          // customer account resolved from the checkout phone (find-or-create,
+          // same `${phone}@user.com` keying as the customer OTP login / POS
+          // silent-user). Without this the order would persist a partner id in
+          // user_id and break loyalty, "My Orders" and push notifications.
+          let effectiveUserId = userData.id;
+          let effectiveUserPhone: string | null = (userData as any).phone || null;
+          if (userData.role !== "user") {
+            const digits = String(customerPhone || (userData as any).phone || "").replace(/[^0-9]/g, "");
+            const resolvedId = digits.length >= 6 ? await findOrCreateUserByPhone(digits, customerName || null) : null;
+            if (!resolvedId) {
+              toast.error("Enter a phone number to place the order");
+              return null;
+            }
+            effectiveUserId = resolvedId;
+            effectiveUserPhone = digits;
           }
 
           const isValidUUID = (str: string) => {
@@ -1756,9 +1780,9 @@ const useOrderStore = create(
               qrId: validQrId,
               status: "pending",
               partnerId: hotelData.id,
-              userId: userData.id,
+              userId: effectiveUserId,
               user: {
-                phone: userData.phone || "N/A",
+                phone: effectiveUserPhone || "N/A",
                 full_name: customerName || (userData as any).full_name || null,
               },
               gstIncluded,
@@ -1780,9 +1804,9 @@ const useOrderStore = create(
               qr_id: validQrId,
               status: "pending",
               partner_id: hotelData.id,
-              user_id: userData.id,
+              user_id: effectiveUserId,
               user: {
-                phone: userData.phone || "N/A",
+                phone: effectiveUserPhone || "N/A",
                 full_name: customerName || (userData as any).full_name || null,
               },
               type,
@@ -1810,7 +1834,7 @@ const useOrderStore = create(
                     ],
                   }
                   : null,
-              orderedby: userData.id,
+              orderedby: effectiveUserId,
               status_history: null,
               captain_id: null,
               payment_details: null,
@@ -1941,7 +1965,7 @@ const useOrderStore = create(
               tableNumber: tableNumber || null,
               qrId: validQrId,
               partnerId: hotelData.id,
-              userId: userData.id,
+              userId: effectiveUserId,
               type,
               // Persist the checkout phone onto the order row itself (the same
               // value we send to Petpooja). Without this, orders.phone stays
@@ -2042,9 +2066,9 @@ const useOrderStore = create(
             qrId: validQrId,
             status: "pending",
             partnerId: hotelData.id,
-            userId: userData.id,
+            userId: effectiveUserId,
             user: {
-              phone: userData.phone || "N/A",
+              phone: effectiveUserPhone || "N/A",
               full_name: customerName || (userData as any).full_name || null,
             },
             gstIncluded,

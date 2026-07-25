@@ -320,8 +320,7 @@ const ItemCard = ({
     isOrderable &&
     hasPrice &&
     (hasOrderingFeature || hasDeliveryFeature) &&
-    !item.is_price_as_per_size &&
-    !isPartnersRole;
+    !item.is_price_as_per_size;
 
   const mainOfferPrice = offerData?.offer_price;
   const hasValidMainOffer = typeof mainOfferPrice === "number";

@@ -167,18 +167,14 @@ const Sidebar = ({
       : selectedCategoryProp || "all";
 
   const showBottomNav =
-    auth?.role === "user" &&
+    (auth?.role === "user" || auth?.role === "partner") &&
     !open_place_order_modal &&
     (getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled == true ||
       getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled == true);
   const categorySidebarRef = useRef<HTMLDivElement>(null);
 
-  // Reset persisted open_place_order_modal on mount (for partners who don't render OrderDrawer)
-  useEffect(() => {
-    if (auth?.role === "partner") {
-      setOpenPlaceOrderModal(false);
-    }
-  }, [auth?.role, setOpenPlaceOrderModal]);
+  // (Partners now render the OrderDrawer and can place customer-style orders,
+  // so we no longer force-close their place-order modal on mount.)
 
   // Swipe navigation between categories
   const touchStartX = useRef<number>(0);
@@ -647,7 +643,6 @@ const Sidebar = ({
             const features = getFeatures(hoteldata?.feature_flags || "");
             const isDeliveryActive = hoteldata?.delivery_rules?.isDeliveryActive ?? true;
             const canOrder =
-              auth?.role !== "partner" &&
               isDeliveryActive &&
               isWithinDeliveryTime() &&
               ((tableNumber !== 0 && features?.ordering.enabled) ||
@@ -1227,28 +1222,15 @@ const Sidebar = ({
 
       {activeTab === "food" ? (
         <>
-          {/* Partner login banner */}
-          {auth?.role === "partner" &&
-            ((tableNumber !== 0 &&
-              getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
-              (tableNumber === 0 &&
-                getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
-              Login as user to place order
-            </div>
-          )}
-
-          {/* OrderDrawer */}
-          {auth?.role !== "partner" && (
-            <OrderDrawer
-              styles={styles}
-              hotelData={hoteldata}
-              tableNumber={tableNumber}
-              qrId={qrId || undefined}
-              qrGroup={qrGroup}
-              hasBottomNav={showBottomNav}
-            />
-          )}
+          {/* OrderDrawer — partners (admins) can place customer-style orders too. */}
+          <OrderDrawer
+            styles={styles}
+            hotelData={hoteldata}
+            tableNumber={tableNumber}
+            qrId={qrId || undefined}
+            qrGroup={qrGroup}
+            hasBottomNav={showBottomNav}
+          />
         </>
       ) : (
         <CompactOrders hotelId={hoteldata?.id} styles={styles} />

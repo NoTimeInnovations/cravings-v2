@@ -861,7 +861,7 @@ const Compact = ({
 
   // Calculate if bottom nav should be shown
   const showBottomNav =
-    auth?.role === "user" &&
+    (auth?.role === "user" || auth?.role === "partner") &&
     !open_place_order_modal &&
     (getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ==
       true ||
@@ -1433,27 +1433,16 @@ const Compact = ({
               </div>
             )}
 
-            {/* Only show 'Login as user' if theme customizer is NOT open */}
-            {auth?.role === "partner" &&
-            !showThemeCustomizer &&
-            ((tableNumber !== 0 &&
-              getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
-              (tableNumber === 0 &&
-                getFeatures(hoteldata?.feature_flags || "")?.delivery
-                  .enabled)) ? (
-              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
-                Login as user to place order
-              </div>
-            ) : (
-              <OrderDrawer
-                styles={localStyles}
-                hotelData={hoteldata}
-                tableNumber={tableNumber}
-                qrId={qrId || undefined}
-                qrGroup={qrGroup}
-                hasBottomNav={showBottomNav}
-              />
-            )}
+            {/* Partners (admins) can place customer-style orders too, so always
+                render the OrderDrawer — the old "Login as user" banner is obsolete. */}
+            <OrderDrawer
+              styles={localStyles}
+              hotelData={hoteldata}
+              tableNumber={tableNumber}
+              qrId={qrId || undefined}
+              qrGroup={qrGroup}
+              hasBottomNav={showBottomNav}
+            />
           </>
         ) : activeTab === "offers" ? (
           <CompactOffersTab

@@ -154,22 +154,28 @@ const UnifiedAddressSection = ({
 
   const saveAddressesForUser = async (addresses: SavedAddress[]) => {
     try {
-      if (!user || (user as any).role !== "user") {
+      if (!user) {
         toast.error("Login to save addresses");
         return false;
       }
 
-      await fetchFromHasura(updateUserAddressesMutation, {
-        id: user.id,
-        addresses: addresses,
-      });
-
-      useAuthStore.setState({
-        userData: {
-          ...user,
+      // Only a real customer owns a `users` row to persist the address book to.
+      // A partner/admin placing an order uses the address transiently (it still
+      // rides on the order via userAddress/coordinates), so skip the DB write
+      // for them but let the flow continue so they can pick a delivery address.
+      if ((user as any).role === "user") {
+        await fetchFromHasura(updateUserAddressesMutation, {
+          id: user.id,
           addresses: addresses,
-        } as any,
-      });
+        });
+
+        useAuthStore.setState({
+          userData: {
+            ...user,
+            addresses: addresses,
+          } as any,
+        });
+      }
 
       return true;
     } catch (error) {
@@ -4258,7 +4264,7 @@ const PlaceOrderModal = ({
             }}
           >
             <div className="max-w-2xl mx-auto">
-              {user?.role !== "partner" && user?.role !== "superadmin" ? (
+              {user?.role !== "superadmin" ? (
                 <div className="flex items-center gap-2">
                   {/* Left: Pay Using selector */}
                   <div

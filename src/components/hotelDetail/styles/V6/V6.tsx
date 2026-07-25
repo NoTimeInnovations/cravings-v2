@@ -820,24 +820,18 @@ const V6 = ({
         )}
 
         {/* Floating cart / order drawer (reused) */}
-        {auth?.role === "partner" &&
-        ((tableNumber !== 0 && getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
-          (tableNumber === 0 && getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) ? (
-          <div className="fixed bottom-24 left-1/2 z-[200] w-[90%] max-w-md -translate-x-1/2 rounded-2xl bg-black px-6 py-4 text-center font-semibold text-white shadow-xl">
-            Login as user to place order
-          </div>
-        ) : (
-          <OrderDrawer
-            styles={styles}
-            hotelData={hoteldata}
-            tableNumber={tableNumber}
-            qrId={qrId || undefined}
-            qrGroup={qrGroup}
-            hasBottomNav={showBottomNav}
-            v3Style
-            hideCartBar
-          />
-        )}
+        {/* Partners (admins) can place customer-style orders too — always render
+            the OrderDrawer; the old "Login as user" banner is obsolete. */}
+        <OrderDrawer
+          styles={styles}
+          hotelData={hoteldata}
+          tableNumber={tableNumber}
+          qrId={qrId || undefined}
+          qrGroup={qrGroup}
+          hasBottomNav={showBottomNav}
+          v3Style
+          hideCartBar
+        />
 
         {/* Combined order-type + location sheet (reopened from the header). */}
         {orderTypeSheetOpen && hasAnyOrderType && (

@@ -240,7 +240,6 @@ const SidebarItemCard = ({
   const isOrderable = item.is_available && !isOutOfStock;
   const showAddButton =
     isOrderable &&
-    !isPartner &&
     (hasOrderingFeature || hasDeliveryFeature) &&
     !item.is_price_as_per_size;
 

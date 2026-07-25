@@ -315,7 +315,7 @@ const V4ItemCard = ({
 
   const isOrderable = item.is_available && !isOutOfStock;
   const hasPrice = typeof (offerData?.offer_price ?? item.price ?? item.variants?.[0]?.price) === "number";
-  const showAddButton = isOrderable && hasPrice && (hasOrderingFeature || hasDeliveryFeature) && !item.is_price_as_per_size && !isPartnersRole;
+  const showAddButton = isOrderable && hasPrice && (hasOrderingFeature || hasDeliveryFeature) && !item.is_price_as_per_size;
 
   const mainOfferPrice = offerData?.offer_price;
   const hasValidMainOffer = typeof mainOfferPrice === "number";
