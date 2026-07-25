@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { WhatsappNumberBanner } from "./WhatsappNumberBanner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +28,27 @@ import PartnerConnectionsCard from "@/components/PartnerConnectionsCard";
 
 export function GeneralSettings() {
     const { userData, setState } = useAuthStore();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    // The missing-number banner links here with ?focus=whatsapp — scroll to and
+    // focus the WhatsApp field so the partner lands right on it, then clear the
+    // hint so a later manual visit doesn't re-focus.
+    const whatsappInputRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+        if (searchParams.get("focus") !== "whatsapp") return;
+        const t = setTimeout(() => {
+            const el = whatsappInputRef.current;
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                el.focus({ preventScroll: true });
+            }
+            const params = new URLSearchParams(Array.from(searchParams.entries()));
+            params.delete("focus");
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        }, 200);
+        return () => clearTimeout(t);
+    }, [searchParams, pathname, router]);
     const [isSaving, setIsSaving] = useState(false);
     const [storeName, setStoreName] = useState("");
     const [storeTagline, setStoreTagline] = useState("");
@@ -304,6 +327,7 @@ export function GeneralSettings() {
 
     return (
         <div className="space-y-6">
+            <WhatsappNumberBanner />
             <div className="grid gap-6">
                 <Card>
                     <CardHeader>
@@ -355,7 +379,7 @@ export function GeneralSettings() {
                             </div>
                             <div className="space-y-2">
                                 <Label>WhatsApp Number</Label>
-                                <Input value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+91..." />
+                                <Input ref={whatsappInputRef} value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+91..." />
                             </div>
                             <div className="space-y-2">
                                 <Label>Currency</Label>

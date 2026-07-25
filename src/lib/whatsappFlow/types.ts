@@ -111,6 +111,7 @@ export const ORDER_FLOW_VARIABLES = [
   "total",
   "bill",
   "order_url",
+  "review_url",
   "driver_name",
   "driver_phone",
   "driver_details",

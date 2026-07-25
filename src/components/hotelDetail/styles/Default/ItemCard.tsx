@@ -16,6 +16,7 @@ import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 
 import { getTagColor } from "@/data/foodTags";
+import PairingRecommendations from "@/components/hotelDetail/shared/PairingRecommendations";
 
 const ItemCard = ({
   item,
@@ -650,6 +651,15 @@ const ItemCard = ({
               </div>
             ) : null
           )}
+
+          {/* Curated cross-sell — revealed once the item is in the cart */}
+          <PairingRecommendations
+            item={item}
+            hoteldata={hotelData as HotelData}
+            accent={styles.accent}
+            canOrder={!!(hasOrderingFeature || hasDeliveryFeature)}
+            hasStockFeature={!!hasStockFeature}
+          />
         </div>
       </div>
 

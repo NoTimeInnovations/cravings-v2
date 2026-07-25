@@ -1367,9 +1367,14 @@ export async function runOrderTriggeredFlows(args: {
   if (!candidates.length) return;
 
   for (const { flow, t } of candidates) {
-    // Idempotency: each (order, status, trigger) fires at most once even if the
-    // order row is updated again or the event is redelivered.
-    const idemKey = `order_${orderId}_${status}_${t.nodeId || flow.id}`;
+    // Idempotency: each (order, status, FLOW) fires at most once even if the
+    // order row is updated again or the event is redelivered. Key on flow.id —
+    // NOT the trigger nodeId — because two different flows can both trigger on
+    // the same order status (e.g. "Order completed" + "Order review request")
+    // and every default flow names its trigger node "trigger". Keying on the
+    // shared nodeId made the second flow collide on the unique wa_message_id and
+    // get silently dropped, so only one of them ever fired.
+    const idemKey = `order_${orderId}_${status}_${flow.id}`;
     try {
       await fetchFromHasura(M_EVENT, {
         o: {

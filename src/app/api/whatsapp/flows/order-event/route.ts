@@ -169,6 +169,7 @@ export async function POST(req: NextRequest) {
     // ── Order link + driver / tracking (for placed & dispatched flows) ──
     // The order page resolves the order UUID, so the link uses order.id.
     const orderUrl = `https://menuthere.com/order/${order.id}`;
+    const reviewUrl = `https://menuthere.com/review/${order.id}`;
 
     // Driver may come from the partner's own rider, the Adloggs agent, or the
     // Porter/bridge provider meta — first non-empty wins. All optional.
@@ -222,6 +223,7 @@ export async function POST(req: NextRequest) {
       total: `${currency}${fmtMoney(totalNum)}`,
       bill: billLines.join("\n"),
       order_url: orderUrl,
+      review_url: reviewUrl,
       driver_name: driverName,
       driver_phone: driverPhone,
       driver_details: driverDetails,

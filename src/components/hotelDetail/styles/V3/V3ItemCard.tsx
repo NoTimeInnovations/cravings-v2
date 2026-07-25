@@ -15,6 +15,7 @@ import { X } from "lucide-react";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
+import PairingRecommendations from "@/components/hotelDetail/shared/PairingRecommendations";
 
 function useInView() {
   const ref = useRef<HTMLDivElement>(null);
@@ -331,6 +332,9 @@ const V3ItemCard = ({
 
   return (
     <>
+      {/* Wrapper keeps the V3 list's divide-y divider between whole cards, not
+          between a row and its own recommendation strip. */}
+      <div>
       {/* V3 list-style (Zomato) item card */}
       <div
         ref={inViewRef}
@@ -523,6 +527,15 @@ const V3ItemCard = ({
             </div>
           )}
         </div>
+      </div>
+        <PairingRecommendations
+          item={item}
+          hoteldata={hoteldata}
+          accent={styles.accent}
+          canOrder={!!(hasOrderingFeature || hasDeliveryFeature)}
+          isPartnersRole={isPartnersRole}
+          hasStockFeature={!!hasStockFeature}
+        />
       </div>
 
       {/* Bottom Sheet for Item Details (non-variant items) */}

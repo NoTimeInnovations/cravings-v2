@@ -6,11 +6,16 @@ import { getAuthCookie } from "@/app/auth/actions";
 import { getFeatures } from "@/lib/getFeatures";
 import {
   DELTA_SIGN,
-  parseLoyaltySettings,
+  parseLoyaltySettingsV2,
+  resolveLoyaltyForType,
+  anyLoyaltyTypeEnabled,
+  deriveLoyaltyOrderType,
   computeEarnPoints,
   computeMaxRedeemable,
   pointsToValue,
   type LoyaltySettings,
+  type LoyaltyOrderType,
+  type LoyaltySettingsV2,
   type LoyaltyTxnType,
   type LoyaltyBalanceView,
   type LoyaltyTxnView,
@@ -86,8 +91,14 @@ async function requirePartnerScope(wantPartnerId?: string): Promise<{ partnerId:
 // --------------------------------------------------------------------------
 
 async function loadPartnerLoyalty(
-  partnerId: string
-): Promise<{ enabled: boolean; settings: LoyaltySettings }> {
+  partnerId: string,
+  orderType?: LoyaltyOrderType,
+): Promise<{
+  enabled: boolean;
+  settings: LoyaltySettings;
+  v2: LoyaltySettingsV2;
+  globalEnabled: boolean;
+}> {
   const res = await fetchFromHasuraServer(
     `query PartnerLoyalty($id: uuid!) {
       partners_by_pk(id: $id) { id feature_flags loyalty_settings }
@@ -95,10 +106,16 @@ async function loadPartnerLoyalty(
     { id: partnerId }
   );
   const p = res?.partners_by_pk;
-  if (!p) return { enabled: false, settings: parseLoyaltySettings(null) };
+  const v2 = parseLoyaltySettingsV2(p?.loyalty_settings);
+  const resolved = resolveLoyaltyForType(v2, orderType ?? "delivery");
+  if (!p) return { enabled: false, settings: resolved.settings, v2, globalEnabled: false };
   const features = getFeatures(p.feature_flags || null);
-  const enabled = !!(features.loyalty_points?.access && features.loyalty_points?.enabled);
-  return { enabled, settings: parseLoyaltySettings(p.loyalty_settings) };
+  const globalEnabled = !!(features.loyalty_points?.access && features.loyalty_points?.enabled);
+  // With an order type known, gate on THAT type's toggle. Without one (balance
+  // badge / admin views), keep loyalty "on" whenever the global flag is on so a
+  // customer's accrued balance stays visible even if every type is toggled off.
+  const typeEnabled = orderType ? resolved.enabled : true;
+  return { enabled: globalEnabled && typeEnabled, settings: resolved.settings, v2, globalEnabled };
 }
 
 // --------------------------------------------------------------------------
@@ -376,7 +393,7 @@ export async function awardLoyaltyForOrder(
   try {
     const res = await fetchFromHasuraServer(
       `query OrderForAward($id: uuid!) {
-        orders_by_pk(id: $id) { id user_id partner_id total_price status loyalty_points_earned }
+        orders_by_pk(id: $id) { id user_id partner_id total_price status loyalty_points_earned type delivery_address delivery_location }
       }`,
       { id: orderId }
     );
@@ -388,8 +405,11 @@ export async function awardLoyaltyForOrder(
       return { ok: true, points: o.loyalty_points_earned, reason: "already awarded" };
     }
 
-    const { enabled, settings } = await loadPartnerLoyalty(o.partner_id);
-    if (!enabled) return { ok: false, points: 0, reason: "loyalty disabled" };
+    // Loyalty rules are per order type; the stored `type` conflates delivery and
+    // takeaway (both "delivery"), so derive the logical type from type + address.
+    const orderType = deriveLoyaltyOrderType(o.type, o.delivery_address, o.delivery_location);
+    const { enabled, settings } = await loadPartnerLoyalty(o.partner_id, orderType);
+    if (!enabled) return { ok: false, points: 0, reason: `loyalty disabled for ${orderType}` };
 
     const points = computeEarnPoints(Number(o.total_price) || 0, settings);
 
@@ -452,17 +472,30 @@ export async function getLoyaltyRedeemContext(partnerId: string): Promise<{
   enabled: boolean;
   balance: number;
   pointValue: number;
-  minRedeemPoints: number;
-  maxRedeemPercent: number;
+  byType: Record<
+    LoyaltyOrderType,
+    { enabled: boolean; minRedeemPoints: number; maxRedeemPercent: number }
+  >;
 }> {
   const auth = await getAuthCookie();
-  const { enabled, settings } = await loadPartnerLoyalty(partnerId);
+  const { v2, globalEnabled } = await loadPartnerLoyalty(partnerId);
+  // Per-type redemption rules so the checkout can pick the block for whichever
+  // order type the customer selects — no refetch when they switch tabs.
+  const perType = (t: LoyaltyOrderType) => ({
+    enabled: globalEnabled && v2.per_type[t].enabled,
+    minRedeemPoints: v2.per_type[t].min_redeem_points,
+    maxRedeemPercent: v2.per_type[t].max_redeem_percent,
+  });
   const base = {
-    pointValue: settings.point_value,
-    minRedeemPoints: settings.min_redeem_points,
-    maxRedeemPercent: settings.max_redeem_percent,
+    pointValue: v2.point_value,
+    byType: {
+      delivery: perType("delivery"),
+      takeaway: perType("takeaway"),
+      dine_in: perType("dine_in"),
+    },
   };
-  if (!auth || auth.role !== "user" || !enabled || !partnerId) {
+  const anyEnabled = globalEnabled && anyLoyaltyTypeEnabled(v2);
+  if (!auth || auth.role !== "user" || !anyEnabled || !partnerId) {
     return { enabled: false, balance: 0, ...base };
   }
   return { enabled: true, balance: await accountBalance(auth.id, partnerId), ...base };
@@ -487,7 +520,7 @@ export async function redeemLoyaltyPoints(args: {
 
     const ores = await fetchFromHasuraServer(
       `query OrderForRedeem($id: uuid!) {
-        orders_by_pk(id: $id) { id user_id partner_id total_price status loyalty_points_redeemed loyalty_redeem_value }
+        orders_by_pk(id: $id) { id user_id partner_id total_price status loyalty_points_redeemed loyalty_redeem_value type delivery_address delivery_location }
       }`,
       { id: orderId }
     );
@@ -511,8 +544,9 @@ export async function redeemLoyaltyPoints(args: {
       };
     }
 
-    const { enabled, settings } = await loadPartnerLoyalty(o.partner_id);
-    if (!enabled) return { ok: false, points: 0, value: 0, orderTotal: base, newBalance: 0, message: "Loyalty not enabled." };
+    const orderType = deriveLoyaltyOrderType(o.type, o.delivery_address, o.delivery_location);
+    const { enabled, settings } = await loadPartnerLoyalty(o.partner_id, orderType);
+    if (!enabled) return { ok: false, points: 0, value: 0, orderTotal: base, newBalance: 0, message: `Loyalty isn't available for ${orderType} orders.` };
 
     const want = Math.floor(args.points);
     if (!Number.isFinite(want) || want <= 0) {

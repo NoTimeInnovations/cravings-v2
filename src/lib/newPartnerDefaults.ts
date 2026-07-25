@@ -63,16 +63,16 @@ export const buildNewPartnerTrialSubscription = (country?: string) => {
 };
 
 // Default delivery pricing + service windows for every new partner.
-// "first 4 km ₹40, then ₹10 per additional km" → first_km_range {km:4, rate:40}
-// plus the separate partners.delivery_rate column (= per-additional-km rate).
-// Delivery & takeaway both run all day (00:00–23:59) by default. The partner can
-// change all of this in Settings → Delivery.
-export const NEW_PARTNER_DELIVERY_RATE = 10;
+// No preset delivery charge: first_km_range {km:1, rate:0} and a ₹0 per-km rate,
+// matching the Delivery settings' own empty state — the partner sets their own
+// pricing in Settings → Delivery. Delivery & takeaway both run all day
+// (00:00–23:59) by default.
+export const NEW_PARTNER_DELIVERY_RATE = 0;
 
 export const NEW_PARTNER_DELIVERY_RULES = {
   delivery_radius: 5,
   delivery_mode: "basic" as const,
-  first_km_range: { km: 4, rate: 40 },
+  first_km_range: { km: 1, rate: 0 },
   delivery_ranges: [] as { from_km: number; to_km: number; rate: number }[],
   is_fixed_rate: false,
   minimum_order_amount: 0,

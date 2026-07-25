@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { WhatsappNumberBanner } from "./WhatsappNumberBanner";
 import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
@@ -61,6 +62,7 @@ export function OrderTypesSettings() {
 
     return (
         <div className="space-y-4">
+            <WhatsappNumberBanner />
             <Card>
                 <CardHeader>
                     <CardTitle>Order Types</CardTitle>
