@@ -46,3 +46,14 @@ export function getBillLayout(deliveryRules: any): BillLayout {
 export function isFullArabic(deliveryRules: any): boolean {
   return !!parseDeliveryRules(deliveryRules)?.bill_full_arabic;
 }
+
+/**
+ * Whether to print a "bill detail" QR on the bill
+ * (partners.delivery_rules.bill_show_detail_qr). When on, the standard bill
+ * footer shows a QR the customer can scan to open the order online
+ * (menuthere.com/order/<id>) — rendered on the /bill page and printed via an
+ * ESC/POS QR command by the desktop app's text path.
+ */
+export function isBillDetailQrEnabled(deliveryRules: any): boolean {
+  return !!parseDeliveryRules(deliveryRules)?.bill_show_detail_qr;
+}

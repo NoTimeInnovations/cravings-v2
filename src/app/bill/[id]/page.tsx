@@ -8,7 +8,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { isVatEnabled, getTrn } from "@/lib/taxLabel";
-import { getBillLayout, isFullArabic } from "@/lib/printLayout";
+import { getBillLayout, isFullArabic, isBillDetailQrEnabled } from "@/lib/printLayout";
 import { makeLabeler } from "@/lib/arabicBillLabels";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
@@ -112,6 +112,7 @@ const PrintOrderPage = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const [isParcel, setIsParcel] = useState(false);
   const [paymentQrCode, setPaymentQrCode] = useState<string | null>(null);
+  const [detailQrCode, setDetailQrCode] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const silentPrint = searchParams.get("print") === "false";
   const printWidth = searchParams.get("w") || "72mm";
@@ -259,6 +260,22 @@ const PrintOrderPage = () => {
           }
         }
 
+        // Generate the "bill detail" QR (links the customer to the order online)
+        // when the partner enabled it in Bill Printing settings.
+        let billDetailUrl: string | null = null;
+        if (isBillDetailQrEnabled(orders_by_pk.partner?.delivery_rules)) {
+          billDetailUrl = `https://menuthere.com/order/${formattedOrder.id}`;
+          try {
+            const detailQr = await QRCode.toDataURL(billDetailUrl, {
+              width: 200,
+              margin: 1,
+            });
+            setDetailQrCode(detailQr);
+          } catch (err) {
+            console.error("Error generating bill detail QR code:", err);
+          }
+        }
+
         // Log the bill contents in JSON format
         // determine timezone to display for partner-facing documents
         const tz =
@@ -336,6 +353,9 @@ const PrintOrderPage = () => {
               fssai_licence_no: formattedOrder.fssai_licence_no,
               country: formattedOrder.partner?.country,
               payment_upi_string: upiString,
+              // Bill-detail QR URL for the desktop app's ESC/POS text path
+              // (null when the toggle is off).
+              bill_detail_url: billDetailUrl,
               show_powered_by_cravings: !DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(formattedOrder.partner_id),
               // Bill-printing layout config (set in the dashboard, stored in
               // delivery_rules). The desktop print app reads these from this
@@ -827,6 +847,20 @@ const PrintOrderPage = () => {
                 {currency}
                 {grandTotal.toFixed(2)}
               </p>
+            </div>
+          )}
+
+          {/* Bill detail QR — customer scans to open the order online */}
+          {detailQrCode && (
+            <div className="mt-3 pt-3 border-t border-dashed border-gray-400">
+              <p className="text-xs font-medium mb-2">Scan for bill details</p>
+              <div className="flex justify-center">
+                <img
+                  src={detailQrCode}
+                  alt="Bill detail QR code"
+                  className="w-28 h-28"
+                />
+              </div>
             </div>
           )}
 

@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
-import { getBillLayout, isFullArabic, type BillLayout } from "@/lib/printLayout";
+import { getBillLayout, isFullArabic, isBillDetailQrEnabled, type BillLayout } from "@/lib/printLayout";
 
 // Layout choices, mirrored in the desktop print app (main.js VALID_BILL_LAYOUTS)
 // and rendered by the /bill page (billLayouts.tsx).
@@ -32,6 +32,7 @@ export function BillPrintingSettings() {
     const [includeCategoryName, setIncludeCategoryName] = useState(false);
     const [billLayout, setBillLayout] = useState<BillLayout>("default");
     const [fullArabic, setFullArabic] = useState(false);
+    const [showDetailQr, setShowDetailQr] = useState(false);
 
     useEffect(() => {
         if (userData) {
@@ -39,6 +40,7 @@ export function BillPrintingSettings() {
             setIncludeCategoryName(!!data.delivery_rules?.bill_include_category_name);
             setBillLayout(getBillLayout(data.delivery_rules));
             setFullArabic(isFullArabic(data.delivery_rules));
+            setShowDetailQr(isBillDetailQrEnabled(data.delivery_rules));
         }
     }, [userData]);
 
@@ -55,6 +57,7 @@ export function BillPrintingSettings() {
                     bill_include_category_name: includeCategoryName,
                     bill_layout: billLayout,
                     bill_full_arabic: fullArabic,
+                    bill_show_detail_qr: showDetailQr,
                 },
             };
 
@@ -69,7 +72,7 @@ export function BillPrintingSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, includeCategoryName, billLayout, fullArabic, setState]);
+    }, [userData, includeCategoryName, billLayout, fullArabic, showDetailQr, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -91,9 +94,10 @@ export function BillPrintingSettings() {
         const changed =
             includeCategoryName !== !!data.delivery_rules?.bill_include_category_name ||
             billLayout !== getBillLayout(data.delivery_rules) ||
-            fullArabic !== isFullArabic(data.delivery_rules);
+            fullArabic !== isFullArabic(data.delivery_rules) ||
+            showDetailQr !== isBillDetailQrEnabled(data.delivery_rules);
         setHasChanges(changed);
-    }, [includeCategoryName, billLayout, fullArabic, userData, setHasChanges]);
+    }, [includeCategoryName, billLayout, fullArabic, showDetailQr, userData, setHasChanges]);
 
     return (
         <div className="space-y-6">
@@ -115,6 +119,17 @@ export function BillPrintingSettings() {
                             </p>
                         </div>
                         <Switch checked={includeCategoryName} onCheckedChange={setIncludeCategoryName} />
+                    </div>
+
+                    <div className="flex items-center justify-between border rounded-lg p-4">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Show bill detail QR</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Print a QR code on the bill that the customer can scan to open the
+                                order details online (menuthere.com/order/&hellip;).
+                            </p>
+                        </div>
+                        <Switch checked={showDetailQr} onCheckedChange={setShowDetailQr} />
                     </div>
                 </CardContent>
             </Card>
