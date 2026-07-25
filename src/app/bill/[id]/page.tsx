@@ -8,7 +8,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { isVatEnabled, getTrn } from "@/lib/taxLabel";
-import { getBillLayout, isFullArabic, isBillDetailQrEnabled } from "@/lib/printLayout";
+import { getBillLayout, isFullArabic, isBillDetailQrEnabled, isBillLogoEnabled, getBillLogoUrl } from "@/lib/printLayout";
 import { makeLabeler } from "@/lib/arabicBillLabels";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
@@ -356,6 +356,12 @@ const PrintOrderPage = () => {
               // Bill-detail QR URL for the desktop app's ESC/POS text path
               // (null when the toggle is off).
               bill_detail_url: billDetailUrl,
+              // Store-logo URL to print atop the bill (null when off). Its
+              // presence tells the desktop app to use the raster path so the
+              // logo image actually prints.
+              bill_logo_url: isBillLogoEnabled(orders_by_pk.partner?.delivery_rules)
+                ? getBillLogoUrl(orders_by_pk.partner?.delivery_rules)
+                : null,
               show_powered_by_cravings: !DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(formattedOrder.partner_id),
               // Bill-printing layout config (set in the dashboard, stored in
               // delivery_rules). The desktop print app reads these from this
@@ -461,6 +467,11 @@ const PrintOrderPage = () => {
   // Labeler for the default layout's static labels (Full Arabic option).
   const L = makeLabeler(fullArabic);
 
+  // Store logo to print at the top of the bill (only when enabled + uploaded).
+  const billLogoUrl = isBillLogoEnabled(order?.partner?.delivery_rules)
+    ? getBillLogoUrl(order?.partner?.delivery_rules)
+    : null;
+
   // QR display size, scaled to the paper: bigger on 80 mm than 58 mm. printWidth is
   // the desktop's layout width ("<n>px", ~360 for 80 mm / ~240 for 58 mm) or "72mm"
   // when viewed in a browser.
@@ -557,12 +568,22 @@ const PrintOrderPage = () => {
         style={containerStyle}
       >
         {billLayout === "invoice" ? (
-          <InvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} qrSize={qrSize} />
+          <InvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} qrSize={qrSize} logoUrl={billLogoUrl} />
         ) : billLayout === "uae" ? (
-          <UaeInvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} qrSize={qrSize} />
+          <UaeInvoiceLayout data={billData} fullArabic={fullArabic} detailQr={detailQrCode} qrSize={qrSize} logoUrl={billLogoUrl} />
         ) : (
         <>
         {/* Header */}
+        {billLogoUrl && (
+          <div className="flex justify-center mb-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={billLogoUrl}
+              alt="Store logo"
+              style={{ maxWidth: "70%", maxHeight: 120, objectFit: "contain" }}
+            />
+          </div>
+        )}
         <h2 className="text-xl font-bold text-center uppercase">
           {order?.partner?.store_name || "Restaurant"}
         </h2>

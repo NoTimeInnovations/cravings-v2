@@ -57,3 +57,21 @@ export function isFullArabic(deliveryRules: any): boolean {
 export function isBillDetailQrEnabled(deliveryRules: any): boolean {
   return !!parseDeliveryRules(deliveryRules)?.bill_show_detail_qr;
 }
+
+/**
+ * Whether to print the store logo at the top of the bill
+ * (partners.delivery_rules.bill_show_logo). Only shown when a logo has actually
+ * been uploaded (getBillLogoUrl is non-empty).
+ */
+export function isBillLogoEnabled(deliveryRules: any): boolean {
+  return !!parseDeliveryRules(deliveryRules)?.bill_show_logo;
+}
+
+/**
+ * The uploaded bill-logo image URL (partners.delivery_rules.bill_logo_url), or
+ * null when none has been set.
+ */
+export function getBillLogoUrl(deliveryRules: any): string | null {
+  const url = parseDeliveryRules(deliveryRules)?.bill_logo_url;
+  return typeof url === "string" && url.trim() ? url.trim() : null;
+}

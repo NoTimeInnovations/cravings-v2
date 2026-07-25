@@ -4,13 +4,24 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2, Upload, Trash2 } from "lucide-react";
 
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
+import { uploadFileToS3, deleteFileFromS3 } from "@/app/actions/aws-s3";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
-import { getBillLayout, isFullArabic, isBillDetailQrEnabled, type BillLayout } from "@/lib/printLayout";
+import {
+    getBillLayout,
+    isFullArabic,
+    isBillDetailQrEnabled,
+    isBillLogoEnabled,
+    getBillLogoUrl,
+    type BillLayout,
+} from "@/lib/printLayout";
 
 // Layout choices, mirrored in the desktop print app (main.js VALID_BILL_LAYOUTS)
 // and rendered by the /bill page (billLayouts.tsx).
@@ -33,6 +44,9 @@ export function BillPrintingSettings() {
     const [billLayout, setBillLayout] = useState<BillLayout>("default");
     const [fullArabic, setFullArabic] = useState(false);
     const [showDetailQr, setShowDetailQr] = useState(false);
+    const [showLogo, setShowLogo] = useState(false);
+    const [billLogoUrl, setBillLogoUrl] = useState<string | null>(null);
+    const [isLogoUploading, setIsLogoUploading] = useState(false);
 
     useEffect(() => {
         if (userData) {
@@ -41,8 +55,49 @@ export function BillPrintingSettings() {
             setBillLayout(getBillLayout(data.delivery_rules));
             setFullArabic(isFullArabic(data.delivery_rules));
             setShowDetailQr(isBillDetailQrEnabled(data.delivery_rules));
+            setShowLogo(isBillLogoEnabled(data.delivery_rules));
+            setBillLogoUrl(getBillLogoUrl(data.delivery_rules));
         }
     }, [userData]);
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = ""; // allow re-selecting the same file
+        if (!file || !userData) return;
+        if (!file.type.startsWith("image/")) {
+            toast.error("Please choose an image file");
+            return;
+        }
+        setIsLogoUploading(true);
+        try {
+            // Remove the previously uploaded logo from S3 (best-effort).
+            if (billLogoUrl?.includes("cravingsbucket")) {
+                await deleteFileFromS3(billLogoUrl).catch(() => {});
+            }
+            const ext = file.type.split("/")[1] || "png";
+            const url = await uploadFileToS3(
+                file,
+                `bill_logos/${(userData as any).id}_${Date.now()}.${ext}`
+            );
+            if (!url) throw new Error("Upload failed");
+            setBillLogoUrl(url);
+            setShowLogo(true); // enabling on first upload is the expected default
+            toast.success("Logo uploaded — press Save to apply");
+        } catch (err) {
+            console.error("Bill logo upload error:", err);
+            toast.error("Failed to upload logo");
+        } finally {
+            setIsLogoUploading(false);
+        }
+    };
+
+    const handleLogoRemove = async () => {
+        if (billLogoUrl?.includes("cravingsbucket")) {
+            await deleteFileFromS3(billLogoUrl).catch(() => {});
+        }
+        setBillLogoUrl(null);
+        setShowLogo(false);
+    };
 
     const handleSave = useCallback(async () => {
         if (!userData) return;
@@ -58,6 +113,8 @@ export function BillPrintingSettings() {
                     bill_layout: billLayout,
                     bill_full_arabic: fullArabic,
                     bill_show_detail_qr: showDetailQr,
+                    bill_show_logo: showLogo,
+                    bill_logo_url: billLogoUrl || "",
                 },
             };
 
@@ -72,7 +129,7 @@ export function BillPrintingSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, includeCategoryName, billLayout, fullArabic, showDetailQr, setState]);
+    }, [userData, includeCategoryName, billLayout, fullArabic, showDetailQr, showLogo, billLogoUrl, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -95,9 +152,11 @@ export function BillPrintingSettings() {
             includeCategoryName !== !!data.delivery_rules?.bill_include_category_name ||
             billLayout !== getBillLayout(data.delivery_rules) ||
             fullArabic !== isFullArabic(data.delivery_rules) ||
-            showDetailQr !== isBillDetailQrEnabled(data.delivery_rules);
+            showDetailQr !== isBillDetailQrEnabled(data.delivery_rules) ||
+            showLogo !== isBillLogoEnabled(data.delivery_rules) ||
+            (billLogoUrl || null) !== getBillLogoUrl(data.delivery_rules);
         setHasChanges(changed);
-    }, [includeCategoryName, billLayout, fullArabic, showDetailQr, userData, setHasChanges]);
+    }, [includeCategoryName, billLayout, fullArabic, showDetailQr, showLogo, billLogoUrl, userData, setHasChanges]);
 
     return (
         <div className="space-y-6">
@@ -130,6 +189,72 @@ export function BillPrintingSettings() {
                             </p>
                         </div>
                         <Switch checked={showDetailQr} onCheckedChange={setShowDetailQr} />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Bill logo</CardTitle>
+                    <CardDescription>
+                        Upload a logo to print at the top of the bill, and choose whether to show it.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center gap-4">
+                        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
+                            {billLogoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={billLogoUrl}
+                                    alt="Bill logo"
+                                    className="h-full w-full object-contain"
+                                />
+                            ) : (
+                                <span className="text-[11px] text-muted-foreground text-center px-1">
+                                    No logo
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Button variant="outline" className="relative" disabled={isLogoUploading}>
+                                {isLogoUploading ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Upload className="mr-2 h-4 w-4" />
+                                )}
+                                {billLogoUrl ? "Replace logo" : "Upload logo"}
+                                <Input
+                                    type="file"
+                                    accept="image/*"
+                                    className="absolute inset-0 cursor-pointer opacity-0"
+                                    onChange={handleLogoUpload}
+                                    disabled={isLogoUploading}
+                                />
+                            </Button>
+                            {billLogoUrl && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-500 hover:text-red-600 justify-start px-2"
+                                    onClick={handleLogoRemove}
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Remove
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border rounded-lg p-4">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Show logo on bill</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Print the uploaded logo at the top of the bill. Bills with a logo print as
+                                an image, so text may look slightly softer than the plain receipt.
+                            </p>
+                        </div>
+                        <Switch checked={showLogo} onCheckedChange={setShowLogo} disabled={!billLogoUrl} />
                     </div>
                 </CardContent>
             </Card>

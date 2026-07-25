@@ -58,6 +58,24 @@ function DetailQr({ src, size = 96 }: { src?: string | null; size?: number }) {
     </div>
   );
 }
+
+// Store logo printed at the top of the invoice layouts (nothing when off/unset).
+function BillLogo({ src }: { src?: string | null }) {
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt="Store logo"
+      style={{
+        maxWidth: "70%",
+        maxHeight: 90,
+        objectFit: "contain",
+        display: "block",
+        margin: "0 auto 4px",
+      }}
+    />
+  );
+}
 const NBSP2 = "  ";
 
 // ───────────────────────── ZATCA "invoice" layout ─────────────────────────
@@ -78,11 +96,13 @@ export function InvoiceLayout({
   fullArabic = false,
   detailQr = null,
   qrSize = 96,
+  logoUrl = null,
 }: {
   data: BillLayoutData;
   fullArabic?: boolean;
   detailQr?: string | null;
   qrSize?: number;
+  logoUrl?: string | null;
 }) {
   const c = data.calculations || {};
   const vatPct = c.gst_percentage != null ? c.gst_percentage : 15;
@@ -110,6 +130,7 @@ export function InvoiceLayout({
   return (
     <>
       <style>{invoiceCss}</style>
+      <BillLogo src={logoUrl} />
       <div className="c store">{data.store_name || ""}</div>
       {data.address ? <div className="c sub">{data.address}</div> : null}
       {data.gst_no ? (
@@ -236,11 +257,13 @@ export function UaeInvoiceLayout({
   fullArabic = false,
   detailQr = null,
   qrSize = 96,
+  logoUrl = null,
 }: {
   data: BillLayoutData;
   fullArabic?: boolean;
   detailQr?: string | null;
   qrSize?: number;
+  logoUrl?: string | null;
 }) {
   const c = data.calculations || {};
   const vatPct = c.gst_percentage != null ? c.gst_percentage : 5;
@@ -262,6 +285,7 @@ export function UaeInvoiceLayout({
   return (
     <>
       <style>{uaeCss}</style>
+      <BillLogo src={logoUrl} />
       <div className="c store">{data.store_name || ""}</div>
       {data.address ? <div className="c sub">{data.address}</div> : null}
       {data.phone ? (
