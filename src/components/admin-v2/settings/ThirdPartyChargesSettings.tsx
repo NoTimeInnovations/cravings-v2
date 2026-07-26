@@ -9,46 +9,18 @@ import {
     CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { useAuthStore, Partner } from "@/store/authStore";
-import type { DeliveryRecharge } from "@/store/orderStore";
-import {
-    getThirdPartyChargeData,
-    saveDeliveryRecharges,
-} from "@/app/actions/deliveryCharges";
+import { getThirdPartyChargeData } from "@/app/actions/deliveryCharges";
 import type { ThirdPartyChargeData, ChargeProvider } from "@/lib/deliveryBridgeTypes";
 import {
     Loader2,
-    Plus,
-    Trash2,
-    Pencil,
-    Check,
-    X,
     RefreshCw,
     Wallet,
-    AlertTriangle,
-    TrendingDown,
-    ArrowUpCircle,
     ExternalLink,
+    TrendingDown,
 } from "lucide-react";
-import { toast } from "sonner";
 
 const PROVIDERS: ChargeProvider[] = ["porter", "rapido", "uber"];
-
-// Porter is API-driven (live balance + real history from Porter's wallet), so it
-// can't be manually recharged here — only Rapido / Uber are logged by hand.
-const MANUAL_PROVIDERS: ChargeProvider[] = ["rapido", "uber"];
-
-// Below this the partner card flags Porter as running low (mirrors the bridge).
-const PORTER_LOW = 150;
 
 const PROVIDER_LABEL: Record<ChargeProvider, string> = {
     porter: "Porter",
@@ -62,9 +34,8 @@ const PROVIDER_ACCENT: Record<ChargeProvider, string> = {
     uber: "border-neutral-300 bg-neutral-50",
 };
 
-function todayISO(): string {
-    return new Date().toISOString().slice(0, 10);
-}
+// Below this the Porter card flags the wallet as running low (mirrors the bridge).
+const PORTER_LOW = 150;
 
 function fmtDate(iso: string): string {
     const d = new Date(iso);
@@ -72,31 +43,22 @@ function fmtDate(iso: string): string {
     return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
 }
 
-const MIGRATION_SQL =
-    "ALTER TABLE partners ADD COLUMN IF NOT EXISTS delivery_recharges jsonb;";
-
+/**
+ * Settings → Ordering → "3rd Party Delivery Charges".
+ *
+ * Porter is PREPAID and the delivery bridge exposes its real wallet, so the
+ * Porter balance + transaction history are pulled LIVE from Porter's API — no
+ * manual recharge logging. Rapido / Uber have no wallet API, so they show
+ * delivery spend (from real orders) only.
+ */
 export function ThirdPartyChargesSettings() {
-    const { userData, setState } = useAuthStore();
+    const { userData } = useAuthStore();
     const partnerId = userData?.id;
     const currencySymbol = (userData as Partner)?.currency || "₹";
 
     const [data, setData] = useState<ThirdPartyChargeData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [saving, setSaving] = useState(false);
-
-    // Add-recharge form
-    const [showAdd, setShowAdd] = useState(false);
-    const [addProvider, setAddProvider] = useState<ChargeProvider>("rapido");
-    const [addAmount, setAddAmount] = useState("");
-    const [addDate, setAddDate] = useState(todayISO());
-    const [addNote, setAddNote] = useState("");
-
-    // Inline edit
-    const [editId, setEditId] = useState<string | null>(null);
-    const [editAmount, setEditAmount] = useState("");
-    const [editDate, setEditDate] = useState("");
-    const [editNote, setEditNote] = useState("");
 
     const load = useCallback(async () => {
         if (!partnerId) return;
@@ -116,93 +78,6 @@ export function ThirdPartyChargesSettings() {
     useEffect(() => {
         load();
     }, [load]);
-
-    const recharges = data?.recharges ?? [];
-    // Porter recharges are tracked live from Porter's wallet API, so the manual
-    // recharge log only shows/accepts Rapido + Uber. (Any legacy Porter rows in
-    // the column stay in `recharges` for add/edit/delete integrity but are hidden.)
-    const manualRecharges = recharges.filter((r) => r.provider !== "porter");
-
-    // Persist a new recharge array, then refresh derived totals + sync authStore.
-    const persist = useCallback(
-        async (next: DeliveryRecharge[], successMsg: string) => {
-            if (!partnerId) return;
-            setSaving(true);
-            try {
-                const res = await saveDeliveryRecharges({ partnerId, recharges: next });
-                if (!res.ok) {
-                    toast.error(res.message);
-                    return;
-                }
-                setState({ delivery_recharges: res.recharges } as Partial<Partner>);
-                toast.success(successMsg);
-                await load();
-            } catch (e) {
-                toast.error((e as Error).message);
-            } finally {
-                setSaving(false);
-            }
-        },
-        [partnerId, setState, load],
-    );
-
-    const handleAdd = async () => {
-        const amount = Number(addAmount);
-        if (!Number.isFinite(amount) || amount <= 0) {
-            toast.error("Enter a valid recharge amount");
-            return;
-        }
-        const entry: DeliveryRecharge = {
-            // Prefer a real uuid; the fallback mixes time + two random draws to
-            // make an in-session collision effectively impossible. The server
-            // also de-dupes ids on save as a final guard.
-            id:
-                typeof crypto !== "undefined" && crypto.randomUUID
-                    ? crypto.randomUUID()
-                    : `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random()
-                          .toString(36)
-                          .slice(2)}`,
-            provider: addProvider,
-            amount,
-            date: addDate || todayISO(),
-            note: addNote.trim() || undefined,
-            created_at: new Date().toISOString(),
-        };
-        await persist([entry, ...recharges], "Recharge added");
-        setShowAdd(false);
-        setAddAmount("");
-        setAddNote("");
-        setAddDate(todayISO());
-    };
-
-    const startEdit = (r: DeliveryRecharge) => {
-        setEditId(r.id);
-        setEditAmount(String(r.amount));
-        setEditDate(r.date || todayISO());
-        setEditNote(r.note ?? "");
-    };
-
-    const handleEditSave = async (id: string) => {
-        const amount = Number(editAmount);
-        if (!Number.isFinite(amount) || amount <= 0) {
-            toast.error("Enter a valid amount");
-            return;
-        }
-        const next = recharges.map((r) =>
-            r.id === id
-                ? { ...r, amount, date: editDate || r.date, note: editNote.trim() || undefined }
-                : r,
-        );
-        await persist(next, "Recharge updated");
-        setEditId(null);
-    };
-
-    const handleDelete = async (id: string) => {
-        await persist(
-            recharges.filter((r) => r.id !== id),
-            "Recharge removed",
-        );
-    };
 
     const orders = data?.orders ?? [];
     const [showAllOrders, setShowAllOrders] = useState(false);
@@ -241,8 +116,8 @@ export function ThirdPartyChargesSettings() {
                 <div>
                     <h2 className="text-lg font-semibold">3rd Party Delivery Charges</h2>
                     <p className="text-sm text-muted-foreground">
-                        Track how much you&apos;ve recharged into each delivery portal and how much
-                        has been spent on deliveries — so you know before a portal runs dry.
+                        Your Porter prepaid wallet balance — live from Porter — and how much
+                        each delivery portal has cost, so you know before a portal runs dry.
                     </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
@@ -254,35 +129,17 @@ export function ThirdPartyChargesSettings() {
                 </Button>
             </div>
 
-            {data?.needsMigration && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 space-y-2">
-                    <div className="flex items-center gap-2 font-medium">
-                        <AlertTriangle className="h-4 w-4" /> One-time database setup required
-                    </div>
-                    <p>
-                        Recharge tracking needs a new column on the partners table. Consumption below
-                        still works, but you can&apos;t log recharges until this runs on Hasura:
-                    </p>
-                    <code className="block rounded bg-amber-100 px-2 py-1 font-mono text-xs text-amber-900">
-                        {MIGRATION_SQL}
-                    </code>
-                </div>
-            )}
-
-            {/* Per-provider summary cards */}
+            {/* Per-provider cards. Porter = LIVE wallet balance; Rapido/Uber = spend. */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {PROVIDERS.map((provider) => {
                     const s = data?.summaries[provider];
-                    // Porter is API-driven: its balance is the live prepaid wallet
-                    // balance from Porter, not manually-logged recharges.
                     const porterLive = provider === "porter" ? data?.porterWallet ?? null : null;
-                    const recharged = s?.totalRecharged ?? 0;
-                    const walletSpent = s?.walletSpent ?? 0;
                     const totalSpent = s?.totalSpent ?? 0;
-                    const balance = porterLive ? porterLive.balance : (s?.balance ?? 0);
-                    const low = porterLive
-                        ? balance < PORTER_LOW
-                        : recharged > 0 && balance <= recharged * 0.15;
+                    const walletSpent = s?.walletSpent ?? 0;
+                    const orderCount = s?.orderCount ?? 0;
+                    // Only Porter has a live prepaid balance; null = not connected.
+                    const balance = porterLive ? porterLive.balance : null;
+                    const low = balance != null && balance < PORTER_LOW;
                     return (
                         <Card key={provider} className={PROVIDER_ACCENT[provider]}>
                             <CardContent className="p-4 space-y-3">
@@ -302,82 +159,75 @@ export function ThirdPartyChargesSettings() {
                                         </span>
                                     )}
                                 </div>
-                                <div>
-                                    <div
-                                        className={`text-2xl font-bold ${
-                                            balance < 0
-                                                ? "text-red-600"
-                                                : low
-                                                  ? "text-amber-600"
-                                                  : "text-foreground"
-                                        }`}
-                                    >
-                                        {currencySymbol}
-                                        {balance.toFixed(2)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {porterLive ? "live balance on Porter" : "balance remaining"}
-                                    </div>
-                                    {low && balance >= 0 && (
-                                        <div className="mt-1 text-[11px] font-medium text-amber-600">
-                                            Running low — consider a recharge
+
+                                {provider === "porter" ? (
+                                    porterLive ? (
+                                        <div>
+                                            <div
+                                                className={`text-2xl font-bold ${
+                                                    balance! < 0
+                                                        ? "text-red-600"
+                                                        : low
+                                                          ? "text-amber-600"
+                                                          : "text-foreground"
+                                                }`}
+                                            >
+                                                {currencySymbol}
+                                                {balance!.toFixed(2)}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                live balance on Porter
+                                            </div>
+                                            {low && balance! >= 0 && (
+                                                <div className="mt-1 text-[11px] font-medium text-amber-600">
+                                                    Running low — recharge soon
+                                                </div>
+                                            )}
+                                            {porterLive.rechargeLink && (
+                                                <a
+                                                    href={porterLive.rechargeLink}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="mt-1 inline-flex items-center gap-1 text-xs text-orange-600 underline"
+                                                >
+                                                    Recharge <ExternalLink className="h-3 w-3" />
+                                                </a>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t">
+                                    ) : (
+                                        <div>
+                                            <div className="text-2xl font-bold text-muted-foreground">—</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                Connect Porter to see the live wallet balance
+                                            </div>
+                                        </div>
+                                    )
+                                ) : (
                                     <div>
-                                        {porterLive ? (
-                                            <>
-                                                <div className="flex items-center gap-1 text-emerald-600">
-                                                    <ArrowUpCircle className="h-3 w-3" /> Recharge
-                                                </div>
-                                                {porterLive.rechargeLink ? (
-                                                    <a
-                                                        href={porterLive.rechargeLink}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="font-semibold text-orange-600 underline inline-flex items-center gap-0.5"
-                                                    >
-                                                        Top up <ExternalLink className="h-3 w-3" />
-                                                    </a>
-                                                ) : (
-                                                    <div className="font-semibold text-muted-foreground">
-                                                        via Porter app
-                                                    </div>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="flex items-center gap-1 text-emerald-600">
-                                                    <ArrowUpCircle className="h-3 w-3" /> Recharged
-                                                </div>
-                                                <div className="font-semibold text-foreground">
-                                                    {currencySymbol}
-                                                    {recharged.toFixed(2)}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-1 text-amber-600">
-                                            <Wallet className="h-3 w-3" /> Wallet spent
-                                        </div>
-                                        <div className="font-semibold text-foreground">
-                                            {currencySymbol}
-                                            {walletSpent.toFixed(2)}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                                    <span className="inline-flex items-center gap-1">
-                                        <TrendingDown className="h-3 w-3" /> Total delivery cost{" "}
-                                        <span className="font-medium text-foreground">
+                                        <div className="text-2xl font-bold text-foreground">
                                             {currencySymbol}
                                             {totalSpent.toFixed(2)}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            delivery spend
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Real spend from delivered orders (not manual). */}
+                                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t">
+                                    <span className="inline-flex items-center gap-1">
+                                        <Wallet className="h-3 w-3" /> Wallet spent{" "}
+                                        <span className="font-medium text-foreground">
+                                            {currencySymbol}
+                                            {walletSpent.toFixed(2)}
                                         </span>
                                     </span>
-                                    <span>
-                                        {s?.orderCount ?? 0} order{(s?.orderCount ?? 0) === 1 ? "" : "s"}
+                                    <span className="inline-flex items-center gap-1">
+                                        <TrendingDown className="h-3 w-3" />
+                                        {currencySymbol}
+                                        {totalSpent.toFixed(2)} · {orderCount} order
+                                        {orderCount === 1 ? "" : "s"}
                                     </span>
                                 </div>
                             </CardContent>
@@ -386,8 +236,7 @@ export function ThirdPartyChargesSettings() {
                 })}
             </div>
 
-            {/* Porter wallet — live balance + REAL transaction history straight
-                from Porter's wallet API (replaces manual Porter recharge logging). */}
+            {/* Porter wallet — live balance + REAL transaction history from the API. */}
             {data?.porterWallet && (
                 <Card className="border-orange-200">
                     <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -459,200 +308,6 @@ export function ThirdPartyChargesSettings() {
                     </CardContent>
                 </Card>
             )}
-
-            {/* Recharge ledger */}
-            <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                    <div>
-                        <CardTitle className="text-base">Recharge log</CardTitle>
-                        <CardDescription>
-                            Log Rapido / Uber top-ups here. Porter is tracked
-                            automatically from its live wallet above.
-                        </CardDescription>
-                    </div>
-                    {!showAdd && (
-                        <Button
-                            size="sm"
-                            onClick={() => setShowAdd(true)}
-                            disabled={data?.needsMigration}
-                        >
-                            <Plus className="h-4 w-4 mr-1" /> Add recharge
-                        </Button>
-                    )}
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    {showAdd && (
-                        <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                                <div className="space-y-1">
-                                    <Label className="text-xs">Provider</Label>
-                                    <Select
-                                        value={addProvider}
-                                        onValueChange={(v) => setAddProvider(v as ChargeProvider)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {MANUAL_PROVIDERS.map((p) => (
-                                                <SelectItem key={p} value={p}>
-                                                    {PROVIDER_LABEL[p]}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs">Amount ({currencySymbol})</Label>
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={addAmount}
-                                        onChange={(e) => setAddAmount(e.target.value)}
-                                        placeholder="0.00"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs">Date</Label>
-                                    <Input
-                                        type="date"
-                                        value={addDate}
-                                        max={todayISO()}
-                                        onChange={(e) => setAddDate(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs">Note (optional)</Label>
-                                    <Input
-                                        value={addNote}
-                                        onChange={(e) => setAddNote(e.target.value)}
-                                        placeholder="ref / mode"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button size="sm" onClick={handleAdd} disabled={saving}>
-                                    {saving ? (
-                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                    ) : (
-                                        <Check className="h-4 w-4 mr-1" />
-                                    )}
-                                    Save
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setShowAdd(false)}
-                                    disabled={saving}
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {manualRecharges.length === 0 && !showAdd ? (
-                        <p className="text-sm text-muted-foreground py-4 text-center">
-                            No Rapido / Uber recharges logged yet.
-                        </p>
-                    ) : (
-                        <div className="divide-y">
-                            {manualRecharges.map((r) =>
-                                editId === r.id ? (
-                                    <div
-                                        key={r.id}
-                                        className="py-3 grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end"
-                                    >
-                                        <div className="space-y-1">
-                                            <Label className="text-xs">Amount</Label>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={editAmount}
-                                                onChange={(e) => setEditAmount(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs">Date</Label>
-                                            <Input
-                                                type="date"
-                                                value={editDate}
-                                                max={todayISO()}
-                                                onChange={(e) => setEditDate(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs">Note</Label>
-                                            <Input
-                                                value={editNote}
-                                                onChange={(e) => setEditNote(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="flex items-center gap-1 pb-0.5">
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                onClick={() => handleEditSave(r.id)}
-                                                disabled={saving}
-                                                title="Save"
-                                            >
-                                                <Check className="h-4 w-4 text-emerald-600" />
-                                            </Button>
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                onClick={() => setEditId(null)}
-                                                disabled={saving}
-                                                title="Cancel"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div
-                                        key={r.id}
-                                        className="py-2.5 flex items-center gap-3"
-                                    >
-                                        <span className="text-xs font-medium rounded px-2 py-0.5 bg-muted capitalize w-16 text-center">
-                                            {PROVIDER_LABEL[r.provider as ChargeProvider] ?? r.provider}
-                                        </span>
-                                        <span className="text-sm font-semibold text-emerald-700 w-24">
-                                            +{currencySymbol}
-                                            {Number(r.amount).toFixed(2)}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground w-28">
-                                            {fmtDate(r.date)}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground flex-1 truncate">
-                                            {r.note ?? ""}
-                                        </span>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            onClick={() => startEdit(r)}
-                                            title="Edit"
-                                        >
-                                            <Pencil className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            onClick={() => handleDelete(r.id)}
-                                            disabled={saving}
-                                            title="Delete"
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                        </Button>
-                                    </div>
-                                ),
-                            )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
 
             {/* Per-order charges */}
             <Card>
