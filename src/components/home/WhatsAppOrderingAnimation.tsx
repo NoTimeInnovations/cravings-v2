@@ -26,15 +26,12 @@ function ChatInner({ onComplete }: { onComplete: () => void }) {
     <div className="w-full max-w-[230px] md:max-w-[300px] overflow-hidden rounded-2xl border border-stone-200 bg-[#EAE1D9] shadow-lg">
       {/* header */}
       <div className="flex items-center gap-2 bg-[#008069] px-3 py-2 text-white">
-        <span
-          className="grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold md:h-7 md:w-7 md:text-[13px]"
-          style={{ backgroundColor: "#0c0d13", color: "#f3c23b" }}
-        >
-          K
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-white/15 text-[9px] font-bold md:h-7 md:w-7 md:text-[11px]">
+          SG
         </span>
         <span className="flex-1 leading-tight">
           <span className="block text-[10px] font-semibold md:text-[12px]">
-            Kaifan Restaurant
+            Spice Garden
           </span>
           <span className="block text-[8px] text-white/70 md:text-[10px]">
             {step === 1 ? "typing…" : "online"}
@@ -78,7 +75,7 @@ function ChatInner({ onComplete }: { onComplete: () => void }) {
         {step >= 2 && (
           <Row wide>
             <span className="block leading-snug text-[#111]">
-              Welcome to <b>Kaifan Restaurant</b>! 🛒 Tap below to order.
+              Welcome to <b>Spice Garden</b>! 🛒 Tap below to order.
             </span>
             <Tick in />
             <span className="mt-1.5 block rounded-md border-t border-black/5 pt-1.5 text-center text-[10px] font-semibold text-[#0a7cff] md:text-[12px]">
@@ -94,7 +91,7 @@ function ChatInner({ onComplete }: { onComplete: () => void }) {
               ✅ Order #2471 received
             </span>
             <span className="mt-0.5 flex justify-between text-[9px] text-[#3b4a54] md:text-[11px]">
-              <span>Chicken Mandi ×1</span>
+              <span>Butter Chicken ×1</span>
               <span className="font-semibold">₹320</span>
             </span>
             <Tick in />

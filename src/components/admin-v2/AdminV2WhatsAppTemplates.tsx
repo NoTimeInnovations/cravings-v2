@@ -26,10 +26,8 @@ import {
   Pencil,
   ShieldCheck,
   ArrowLeft,
-  BarChart3,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import { WhatsAppTemplateAnalytics } from "@/components/admin-v2/WhatsAppTemplateAnalytics";
 import { ImageUpload } from "@/components/storefront/ImageUpload";
 import VideoEditor from "@/components/VideoEditor";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
@@ -151,7 +149,6 @@ export function AdminV2WhatsAppTemplates() {
   >(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
-  const [showAnalytics, setShowAnalytics] = useState(false);
   const [addingOtp, setAddingOtp] = useState(false);
   // Templates are per-WABA. When a partner has several numbers, they pick which
   // number's WABA to manage; "" until resolved / when they have one number.
@@ -300,16 +297,6 @@ export function AdminV2WhatsAppTemplates() {
     );
   }
 
-  if (showAnalytics) {
-    return (
-      <WhatsAppTemplateAnalytics
-        partnerId={partnerId}
-        templates={templates}
-        onClose={() => setShowAnalytics(false)}
-      />
-    );
-  }
-
   return (
     <div className="space-y-6 max-w-6xl">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -339,14 +326,6 @@ export function AdminV2WhatsAppTemplates() {
               </SelectContent>
             </Select>
           )}
-          <Button
-            variant="outline"
-            onClick={() => setShowAnalytics(true)}
-            disabled={!connected}
-            title={!connected ? "Connect your WABA in Settings first" : "View template button-click analytics"}
-          >
-            <BarChart3 className="h-4 w-4 mr-2" /> View Analytics
-          </Button>
           <Button
             variant="outline"
             onClick={() => {
