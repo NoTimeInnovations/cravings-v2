@@ -584,6 +584,126 @@ subscription GetPaginatedPartnerOrders(
 }
 `;
 
+// Open prebookings inside a scheduled_date window. Keyed on scheduled_date, NOT
+// created_at, and deliberately a SEPARATE subscription from
+// paginatedOrdersSubscription: that feed is paged (10 per page) and windowed to
+// `created_at >= now - 24h`, so an order placed days before its slot is not in
+// the client array at all. No client-side re-sort of the paged feed could ever
+// float such an order to the top on the day it is actually due — the row simply
+// isn't there. This query is small (<= 50), unpaged and ordered by the slot
+// itself, so the dashboard can count, pin and group prebookings from a complete
+// list. It is never fed into the paged store (that one also drives the new-order
+// sound/toast diffing).
+// $from_date is intentionally the CALLER's choice and normally sits a day before
+// today: completed/cancelled bookings are already excluded here, so a slot still
+// in this result after its time has passed is unfinished work and has to stay on
+// screen (it renders as OVERDUE) instead of vanishing at midnight.
+export const upcomingPrebookingsSubscription = `
+subscription GetUpcomingPrebookings(
+  $partner_id: uuid!
+  $from_date: date!
+  $through_date: date!
+) {
+  orders(
+    where: {
+      partner_id: { _eq: $partner_id },
+      status: { _nin: ["pending_payment", "expired", "completed", "cancelled"] },
+      scheduled_date: { _gte: $from_date, _lte: $through_date }
+    }
+    order_by: [{ scheduled_date: asc }, { scheduled_time: asc }]
+    limit: 50
+  ) {
+    id
+    total_price
+    created_at
+    table_number
+    notes
+    qr_id
+    type
+    scheduled_date
+    scheduled_time
+    scheduled_time_to
+    booking_persons
+    delivery_address
+    delivery_location
+    status
+    status_history
+    cancel_reason
+    cancelled_by
+    partner_id
+    gst_included
+    extra_charges
+    discounts
+    payment_method
+    order_channel
+    is_paid
+    cashfree_payment_id
+    phone
+    display_id
+    user_id
+    orderedby
+    captain_id
+    source
+    qr_code {
+      table_name
+    }
+    captainid {
+      id
+      name
+      email
+    }
+    delivery_boy_id
+    assigned_at
+    delivered_at
+    growjet_order_number
+    delivery_agent
+    delivery_provider
+    delivery_provider_order_id
+    delivery_provider_state
+    delivery_provider_meta
+    delivery_provider_last_event_at
+    porter_dispatch_due_at
+    delivery_boy {
+      id
+      name
+      phone
+      current_lat
+      current_lng
+      location_updated_at
+    }
+    user {
+      full_name
+      phone
+      email
+    }
+    order_items {
+      id
+      quantity
+      item
+      menu {
+        id
+        name
+        price
+        category {
+          id
+          name
+          priority
+        }
+        description
+        image_url
+        is_top
+        is_available
+        priority
+        stocks {
+          stock_quantity
+          id
+        }
+      }
+    }
+  }
+}
+`;
+
 export const ordersCountSubscription = `
 subscription GetOrdersCount($partner_id: uuid!) {
   orders_aggregate(

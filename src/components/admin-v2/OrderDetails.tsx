@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Bike, XCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Bike, XCircle, AlertTriangle, AlarmClock } from "lucide-react";
 
 // Mapbox-based live tracker reused from the customer order page. Lazy-loaded
 // (ssr: false) because mapbox-gl needs window/document.
@@ -83,6 +83,17 @@ interface OrderDetailsProps {
     order: Order | null;
     onBack: () => void;
     onEdit?: () => void;
+    /** Every order this screen can act on, deduped — the paged live feed PLUS
+     *  whatever the parent subscribes to separately (prebookings, drafts).
+     *  updateOrderStatus / updateOrderPaymentMethod locate the order inside the
+     *  array they are handed, so it has to be the wide one; the paged feed alone
+     *  is windowed to `created_at >= now - 24h`. AdminV2Orders already computes
+     *  this list — optional so AdminV2AllOrders keeps its existing behaviour. */
+    lookupOrders?: Order[];
+    /** Write-back for that list. The parent narrows it to the ids the paged
+     *  store owns before committing, so a prebooking or draft never leaks into
+     *  the live feed. Defaults to the same narrowing against the paged store. */
+    onOrdersChange?: (orders: Order[]) => void;
 }
 
 /**
@@ -220,11 +231,36 @@ function cancelledByLabel(by?: string | null): string {
     }
 }
 
-export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
+// Mirrors the urgency badge the orders list shows on prebooked rows: once the
+// slot is within an hour (or already past) the calm blue tag becomes a
+// countdown, so a prebooking can never look less urgent here than in the row it
+// was opened from. Display-only copy — AdminV2Orders owns the canonical logic
+// (importing it back would make the two components circular).
+const PREBOOK_DUE_SOON_MS = 60 * 60 * 1000;
+
+const getPrebookUrgency = (
+    order: Order,
+    nowTs: number,
+): { label: string; tone: "overdue" | "soon" } | null => {
+    const status = (order.status || "").trim().toLowerCase();
+    if (status === "completed" || status === "cancelled" || status === "canceled") return null;
+    if (!order.scheduled_date) return null;
+    // Restaurant-local wall clock (the columns carry no timezone) — the
+    // partner's browser is in the restaurant, so local Date math is correct.
+    const time = (order.scheduled_time ?? "00:00:00").slice(0, 8);
+    const slotMs = new Date(`${order.scheduled_date}T${time}`).getTime();
+    if (Number.isNaN(slotMs)) return null;
+    const diff = slotMs - nowTs;
+    if (diff > PREBOOK_DUE_SOON_MS) return null;
+    if (diff <= 0) return { label: "OVERDUE", tone: "overdue" };
+    return { label: `DUE IN ${Math.max(1, Math.round(diff / 60000))} MIN`, tone: "soon" };
+};
+
+export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChange }: OrderDetailsProps) {
     const { userData } = useAuthStore();
     const prebookCfg = parsePrebookingSettings((userData as any)?.prebooking_settings);
     const { updateOrderStatus, updateOrderPaymentMethod } = useOrderStore();
-    const { setOrders, orders } = useOrderSubscriptionStore();
+    const { setOrders: setPagedOrders, orders: pagedOrders } = useOrderSubscriptionStore();
     const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
     const [passwordModalOpen, setPasswordModalOpen] = React.useState(false);
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
@@ -246,7 +282,43 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
         return () => { cancelled = true; };
     }, [order?.id]);
 
+    // Ticks only for prebooked orders, so the "due in N min" badge stays honest
+    // while the detail view is open and nothing changes for everyone else.
+    const [nowTs, setNowTs] = React.useState(() => Date.now());
+    React.useEffect(() => {
+        if (!order?.scheduled_date) return;
+        const interval = setInterval(() => setNowTs(Date.now()), 30 * 1000);
+        return () => clearInterval(interval);
+    }, [order?.scheduled_date]);
+
     if (!order) return null;
+
+    const prebookUrgency = getPrebookUrgency(order, nowTs);
+
+    // The array we hand to the store mutators MUST contain the order being acted
+    // on: updateOrderStatus locates it with orders.find(id) to send the customer
+    // status push AND to compute isRealDelivery, which gates every rider
+    // dispatch. A miss skips both silently — the mutation still succeeds and the
+    // success toast still fires, so the partner never learns the customer wasn't
+    // told and no rider was called.
+    const lookupBase = lookupOrders ?? pagedOrders;
+    // Without the prop we fall back to the paged feed, which is windowed to
+    // `created_at >= now - 24h` — a prebooking placed days before its slot is
+    // simply not in it, so append it. Non-prebooked orders are left exactly as
+    // they were: a partner who takes no prebookings sees no change at all.
+    const actionOrders =
+        order.scheduled_date && !lookupBase.some((o) => o.id === order.id)
+            ? [...lookupBase, order]
+            : lookupBase;
+
+    // Write-back stays scoped to the paged feed — a prebooking or draft leaking
+    // into it would show up in the live order list and its new-order diffing.
+    const commitOrders =
+        onOrdersChange ??
+        ((next: Order[]) => {
+            const pagedIds = new Set(pagedOrders.map((o) => o.id));
+            setPagedOrders(next.filter((o) => pagedIds.has(o.id)));
+        });
 
     const lockEnabled = isCompletedOrderLockEnabled(userData);
 
@@ -292,7 +364,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
         if (order.status === "completed") {
             setPendingAction(() => async () => {
                 try {
-                    await updateOrderStatus(orders, order.id, status as any, setOrders);
+                    await updateOrderStatus(actionOrders, order.id, status as any, commitOrders);
                     toast.success("Order status updated");
                 } catch (error) {
                     toast.error("Failed to update status");
@@ -303,7 +375,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
         }
 
         try {
-            await updateOrderStatus(orders, order.id, status as any, setOrders);
+            await updateOrderStatus(actionOrders, order.id, status as any, commitOrders);
             toast.success("Order status updated");
 
 
@@ -327,7 +399,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
         }
         if (order.status === 'accepted') {
             try {
-                await updateOrderStatus(orders, order.id, 'completed', setOrders);
+                await updateOrderStatus(actionOrders, order.id, 'completed', commitOrders);
                 toast.success("Order marked as completed");
             } catch (error) {
                 console.error("Error updating order status on print:", error);
@@ -337,13 +409,13 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     };
 
     const handlePaymentMethodConfirm = async (method: string) => {
-        await updateOrderPaymentMethod(order.id, method, orders, setOrders);
+        await updateOrderPaymentMethod(order.id, method, actionOrders, commitOrders);
         setPaymentModalOpen(false);
 
         // Also perform completion logic if it wasn't already accepted/completed
         if (order.status === 'accepted') {
             try {
-                await updateOrderStatus(orders, order.id, 'completed', setOrders);
+                await updateOrderStatus(actionOrders, order.id, 'completed', commitOrders);
 
             } catch (e) { console.error(e); }
         }
@@ -520,12 +592,34 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                             </div>
                         )}
                         {order.scheduled_date && (
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">{order.booking_persons ? "Table booking:" : "Prebooked for:"}</span>
-                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 font-medium">
-                                    {formatPrebookDateLabel(order.scheduled_date)}
-                                    {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons, to: order.scheduled_time_to })}` : ""}
-                                </Badge>
+                            <div className="flex justify-between items-center gap-2">
+                                <span className="text-muted-foreground">
+                                    {order.booking_persons ? "Table booking — prepare for:" : "Prebooked — prepare for:"}
+                                </span>
+                                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                    {prebookUrgency && (
+                                        <Badge
+                                            className={`gap-1 font-bold ${prebookUrgency.tone === "overdue"
+                                                ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                                : "bg-amber-100 text-amber-900 hover:bg-amber-100"
+                                                }`}
+                                        >
+                                            <AlarmClock className="h-3 w-3" />
+                                            {prebookUrgency.label}
+                                        </Badge>
+                                    )}
+                                    <Badge
+                                        className={`font-medium ${prebookUrgency
+                                            ? prebookUrgency.tone === "overdue"
+                                                ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                                : "bg-amber-100 text-amber-900 hover:bg-amber-100"
+                                            : "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                                            }`}
+                                    >
+                                        {formatPrebookDateLabel(order.scheduled_date, new Date(nowTs))}
+                                        {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons, to: order.scheduled_time_to })}` : ""}
+                                    </Badge>
+                                </div>
                             </div>
                         )}
                         {order.booking_persons != null && order.booking_persons > 1 && (

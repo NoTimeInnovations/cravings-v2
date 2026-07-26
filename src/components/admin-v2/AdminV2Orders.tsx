@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -45,6 +45,7 @@ import {
   MapPin,
   Table2,
   Users,
+  AlarmClock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
@@ -64,7 +65,7 @@ import { Edit, FileClock, CalendarClock } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { expireCfOrder } from "@/app/actions/cfOrders";
 import { getFeatures } from "@/lib/getFeatures";
-import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings } from "@/lib/prebooking";
+import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings, ymd } from "@/lib/prebooking";
 
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
@@ -95,12 +96,74 @@ const getTableLocationLabel = (order: Order): string => {
   return order.deliveryAddress || "N/A";
 };
 
+// A prebooking is "due soon" — and floats to the top of the screen — once its
+// slot is within this window. Already-overdue slots stay due-soon (negative
+// difference) so a missed one never quietly drops off.
+const PREBOOK_DUE_SOON_MS = 60 * 60 * 1000;
+// How far ahead the prebooking subscription looks. Bounded so the query stays
+// tiny; anything further out is still reachable from "Show All Orders".
+const PREBOOK_LOOKAHEAD_DAYS = 30;
+// ...and how far BACK. A booking is only dropped from this list when it is
+// completed or cancelled, so a 9 PM slot nobody closed is still open work at
+// 00:01 — starting the window at "today" would have made it vanish at midnight
+// exactly when it became most overdue. One day is enough to cover the late shift
+// that runs past midnight without dragging in stale rows the partner has moved
+// on from (those stay reachable from "Show All Orders").
+const PREBOOK_LOOKBACK_DAYS = 1;
+// Sort choice is remembered per device, scoped to the partner so two logins on
+// the same browser don't fight over it (same pattern as the other admin-v2
+// local UI prefs).
+const sortPrefKey = (partnerId?: string | null) =>
+  `adminv2_orders_sort_${partnerId || "anon"}`;
+
+// Terminal orders need no attention. Normalized so casing or stray whitespace in
+// the stored value (or the "canceled" spelling) can't slip one through.
+const isTerminalStatus = (status?: string | null) => {
+  const s = (status || "").trim().toLowerCase();
+  return s === "completed" || s === "cancelled" || s === "canceled";
+};
+
+// Prebooked orders store restaurant-local wall-clock date/time with no timezone.
+// The partner's browser sits in the restaurant, so plain local Date math is the
+// correct comparison here (there is no partner timezone to apply).
+const getPrebookInstant = (order: Order): number | null => {
+  if (!order.scheduled_date) return null;
+  const time = (order.scheduled_time ?? "00:00:00").slice(0, 8);
+  const ms = new Date(`${order.scheduled_date}T${time}`).getTime();
+  return Number.isNaN(ms) ? null : ms;
+};
+
+type PrebookUrgency = { label: string; tone: "overdue" | "soon" };
+
+// null ⇒ not prebooked, terminal, or still more than an hour out (normal badge).
+const getPrebookUrgency = (order: Order, nowTs: number): PrebookUrgency | null => {
+  if (isTerminalStatus(order.status)) return null;
+  const instant = getPrebookInstant(order);
+  if (instant === null) return null;
+  const diff = instant - nowTs;
+  if (diff > PREBOOK_DUE_SOON_MS) return null;
+  if (diff <= 0) return { label: "OVERDUE", tone: "overdue" };
+  return { label: `DUE IN ${Math.max(1, Math.round(diff / 60000))} MIN`, tone: "soon" };
+};
+
+// Tones picked to sit in the same palette as getStatusColor: red = overdue,
+// amber = due inside the hour.
+const prebookUrgencyBadgeClass = (tone: PrebookUrgency["tone"]) =>
+  tone === "overdue"
+    ? "bg-red-100 text-red-800 hover:bg-red-100"
+    : "bg-amber-100 text-amber-900 hover:bg-amber-100";
+
 export function AdminV2Orders() {
   const { userData } = useAuthStore();
   const { selectedOrderId, setSelectedOrderId, setActiveView } =
     useAdminStore();
-  const { deleteOrder, updateOrderStatus, updateOrderPaymentMethod, subscribeDraftOrders } =
-    useOrderStore();
+  const {
+    deleteOrder,
+    updateOrderStatus,
+    updateOrderPaymentMethod,
+    subscribeDraftOrders,
+    subscribeUpcomingPrebookings,
+  } = useOrderStore();
 
   // Draft orders = online orders still processing payment (status
   // "pending_payment"). Kept out of the live feed/notifications; shown only when
@@ -115,6 +178,51 @@ export function AdminV2Orders() {
     const unsubscribe = subscribeDraftOrders((d) => setDrafts(d));
     return () => unsubscribe();
   }, [subscribeDraftOrders]);
+
+  // Upcoming prebookings ride their OWN subscription instead of being derived
+  // from the paged live feed. That feed is 10 rows per page and windowed to
+  // `created_at >= now - 24h`, so a booking taken yesterday (or last week) for
+  // today is not in the client array at all — re-sorting it could never surface
+  // the order on the day it has to be cooked, and the badge count only ever
+  // reflected the current page. See upcomingPrebookingsSubscription.
+  const [upcomingPrebookings, setUpcomingPrebookings] = useState<Order[]>([]);
+  // Clock tick that keeps "due in N min" / overdue state honest between renders.
+  const [nowTs, setNowTs] = useState(() => Date.now());
+
+  const partnerId = userData?.id;
+  // Restaurant-local "today". Derived from the tick but only changes value at
+  // midnight, so the 30s tick never churns the subscription below. (If the tick
+  // is idle — no prebookings — the window simply starts a day early, which still
+  // matches everything scheduled from today on.)
+  const todayStr = ymd(new Date(nowTs));
+
+  useEffect(() => {
+    if (!partnerId) return;
+    // Window runs from a day BEFORE today so a still-open slot from last night
+    // survives midnight instead of disappearing while it is overdue; the query
+    // itself already drops completed/cancelled bookings, so what comes back from
+    // the past is by definition unfinished work.
+    const from = new Date(`${todayStr}T00:00:00`);
+    from.setDate(from.getDate() - PREBOOK_LOOKBACK_DAYS);
+    const through = new Date(`${todayStr}T00:00:00`);
+    through.setDate(through.getDate() + PREBOOK_LOOKAHEAD_DAYS);
+    const unsubscribe = subscribeUpcomingPrebookings(
+      partnerId,
+      ymd(from),
+      ymd(through),
+      setUpcomingPrebookings,
+    );
+    return () => unsubscribe();
+  }, [partnerId, todayStr, subscribeUpcomingPrebookings]);
+
+  // The tick only runs while there is something scheduled — a partner who never
+  // takes prebookings gets exactly the old behaviour (no timer, no re-renders).
+  const hasPrebookings = upcomingPrebookings.length > 0;
+  useEffect(() => {
+    if (!hasPrebookings) return;
+    const interval = setInterval(() => setNowTs(Date.now()), 30 * 1000);
+    return () => clearInterval(interval);
+  }, [hasPrebookings]);
 
   // Drafts are no longer auto-expired by the reconcile cron — partners clear
   // them here. expireCfOrder soft-deletes the unpaid order (status "expired")
@@ -165,17 +273,21 @@ export function AdminV2Orders() {
   // Partner's configured slot ranges, used to show a booked slot as "from – to".
   const prebookCfg = parsePrebookingSettings((userData as any)?.prebooking_settings);
 
-  // Prebookings are live orders scheduled for a future date/slot.
-  const prebookings = orders.filter((o) => !!o.scheduled_date);
-  // Badge count reflects only actionable prebookings — terminal ones
-  // (completed/cancelled) need no attention. Normalize the status so casing or
-  // stray whitespace in the stored value can't slip a terminal order through.
-  const isTerminalStatus = (status?: string | null) => {
-    const s = (status || "").trim().toLowerCase();
-    return s === "completed" || s === "cancelled" || s === "canceled";
-  };
-  const activePrebookingsCount = prebookings.filter(
-    (o) => !isTerminalStatus(o.status),
+  // Actionable prebookings for today → +30 days, straight from the dedicated
+  // subscription. The query already drops terminal statuses; the extra guard
+  // just normalizes odd casing / the "canceled" spelling.
+  const prebookings = upcomingPrebookings.filter((o) => !isTerminalStatus(o.status));
+  const activePrebookingsCount = prebookings.length;
+
+  // Due within the hour (or already past) — these get pinned above the list.
+  const dueSoonPrebookings = prebookings
+    .filter((o) => getPrebookUrgency(o, nowTs))
+    .sort((a, b) => (getPrebookInstant(a) ?? 0) - (getPrebookInstant(b) ?? 0));
+  // Everything scheduled for TODAY, however long ago it was booked. This is what
+  // makes "booked yesterday, cook today" visible on today's dashboard.
+  const todayPrebookings = prebookings.filter((o) => o.scheduled_date === todayStr);
+  const laterTodayCount = todayPrebookings.filter(
+    (o) => !getPrebookUrgency(o, nowTs),
   ).length;
 
   // When the Draft Orders toggle is on, the whole view operates on drafts.
@@ -189,7 +301,41 @@ export function AdminV2Orders() {
       ? prebookings
       : orders;
 
-  const selectedOrder = activeOrders.find((o) => o.id === selectedOrderId) || null;
+  // Everything this screen can act on, deduped: the paged live feed plus the two
+  // separately-subscribed lists. Needed because a due-soon prebooking is opened
+  // straight from the pinned block while the NORMAL list is showing, and such an
+  // order is not in the paged feed at all — without this the detail view would
+  // say "Order not found in current view". updateOrderStatus() also uses the
+  // array it is handed to locate the order for the customer notification and the
+  // delivery dispatch hooks, so those must see it too.
+  const pagedOrderIds = new Set(orders.map((o) => o.id));
+  const lookupIds = new Set(pagedOrderIds);
+  const lookupOrders = [...orders];
+  for (const extra of [...prebookings, ...drafts]) {
+    if (lookupIds.has(extra.id)) continue;
+    lookupIds.add(extra.id);
+    lookupOrders.push(extra);
+  }
+  // ...but write back only the ids the paged store owns: leaking a prebooking or
+  // draft into the live feed would trip the new-order sound/toast diffing.
+  const setPagedOrdersOnly = (next: Order[]) =>
+    setOrders(next.filter((o) => pagedOrderIds.has(o.id)));
+
+  // Keep the last resolved order so the detail view survives its own success.
+  // Completing/cancelling a prebooking drops it out of upcomingPrebookings (that
+  // query excludes completed/cancelled), and an order booked >24h before its slot
+  // isn't in the paged feed either — so the row the partner is looking at would
+  // vanish mid-screen and strand them on "Order not found" right after a routine,
+  // successful action.
+  const lastSelectedRef = useRef<Order | null>(null);
+  const resolvedSelected = lookupOrders.find((o) => o.id === selectedOrderId) || null;
+  if (resolvedSelected) lastSelectedRef.current = resolvedSelected;
+  else if (!selectedOrderId) lastSelectedRef.current = null;
+  const selectedOrder =
+    resolvedSelected ||
+    (selectedOrderId && lastSelectedRef.current?.id === selectedOrderId
+      ? lastSelectedRef.current
+      : null);
 
   const [viewMode, setViewMode] = useState<"live" | "all">("live");
   const [searchQuery, setSearchQuery] = useState("");
@@ -200,15 +346,54 @@ export function AdminV2Orders() {
   const [orderToPrint, setOrderToPrint] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
-  const cancellingOrder = activeOrders.find((o) => o.id === cancellingOrderId) || null;
-  const editingOrder = activeOrders.find((o) => o.id === editingOrderId) || null;
+  const cancellingOrder = lookupOrders.find((o) => o.id === cancellingOrderId) || null;
+  const editingOrder = lookupOrders.find((o) => o.id === editingOrderId) || null;
 
   // Own-driver dispatch: when the partner has their own registered delivery
   // boys, dispatching a delivery order opens a driver-picker popup instead of
   // flipping the status straight to "dispatched".
   const hasOwnDrivers = useHasOwnDrivers();
   const [assigningOrderId, setAssigningOrderId] = useState<string | null>(null);
-  const assigningOrder = orders.find((o) => o.id === assigningOrderId) || null;
+  const assigningOrder = lookupOrders.find((o) => o.id === assigningOrderId) || null;
+
+  // Sort choice is a per-device preference: restore it once we know which
+  // partner is logged in.
+  useEffect(() => {
+    if (!partnerId) return;
+    try {
+      const saved = localStorage.getItem(sortPrefKey(partnerId));
+      if (saved) setSortBy(saved);
+    } catch {
+      /* private mode / storage disabled — keep the default */
+    }
+  }, [partnerId]);
+
+  // Only an explicit pick is persisted. Opening the Prebookings view also
+  // switches the sort (below), but that is view-local and must not overwrite
+  // what the partner chose for the normal list.
+  const handleSortChange = (value: string) => {
+    setSortBy(value);
+    try {
+      localStorage.setItem(sortPrefKey(partnerId), value);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const openPrebookingsView = () => {
+    setShowDrafts(false);
+    setShowPrebookings(true);
+    // A prep list is only useful in slot order.
+    setSortBy("prebook");
+  };
+
+  const togglePrebookingsView = () => {
+    if (showPrebookings) {
+      setShowPrebookings(false);
+      return;
+    }
+    openPrebookingsView();
+  };
 
   const handleDeleteOrder = async (order: Order) => {
     if (order.status === "completed") {
@@ -258,7 +443,7 @@ export function AdminV2Orders() {
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    const order = orders.find((o) => o.id === orderId);
+    const order = lookupOrders.find((o) => o.id === orderId);
 
     if (!order) return;
 
@@ -311,7 +496,7 @@ export function AdminV2Orders() {
     if (order.status === "completed") {
       setPendingAction(() => async () => {
         try {
-          await updateOrderStatus(orders, orderId, status as any, setOrders);
+          await updateOrderStatus(lookupOrders, orderId, status as any, setPagedOrdersOnly);
           toast.success("Order status updated");
         } catch (error) {
           toast.error("Failed to update status");
@@ -323,7 +508,7 @@ export function AdminV2Orders() {
     }
 
     try {
-      await updateOrderStatus(orders, orderId, status as any, setOrders);
+      await updateOrderStatus(lookupOrders, orderId, status as any, setPagedOrdersOnly);
       toast.success("Order status updated");
     } catch (error) {
       toast.error("Failed to update status");
@@ -334,7 +519,7 @@ export function AdminV2Orders() {
     if (order.status === "accepted") {
       try {
         // Always update Order Status to completed first
-        await updateOrderStatus(orders, order.id, "completed", setOrders);
+        await updateOrderStatus(lookupOrders, order.id, "completed", setPagedOrdersOnly);
         let message = "Order marked as completed";
 
         // Removed table unlocking logic
@@ -363,12 +548,12 @@ export function AdminV2Orders() {
   const handlePaymentMethodConfirm = async (method: string) => {
     if (!orderToPrint) return;
     const orderId = orderToPrint;
-    await updateOrderPaymentMethod(orderId, method, orders, setOrders);
+    await updateOrderPaymentMethod(orderId, method, lookupOrders, setPagedOrdersOnly);
     setPaymentModalOpen(false);
 
     // Now that a payment method is chosen, mark the order completed (only if it
     // was accepted) and open the bill.
-    const order = orders.find((o) => o.id === orderId);
+    const order = lookupOrders.find((o) => o.id === orderId);
     if (order) {
       await checkAndCompleteOrder(order);
     }
@@ -432,10 +617,16 @@ export function AdminV2Orders() {
   if (selectedOrderId && selectedOrder) {
     return (
       <>
+        {/* The detail view runs the same status/payment mutations this screen
+            does, so it needs the same merged list: the store locates the order
+            inside the array it is handed to fire the customer push and the
+            delivery dispatch, and a prebooking is not in the paged feed. */}
         <OrderDetails
           order={selectedOrder}
           onBack={() => setSelectedOrderId(null)}
           onEdit={() => handleEditOrder(selectedOrder)}
+          lookupOrders={lookupOrders}
+          onOrdersChange={setPagedOrdersOnly}
         />
         <PasswordProtectionModal
           isOpen={passwordModalOpen}
@@ -518,6 +709,17 @@ export function AdminV2Orders() {
           return b.totalPrice - a.totalPrice;
         case "lowest":
           return a.totalPrice - b.totalPrice;
+        // Soonest slot first — the order the kitchen actually has to work in.
+        // Orders with no slot are not prebooked, so they sink to the bottom and
+        // keep their usual newest-first order among themselves.
+        case "prebook": {
+          const slotA = getPrebookInstant(a);
+          const slotB = getPrebookInstant(b);
+          if (slotA !== null && slotB !== null) return slotA - slotB;
+          if (slotA !== null) return -1;
+          if (slotB !== null) return 1;
+          return dateB - dateA;
+        }
         default:
           return dateB - dateA;
       }
@@ -527,6 +729,52 @@ export function AdminV2Orders() {
   };
 
   const filteredOrders = getFilteredAndSortedOrders();
+
+  // "Today · 7:00 – 7:30 PM" — the when of a prebooked order, always rendered
+  // behind a "Prepare for/by" prefix so a scheduled row can never be read as a
+  // now-order.
+  const prebookWhenLabel = (order: Order) => {
+    const date = order.scheduled_date as string;
+    const slot = order.scheduled_time
+      ? ` · ${formatPrebookSlotLabel(prebookCfg, date, order.scheduled_time, {
+        dineIn: !!order.booking_persons,
+        to: order.scheduled_time_to,
+      })}`
+      : "";
+    return `${formatPrebookDateLabel(date, new Date(nowTs))}${slot}`;
+  };
+
+  // Just the slot ("7:00 – 7:30 PM"), for lines that already say which day.
+  const prebookSlotOnlyLabel = (order: Order) =>
+    order.scheduled_time
+      ? formatPrebookSlotLabel(prebookCfg, order.scheduled_date as string, order.scheduled_time, {
+        dineIn: !!order.booking_persons,
+        to: order.scheduled_time_to,
+      })
+      : "";
+
+  // Deadline for a due-soon order: within the hour it is (almost always) today,
+  // so the day word would just be noise.
+  const prebookDueLabel = (order: Order) =>
+    order.scheduled_date === todayStr
+      ? prebookSlotOnlyLabel(order) || "now"
+      : prebookWhenLabel(order);
+
+  // In the Prebookings view rows are grouped under their scheduled date, so
+  // "Today" is a section header of its own and a booking taken days ago still
+  // reads as today's work. Only while sorted by slot — any other sort would
+  // scatter the dates and repeat headers.
+  const getPrebookGroupLabel = (order: Order, prev?: Order) => {
+    if (!showPrebookings || sortBy !== "prebook") return null;
+    if (!order.scheduled_date) return null;
+    if (prev?.scheduled_date === order.scheduled_date) return null;
+    const label = formatPrebookDateLabel(order.scheduled_date, new Date(nowTs));
+    // A yesterday slot is still in this list only because nobody closed it, and
+    // it sorts to the very top — say so in the header, or a plain date sitting
+    // above "Today" reads like a mistake. (yyyy-mm-dd compares lexicographically.)
+    if (order.scheduled_date < todayStr) return `${label} — overdue`;
+    return label === "Today" ? "Today — prepare these first" : label;
+  };
 
   // Show the Growjet booking column for any partner who has the
   // growjet_delivery feature flag granted (access=true), regardless of whether
@@ -582,7 +830,7 @@ export function AdminV2Orders() {
             </div>
 
             <div className="flex-1 min-w-[150px]">
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={sortBy} onValueChange={handleSortChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -591,6 +839,7 @@ export function AdminV2Orders() {
                   <SelectItem value="oldest">Oldest First</SelectItem>
                   <SelectItem value="highest">Highest Amount</SelectItem>
                   <SelectItem value="lowest">Lowest Amount</SelectItem>
+                  <SelectItem value="prebook">Prebooking time</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -600,13 +849,7 @@ export function AdminV2Orders() {
         <div className="flex items-center gap-2">
           <Button
             variant={showPrebookings ? "default" : "outline"}
-            onClick={() =>
-              setShowPrebookings((v) => {
-                const next = !v;
-                if (next) setShowDrafts(false);
-                return next;
-              })
-            }
+            onClick={togglePrebookingsView}
             className="relative gap-2"
           >
             <CalendarClock className="h-4 w-4" />
@@ -668,11 +911,126 @@ export function AdminV2Orders() {
       {showPrebookings && (
         <div className="flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50/60 px-4 py-2 text-sm text-blue-800">
           <span>
-            Showing <b>prebookings</b> — orders scheduled for a later date or slot.
-            They are kept separate from the live orders list.
+            Showing <b>prebookings</b> — orders scheduled for a later date or slot,
+            grouped by the day they must be ready. Loaded separately from the live
+            list, so bookings taken days ago still show up on the day they are due,
+            and a slot that came and went without being closed stays here as
+            overdue.
+            {todayPrebookings.length > 0 && (
+              <>
+                {" "}
+                <b>
+                  {todayPrebookings.length} of them{" "}
+                  {todayPrebookings.length === 1 ? "is" : "are"} for today.
+                </b>
+              </>
+            )}
           </span>
         </div>
       )}
+
+      {/* Prebookings due within the hour (or already overdue) are pinned above
+          the list. This block is the ONLY place such an order can surface on the
+          main screen: it was placed days ago, so it is nowhere in the paged
+          24h-window feed below. */}
+      {!showDrafts && dueSoonPrebookings.length > 0 && (
+        <div className="rounded-md border-2 border-red-300 bg-red-50/70 p-3 dark:border-red-900 dark:bg-red-950/30">
+          <h3 className="mb-2 flex flex-wrap items-center gap-2 text-sm font-bold uppercase tracking-wide text-red-700 dark:text-red-300">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-70" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+            </span>
+            Prepare now
+            <span className="text-xs font-normal normal-case text-red-700/80 dark:text-red-300/80">
+              {dueSoonPrebookings.length} prebooked order
+              {dueSoonPrebookings.length > 1 ? "s" : ""} due within the hour
+            </span>
+          </h3>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {dueSoonPrebookings.map((order) => {
+              const urgency = getPrebookUrgency(order, nowTs) as PrebookUrgency;
+              return (
+                <button
+                  key={order.id}
+                  type="button"
+                  onClick={() => setSelectedOrderId(order.id)}
+                  className="flex w-full flex-col gap-1 rounded-md border border-red-200 bg-white p-2.5 text-left shadow-sm transition-shadow hover:shadow dark:border-red-900 dark:bg-background"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold">
+                      {(Number(order.display_id) ?? 0) > 0
+                        ? `Invoice ${order.display_id}`
+                        : `#${order.id.slice(0, 8)}`}
+                    </span>
+                    <Badge
+                      className={`${prebookUrgencyBadgeClass(urgency.tone)} gap-1 text-[10px] font-bold`}
+                    >
+                      <AlarmClock className="h-3 w-3" />
+                      {urgency.label}
+                    </Badge>
+                  </div>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-red-700 dark:text-red-300">
+                    Prepare by {prebookDueLabel(order)}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {getOrderTypeLabel(order)} · {getTableLocationLabel(order)}
+                    {order.booking_persons ? ` · ${order.booking_persons} guests` : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {laterTodayCount > 0 && !showPrebookings && (
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-red-800 dark:text-red-300">
+              <span>
+                {laterTodayCount} more prebooking{laterTodayCount > 1 ? "s" : ""} still
+                to prepare today.
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openPrebookingsView}
+                className="h-7 gap-1.5 border-red-300 bg-white text-red-800 hover:bg-red-100 dark:bg-transparent dark:text-red-200"
+              >
+                <CalendarClock className="h-3.5 w-3.5" />
+                View prebookings
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Nothing due inside the hour, but today still has bookings to cook. The
+          reminder keeps "booked yesterday, due today" on screen even though those
+          orders are outside the live feed's 24h created_at window. */}
+      {!showDrafts &&
+        !showPrebookings &&
+        dueSoonPrebookings.length === 0 &&
+        todayPrebookings.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-blue-50/60 px-4 py-2 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+            <span className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 shrink-0" />
+              <span>
+                <b>
+                  {todayPrebookings.length} prebooked order
+                  {todayPrebookings.length > 1 ? "s" : ""} to prepare today
+                </b>
+                {prebookSlotOnlyLabel(todayPrebookings[0])
+                  ? ` — earliest ${prebookSlotOnlyLabel(todayPrebookings[0])}`
+                  : ""}
+                .
+              </span>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openPrebookingsView}
+              className="h-7 shrink-0 border-blue-300 bg-white text-blue-800 hover:bg-blue-100 dark:bg-transparent dark:text-blue-200"
+            >
+              View
+            </Button>
+          </div>
+        )}
 
       {/* Desktop Table View */}
       <div className="hidden md:block rounded-md border bg-card">
@@ -692,159 +1050,202 @@ export function AdminV2Orders() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredOrders.map((order) => (
-              <TableRow
-                key={order.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => setSelectedOrderId(order.id)}
-              >
-                <TableCell className="font-medium">
-                  <div className="flex flex-col gap-1">
-                    {(Number(order.display_id) ?? 0) > 0 ? (
-                      <div className="flex w-fit flex-col items-start gap-0.5">
-                        <Badge className="bg-orange-100 px-2 py-0.5 text-sm font-bold text-orange-800 hover:bg-orange-100">
-                          {order.display_id}
-                        </Badge>
-                        <span className="whitespace-nowrap text-xs text-muted-foreground">
-                          {format(new Date(order.createdAt), "d MMM")}
-                        </span>
+            {filteredOrders.map((order, index) => {
+              const urgency = getPrebookUrgency(order, nowTs);
+              const groupLabel = getPrebookGroupLabel(order, filteredOrders[index - 1]);
+              // Prebooked rows are tinted so they never read as a now-order:
+              // red when overdue, amber when due within the hour, otherwise a
+              // light blue "scheduled" wash.
+              const rowTint = urgency
+                ? urgency.tone === "overdue"
+                  ? "bg-red-50 hover:bg-red-100 dark:bg-red-950/30"
+                  : "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30"
+                : order.scheduled_date
+                  ? "bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-950/20"
+                  : "hover:bg-muted/50";
+              return (
+                <React.Fragment key={order.id}>
+                  {groupLabel && (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={showGrowjetColumn ? 10 : 9}
+                        className="bg-muted py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground"
+                      >
+                        {groupLabel}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  <TableRow
+                        className={`cursor-pointer ${rowTint}`}
+                        onClick={() => setSelectedOrderId(order.id)}
+                      >
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col gap-1">
+                        {(Number(order.display_id) ?? 0) > 0 ? (
+                          <div className="flex w-fit flex-col items-start gap-0.5">
+                            <Badge className="bg-orange-100 px-2 py-0.5 text-sm font-bold text-orange-800 hover:bg-orange-100">
+                              {order.display_id}
+                            </Badge>
+                            <span className="whitespace-nowrap text-xs text-muted-foreground">
+                              {format(new Date(order.createdAt), "d MMM")}
+                            </span>
+                          </div>
+                        ) : (
+                          <span>{order.id.slice(0, 8)}</span>
+                        )}
+                        <PickupOtpBadge
+                          meta={order.delivery_provider_meta}
+                          status={order.status}
+                        />
                       </div>
-                    ) : (
-                      <span>{order.id.slice(0, 8)}</span>
-                    )}
-                    <PickupOtpBadge
-                      meta={order.delivery_provider_meta}
-                      status={order.status}
-                    />
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground font-mono">
-                  {order.id.slice(0, 8)}
-                </TableCell>
-                <TableCell>
-                  {getTableLocationLabel(order)}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className="bg-gray-50 text-black dark:text-black"
-                  >
-                    {getPaymentModeLabel(order)}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {format(new Date(order.createdAt), "dd-MM-yy")}
-                </TableCell>
-                <TableCell>
-                  {format(new Date(order.createdAt), "hh:mm a")}
-                </TableCell>
-                <TableCell>
-                  <div className="flex max-w-[200px] flex-col gap-1">
-                    {/* line 1: order type + compact Prebooked/Table tag (fits on
-                        one line); the long date/slot moves to line 2 below */}
-                    <div className="flex flex-wrap items-center gap-1">
-                      <Badge variant="secondary" className="uppercase">
-                        {getOrderTypeLabel(order)}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground font-mono">
+                      {order.id.slice(0, 8)}
+                    </TableCell>
+                    <TableCell>
+                      {getTableLocationLabel(order)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className="bg-gray-50 text-black dark:text-black"
+                      >
+                        {getPaymentModeLabel(order)}
                       </Badge>
-                      {order.scheduled_date && (
-                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-                          {order.booking_persons ? "Table" : "Prebooked"}
-                        </Badge>
-                      )}
-                      {order.booking_persons != null && order.booking_persons > 1 && (
-                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 gap-1">
-                          <Users className="h-3 w-3" /> {order.booking_persons}
-                        </Badge>
-                      )}
-                    </div>
-                    {/* line 2: the prebooked date · slot, small so the column stays narrow */}
-                    {order.scheduled_date && (
-                      <span className="text-[11px] font-medium leading-tight text-blue-700">
-                        {formatPrebookDateLabel(order.scheduled_date)}
-                        {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons, to: order.scheduled_time_to })}` : ""}
-                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(order.createdAt), "dd-MM-yy")}
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(order.createdAt), "hh:mm a")}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex max-w-[200px] flex-col gap-1">
+                        {/* line 1: order type + compact Prebooked/Table tag (fits on
+                            one line); the long date/slot moves to line 2 below. Once
+                            the slot is within the hour the calm blue tag is replaced
+                            by the countdown so the row shouts for attention. */}
+                        <div className="flex flex-wrap items-center gap-1">
+                          <Badge variant="secondary" className="uppercase">
+                            {getOrderTypeLabel(order)}
+                          </Badge>
+                          {order.scheduled_date &&
+                            (urgency ? (
+                              <Badge
+                                className={`${prebookUrgencyBadgeClass(urgency.tone)} gap-1 font-bold`}
+                              >
+                                <AlarmClock className="h-3 w-3" />
+                                {urgency.label}
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                                {order.booking_persons ? "Table" : "Prebooked"}
+                              </Badge>
+                            ))}
+                          {order.booking_persons != null && order.booking_persons > 1 && (
+                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 gap-1">
+                              <Users className="h-3 w-3" /> {order.booking_persons}
+                            </Badge>
+                          )}
+                        </div>
+                        {/* line 2: WHEN it has to be ready. Always prefixed with
+                            "Prepare for" so the date can't be mistaken for the
+                            order's own date. */}
+                        {order.scheduled_date && (
+                          <span
+                            className={`text-[11px] font-semibold leading-tight ${urgency
+                              ? urgency.tone === "overdue"
+                                ? "text-red-700"
+                                : "text-amber-700"
+                              : "text-blue-700"
+                              }`}
+                          >
+                            Prepare for {prebookWhenLabel(order)}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    {showGrowjetColumn && (
+                      <TableCell>
+                        {order.growjet_order_number ? (
+                          <Badge className="bg-green-100 text-green-800">
+                            ✓ {order.growjet_order_number}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Nil
+                          </Badge>
+                        )}
+                      </TableCell>
                     )}
-                  </div>
-                </TableCell>
-                {showGrowjetColumn && (
-                  <TableCell>
-                    {order.growjet_order_number ? (
-                      <Badge className="bg-green-100 text-green-800">
-                        ✓ {order.growjet_order_number}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
-                        Nil
-                      </Badge>
-                    )}
-                  </TableCell>
-                )}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    value={order.status}
-                    disabled={isCancelledOrderFrozen(order, userData)}
-                    onValueChange={(val) =>
-                      handleUpdateOrderStatus(order.id, val)
-                    }
-                  >
-                    <SelectTrigger
-                      className={`w-[130px] h-8 border-none ${getStatusColor(order.status)}`}
-                    >
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>{renderStatusOptions(order)}</SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div
-                    className="flex items-center justify-end gap-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Printer className="h-4 w-4 text-blue-500" />
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={order.status}
+                        disabled={isCancelledOrderFrozen(order, userData)}
+                        onValueChange={(val) =>
+                          handleUpdateOrderStatus(order.id, val)
+                        }
+                      >
+                        <SelectTrigger
+                          className={`w-[130px] h-8 border-none ${getStatusColor(order.status)}`}
+                        >
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>{renderStatusOptions(order)}</SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div
+                        className="flex items-center justify-end gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Printer className="h-4 w-4 text-blue-500" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                window.open(`/kot/${order.id}`, "_blank")
+                              }
+                            >
+                              Print KOT
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handlePrintBill(order)}
+                            >
+                              Print Bill
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setSelectedOrderId(order.id);
+                          }}
+                        >
+                          <ReceiptText className="h-4 w-4 text-green-500" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() =>
-                            window.open(`/kot/${order.id}`, "_blank")
-                          }
-                        >
-                          Print KOT
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handlePrintBill(order)}
-                        >
-                          Print Bill
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => {
-                        setSelectedOrderId(order.id);
-                      }}
-                    >
-                      <ReceiptText className="h-4 w-4 text-green-500" />
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleDeleteOrder(order)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDeleteOrder(order)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </React.Fragment>
+              );
+            })}
             {filteredOrders.length === 0 && (
               <TableRow>
                 <TableCell
@@ -861,144 +1262,185 @@ export function AdminV2Orders() {
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
-        {filteredOrders.map((order) => (
-          <Card
-            key={order.id}
-            className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setSelectedOrderId(order.id)}
-          >
-            <CardHeader className="bg-muted/40 p-3">
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="text-sm font-medium">
-                    {(Number(order.display_id) ?? 0) > 0
-                      ? `Invoice No: ${order.display_id}-${getDateOnly(order.createdAt)}`
-                      : `Order #${order.id.slice(0, 8)}`}
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                    ID: #{order.id.slice(0, 8)}
-                  </p>
+        {filteredOrders.map((order, index) => {
+          const urgency = getPrebookUrgency(order, nowTs);
+          const groupLabel = getPrebookGroupLabel(order, filteredOrders[index - 1]);
+          // Same signalling as the desktop rows, as a ring around the card.
+          const cardRing = urgency
+            ? urgency.tone === "overdue"
+              ? "ring-2 ring-red-400"
+              : "ring-2 ring-amber-400"
+            : order.scheduled_date
+              ? "ring-1 ring-blue-200"
+              : "";
+          return (
+            <React.Fragment key={order.id}>
+              {groupLabel && (
+                <div className="pt-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  {groupLabel}
                 </div>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    value={order.status}
-                    disabled={isCancelledOrderFrozen(order, userData)}
-                    onValueChange={(val) =>
-                      handleUpdateOrderStatus(order.id, val)
-                    }
-                  >
-                    <SelectTrigger
-                      className={`w-[110px] h-7 text-xs border-none ${getStatusColor(order.status)}`}
-                    >
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>{renderStatusOptions(order)}</SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-3 space-y-3">
-              <div className="flex flex-col gap-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-start gap-2">
-                    {order.tableName || order.tableNumber ? (
-                      <Table2 className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
-                    ) : (
-                      <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
-                    )}
-                    <span className="font-medium break-words">
-                      {getTableLocationLabel(order)}
-                    </span>
+              )}
+              <Card
+                className={`overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${cardRing}`}
+                onClick={() => setSelectedOrderId(order.id)}
+              >
+                <CardHeader className="bg-muted/40 p-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="text-sm font-medium">
+                        {(Number(order.display_id) ?? 0) > 0
+                          ? `Invoice No: ${order.display_id}-${getDateOnly(order.createdAt)}`
+                          : `Order #${order.id.slice(0, 8)}`}
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                        ID: #{order.id.slice(0, 8)}
+                      </p>
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={order.status}
+                        disabled={isCancelledOrderFrozen(order, userData)}
+                        onValueChange={(val) =>
+                          handleUpdateOrderStatus(order.id, val)
+                        }
+                      >
+                        <SelectTrigger
+                          className={`w-[110px] h-7 text-xs border-none ${getStatusColor(order.status)}`}
+                        >
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>{renderStatusOptions(order)}</SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1 justify-end">
-                    <Badge variant="outline" className="capitalize text-xs">
-                      {getOrderTypeLabel(order)}
-                    </Badge>
+                </CardHeader>
+                <CardContent className="p-3 space-y-3">
+                  <div className="flex flex-col gap-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-start gap-2">
+                        {order.tableName || order.tableNumber ? (
+                          <Table2 className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
+                        ) : (
+                          <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
+                        )}
+                        <span className="font-medium break-words">
+                          {getTableLocationLabel(order)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1 justify-end">
+                        <Badge variant="outline" className="capitalize text-xs">
+                          {getOrderTypeLabel(order)}
+                        </Badge>
+                        {order.scheduled_date &&
+                          (urgency ? (
+                            <Badge
+                              className={`${prebookUrgencyBadgeClass(urgency.tone)} gap-1 whitespace-nowrap text-xs font-bold`}
+                            >
+                              <AlarmClock className="h-3 w-3" />
+                              {urgency.label}
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap">
+                              {order.booking_persons ? "Table" : "Prebooked"}
+                            </Badge>
+                          ))}
+                        {order.booking_persons != null && order.booking_persons > 1 && (
+                          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap gap-1">
+                            <Users className="h-3 w-3" /> {order.booking_persons}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    {/* The prep deadline gets its own strip on mobile — a badge that
+                        long wraps badly, and this must never be skim-read as the
+                        order's own time. */}
                     {order.scheduled_date && (
-                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap">
-                        {order.booking_persons ? "Table" : "Prebooked"} · {formatPrebookDateLabel(order.scheduled_date)}
-                        {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons, to: order.scheduled_time_to })}` : ""}
-                      </Badge>
+                      <div
+                        className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold ${urgency
+                          ? urgency.tone === "overdue"
+                            ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                            : "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                          : "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                          }`}
+                      >
+                        <AlarmClock className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span>Prepare for {prebookWhenLabel(order)}</span>
+                      </div>
                     )}
-                    {order.booking_persons != null && order.booking_persons > 1 && (
-                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap gap-1">
-                        <Users className="h-3 w-3" /> {order.booking_persons}
-                      </Badge>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span>{format(new Date(order.createdAt), "hh:mm a")}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                        <span className="capitalize">{getPaymentModeLabel(order)}</span>
+                      </div>
+                    </div>
+                    {showGrowjetColumn && (
+                      <div className="flex items-center gap-2">
+                        {order.growjet_order_number ? (
+                          <Badge className="bg-green-100 text-green-800 text-xs">
+                            Growjet ✓ {order.growjet_order_number}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground text-xs">
+                            Growjet: Nil
+                          </Badge>
+                        )}
+                      </div>
                     )}
+                    <PickupOtpBadge
+                      meta={order.delivery_provider_meta}
+                      status={order.status}
+                    />
                   </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span>{format(new Date(order.createdAt), "hh:mm a")}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    <span className="capitalize">{getPaymentModeLabel(order)}</span>
-                  </div>
-                </div>
-                {showGrowjetColumn && (
-                  <div className="flex items-center gap-2">
-                    {order.growjet_order_number ? (
-                      <Badge className="bg-green-100 text-green-800 text-xs">
-                        Growjet ✓ {order.growjet_order_number}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground text-xs">
-                        Growjet: Nil
-                      </Badge>
-                    )}
-                  </div>
-                )}
-                <PickupOtpBadge
-                  meta={order.delivery_provider_meta}
-                  status={order.status}
-                />
-              </div>
-            </CardContent>
-            <CardFooter
-              className="bg-muted/10 p-2 flex justify-between border-t"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8">
-                    <Printer className="h-4 w-4 mr-2" /> Print
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem
-                    onClick={() => window.open(`/kot/${order.id}`, "_blank")}
-                  >
-                    Print KOT
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handlePrintBill(order)}>
-                    Print Bill
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                </CardContent>
+                <CardFooter
+                  className="bg-muted/10 p-2 flex justify-between border-t"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8">
+                        <Printer className="h-4 w-4 mr-2" /> Print
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem
+                        onClick={() => window.open(`/kot/${order.id}`, "_blank")}
+                      >
+                        Print KOT
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handlePrintBill(order)}>
+                        Print Bill
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-              <div className="flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-green-600"
-                  onClick={() => setSelectedOrderId(order.id)}
-                >
-                  <ReceiptText className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-red-500"
-                  onClick={() => handleDeleteOrder(order)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
-        ))}
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-green-600"
+                      onClick={() => setSelectedOrderId(order.id)}
+                    >
+                      <ReceiptText className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500"
+                      onClick={() => handleDeleteOrder(order)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            </React.Fragment>
+          );
+        })}
         {filteredOrders.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             No orders found
@@ -1006,8 +1448,10 @@ export function AdminV2Orders() {
         )}
       </div>
 
-      {/* Pagination Controls - hidden in draft view (drafts are a single list) */}
-      <div className={`flex items-center justify-end space-x-2 py-4 ${showDrafts ? "hidden" : ""}`}>
+      {/* Pagination Controls - hidden in the draft and prebooking views: both are
+          single, separately-subscribed lists, so paging the live feed under them
+          would do nothing but confuse. */}
+      <div className={`flex items-center justify-end space-x-2 py-4 ${showDrafts || showPrebookings ? "hidden" : ""}`}>
         <Button
           variant="outline"
           size="sm"

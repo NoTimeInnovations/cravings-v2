@@ -27,6 +27,7 @@ import {
   draftOrdersSubscription,
   paginatedOrdersSubscription,
   subscriptionQuery,
+  upcomingPrebookingsSubscription,
   userSubscriptionQuery,
 } from "@/api/orders";
 import { toast } from "sonner";
@@ -618,6 +619,12 @@ interface OrderState {
   ) => () => void;
   subscribeOrdersCount: (callback?: (count: number) => void) => () => void;
   subscribeDraftOrders: (callback: (orders: Order[]) => void) => () => void;
+  subscribeUpcomingPrebookings: (
+    partnerId: string,
+    fromDate: string,
+    throughDate: string,
+    callback: (orders: Order[]) => void
+  ) => () => void;
   partnerOrders: Order[];
   userOrders: Order[];
   subscribeUserOrders: (callback?: (orders: Order[]) => void) => () => void;
@@ -1107,6 +1114,30 @@ const useOrderStore = create(
         return subscribeToHasura({
           query: draftOrdersSubscription,
           variables: { partner_id: userData.id },
+          onNext: (data) => {
+            if (data?.data?.orders) {
+              callback(data.data.orders.map(transformOrderFromHasura));
+            }
+          },
+        });
+      },
+
+      // Prebookings scheduled between two restaurant-local dates (yyyy-mm-dd).
+      // Separate from the paged feed on purpose — see the comment on
+      // upcomingPrebookingsSubscription. The result is handed to the caller only;
+      // it is NEVER written into partnerOrders so the live feed (and the
+      // new-order alert that diffs it) stays untouched.
+      subscribeUpcomingPrebookings: (partnerId, fromDate, throughDate, callback) => {
+        if (!partnerId) {
+          return () => { };
+        }
+        return subscribeToHasura({
+          query: upcomingPrebookingsSubscription,
+          variables: {
+            partner_id: partnerId,
+            from_date: fromDate,
+            through_date: throughDate,
+          },
           onNext: (data) => {
             if (data?.data?.orders) {
               callback(data.data.orders.map(transformOrderFromHasura));
