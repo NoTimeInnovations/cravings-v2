@@ -80,7 +80,6 @@ export default function AddedRecommendationsSheet({
   const hasOrderingFeature =
     features?.ordering.enabled && (tableNumber !== 0 || isTakeawayTimeOpen);
   const canOrder = !!(hasOrderingFeature || hasDeliveryFeature);
-  const isPartnersRole = auth?.role === "partner";
   const hasStockFeature = !!features?.stockmanagement?.enabled;
 
   return (
@@ -103,7 +102,6 @@ export default function AddedRecommendationsSheet({
                 hoteldata={hoteldata}
                 accent={accent}
                 canOrder={canOrder}
-                isPartnersRole={isPartnersRole}
                 hasStockFeature={hasStockFeature}
               />
             ))}

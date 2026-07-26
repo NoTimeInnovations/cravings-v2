@@ -207,7 +207,6 @@ const V3ItemCard = ({
     features?.delivery.enabled && tableNumber === 0 && isDeliveryTimeOpen;
   const hasOrderingFeature =
     features?.ordering.enabled && (tableNumber !== 0 || isTakeawayTimeOpen);
-  const isPartnersRole = auth?.role === "partner";
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement?.enabled;
   const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
@@ -533,7 +532,6 @@ const V3ItemCard = ({
           hoteldata={hoteldata}
           accent={styles.accent}
           canOrder={!!(hasOrderingFeature || hasDeliveryFeature)}
-          isPartnersRole={isPartnersRole}
           hasStockFeature={!!hasStockFeature}
         />
       </div>

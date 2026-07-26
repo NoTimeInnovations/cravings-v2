@@ -133,7 +133,6 @@ const ItemCard = ({
   const hasOrderingFeature =
     _features?.ordering.enabled && (tableNumber !== 0 || _isTakeawayTimeOpen);
 
-  const isPartnersRole = auth?.role === "partner";
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement
     ?.enabled;
@@ -571,7 +570,6 @@ const ItemCard = ({
           hoteldata={hoteldata}
           accent={styles.accent}
           canOrder={!!(hasOrderingFeature || hasDeliveryFeature)}
-          isPartnersRole={isPartnersRole}
           hasStockFeature={!!hasStockFeature}
         />
       </div>

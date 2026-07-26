@@ -16,7 +16,6 @@ export default function PairingRecommendations({
   hoteldata,
   accent,
   canOrder,
-  isPartnersRole = false,
   hasStockFeature = false,
   className,
 }: {
@@ -24,7 +23,6 @@ export default function PairingRecommendations({
   hoteldata: HotelData;
   accent: string;
   canOrder: boolean;
-  isPartnersRole?: boolean;
   hasStockFeature?: boolean;
   className?: string;
 }) {
@@ -56,7 +54,6 @@ export default function PairingRecommendations({
               hoteldata={hoteldata}
               accent={accent}
               canOrder={canOrder}
-              isPartnersRole={isPartnersRole}
               hasStockFeature={hasStockFeature}
             />
           ))}
