@@ -1,85 +1,49 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Loader2, Plus, RefreshCw, Store } from "lucide-react";
 import { toast } from "sonner";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuthStore } from "@/store/authStore";
 import AddRestaurantPanel from "@/components/televery/AddRestaurantPanel";
+import { TeleveryNavbar } from "@/components/televery/TeleveryNavbar";
+import { TeleverySidebar } from "@/components/televery/TeleverySidebar";
+import { TeleveryDashboardView } from "@/components/televery/TeleveryDashboardView";
+import { TeleveryBusinessesView } from "@/components/televery/TeleveryBusinessesView";
+import type {
+  TeleveryBusiness,
+  TeleveryOverview,
+  TeleveryView,
+} from "@/components/televery/types";
 
-type Business = {
-  id: string;
-  username: string | null;
-  storeName: string | null;
-  location: string | null;
-  phone: string | null;
-  status: string | null;
-  orders: number;
-  revenue: number;
-};
-
-type OutletOrders = {
-  partnerId: string;
-  page: number;
-  pageSize: number;
-  total: number;
-  orders: {
-    id: string;
-    displayId: string | number | null;
-    createdAt: string;
-    status: string | null;
-    type: string | null;
-    totalPrice: number | null;
-    customerName: string | null;
-    customerPhone: string | null;
-  }[];
-};
-
-type Overview = {
-  brand: { id: string; name: string } | null;
-  totals: { businesses: number; orders: number; revenue: number };
-  businesses: Business[];
-  outletOrders: OutletOrders | null;
-};
-
-const inr = (n: number) =>
-  `₹${Math.round(n || 0).toLocaleString("en-IN")}`;
-
-function Kpi({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.04]">
-      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">
-        {label}
-      </p>
-      <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-gray-900">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-const statusColor = (s: string | null) => {
-  switch ((s || "").toLowerCase()) {
-    case "completed":
-      return "bg-green-50 text-green-700 ring-green-200";
-    case "cancelled":
-      return "bg-red-50 text-red-700 ring-red-200";
-    case "pending":
-      return "bg-amber-50 text-amber-700 ring-amber-200";
-    default:
-      return "bg-gray-50 text-gray-600 ring-gray-200";
-  }
-};
-
+/**
+ * Televery marketplace dashboard.
+ *
+ * Uses the same shell as the partner dashboard (/admin-v2): navbar, collapsible
+ * desktop sidebar, mobile Sheet sidebar, scrolling main pane. The chrome
+ * components are Televery's own (TeleveryNavbar/TeleverySidebar) because
+ * admin-v2's are wired to a partner session — see the comments on those files.
+ *
+ * All data comes from GET /api/televery/overview, which returns the brand, the
+ * totals, the connected businesses and — when `partnerId` is supplied — one page
+ * of that business's orders. Because every response carries the full overview,
+ * the drill-down and the list share a single piece of state.
+ */
 export default function TeleveryDashboardPage() {
   const signOut = useAuthStore((s) => s.signOut);
 
-  const [data, setData] = useState<Overview | null>(null);
+  const [activeView, setActiveView] = useState<TeleveryView>("Dashboard");
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const [data, setData] = useState<TeleveryOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selected, setSelected] = useState<Business | null>(null);
+  const [selected, setSelected] = useState<TeleveryBusiness | null>(null);
   const [page, setPage] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
 
+  // `quiet` refreshes in place (navbar refresh button) instead of blanking the
+  // view out to the loader.
   const load = useCallback(
     async (opts?: { partnerId?: string; page?: number; quiet?: boolean }) => {
       if (opts?.quiet) setRefreshing(true);
@@ -109,7 +73,10 @@ export default function TeleveryDashboardPage() {
     load();
   }, [load]);
 
-  const openBusiness = (b: Business) => {
+  const openBusiness = (b: TeleveryBusiness) => {
+    // Reachable from the dashboard's top-businesses list too, so land the user
+    // on the section that owns the drill-down.
+    setActiveView("Businesses");
     setSelected(b);
     setPage(0);
     load({ partnerId: b.id, page: 0 });
@@ -127,184 +94,101 @@ export default function TeleveryDashboardPage() {
     load({ partnerId: selected.id, page: next });
   };
 
-  const orders = data?.outletOrders;
-  const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
+  const handleNavigate = (view: TeleveryView) => {
+    setActiveView(view);
+    // Sections are always entered fresh, so "Businesses" lands on the list
+    // rather than a drill-down left over from an earlier visit. No refetch is
+    // needed — every overview response carries the full business list, so the
+    // list is already current.
+    setSelected(null);
+    setPage(0);
+  };
+
+  const refresh = () =>
+    selected
+      ? load({ partnerId: selected.id, page, quiet: true })
+      : load({ quiet: true });
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50">
-      <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3.5">
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">
-              Marketplace
-            </p>
-            <h1 className="truncate text-lg font-extrabold tracking-tight text-gray-900">
-              {data?.brand?.name || "Televery"}
-            </h1>
-          </div>
-          <button
-            onClick={() => (selected ? load({ partnerId: selected.id, page, quiet: true }) : load({ quiet: true }))}
-            className="grid h-9 w-9 place-items-center rounded-full text-gray-500 transition hover:bg-gray-100"
-            aria-label="Refresh"
+    <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+      <div className="h-screen flex flex-col bg-orange-50 dark:bg-background overflow-hidden">
+        <TeleveryNavbar
+          brandName={data?.brand?.name || "Televery"}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          onRefresh={refresh}
+          refreshing={refreshing}
+          onSignOut={() => signOut()}
+        />
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Desktop Sidebar */}
+          <aside
+            className={`hidden lg:block border-r bg-background overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out ${isSidebarOpen ? "w-64" : "w-0 border-none"
+              }`}
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          </button>
-          <button
-            onClick={() => signOut()}
-            className="rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-5xl px-4 py-5">
-        {loading ? (
-          <div className="flex justify-center py-24">
-            <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
-          </div>
-        ) : selected && orders ? (
-          /* ── Drill-down: one connected business ── */
-          <>
-            <button
-              onClick={backToList}
-              className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900"
-            >
-              <ChevronLeft className="h-4 w-4" /> All businesses
-            </button>
-
-            <h2 className="text-xl font-extrabold tracking-tight text-gray-900">
-              {selected.storeName}
-            </h2>
-            <p className="mt-0.5 text-sm text-gray-500">
-              {orders.total} order{orders.total === 1 ? "" : "s"} · {inr(selected.revenue)}
-            </p>
-
-            <div className="mt-4 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.04]">
-              {orders.orders.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-gray-400">
-                  No orders yet.
-                </p>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {orders.orders.map((o) => (
-                    <div key={o.id} className="flex items-center gap-3 px-4 py-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-gray-900">
-                          #{o.displayId ?? o.id.slice(0, 8)}
-                          {o.customerName ? (
-                            <span className="ml-2 font-medium text-gray-500">
-                              {o.customerName}
-                            </span>
-                          ) : null}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-gray-400">
-                          {new Date(o.createdAt).toLocaleString("en-IN", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
-                          {o.type ? ` · ${o.type.replace("_", " ")}` : ""}
-                        </p>
-                      </div>
-                      <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ${statusColor(o.status)}`}
-                      >
-                        {o.status || "—"}
-                      </span>
-                      <span className="w-20 shrink-0 text-right text-sm font-bold text-gray-900">
-                        {inr(o.totalPrice || 0)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* h-full so the short nav list still pins Sign out to the bottom. */}
+            <div className="w-64 h-full">
+              <TeleverySidebar
+                activeView={activeView}
+                onNavigate={handleNavigate}
+                onSignOut={() => signOut()}
+              />
             </div>
+          </aside>
 
-            {totalPages > 1 && (
-              <div className="mt-4 flex items-center justify-center gap-3">
-                <button
-                  onClick={() => goPage(page - 1)}
-                  disabled={page <= 0}
-                  className="grid h-9 w-9 place-items-center rounded-full bg-white ring-1 ring-black/[0.06] disabled:opacity-40"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span className="text-sm font-semibold text-gray-600">
-                  {page + 1} / {totalPages}
+          {/* Mobile Sidebar (Sheet) */}
+          <SheetContent side="left" className="p-0 w-64">
+            {/* Absolutely fill the full-height (fixed) SheetContent and scroll,
+                so the nav stays reachable on short screens. */}
+            <div className="absolute inset-0 py-4 overflow-y-auto overflow-x-hidden overscroll-contain flex flex-col">
+              <div className="px-4 mb-4 flex items-center gap-2">
+                <img
+                  src="/menuthere-logo-new.png"
+                  alt="Menuthere"
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain"
+                />
+                <span className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                  {data?.brand?.name || "Televery"}
                 </span>
-                <button
-                  onClick={() => goPage(page + 1)}
-                  disabled={page + 1 >= totalPages}
-                  className="grid h-9 w-9 place-items-center rounded-full bg-white ring-1 ring-black/[0.06] disabled:opacity-40"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
               </div>
+              <TeleverySidebar
+                className="flex-1 py-0"
+                activeView={activeView}
+                onNavigate={(view) => {
+                  handleNavigate(view);
+                  setIsMobileOpen(false);
+                }}
+                onSignOut={() => signOut()}
+              />
+            </div>
+          </SheetContent>
+
+          {/* Main Content */}
+          <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+            {activeView === "Dashboard" ? (
+              <TeleveryDashboardView
+                data={data}
+                loading={loading}
+                onAddRestaurant={() => setShowAdd(true)}
+                onOpenBusiness={openBusiness}
+              />
+            ) : (
+              <TeleveryBusinessesView
+                data={data}
+                loading={loading}
+                selected={selected}
+                page={page}
+                onOpenBusiness={openBusiness}
+                onBack={backToList}
+                onPageChange={goPage}
+                onAddRestaurant={() => setShowAdd(true)}
+              />
             )}
-          </>
-        ) : (
-          /* ── Overview ── */
-          <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <Kpi label="Businesses" value={String(data?.totals.businesses ?? 0)} />
-              <Kpi label="Total orders" value={String(data?.totals.orders ?? 0)} />
-              <Kpi label="Revenue" value={inr(data?.totals.revenue ?? 0)} />
-            </div>
-
-            <div className="mt-6 flex items-center justify-between">
-              <h2 className="text-base font-extrabold tracking-tight text-gray-900">
-                Connected businesses
-              </h2>
-              <button
-                onClick={() => setShowAdd(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-3.5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-orange-700 active:scale-[0.98]"
-              >
-                <Plus className="h-4 w-4" strokeWidth={3} />
-                Add restaurant
-              </button>
-            </div>
-
-            <div className="mt-3 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.04]">
-              {(data?.businesses.length ?? 0) === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-gray-400">
-                  No businesses connected yet.
-                </p>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {data!.businesses.map((b) => (
-                    <button
-                      key={b.id}
-                      onClick={() => openBusiness(b)}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-gray-50"
-                    >
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-600">
-                        <Store className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-bold text-gray-900">
-                          {b.storeName}
-                        </span>
-                        <span className="mt-0.5 block truncate text-[11px] text-gray-400">
-                          {b.location || b.username}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-right">
-                        <span className="block text-sm font-bold text-gray-900">
-                          {b.orders}
-                        </span>
-                        <span className="block text-[10px] uppercase tracking-wide text-gray-400">
-                          orders
-                        </span>
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </main>
+          </main>
+        </div>
+      </div>
 
       {showAdd && (
         <AddRestaurantPanel
@@ -315,6 +199,6 @@ export default function TeleveryDashboardPage() {
           }}
         />
       )}
-    </div>
+    </Sheet>
   );
 }
