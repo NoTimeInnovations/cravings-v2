@@ -69,6 +69,18 @@ export default function AddedRecommendationsSheet({
   // uses the longer post-close beat instead of the short settle.
   const waitedRef = useRef(false);
 
+  // Items we've already pitched pairings for. Every "+" tap — on the grid card
+  // or in a sheet — is a full addItem (increaseQuantity deliberately doesn't
+  // signal), so without this a customer taking an item to qty 5 gets the sheet
+  // five times. Pairings are a one-time cross-sell per item, not per unit.
+  const shownRef = useRef<Set<string>>(new Set());
+  // Reset once the cart is empty again (order placed / everything removed), so a
+  // fresh basket can be cross-sold from scratch.
+  const cartLines = useOrderStore((s) => s.items?.length ?? 0);
+  useEffect(() => {
+    if (cartLines === 0) shownRef.current.clear();
+  }, [cartLines]);
+
   // Skip whatever add-signal value was already present when this mounted (e.g.
   // a persisted / earlier-session add), so the sheet only reacts to genuinely
   // new adds that happen while it is on screen.
@@ -141,9 +153,11 @@ export default function AddedRecommendationsSheet({
         (i) => baseItemId(i.id) === pendingBaseId && i.quantity > 0,
       );
       const fresh = Date.now() - parked.at < PENDING_STALE_MS;
+      const alreadyPitched = shownRef.current.has(pendingBaseId);
       setPending(null);
       waitedRef.current = false;
-      if (!stillInCart || !fresh) return;
+      if (!stillInCart || !fresh || alreadyPitched) return;
+      shownRef.current.add(pendingBaseId);
       setBaseItem(parked.base);
       setRecItems(parked.recs);
       setOpen(true);
