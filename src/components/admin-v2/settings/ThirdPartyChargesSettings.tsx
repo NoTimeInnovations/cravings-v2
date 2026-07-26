@@ -43,6 +43,13 @@ import { toast } from "sonner";
 
 const PROVIDERS: ChargeProvider[] = ["porter", "rapido", "uber"];
 
+// Porter is API-driven (live balance + real history from Porter's wallet), so it
+// can't be manually recharged here — only Rapido / Uber are logged by hand.
+const MANUAL_PROVIDERS: ChargeProvider[] = ["rapido", "uber"];
+
+// Below this the partner card flags Porter as running low (mirrors the bridge).
+const PORTER_LOW = 150;
+
 const PROVIDER_LABEL: Record<ChargeProvider, string> = {
     porter: "Porter",
     rapido: "Rapido",
@@ -80,7 +87,7 @@ export function ThirdPartyChargesSettings() {
 
     // Add-recharge form
     const [showAdd, setShowAdd] = useState(false);
-    const [addProvider, setAddProvider] = useState<ChargeProvider>("porter");
+    const [addProvider, setAddProvider] = useState<ChargeProvider>("rapido");
     const [addAmount, setAddAmount] = useState("");
     const [addDate, setAddDate] = useState(todayISO());
     const [addNote, setAddNote] = useState("");
@@ -111,6 +118,10 @@ export function ThirdPartyChargesSettings() {
     }, [load]);
 
     const recharges = data?.recharges ?? [];
+    // Porter recharges are tracked live from Porter's wallet API, so the manual
+    // recharge log only shows/accepts Rapido + Uber. (Any legacy Porter rows in
+    // the column stay in `recharges` for add/edit/delete integrity but are hidden.)
+    const manualRecharges = recharges.filter((r) => r.provider !== "porter");
 
     // Persist a new recharge array, then refresh derived totals + sync authStore.
     const persist = useCallback(
@@ -262,17 +273,26 @@ export function ThirdPartyChargesSettings() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {PROVIDERS.map((provider) => {
                     const s = data?.summaries[provider];
+                    // Porter is API-driven: its balance is the live prepaid wallet
+                    // balance from Porter, not manually-logged recharges.
+                    const porterLive = provider === "porter" ? data?.porterWallet ?? null : null;
                     const recharged = s?.totalRecharged ?? 0;
                     const walletSpent = s?.walletSpent ?? 0;
                     const totalSpent = s?.totalSpent ?? 0;
-                    const balance = s?.balance ?? 0;
-                    const low = recharged > 0 && balance <= recharged * 0.15;
+                    const balance = porterLive ? porterLive.balance : (s?.balance ?? 0);
+                    const low = porterLive
+                        ? balance < PORTER_LOW
+                        : recharged > 0 && balance <= recharged * 0.15;
                     return (
                         <Card key={provider} className={PROVIDER_ACCENT[provider]}>
                             <CardContent className="p-4 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <span className="font-semibold">{PROVIDER_LABEL[provider]}</span>
-                                    {s?.connectedMobile ? (
+                                    {porterLive ? (
+                                        <span className="text-[11px] rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 font-medium text-emerald-700">
+                                            ● Live{s?.connectedMobile ? ` ••${s.connectedMobile.slice(-4)}` : ""}
+                                        </span>
+                                    ) : s?.connectedMobile ? (
                                         <span className="text-[11px] rounded-full bg-white/70 border px-2 py-0.5 text-muted-foreground">
                                             ••{s.connectedMobile.slice(-4)}
                                         </span>
@@ -296,7 +316,7 @@ export function ThirdPartyChargesSettings() {
                                         {balance.toFixed(2)}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                        balance remaining
+                                        {porterLive ? "live balance on Porter" : "balance remaining"}
                                     </div>
                                     {low && balance >= 0 && (
                                         <div className="mt-1 text-[11px] font-medium text-amber-600">
@@ -306,13 +326,37 @@ export function ThirdPartyChargesSettings() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t">
                                     <div>
-                                        <div className="flex items-center gap-1 text-emerald-600">
-                                            <ArrowUpCircle className="h-3 w-3" /> Recharged
-                                        </div>
-                                        <div className="font-semibold text-foreground">
-                                            {currencySymbol}
-                                            {recharged.toFixed(2)}
-                                        </div>
+                                        {porterLive ? (
+                                            <>
+                                                <div className="flex items-center gap-1 text-emerald-600">
+                                                    <ArrowUpCircle className="h-3 w-3" /> Recharge
+                                                </div>
+                                                {porterLive.rechargeLink ? (
+                                                    <a
+                                                        href={porterLive.rechargeLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="font-semibold text-orange-600 underline inline-flex items-center gap-0.5"
+                                                    >
+                                                        Top up <ExternalLink className="h-3 w-3" />
+                                                    </a>
+                                                ) : (
+                                                    <div className="font-semibold text-muted-foreground">
+                                                        via Porter app
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center gap-1 text-emerald-600">
+                                                    <ArrowUpCircle className="h-3 w-3" /> Recharged
+                                                </div>
+                                                <div className="font-semibold text-foreground">
+                                                    {currencySymbol}
+                                                    {recharged.toFixed(2)}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-1 text-amber-600">
@@ -342,21 +386,26 @@ export function ThirdPartyChargesSettings() {
                 })}
             </div>
 
-            {/* Live Porter wallet */}
+            {/* Porter wallet — live balance + REAL transaction history straight
+                from Porter's wallet API (replaces manual Porter recharge logging). */}
             {data?.porterWallet && (
                 <Card className="border-orange-200">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Wallet className="h-4 w-4 text-orange-600" />
-                            <div>
-                                <div className="text-sm font-medium">Live Porter wallet</div>
-                                <div className="text-xs text-muted-foreground">
-                                    Actual prepaid balance on Porter right now
-                                </div>
-                            </div>
+                    <CardHeader className="flex-row items-center justify-between space-y-0">
+                        <div>
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <Wallet className="h-4 w-4 text-orange-600" /> Porter wallet
+                            </CardTitle>
+                            <CardDescription>
+                                Live prepaid balance and transactions, straight from Porter — no
+                                manual entry needed.
+                            </CardDescription>
                         </div>
                         <div className="text-right">
-                            <div className="text-xl font-bold">
+                            <div
+                                className={`text-xl font-bold ${
+                                    data.porterWallet.balance < PORTER_LOW ? "text-amber-600" : ""
+                                }`}
+                            >
                                 {currencySymbol}
                                 {data.porterWallet.balance.toFixed(2)}
                             </div>
@@ -371,6 +420,42 @@ export function ThirdPartyChargesSettings() {
                                 </a>
                             )}
                         </div>
+                    </CardHeader>
+                    <CardContent>
+                        {data.porterWallet.history.length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-3 text-center">
+                                No wallet transactions yet.
+                            </p>
+                        ) : (
+                            <div className="divide-y max-h-80 overflow-y-auto">
+                                {data.porterWallet.history.map((h, i) => (
+                                    <div key={i} className="py-2 flex items-center gap-3">
+                                        <span
+                                            className={`text-xs font-medium rounded px-2 py-0.5 w-16 text-center ${
+                                                h.type === "credit"
+                                                    ? "bg-emerald-100 text-emerald-700"
+                                                    : "bg-rose-100 text-rose-700"
+                                            }`}
+                                        >
+                                            {h.type === "credit" ? "Recharge" : "Trip"}
+                                        </span>
+                                        <span className="text-sm flex-1 truncate">{h.title}</span>
+                                        <span className="text-xs text-muted-foreground w-28 shrink-0">
+                                            {h.date}
+                                        </span>
+                                        <span
+                                            className={`text-sm font-semibold w-24 text-right shrink-0 ${
+                                                h.type === "credit" ? "text-emerald-700" : "text-rose-600"
+                                            }`}
+                                        >
+                                            {h.type === "credit" ? "+" : "−"}
+                                            {currencySymbol}
+                                            {h.amount}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             )}
@@ -381,7 +466,8 @@ export function ThirdPartyChargesSettings() {
                     <div>
                         <CardTitle className="text-base">Recharge log</CardTitle>
                         <CardDescription>
-                            Every time you top up a portal, add the amount here.
+                            Log Rapido / Uber top-ups here. Porter is tracked
+                            automatically from its live wallet above.
                         </CardDescription>
                     </div>
                     {!showAdd && (
@@ -408,7 +494,7 @@ export function ThirdPartyChargesSettings() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {PROVIDERS.map((p) => (
+                                            {MANUAL_PROVIDERS.map((p) => (
                                                 <SelectItem key={p} value={p}>
                                                     {PROVIDER_LABEL[p]}
                                                 </SelectItem>
@@ -466,13 +552,13 @@ export function ThirdPartyChargesSettings() {
                         </div>
                     )}
 
-                    {recharges.length === 0 && !showAdd ? (
+                    {manualRecharges.length === 0 && !showAdd ? (
                         <p className="text-sm text-muted-foreground py-4 text-center">
-                            No recharges logged yet.
+                            No Rapido / Uber recharges logged yet.
                         </p>
                     ) : (
                         <div className="divide-y">
-                            {recharges.map((r) =>
+                            {manualRecharges.map((r) =>
                                 editId === r.id ? (
                                     <div
                                         key={r.id}

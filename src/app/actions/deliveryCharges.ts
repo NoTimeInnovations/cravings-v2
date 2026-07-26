@@ -311,7 +311,13 @@ export async function getThirdPartyChargeData(input: {
       });
       const bal = num(w?.balance);
       if (bal != null) {
-        porterWallet = { balance: bal, rechargeLink: w?.rechargeLink ?? null };
+        porterWallet = {
+          balance: bal,
+          rechargeLink: w?.rechargeLink ?? null,
+          // Real recharges + trip deductions from Porter's wallet API — the
+          // source of truth for Porter (no more manual recharge logging).
+          history: Array.isArray(w?.history) ? w.history : [],
+        };
       }
     }
   }

@@ -65,9 +65,22 @@ export interface ProviderSummary {
     orderCount: number;
 }
 
+export interface PorterWalletTxn {
+    /** Group header from Porter, e.g. "Jul 25, 2026". */
+    date: string;
+    title: string;
+    /** Amount as a string, e.g. "500". */
+    amount: string;
+    /** "credit" (recharge) | "debit" (trip deduction). */
+    type: string;
+}
+
 export interface PorterWalletLive {
     balance: number;
     rechargeLink: string | null;
+    /** Real transaction history from Porter's wallet API (recharges + trip
+     *  deductions) — replaces the manual recharge log for Porter. */
+    history: PorterWalletTxn[];
 }
 
 export interface ThirdPartyChargeData {
