@@ -631,8 +631,11 @@ async function appendDispatchMeta(
 }
 
 interface PartnerDispatchCfg {
-  /** Base/default mobile (porter_mobile ?? phone): pickup contact + per-provider fallback. */
+  /** Base/default mobile (porter_mobile ?? phone): per-provider fallback. */
   mobile: string;
+  /** The store's OWN phone — the number the rider calls at pickup. Always
+   *  prefer this over the porter-login mobile; falls back to `mobile` if unset. */
+  storePhone: string | null;
   /** Per-provider mobiles — a partner may have logged into each service with a
    *  different number. Each falls back to `mobile` when its own column is unset.
    *  Only ENABLED providers (those in the partner's priority queue) are present;
@@ -751,7 +754,7 @@ async function loadPartnerDispatchCfg(
   }
   return {
     ok: true,
-    cfg: { mobile, mobiles, pickup, storeName: p.store_name ?? "Store", priority, vehicleMode, paymentModes, waitSeconds, groups, enabled },
+    cfg: { mobile, storePhone: normaliseMobile(p.phone), mobiles, pickup, storeName: p.store_name ?? "Store", priority, vehicleMode, paymentModes, waitSeconds, groups, enabled },
   };
 }
 
@@ -861,7 +864,9 @@ export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result
         lng: c.cfg.pickup.lng,
         title: c.cfg.storeName,
         contactName: c.cfg.storeName,
-        contactPhone: c.cfg.mobile,
+        // Rider calls this at pickup → the store's own phone, NOT the
+        // porter-login mobile (falls back to it only if no store phone).
+        contactPhone: c.cfg.storePhone ?? c.cfg.mobile,
         // Order ref shown to the rider at pickup so the restaurant can match
         // the order. Porter → from_address_doorstep; Rapido → pickup landmark.
         note: order.display_id ? `Order #${order.display_id}` : undefined,
