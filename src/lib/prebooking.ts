@@ -328,6 +328,93 @@ export function getPrebookingRanges(
     return ranges;
 }
 
+/** Strict 24h "HH:MM". Deliberately NOT `\d{1,2}:\d{2}` — that accepts "12:99",
+ *  which `toMinutes` silently normalizes to 13:39 while the literal string is
+ *  what gets emitted and stored (`scheduled_time = "12:99:00"` is rejected by the
+ *  Postgres time column). `<input type="time">` always produces the padded form. */
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Overnight-aware check that a "HH:MM" time falls inside an operating window.
+ *  Thin wrapper over `withinWindow` for the checkout's free "other time" input;
+ *  a malformed time is never inside, no window means no restriction. */
+function isTimeWithinWindow(hhmm: string, window: ClampWindow): boolean {
+    const raw = (hhmm || "").trim();
+    if (!HHMM_RE.test(raw)) return false;
+    return withinWindow(toMinutes(raw), window);
+}
+
+/**
+ * Validate a customer-TYPED "HH:MM" (the optional "other time" input) for a date.
+ * Returns null when it's acceptable, else a short customer-facing reason.
+ *
+ * Checks, in order:
+ *  1. parses as a time of day;
+ *  2. inside the order type's operating window (delivery_time_allowed / …);
+ *  3. windows mode only — inside one of the day's configured booking ranges.
+ *     Rolling slots are now-relative points, not ranges, so there is nothing to
+ *     bound a typed time with beyond the operating window;
+ *  4. rolling mode only — respects the min lead time (in windows mode the ranges
+ *     from (3) are already lead-clamped for today, so this would be redundant).
+ *
+ * Only ever applied to typed times: preset slot picks keep their existing path.
+ */
+export function validateCustomPrebookTime(
+    settings: PrebookingSettings,
+    dateStr: string,
+    hhmm: string,
+    opts: { dineIn?: boolean; now?: Date; clampWindow?: ClampWindow; timezone?: string | null } = {}
+): string | null {
+    const raw = (hhmm || "").trim();
+    // HHMM_RE already bounds the value to 00:00–23:59, so no range re-check below.
+    if (!HHMM_RE.test(raw)) return "Enter a valid time.";
+    if (!dateStr) return "Select a date first.";
+    const m = toMinutes(raw);
+
+    const now = opts.now ?? new Date();
+    const isRolling = rollingConfig(settings, opts.dineIn).rolling;
+
+    // The operating window is only the right bound in ROLLING mode, where the
+    // offered slots are themselves clamped to it (getRollingSlots -> withinWindow).
+    // In windows mode the partner's configured booking ranges are the authority
+    // and are NOT clamped to the operating window, so applying it here would make
+    // a slot the customer can PICK from the list impossible to TYPE — e.g. a
+    // 09:00–23:00 Saturday range with delivery hours 10:00–22:00 offers 09:00 in
+    // the sheet but would reject a typed 09:00. The range check below is the bound
+    // in that mode.
+    if (isRolling && !isTimeWithinWindow(raw, opts.clampWindow)) {
+        const w = opts.clampWindow!; // non-null: isTimeWithinWindow only fails on a real window
+        return `We're only open ${formatSlotLabel(w.from!)} – ${formatSlotLabel(w.to!)}. Pick a time in between.`;
+    }
+
+    if (!isRolling) {
+        const ranges = getPrebookingRanges(settings, dateStr, { ...opts, now });
+        if (ranges.length === 0) return "No booking times are available for this date.";
+        const inRange = ranges.some((r) => withinWindow(m, r));
+        if (!inRange) {
+            return `Pick a time within ${ranges
+                .map((r) => `${formatSlotLabel(r.from)} – ${formatSlotLabel(r.to)}`)
+                .join(" or ")}.`;
+        }
+        return null;
+    }
+
+    const leadMinutes = opts.dineIn
+        ? (settings.dine_in_min_lead_time_minutes ?? settings.min_lead_time_minutes ?? 0)
+        : (settings.min_lead_time_minutes ?? 0);
+    // Rolling slots only ever exist for today (getPrebookingRanges bails on any
+    // other date), so the lead time is a minute-of-day comparison — and it must be
+    // read on the SAME clock getRollingSlots uses, i.e. the restaurant's timezone.
+    // Building an absolute Date from `dateStr` compared it on the device clock, so
+    // an out-of-timezone customer had valid times rejected / stale ones accepted.
+    const earliest = nowMinuteOfDay(now, opts.timezone) + leadMinutes;
+    if (m < earliest) {
+        return leadMinutes > 0
+            ? `Pick a time at least ${leadMinutes} minutes from now.`
+            : "Pick a time in the future.";
+    }
+    return null;
+}
+
 /** "14:30" -> "2:30 PM" for display. */
 export function formatSlotLabel(hhmm: string): string {
     const [h24, m] = (hhmm || "00:00").split(":").map(Number);
@@ -404,6 +491,11 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
             ? parsed.allowed_order_types
             : base.allowed_order_types,
         prebooking_optional: parsed.prebooking_optional === true,
+        // NOTE: this return is an explicit WHITELIST — both settings tabs save
+        // JSON.stringify({ ...mergePrebookingConfig(raw), ...their changes }), so any
+        // key missing here is dropped on the next save from either tab. Every new
+        // setting MUST be listed or it silently erases itself.
+        free_time_input: parsed.free_time_input === true,
         dine_in_min_lead_time_minutes: num(
             parsed.dine_in_min_lead_time_minutes,
             num(parsed.min_lead_time_minutes, base.dine_in_min_lead_time_minutes)
@@ -424,6 +516,7 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         dine_in_rolling_slot_count: num(parsed.dine_in_rolling_slot_count, 2),
         dine_in_ask_people_count: parsed.dine_in_ask_people_count === true,
         slot_booking_optional: parsed.slot_booking_optional === true,
+        dine_in_free_time_input: parsed.dine_in_free_time_input === true,
         dine_in_windows: normalizeWindows(parsed.dine_in_windows ?? parsed.windows, base.dine_in_windows),
     };
 }

@@ -45,6 +45,7 @@ export function SlotBookingSettings() {
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
     const [pickerMode, setPickerMode] = useState<"both" | "date_only" | "time_only">("both");
+    const [freeTime, setFreeTime] = useState(false);
     const [slotMode, setSlotMode] = useState<"windows" | "rolling">("windows");
     const [rollingInterval, setRollingInterval] = useState<number>(15);
     const [rollingCount, setRollingCount] = useState<number>(2);
@@ -63,6 +64,7 @@ export function SlotBookingSettings() {
         setStartDate(merged.dine_in_start_date ?? "");
         setEndDate(merged.dine_in_end_date ?? "");
         setPickerMode(merged.dine_in_picker_mode ?? "both");
+        setFreeTime(merged.dine_in_free_time_input ?? false);
         setSlotMode(merged.dine_in_slot_mode ?? "windows");
         setRollingInterval(merged.dine_in_rolling_interval_minutes ?? 15);
         setRollingCount(merged.dine_in_rolling_slot_count ?? 2);
@@ -83,7 +85,7 @@ export function SlotBookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, slot_booking_optional: optional, dine_in_today_only: todayOnly, dine_in_start_date: startDate || undefined, dine_in_end_date: endDate || undefined, dine_in_picker_mode: pickerMode, dine_in_slot_mode: slotMode, dine_in_rolling_interval_minutes: rollingInterval, dine_in_rolling_slot_count: rollingCount, dine_in_ask_people_count: askPeople, dine_in_windows });
+            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, slot_booking_optional: optional, dine_in_today_only: todayOnly, dine_in_start_date: startDate || undefined, dine_in_end_date: endDate || undefined, dine_in_picker_mode: pickerMode, dine_in_free_time_input: freeTime, dine_in_slot_mode: slotMode, dine_in_rolling_interval_minutes: rollingInterval, dine_in_rolling_slot_count: rollingCount, dine_in_ask_people_count: askPeople, dine_in_windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -93,7 +95,7 @@ export function SlotBookingSettings() {
             console.error("Error saving slot booking settings:", e);
             toast.error("Failed to save slot booking settings");
         }
-    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -103,7 +105,7 @@ export function SlotBookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -229,6 +231,29 @@ export function SlotBookingSettings() {
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            {/* Only meaningful when the time selector is shown — in
+                                "Date only" the customer never picks a time. */}
+                            {pickerMode !== "date_only" && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">Let customers enter their own time</div>
+                                        {/* Mode-aware because the two slot types enforce
+                                            different things: rolling only checks the lead
+                                            time (its "ranges" are now-relative points, and
+                                            dine-in has no per-type operating window), fixed
+                                            ranges check the configured times below. */}
+                                        <div className="text-sm text-muted-foreground">
+                                            Shows an &ldquo;other time&rdquo; box next to your table slots.{" "}
+                                            {slotMode === "rolling"
+                                                ? "The time they type must still be in the future"
+                                                : "The time they type must be inside the booking times below"}
+                                            , otherwise they can&apos;t book.
+                                        </div>
+                                    </div>
+                                    <Switch checked={freeTime} onCheckedChange={setFreeTime} />
+                                </div>
+                            )}
 
                             <div className="flex items-center justify-between p-4 border rounded-lg">
                                 <div className="space-y-0.5">

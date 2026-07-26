@@ -256,6 +256,10 @@ export interface PrebookingSettings {
    *  customer sees a "Book a slot" opt-in instead of being forced to pick one, and
    *  can order ASAP (no slot). Default false = a slot is required (legacy behavior). */
   prebooking_optional?: boolean;
+  /** When true, the checkout picker shows an "other time" input ALONGSIDE the preset
+   *  slots so the customer can type their own delivery/takeaway time. The typed time
+   *  is validated against the operating window + the day's ranges. Default false. */
+  free_time_input?: boolean;
 
   // ── Slot booking: dine-in table reservations (independent settings) ───────
   /** Minimum advance notice for a dine-in reservation, in minutes. */
@@ -279,6 +283,9 @@ export interface PrebookingSettings {
    *  sees a "Book a table slot" opt-in instead of being forced to reserve, and can
    *  order without a reservation. Default false = a reservation is required. */
   slot_booking_optional?: boolean;
+  /** When true, the dine-in picker shows an "other time" input ALONGSIDE the preset
+   *  slots so the customer can type their own table time (validated the same way). */
+  dine_in_free_time_input?: boolean;
   /** Explicit dine-in table slot times per weekday. */
   dine_in_windows: PrebookingWindow[];
 }
@@ -304,10 +311,12 @@ export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
   windows: defaultWindows(),
   allowed_order_types: ["delivery", "takeaway", "dine_in"],
   prebooking_optional: false,
+  free_time_input: false,
   dine_in_min_lead_time_minutes: 0,
   dine_in_max_advance_days: 7,
   dine_in_today_only: false,
   slot_booking_optional: false,
+  dine_in_free_time_input: false,
   dine_in_windows: defaultWindows(),
 };
 

@@ -46,7 +46,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
-import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd } from "@/lib/prebooking";
+import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd, validateCustomPrebookTime } from "@/lib/prebooking";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
@@ -458,6 +458,11 @@ const PlaceOrderModalV2 = ({
   // effect — so the live-stock guard can re-fetch whenever the customer changes
   // the chosen date.
   const [prebooking, setPrebooking] = useState<PrebookingSelection | null>(null);
+  // The picker's verdict on a customer-TYPED "other time". Held as state (not
+  // recomputed here) because an invalid typed time emits `prebooking = null`,
+  // which is indistinguishable from "no slot chosen" — the picker is the only
+  // thing that knows the difference. It clears itself when the input goes away.
+  const [prebookTimeError, setPrebookTimeError] = useState<string | null>(null);
 
   // Stock-managed partners: the page menu snapshot can be up to ~60s stale, so
   // re-fetch LIVE stock for the cart items when the checkout opens (and whenever
@@ -692,6 +697,25 @@ const PlaceOrderModalV2 = ({
       : prebookOrderTypeKey === "takeaway"
         ? takeawayTimeAllowed
         : null;
+  // Everything that must block placement because of a customer-TYPED scheduled
+  // time ("Let customers enter their own time"). Called from the submit handlers
+  // ONLY — never during render — so the fresh `new Date()` inside the validator is
+  // read at event time and can't make the render output clock-dependent (or
+  // disagree with the error the picker is showing).
+  //  - `prebookTimeError` is the picker's live verdict on what's typed right now.
+  //  - The re-run catches an already-accepted time that went STALE while the
+  //    customer sat on the checkout (all of this is client-side, so it's a UX
+  //    guard, not a security one). Preset slot picks carry no `customTime` flag,
+  //    so they keep their pre-feature behaviour exactly.
+  const typedPrebookTimeError = (): string | null => {
+    if (prebookTimeError) return prebookTimeError;
+    if (!prebookingSettings || !prebookingArg?.customTime) return null;
+    return validateCustomPrebookTime(prebookingSettings, prebookingArg.date, prebookingArg.time, {
+      dineIn: !!prebookingArg.dineIn,
+      clampWindow: slotClampWindow,
+      timezone: hotelTimezone,
+    });
+  };
   // Default-on: when delivery_agent is enabled and the partner has NOT
   // explicitly set `use_delivery_agent_charge = false`, treat as on.
   const useAgentForCharge =
@@ -1748,6 +1772,11 @@ const PlaceOrderModalV2 = ({
       );
       return;
     }
+    const cfTypedTimeError = typedPrebookTimeError();
+    if (cfTypedTimeError) {
+      toast.error(cfTypedTimeError);
+      return;
+    }
     if (!isQrScan && orderType === "delivery" && !isDeliveryOpen) {
       toast.error("Delivery is not available right now.");
       return;
@@ -1971,6 +2000,15 @@ const PlaceOrderModalV2 = ({
       setOrderStatus("idle");
       return;
     }
+    // Same bypass applies to the typed scheduled time — "Try Again" can fire long
+    // after the checkout was opened, so the time the customer typed may no longer
+    // be valid. Mirrors the Cashfree twin.
+    const rzpTypedTimeError = typedPrebookTimeError();
+    if (rzpTypedTimeError) {
+      toast.error(rzpTypedTimeError);
+      setOrderStatus("idle");
+      return;
+    }
     setOrderStatus("loading");
     try {
       const rzpExtraCharges = buildCheckoutExtraCharges();
@@ -2163,6 +2201,14 @@ const PlaceOrderModalV2 = ({
           ? "Please choose a date, time and number of guests for your table."
           : "Please select a date and time slot for your order.",
       );
+      return;
+    }
+    // Not covered by `placementDisabled` (which only sees the picker's live
+    // verdict): this also re-runs the validation at event time to catch a typed
+    // time that went stale while the checkout sat open.
+    const payTypedTimeError = typedPrebookTimeError();
+    if (payTypedTimeError) {
+      toast.error(payTypedTimeError);
       return;
     }
     if (!isQrScan && orderType === "delivery" && !isDeliveryOpen) {
@@ -2771,6 +2817,11 @@ const PlaceOrderModalV2 = ({
     !items ||
     items.length === 0 ||
     (showPicker && !slotOptional && !prebookingArg) ||
+    // The picker's live typed-time error. Needed on top of the guard above: with
+    // optional scheduling ON that one passes (an invalid typed time emits a null
+    // selection, which reads as "ordering ASAP"), so this is the only thing
+    // standing between the customer's red error and an unscheduled order.
+    !!prebookTimeError ||
     (orderType === "delivery" &&
       !useAgentForCharge &&
       !usePorterForCharge &&
@@ -3031,6 +3082,7 @@ const PlaceOrderModalV2 = ({
                 settings={prebookingSettings}
                 orderTypeKey={prebookOrderTypeKey}
                 onChange={setPrebooking}
+                onValidityChange={setPrebookTimeError}
                 accentColor={accent}
                 className="bg-white rounded-2xl p-4 shadow-sm space-y-3"
                 reservation={isDineIn}

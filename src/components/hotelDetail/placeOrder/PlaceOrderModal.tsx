@@ -31,7 +31,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { taxLabel } from "@/lib/taxLabel";
 import { getFeatures } from "@/lib/getFeatures";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
-import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd } from "@/lib/prebooking";
+import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd, validateCustomPrebookTime } from "@/lib/prebooking";
 import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1771,6 +1771,11 @@ const PlaceOrderModal = ({
   const stockFeatureOn = !!getFeatures(hotelData?.feature_flags || "")?.stockmanagement?.enabled;
   // Prebooking selection declared here so the stock guard can react to date changes.
   const [prebooking, setPrebooking] = useState<PrebookingSelection | null>(null);
+  // The picker's verdict on a customer-TYPED "other time". Held as state (not
+  // recomputed here) because an invalid typed time emits `prebooking = null`,
+  // which is indistinguishable from "no slot chosen" — the picker is the only
+  // thing that knows the difference. It clears itself when the input goes away.
+  const [prebookTimeError, setPrebookTimeError] = useState<string | null>(null);
   // The date whose stock applies: the chosen prebooking date, else today.
   const selectedStockDate = prebooking?.date || ymd(new Date());
   const [liveStock, setLiveStock] = useState<Record<string, number>>({});
@@ -2378,6 +2383,26 @@ const PlaceOrderModal = ({
     hotelTimezone
   );
 
+  // Everything that must block placement because of a customer-TYPED scheduled
+  // time ("Let customers enter their own time"). Called from the submit handlers
+  // ONLY — never during render — so the fresh `new Date()` inside the validator is
+  // read at event time and can't make the render output clock-dependent (or
+  // disagree with the error the picker is showing).
+  //  - `prebookTimeError` is the picker's live verdict on what's typed right now.
+  //  - The re-run catches an already-accepted time that went STALE while the
+  //    customer sat on the checkout (all of this is client-side, so it's a UX
+  //    guard, not a security one). Preset slot picks carry no `customTime` flag,
+  //    so they keep their pre-feature behaviour exactly.
+  const typedPrebookTimeError = (): string | null => {
+    if (prebookTimeError) return prebookTimeError;
+    if (!prebookingSettings || !prebookingArg?.customTime) return null;
+    return validateCustomPrebookTime(prebookingSettings, prebookingArg.date, prebookingArg.time, {
+      dineIn: !!prebookingArg.dineIn,
+      clampWindow: slotClampWindow,
+      timezone: hotelTimezone,
+    });
+  };
+
   // Order types that are both offered AND currently available (open), in the
   // same priority order as the selector. Closed / disabled / unoffered types
   // are excluded, so they can never be auto-selected below.
@@ -2921,6 +2946,12 @@ const PlaceOrderModal = ({
       return;
     }
 
+    const typedTimeError = typedPrebookTimeError();
+    if (typedTimeError) {
+      toast.error(typedTimeError);
+      return;
+    }
+
     if (needUserName && !customerName.trim()) {
       flagMissingName();
       return;
@@ -3214,6 +3245,11 @@ const PlaceOrderModal = ({
           ? "Please choose a date, time and number of guests for your table."
           : "Please select a date and time slot for your order.",
       );
+      return;
+    }
+    const cfTypedTimeError = typedPrebookTimeError();
+    if (cfTypedTimeError) {
+      toast.error(cfTypedTimeError);
       return;
     }
     if (needUserName && !customerName.trim()) {
@@ -3649,6 +3685,10 @@ const PlaceOrderModal = ({
     !isWithinTimeWindow(hotelData?.delivery_rules?.takeaway_time_allowed, hotelTimezone);
   const isPlaceOrderDisabled =
     _noOrderingAvailable ||
+    // The picker's live typed-time error. With optional scheduling ON an invalid
+    // typed time emits a null selection (reads as "ordering ASAP"), so this is the
+    // only thing standing between the customer's red error and an unscheduled order.
+    !!prebookTimeError ||
     orderStatus === "loading" || orderStatus === "verifying" || orderStatus === "failed" || orderStatus === "processing" ||
     (tableNumber === 0 && !orderType) ||
     (isDelivery &&
@@ -3904,6 +3944,7 @@ const PlaceOrderModal = ({
                       settings={prebookingSettings}
                       orderTypeKey={prebookOrderTypeKey}
                       onChange={setPrebooking}
+                      onValidityChange={setPrebookTimeError}
                       reservation={isDineIn}
                       optional={slotOptional}
                       clampWindow={slotClampWindow}

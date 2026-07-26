@@ -45,6 +45,7 @@ export function PrebookingSettings() {
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
     const [pickerMode, setPickerMode] = useState<"both" | "date_only" | "time_only">("both");
+    const [freeTime, setFreeTime] = useState(false);
     const [slotMode, setSlotMode] = useState<"windows" | "rolling">("windows");
     const [rollingInterval, setRollingInterval] = useState<number>(15);
     const [rollingCount, setRollingCount] = useState<number>(2);
@@ -62,6 +63,7 @@ export function PrebookingSettings() {
         setStartDate(merged.start_date ?? "");
         setEndDate(merged.end_date ?? "");
         setPickerMode(merged.picker_mode ?? "both");
+        setFreeTime(merged.free_time_input ?? false);
         setSlotMode(merged.slot_mode ?? "windows");
         setRollingInterval(merged.rolling_interval_minutes ?? 15);
         setRollingCount(merged.rolling_slot_count ?? 2);
@@ -81,7 +83,7 @@ export function PrebookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, prebooking_optional: optional, today_only: todayOnly, start_date: startDate || undefined, end_date: endDate || undefined, picker_mode: pickerMode, slot_mode: slotMode, rolling_interval_minutes: rollingInterval, rolling_slot_count: rollingCount, windows });
+            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, prebooking_optional: optional, today_only: todayOnly, start_date: startDate || undefined, end_date: endDate || undefined, picker_mode: pickerMode, free_time_input: freeTime, slot_mode: slotMode, rolling_interval_minutes: rollingInterval, rolling_slot_count: rollingCount, windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -91,7 +93,7 @@ export function PrebookingSettings() {
             console.error("Error saving prebooking settings:", e);
             toast.error("Failed to save prebooking settings");
         }
-    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -101,7 +103,7 @@ export function PrebookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, slotMode, rollingInterval, rollingCount, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -226,6 +228,29 @@ export function PrebookingSettings() {
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            {/* Only meaningful when the time selector is shown — in
+                                "Date only" the customer never picks a time. */}
+                            {pickerMode !== "date_only" && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">Let customers enter their own time</div>
+                                        {/* Mode-aware because the two slot types enforce
+                                            different things: rolling checks the operating
+                                            hours + lead time only (its "ranges" are
+                                            now-relative points), fixed ranges check the
+                                            configured times below. */}
+                                        <div className="text-sm text-muted-foreground">
+                                            Shows an &ldquo;other time&rdquo; box next to your slots.{" "}
+                                            {slotMode === "rolling"
+                                                ? "The time they type must be inside your operating hours and still in the future"
+                                                : "The time they type must be inside the booking times below"}
+                                            , otherwise they can&apos;t place the order.
+                                        </div>
+                                    </div>
+                                    <Switch checked={freeTime} onCheckedChange={setFreeTime} />
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label>Slot type</Label>
