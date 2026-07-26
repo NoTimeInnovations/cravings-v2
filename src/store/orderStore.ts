@@ -1866,6 +1866,16 @@ const useOrderStore = create(
                 ...effectiveItems.map((item) => {
                   const menuId = item.id.split("|")[0];
                   const ppIdFromMenu = hotelData?.menus?.find((m) => m.id === menuId)?.pp_id;
+                  // Petpooja itemises add-ons separately (AddonItem.details), so send
+                  // the item at its PRE-add-on (base/variant) price and list the chosen
+                  // add-ons in `addons`; item price + add-on prices reconcile to the
+                  // charged line total. Non-customization items are unaffected — no
+                  // selectedModifiers → price unchanged, addons null.
+                  // NOTE: the middleware (NEXT_PUBLIC_PETPOOJA_BACKEND_URL) must forward
+                  // `addons` → Petpooja AddonItem.details and use this de-baked price.
+                  const mods = item.selectedModifiers ?? [];
+                  const addonTotal = mods.reduce((s, m) => s + (m.price || 0), 0);
+                  const ppItemPrice = Math.max(0, item.price - addonTotal);
                   return {
                     id: uuidv4(),
                     order_id: orderId,
@@ -1875,10 +1885,20 @@ const useOrderStore = create(
                       id: item.variantSelections?.[0]?.id,
                       name: item.variantSelections?.[0]?.name,
                     } : null,
+                    addons: mods.length
+                      ? mods.map((m) => ({
+                          id: m.pp_addon_item_id || null,
+                          name: m.option_name,
+                          group_id: m.pp_addon_group_id || null,
+                          group_name: m.group_name,
+                          price: m.price,
+                          quantity: 1,
+                        }))
+                      : null,
                     item: {
                       id: item.id,
                       name: item.name,
-                      price: item.price,
+                      price: ppItemPrice,
                       offers: item.offers,
                       category: item.category,
                       pp_id: item.pp_id || ppIdFromMenu || null,
