@@ -388,9 +388,21 @@ export function PrebookingPicker({
                                         setUserPickedTime(false);
                                     }
                                 }}
+                                // Tapping anywhere on the field opens the native clock,
+                                // not just the tiny glyph at its right edge. showPicker()
+                                // needs a user gesture (this click is one) and throws on
+                                // browsers that don't support it, so it stays optional —
+                                // the field is still a normal time input either way.
+                                onClick={(e) => {
+                                    try {
+                                        (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
+                                    } catch {
+                                        /* unsupported or blocked — the glyph still works */
+                                    }
+                                }}
                                 aria-label="Enter your own time"
                                 aria-invalid={!!customTimeError}
-                                className={`flex-1 min-w-0 py-3 px-2.5 rounded-xl text-xs font-semibold border-2 bg-gray-50 text-gray-700 disabled:opacity-50 ${
+                                className={`flex-1 min-w-0 py-3 px-2.5 rounded-xl text-xs font-semibold border-2 bg-gray-50 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
                                     customTimeError ? "border-red-300" : "border-gray-100"
                                 }`}
                             />
