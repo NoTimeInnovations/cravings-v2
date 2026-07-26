@@ -309,6 +309,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             features: getFeatures(partner.feature_flags),
           });
         }
+      } else if (role === TELEVERY_ROLE) {
+        // Televery's session is a partner row wearing the marketplace role, so it
+        // rehydrates through the same partner query. Without this branch a page
+        // reload left userData null and TeleveryGuard bounced a valid session
+        // back to /televeryLogin.
+        const response = await fetchFromHasura(partnerIdQuery, { id });
+        const partner = response?.partners_by_pk;
+        if (partner) {
+          set({
+            userData: { ...partner, password: partner.password || "", role: TELEVERY_ROLE } as Partner,
+            features: getFeatures(partner.feature_flags),
+          });
+        }
       } else if (role === "superadmin") {
         const response = await fetchFromHasura(superAdminIdQuery, { id });
         const superAdmin = response?.super_admin_by_pk;
