@@ -9,8 +9,12 @@ import {
     CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuthStore, Partner } from "@/store/authStore";
-import { getThirdPartyChargeData } from "@/app/actions/deliveryCharges";
+import {
+    getThirdPartyChargeData,
+    saveLowBalanceThreshold,
+} from "@/app/actions/deliveryCharges";
 import type { ThirdPartyChargeData, ChargeProvider } from "@/lib/deliveryBridgeTypes";
 import {
     Loader2,
@@ -18,7 +22,9 @@ import {
     Wallet,
     ExternalLink,
     TrendingDown,
+    BellRing,
 } from "lucide-react";
+import { toast } from "sonner";
 
 const PROVIDERS: ChargeProvider[] = ["porter", "rapido", "uber"];
 
@@ -78,6 +84,40 @@ export function ThirdPartyChargesSettings() {
     useEffect(() => {
         load();
     }, [load]);
+
+    // #10 — per-partner low-balance alert threshold.
+    const [thresholdInput, setThresholdInput] = useState("");
+    const [savingThreshold, setSavingThreshold] = useState(false);
+    useEffect(() => {
+        if (data) {
+            setThresholdInput(data.lowBalanceThreshold > 0 ? String(data.lowBalanceThreshold) : "");
+        }
+    }, [data]);
+
+    async function saveThreshold() {
+        if (!partnerId) return;
+        setSavingThreshold(true);
+        try {
+            const res = await saveLowBalanceThreshold({
+                partnerId,
+                threshold: Number(thresholdInput) || 0,
+            });
+            if (!res.ok) {
+                toast.error(res.message);
+                return;
+            }
+            toast.success(
+                res.threshold > 0
+                    ? `You'll be alerted below ${currencySymbol}${res.threshold}`
+                    : "Low-balance alert turned off",
+            );
+            await load();
+        } catch (e) {
+            toast.error((e as Error).message);
+        } finally {
+            setSavingThreshold(false);
+        }
+    }
 
     const orders = data?.orders ?? [];
     const [showAllOrders, setShowAllOrders] = useState(false);
@@ -340,6 +380,44 @@ export function ThirdPartyChargesSettings() {
                                 ))}
                             </div>
                         )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* #10 — partner sets the balance below which THEY get a WhatsApp alert. */}
+            {data?.porterWallet && (
+                <Card>
+                    <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-2">
+                            <BellRing className="h-4 w-4 text-orange-600 mt-0.5 shrink-0" />
+                            <div>
+                                <div className="text-sm font-medium">Low-balance WhatsApp alert</div>
+                                <div className="text-xs text-muted-foreground">
+                                    Get a WhatsApp when your Porter balance drops below this amount.
+                                    Leave blank / 0 to turn it off.
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-sm text-muted-foreground">{currencySymbol}</span>
+                            <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                inputMode="numeric"
+                                value={thresholdInput}
+                                onChange={(e) => setThresholdInput(e.target.value)}
+                                placeholder="e.g. 150"
+                                className="w-28"
+                            />
+                            <Button size="sm" onClick={saveThreshold} disabled={savingThreshold}>
+                                {savingThreshold ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    "Save"
+                                )}
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
             )}

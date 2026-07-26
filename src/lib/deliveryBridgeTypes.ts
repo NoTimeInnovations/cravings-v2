@@ -107,4 +107,8 @@ export interface ThirdPartyChargeData {
     summaries: Record<ChargeProvider, ProviderSummary>;
     orders: OrderCharge[];
     porterWallet: PorterWalletLive | null;
+    /** Partner-set balance below which they get a WhatsApp low-balance alert
+     *  for their Porter pool. 0 = disabled (no partner alert). Stored on
+     *  delivery_rules.low_balance_threshold. */
+    lowBalanceThreshold: number;
 }

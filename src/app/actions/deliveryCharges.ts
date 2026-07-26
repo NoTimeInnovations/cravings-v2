@@ -385,6 +385,9 @@ export async function getThirdPartyChargeData(input: {
     }
   }
 
+  // Partner-set low-balance alert threshold for their Porter pool (0 = off).
+  const lowBalanceThreshold = num(rules.low_balance_threshold) ?? 0;
+
   return {
     ok: true,
     currency,
@@ -393,7 +396,60 @@ export async function getThirdPartyChargeData(input: {
     summaries,
     orders,
     porterWallet,
+    lowBalanceThreshold,
   };
+}
+
+/**
+ * Partner sets the Porter-pool balance below which they get a WhatsApp
+ * low-balance alert (0 / blank = disabled). Stored on
+ * delivery_rules.low_balance_threshold; the /api/cron/porter-low-balance cron
+ * reads it. Clearing the threshold also clears any pending alerted flag so a
+ * re-enable can fire again.
+ */
+export async function saveLowBalanceThreshold(input: {
+  partnerId: string;
+  threshold: number;
+}): Promise<{ ok: true; threshold: number } | { ok: false; message: string }> {
+  const auth = await assertPartner(input.partnerId);
+  if (!auth.ok) return auth;
+  const threshold = Math.max(0, Math.round(num(input.threshold) ?? 0));
+
+  let rules: Record<string, any> = {};
+  try {
+    const d = await fetchFromHasuraServer(
+      `query LowBalRules($id: uuid!) { partners_by_pk(id: $id) { delivery_rules } }`,
+      { id: input.partnerId },
+    );
+    const raw = d?.partners_by_pk?.delivery_rules;
+    if (raw && typeof raw === "object") rules = raw as Record<string, any>;
+    else if (typeof raw === "string") {
+      try {
+        rules = JSON.parse(raw);
+      } catch {
+        rules = {};
+      }
+    }
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+
+  rules.low_balance_threshold = threshold;
+  // Re-arm alerting whenever the threshold changes.
+  delete rules.low_balance_alerted;
+  delete rules.low_balance_alerted_at;
+
+  try {
+    await fetchFromHasuraServer(
+      `mutation SaveLowBal($id: uuid!, $rules: jsonb!, $updatedAt: timestamptz!) {
+        update_partners_by_pk(pk_columns: { id: $id }, _set: { delivery_rules: $rules, updated_at: $updatedAt }) { id }
+      }`,
+      { id: input.partnerId, rules, updatedAt: new Date().toISOString() },
+    );
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+  return { ok: true, threshold };
 }
 
 // ──────────────────────────────────────────────────────────────────────────

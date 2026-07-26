@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/dispatch-due-porter",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/porter-low-balance",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
