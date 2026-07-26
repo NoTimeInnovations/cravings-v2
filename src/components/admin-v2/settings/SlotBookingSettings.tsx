@@ -244,7 +244,7 @@ export function SlotBookingSettings() {
                                             dine-in has no per-type operating window), fixed
                                             ranges check the configured times below. */}
                                         <div className="text-sm text-muted-foreground">
-                                            Shows an &ldquo;other time&rdquo; box next to your table slots.{" "}
+                                            Replaces the table-slot list with a time box customers fill in.{" "}
                                             {slotMode === "rolling"
                                                 ? "The time they type must still be in the future"
                                                 : "The time they type must be inside the booking times below"}

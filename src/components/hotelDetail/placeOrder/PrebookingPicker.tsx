@@ -220,6 +220,13 @@ export function PrebookingPicker({
     useEffect(() => {
         if (!opted) return;
         if (usingCustomTime) return;
+        // When the partner asks for a typed time, the slot list isn't rendered at all.
+        // Auto-selecting behind it would submit a slot the customer never saw while the
+        // time box still reads empty, so leave the selection unset until they type.
+        if (freeTimeAllowed) {
+            if (time) setTime("");
+            return;
+        }
         if (isRolling) {
             if (userPickedTime) {
                 const [h, m] = (time || "0:0").split(":").map(Number);
@@ -239,7 +246,7 @@ export function PrebookingPicker({
         }
         if (time && !ranges.some((r) => r.from === time)) setTime("");
         else if (!time && ranges.length > 0) setTime(ranges[0].from);
-    }, [ranges, time, userPickedTime, isRolling, now, usingCustomTime, opted]);
+    }, [ranges, time, userPickedTime, isRolling, now, usingCustomTime, opted, freeTimeAllowed]);
 
     // Validate the typed time against the operating window + the day's ranges. This
     // picker is the ONE source of truth for typed-time validity: a non-null message
@@ -337,14 +344,17 @@ export function PrebookingPicker({
             </div>
         ) : (
             <>
-                <div className={`grid gap-2 ${showDate && showTime ? "grid-cols-2" : "grid-cols-1"}`}>
+                <div className={`grid gap-2 ${showDate && showTime && !freeTimeAllowed ? "grid-cols-2" : "grid-cols-1"}`}>
                     {showDate && (
                         <button type="button" onClick={() => setSheet("date")} className={triggerCls}>
                             <span className="leading-tight">{dateLabel || "Select date"}</span>
                             <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
                         </button>
                     )}
-                    {showTime && (
+                    {/* When the partner lets customers enter their own time, the preset
+                        slot list is REPLACED by the time input below rather than shown
+                        next to it — two competing time controls read as a bug. */}
+                    {showTime && !freeTimeAllowed && (
                         <button
                             type="button"
                             onClick={() => setSheet("slot")}
@@ -358,8 +368,8 @@ export function PrebookingPicker({
                 </div>
 
                 {freeTimeAllowed && (
-                    // Shown ALONGSIDE the slot list (not instead of it): typing here
-                    // drops the preset pick, clearing it hands control back.
+                    // This REPLACES the slot list while the setting is on, so it is the
+                    // only time control on screen — hence no "use a slot instead" escape.
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
                             <input
@@ -384,21 +394,12 @@ export function PrebookingPicker({
                                     customTimeError ? "border-red-300" : "border-gray-100"
                                 }`}
                             />
-                            {customTime && (
-                                <button
-                                    type="button"
-                                    onClick={() => setCustomTime("")}
-                                    className="shrink-0 text-[11px] font-semibold text-gray-500 underline"
-                                >
-                                    Use a slot
-                                </button>
-                            )}
                         </div>
                         <p className={`text-[11px] ${customTimeError ? "font-medium text-red-600" : "text-gray-400"}`}>
                             {/* Deliberately vague: what's enforced differs by slot mode
                                 (opening hours vs. the configured ranges), and the exact
                                 reason replaces this line the moment it's wrong. */}
-                            {customTimeError || "Or enter your own time — we'll check it against our booking times."}
+                            {customTimeError || "Enter the time you'd like — we'll check it against our booking times."}
                         </p>
                     </div>
                 )}

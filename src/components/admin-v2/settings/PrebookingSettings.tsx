@@ -241,7 +241,7 @@ export function PrebookingSettings() {
                                             now-relative points), fixed ranges check the
                                             configured times below. */}
                                         <div className="text-sm text-muted-foreground">
-                                            Shows an &ldquo;other time&rdquo; box next to your slots.{" "}
+                                            Replaces the slot list with a time box customers fill in.{" "}
                                             {slotMode === "rolling"
                                                 ? "The time they type must be inside your operating hours and still in the future"
                                                 : "The time they type must be inside the booking times below"}
