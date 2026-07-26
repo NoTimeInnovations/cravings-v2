@@ -84,7 +84,13 @@ export default function AddedRecommendationsSheet({
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerContent className="max-h-[80vh]">
+      {/* Sits ABOVE the layouts' own item / variant bottom sheets. V6's sheet is a
+          custom fixed overlay at z-[9999], so at the Drawer's default z-50 this
+          sheet opened *behind* it — invisible until the user closed the variant
+          sheet, which read as "recommendations only show after closing". Raising
+          both layers keeps the pairings visible the moment the item is added,
+          matching how it already behaves over Sidebar's z-50 sheet. */}
+      <DrawerContent className="max-h-[80vh] z-[10000]" overlayClassName="z-[10000]">
         <div className="mx-auto w-full max-w-2xl px-4 pb-6 pt-2">
           {baseItem && (
             <p className="mb-0.5 text-[13px] font-medium text-gray-500">
