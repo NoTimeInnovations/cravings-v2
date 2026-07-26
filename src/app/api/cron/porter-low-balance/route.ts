@@ -82,7 +82,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const porterAccounts = await bridgePorterAccounts();
-  const template = process.env.WA_LOWBAL_TEMPLATE || "";
+  // The low-balance template lives on oreodemo's WABA, so the send must go FROM
+  // that WABA (partnerId). Both are env-overridable but default so it works
+  // out-of-box once Meta approves the template.
+  const template = process.env.WA_LOWBAL_TEMPLATE || "porter_wallet_low_balance";
+  const alertFromPartnerId =
+    process.env.WA_LOWBAL_PARTNER_ID || "cc101d1f-eb37-42e1-9c6a-5384a3def37f"; // oreodemo
   const language = process.env.WA_LOWBAL_TEMPLATE_LANG || "en";
   const origin = new URL(req.url).origin;
   const CUR = "₹";
@@ -123,6 +128,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             phone,
+            partnerId: alertFromPartnerId,
             template: {
               name: template,
               language,
