@@ -14,6 +14,7 @@ import { formatPrice } from "@/lib/constants";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { filterMenuByQuery } from "@/lib/menuSearch";
+import { useRegisterItemSheet } from "@/store/itemSheetStore";
 
 const SearchMenu = ({
   hotelData,
@@ -47,6 +48,9 @@ const SearchMenu = ({
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const isOpen = externalOpen !== undefined ? externalOpen : isSearchOpen;
+  // Hold the pairings sheet back while the search overlay is up — adding from a
+  // result shouldn't drop a sheet over the results.
+  useRegisterItemSheet(isOpen);
   const handleClose = () => {
     setIsSearchOpen(false);
     onExternalClose?.();

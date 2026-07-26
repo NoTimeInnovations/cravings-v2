@@ -8,6 +8,7 @@ import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { useCustomizerStore } from "@/store/customizerStore";
+import { useRegisterItemSheet } from "@/store/itemSheetStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/constants";
@@ -53,6 +54,10 @@ function useInView() {
 export function V6BottomSheet({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  // This component only exists while its sheet is on screen, so registering on
+  // mount/unmount covers every V6 sheet (item detail, variants, search variants)
+  // and every close path. Lets the pairings sheet wait until we're dismissed.
+  useRegisterItemSheet(true);
 
   useEffect(() => {
     requestAnimationFrame(() => {

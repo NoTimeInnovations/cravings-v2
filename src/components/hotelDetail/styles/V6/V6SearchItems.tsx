@@ -11,6 +11,7 @@ import { filterMenuByQuery } from "@/lib/menuSearch";
 import { V6_FONT } from "./v6utils";
 import { flyToCart } from "./v6FlyToCart";
 import { V6BottomSheet, VegMark, BottomSheetAddButton } from "./V6ItemCard";
+import { useRegisterItemSheet } from "@/store/itemSheetStore";
 import { MenuPrice } from "../../MenuPrice";
 import { useMenuLanguageStore } from "@/store/menuLanguageStore";
 
@@ -370,6 +371,10 @@ const V6SearchItems = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [closing, setClosing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // This overlay is only mounted while search is open, so registering it holds
+  // the pairings sheet back until the customer leaves search — adding from a
+  // result shouldn't cover the results list.
+  useRegisterItemSheet(true);
 
   const filteredMenu = useMemo(() => filterMenuByQuery(menu, searchQuery), [menu, searchQuery]);
 

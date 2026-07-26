@@ -6,6 +6,7 @@ import { Styles } from "@/screens/HotelMenuPage_v2";
 import { useEffect, useState } from "react";
 import useOrderStore from "@/store/orderStore";
 import { useCustomizerStore } from "@/store/customizerStore";
+import { useRegisterItemSheet } from "@/store/itemSheetStore";
 import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice } from "@/lib/constants";
@@ -73,6 +74,9 @@ const SidebarItemCard = ({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const openCustomizer = useCustomizerStore((s) => s.open);
+  // Hold the pairings sheet back while this item's own sheet is open — it pops
+  // once the sheet closes instead of on every "+" tap inside it.
+  useRegisterItemSheet(isDrawerOpen);
   const [itemQuantity, setItemQuantity] = useState<number>(0);
   const [variantQuantities, setVariantQuantities] = useState<
     Record<string, number>
