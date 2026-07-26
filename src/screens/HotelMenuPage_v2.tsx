@@ -6,6 +6,7 @@ import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
 import { brandColorToHex } from "@/lib/brandColor";
 import { Category, formatStorageName } from "@/store/categoryStore_hasura";
 import OrderDrawer from "@/components/hotelDetail/OrderDrawer";
+import ItemCustomizationSheet from "@/components/hotelDetail/ItemCustomizationSheet";
 import useOrderStore from "@/store/orderStore";
 // Import useMemo and useCallback
 import { useEffect, useMemo, useCallback, useState } from "react";
@@ -797,6 +798,9 @@ const HotelMenuPage = ({
           ready={!showOnboarding || onboardingDismissed}
         />
       )}
+      {/* Single, shared customization bottom-sheet for items with addon_groups —
+          opened by any menu-style ItemCard via useCustomizerStore. */}
+      {!viewOnly && <ItemCustomizationSheet />}
     </ViewOnlyContext.Provider>
   );
 };

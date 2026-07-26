@@ -5,6 +5,7 @@ import { pushEcommerceEvent, resolveCurrencyCode, categoryName, baseItemId } fro
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { useEffect, useState } from "react";
 import useOrderStore from "@/store/orderStore";
+import { useCustomizerStore } from "@/store/customizerStore";
 import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice } from "@/lib/constants";
@@ -71,6 +72,7 @@ const SidebarItemCard = ({
 }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+  const openCustomizer = useCustomizerStore((s) => s.open);
   const [itemQuantity, setItemQuantity] = useState<number>(0);
   const [variantQuantities, setVariantQuantities] = useState<
     Record<string, number>
@@ -112,6 +114,23 @@ const SidebarItemCard = ({
   const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
+  const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
+
+  // Items with customization groups route the variant drawer trigger to the shared
+  // customizer sheet instead (it also handles the variant choice).
+  useEffect(() => {
+    if (isDrawerOpen && hasCustomizations) {
+      setIsDrawerOpen(false);
+      openCustomizer({
+        item,
+        hotelData,
+        currency,
+        accent: styles.accent,
+        basePrice: item.price,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDrawerOpen, hasCustomizations]);
   const isPriceAsPerSize = item.is_price_as_per_size;
 
   useEffect(() => {
@@ -140,6 +159,16 @@ const SidebarItemCard = ({
   }, [items, item.id, item.variants?.length]);
 
   const handleAddItem = () => {
+    if (hasCustomizations) {
+      openCustomizer({
+        item,
+        hotelData,
+        currency,
+        accent: styles.accent,
+        basePrice: item.price,
+      });
+      return;
+    }
     if (isOfferItem && offerPrice && oldPrice) {
       const offer = hotelData?.offers?.find(
         (o) => o.menu && o.menu.id === item.id

@@ -249,6 +249,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       priority
       description
       variants
+      addon_groups
       id
       image_url
       is_top
@@ -291,6 +292,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
         id
         price
         variants
+        addon_groups
       }
       offer_price
       offer_type

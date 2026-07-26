@@ -8,6 +8,7 @@ import { getFeatures } from "@/lib/getFeatures";
 import { useViewOnly } from "@/components/hotelDetail/viewOnlyContext";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
+import { useCustomizerStore } from "@/store/customizerStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/constants";
@@ -205,6 +206,7 @@ const V5ItemCard = ({
   const [showItemSheet, setShowItemSheet] = useState(false);
 
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+  const openCustomizer = useCustomizerStore((s) => s.open);
   const liveStockQty = useLiveStock((s) => s.qty);
   const router = useRouter();
 
@@ -225,6 +227,23 @@ const V5ItemCard = ({
   const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
+  const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
+
+  // Items with customization groups route the variant-sheet trigger to the shared
+  // customizer sheet instead (it also handles the variant choice).
+  useEffect(() => {
+    if (showVariants && hasCustomizations) {
+      setShowVariants(false);
+      openCustomizer({
+        item,
+        hotelData: hoteldata,
+        currency: hoteldata?.currency || "₹",
+        accent: styles.accent,
+        basePrice: item.price,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showVariants, hasCustomizations]);
   const [itemQuantity, setItemQuantity] = useState<number>(0);
   const [variantQuantities, setVariantQuantities] = useState<Record<string, number>>({});
   const shouldShowPrice = hoteldata?.currency !== "🚫";
@@ -277,6 +296,16 @@ const V5ItemCard = ({
   }, [defaultShowOptions]);
 
   const handleAddItem = () => {
+    if (hasCustomizations) {
+      openCustomizer({
+        item,
+        hotelData: hoteldata,
+        currency: hoteldata?.currency || "₹",
+        accent: styles.accent,
+        basePrice: item.price,
+      });
+      return;
+    }
     if (hasMultipleVariantsOnOffer) {
       setShowVariants(!showVariants);
       return;

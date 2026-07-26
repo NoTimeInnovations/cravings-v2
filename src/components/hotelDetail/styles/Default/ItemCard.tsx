@@ -9,6 +9,7 @@ import ItemDetailsModal from "./ItemDetailsModal";
 import { MenuPrice } from "../../MenuPrice";
 import DescriptionWithTextBreak from "../../../DescriptionWithTextBreak";
 import useOrderStore from "@/store/orderStore";
+import { useCustomizerStore } from "@/store/customizerStore";
 import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
@@ -60,6 +61,7 @@ const ItemCard = ({
 
   const [showVariants, setShowVariants] = useState(false);
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+  const openCustomizer = useCustomizerStore((s) => s.open);
   const liveStockQty = useLiveStock((s) => s.qty);
   const variantsRef = useRef<HTMLDivElement>(null);
   const [variantsHeight, setVariantsHeight] = useState(0);
@@ -120,6 +122,7 @@ const ItemCard = ({
   const stockQuantity = item.stocks?.[0]?.stock_quantity;
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
+  const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
   const isPriceAsPerSize = item.is_price_as_per_size;
 
   useEffect(() => {
@@ -162,6 +165,19 @@ const ItemCard = ({
   }, [variantQuantities]);
 
   const handleAddItem = () => {
+    // Items with customization groups always open the shared configurator sheet
+    // (which also handles the variant choice when the item has both).
+    if (hasCustomizations) {
+      openCustomizer({
+        item,
+        hotelData,
+        currency,
+        accent: styles.accent,
+        basePrice: isUpcomingOffer ? item.price : offerPrice || item.price,
+      });
+      return;
+    }
+
     // If this item has multiple variants on offer, show options instead of adding directly
     if (hasMultipleVariantsOnOffer) {
       setShowVariants(!showVariants);
@@ -428,7 +444,7 @@ const ItemCard = ({
               opacity: showVariants ? 1 : 0,
             }}
           >
-            {hasVariants && (
+            {hasVariants && !hasCustomizations && (
               <div className="w-full mt-2 space-y-3 divide-y-2 divide-gray-100">
                 {/* Show variants based on offer status */}
                 {(() => {
@@ -536,7 +552,21 @@ const ItemCard = ({
           {/* ADD BUTTONS LOGIC */}
           {showAddButton ? (
             <>
-              {hasVariants && !isOfferItem ? (
+              {hasCustomizations ? (
+                <div className="flex gap-2 items-center justify-end w-full mt-2">
+                  <div
+                    onClick={handleAddItem}
+                    style={{
+                      backgroundColor: styles.accent,
+                      ...styles.border,
+                      color: "white",
+                    }}
+                    className="rounded-full px-6 py-2 font-medium cursor-pointer"
+                  >
+                    {itemQuantity > 0 ? `Customize · Added (${itemQuantity})` : "Customize"}
+                  </div>
+                </div>
+              ) : hasVariants && !isOfferItem ? (
                 <div className="flex transition-all duration-500 gap-2 items-center justify-end w-full mt-2">
                   <div
                     onClick={() => setShowVariants((prev) => !prev)}

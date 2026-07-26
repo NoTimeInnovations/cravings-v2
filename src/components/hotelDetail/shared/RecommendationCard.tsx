@@ -2,6 +2,7 @@
 import React, { useMemo } from "react";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import useOrderStore from "@/store/orderStore";
+import { useCustomizerStore } from "@/store/customizerStore";
 import { formatPrice } from "@/lib/constants";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
@@ -58,9 +59,11 @@ export default function RecommendationCard({
   hasStockFeature: boolean;
 }) {
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+  const openCustomizer = useCustomizerStore((s) => s.open);
   const liveStockQty = useLiveStock((s) => s.qty);
 
   const hasVariants = (recItem.variants?.length ?? 0) > 0;
+  const hasCustomizations = (recItem.addon_groups?.length ?? 0) > 0;
   const cheapestVariant = useMemo(
     () =>
       hasVariants
@@ -102,6 +105,17 @@ export default function RecommendationCard({
 
   const add = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Customization items must be configured in the shared sheet, not auto-added.
+    if (hasCustomizations) {
+      openCustomizer({
+        item: recItem,
+        hotelData: hoteldata,
+        currency: hoteldata?.currency || "₹",
+        accent,
+        basePrice: recItem.price,
+      });
+      return;
+    }
     if (hasVariants && cheapestVariant) {
       addItem({
         ...recItem,
@@ -119,7 +133,7 @@ export default function RecommendationCard({
 
   const dec = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const lines = hasVariants
+    const lines = hasVariants || hasCustomizations
       ? items?.filter((i) => i.id.startsWith(`${recItem.id}|`)) || []
       : items?.filter((i) => i.id === recItem.id) || [];
     const last = lines[lines.length - 1];
