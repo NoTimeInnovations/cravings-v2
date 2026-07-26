@@ -632,7 +632,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     return (
                                     <div key={item.id} className="flex justify-between items-center bg-background p-2 rounded-lg border shadow-sm group gap-2 w-full">
                                         <div className="flex-1 min-w-0 grid gap-0.5">
-                                            <h4 className="font-medium text-sm truncate pr-2" title={item.name}>{item.name}</h4>
+                                            <h4 className="font-medium text-sm break-words pr-2" title={item.name}>{item.name}</h4>
                                             <p className="text-xs text-muted-foreground">
                                                 {formatCurrency(displayUnitPrice)} x {item.quantity} = <span className="font-semibold text-foreground">{formatCurrency(displayUnitPrice * item.quantity)}</span>
                                             </p>

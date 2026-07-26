@@ -241,9 +241,15 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
                 </>
               )}
             </p>
-            <div className="flex items-center gap-1 text-xs text-primary font-medium bg-primary/10 px-2 py-1 rounded-full w-fit">
-              <span>{customizeCount > 0 ? `Added (${customizeCount})` : "Customize"}</span>
-              <ChevronDown className="h-3 w-3" />
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                className="w-full h-9 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium"
+                onClick={openPosCustomizer}
+              >
+                <Plus className="h-4 w-4" />
+                <span className="ml-1">{customizeCount > 0 ? `Add (${customizeCount})` : "Add"}</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
