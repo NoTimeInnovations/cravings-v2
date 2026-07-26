@@ -65,9 +65,38 @@ export interface ProviderSummary {
     orderCount: number;
 }
 
+export interface PorterWalletTxn {
+    /** Group header from Porter, e.g. "Jul 25, 2026". */
+    date: string;
+    title: string;
+    /** Amount as a string, e.g. "500". */
+    amount: string;
+    /** "credit" (recharge) | "debit" (trip deduction). */
+    type: string;
+    /** Which pool account this txn belongs to (shown for pooled partners). */
+    account?: string;
+}
+
+/** One Porter account in a partner's dispatch pool. */
+export interface PorterWalletAccount {
+    accountId: string;
+    label: string;
+    balance: number;
+}
+
 export interface PorterWalletLive {
+    /** The partner's total Porter balance = sum across their pool (1 account
+     *  for a solo-connected partner, N for a pooled/group partner). */
     balance: number;
     rechargeLink: string | null;
+    /** Real transactions from Porter's wallet API (recharges + trip
+     *  deductions), merged across the pool, newest first. Replaces the manual
+     *  recharge log for Porter. */
+    history: PorterWalletTxn[];
+    /** Per-account balance breakdown; length 1 = solo, >1 = pooled. */
+    accounts: PorterWalletAccount[];
+    /** True when the partner dispatches Porter through a >1-account group. */
+    pooled: boolean;
 }
 
 export interface ThirdPartyChargeData {
@@ -78,4 +107,8 @@ export interface ThirdPartyChargeData {
     summaries: Record<ChargeProvider, ProviderSummary>;
     orders: OrderCharge[];
     porterWallet: PorterWalletLive | null;
+    /** Partner-set balance below which they get a WhatsApp low-balance alert
+     *  for their Porter pool. 0 = disabled (no partner alert). Stored on
+     *  delivery_rules.low_balance_threshold. */
+    lowBalanceThreshold: number;
 }

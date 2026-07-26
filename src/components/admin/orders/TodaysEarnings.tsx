@@ -5,19 +5,19 @@ import { Order } from "@/store/orderStore";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { RiBillFill } from "react-icons/ri";
+import { todayRange } from "@/lib/partnerTime";
 
 const TodaysEarnings = ({ orders } : { orders : Order[] }) => {
   const [todaysEarnings, setTodaysEarnings] = useState(0);
   const { userData } = useAuthStore();
 
   const fetchOrders = async () => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const startISO = todayStart.toISOString();
+    // Bounded to the partner's local "today" (both ends), in the partner's tz.
+    const { startISO, endISO } = todayRange((userData as any)?.timezone);
 
     const query = `
         query Last24HoursCompletedOrders {
-            orders_aggregate(where: {_and: [{created_at: {_gte: "${startISO}"}}, {status: {_eq: "completed"}}], partner_id: {_eq: "${userData?.id}"}})  {
+            orders_aggregate(where: {_and: [{created_at: {_gte: "${startISO}", _lte: "${endISO}"}}, {status: {_eq: "completed"}}], partner_id: {_eq: "${userData?.id}"}})  {
                 aggregate {
                 sum {
                     total_price

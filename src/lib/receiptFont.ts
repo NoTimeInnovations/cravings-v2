@@ -19,3 +19,10 @@ export const receiptArabicFont = Noto_Sans_Arabic({
 // font-family value for a receipt container: monospace first (Latin/columns),
 // Arabic glyphs served by the self-hosted Noto Sans Arabic fallback.
 export const RECEIPT_FONT_FAMILY = `monospace, ${receiptArabicFont.style.fontFamily}`;
+
+// font-family for the tax-invoice bill layouts (ZATCA / UAE), which use a
+// PROPORTIONAL face (numbers get monospace via a .mono class), matching the
+// desktop app's 'Segoe UI',Tahoma,Arial. Noto Sans Arabic is appended so Arabic
+// item names / bilingual labels still render on print devices lacking an Arabic
+// system font.
+export const RECEIPT_FONT_FAMILY_INVOICE = `"Segoe UI", Tahoma, Arial, ${receiptArabicFont.style.fontFamily}, sans-serif`;

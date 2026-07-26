@@ -492,10 +492,25 @@ async function main() {
   const meta = countryMeta[country] || countryMeta["India"];
   const currency = spec.currency || parent?.currency || meta.symbol;
   const countryCode = spec.country_code || parent?.country_code || meta.code;
+  // Partner timezone drives all day-bucketing (settlements/analytics), so set it
+  // from the country (or an explicit spec.timezone) rather than leaving it unset
+  // and letting consumers fall back to IST.
+  const COUNTRY_TZ = {
+    "India": "Asia/Kolkata",
+    "United Arab Emirates": "Asia/Dubai",
+    "Saudi Arabia": "Asia/Riyadh",
+    "Qatar": "Asia/Qatar",
+    "Oman": "Asia/Muscat",
+    "Kuwait": "Asia/Kuwait",
+    "Bahrain": "Asia/Bahrain",
+    "United Kingdom": "Europe/London",
+    "United States": "America/New_York",
+  };
+  const timezone = spec.timezone || COUNTRY_TZ[country] || "Asia/Kolkata";
   const brandHex = normalizeHex(spec.brandColorHex);
 
   const plan = { endpoint: HASURA_ENDPOINT, username, store_name: storeName,
-    email: spec.email, country, currency, country_code: countryCode,
+    email: spec.email, country, currency, country_code: countryCode, timezone,
     brand_color: brandHex || "(default: charcoal-noir #2c2c2c)",
     categories: categories.length, items: items.length,
     logo: spec.logoPath || null,
@@ -552,6 +567,7 @@ async function main() {
     store_name: storeName,
     phone: spec.phone || "",
     country,
+    timezone,
     location: spec.location || "",
     place_id: spec.place_id || "",
     status: "active",

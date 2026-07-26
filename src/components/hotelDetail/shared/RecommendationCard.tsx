@@ -7,6 +7,7 @@ import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { Plus, Minus } from "lucide-react";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
+import { readableTextColor } from "@/lib/brandColor";
 
 // Zomato-style veg / non-veg mark: a bordered square holding a filled dot for
 // veg and a filled triangle for non-veg. (Kept local so the recommendation card
@@ -82,8 +83,22 @@ export default function RecommendationCard({
   const shouldShowPrice = hoteldata?.currency !== "🚫";
   const priceToShow = hasVariants ? cheapestVariant?.price ?? 0 : recItem.price;
   const hasPrice = typeof priceToShow === "number";
-  const showAdd =
-    canOrder && isOrderable && hasPrice && !recItem.is_price_as_per_size && !isPartnersRole;
+  // Show the Add whenever the item is orderable and has a resolvable price. We do
+  // NOT exclude `is_price_as_per_size` items here: the item still has a base /
+  // cheapest-variant price to add against, and excluding it left "price as per
+  // size" recommendations with NO add control at all (the reported bug — a
+  // recommended item rendered with a price but no Add button, while regular menu
+  // rows for the same kind of item stayed addable). add() already resolves the
+  // cheapest variant (or the base price) for these.
+  const showAdd = canOrder && isOrderable && hasPrice && !isPartnersRole;
+
+  // The Add pill / stepper sit on a WHITE surface, so a light brand accent (a
+  // pale/near-white brand color) would render the "Add" label + stepper controls
+  // near-invisible. Fall back to a dark ink when the accent is too light to read
+  // on white; keep the accent itself when it has enough contrast (unchanged for
+  // the common dark-accent case). readableTextColor returns "#ffffff" only for
+  // dark backgrounds, so that result means the accent is dark enough to use as-is.
+  const addFg = readableTextColor(accent) === "#ffffff" ? accent : "#111827";
 
   const add = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -139,11 +154,11 @@ export default function RecommendationCard({
           <div className="absolute bottom-1.5 right-1.5" style={{ height: 30, width: 72 }}>
             {qty > 0 ? (
               <div className="flex h-full w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-1 shadow-[0_3px_10px_rgba(0,0,0,0.15)]">
-                <button onClick={dec} className="flex h-6 w-6 items-center justify-center" style={{ color: accent }}>
+                <button onClick={dec} className="flex h-6 w-6 items-center justify-center" style={{ color: addFg }}>
                   <Minus className="h-3.5 w-3.5" />
                 </button>
-                <span className="text-[12px] font-extrabold" style={{ color: accent }}>{qty}</span>
-                <button onClick={add} className="flex h-6 w-6 items-center justify-center" style={{ color: accent }}>
+                <span className="text-[12px] font-extrabold" style={{ color: addFg }}>{qty}</span>
+                <button onClick={add} className="flex h-6 w-6 items-center justify-center" style={{ color: addFg }}>
                   <Plus className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -151,7 +166,7 @@ export default function RecommendationCard({
               <button
                 onClick={add}
                 className="flex h-full w-full items-center justify-center gap-0.5 rounded-lg border border-gray-200 bg-white shadow-[0_3px_10px_rgba(0,0,0,0.15)] transition active:scale-95"
-                style={{ color: accent }}
+                style={{ color: addFg }}
               >
                 <span className="text-[12px] font-extrabold uppercase tracking-wide leading-none">Add</span>
                 <Plus className="h-3 w-3" strokeWidth={3} />
