@@ -26,6 +26,7 @@ import type {
   OrderCharge,
   ProviderSummary,
   PorterWalletLive,
+  PorterWalletTxn,
   ThirdPartyChargeData,
 } from "@/lib/deliveryBridgeTypes";
 
@@ -101,6 +102,12 @@ function num(v: unknown): number | null {
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
 
+/** Best-effort epoch for a Porter wallet date string ("Jul 25, 2026"); NaN → 0. */
+function walletTxnTime(d: string): number {
+  const t = new Date(d).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Read
 // ──────────────────────────────────────────────────────────────────────────
@@ -149,6 +156,14 @@ export async function getThirdPartyChargeData(input: {
           })()
         : {};
   const configuredPay = (rules.delivery_payment_modes ?? {}) as Record<string, string>;
+  // The partner's Porter dispatch-pool group. Accounts tagged into this group on
+  // the bridge form the pool; a partner may have NO personal porter_mobile and
+  // still dispatch via a shared group (e.g. "400"). Set at connect = first-5 of
+  // the login mobile, or a custom number.
+  const porterGroup =
+    String(
+      ((rules.delivery_provider_groups ?? {}) as Record<string, unknown>).porter ?? "",
+    ).trim() || null;
 
   // 2. Recharges — separate query so a missing column (pre-migration) degrades
   //    gracefully instead of failing the whole screen.
@@ -294,31 +309,79 @@ export async function getThirdPartyChargeData(input: {
     };
   }
 
-  // 5. Live Porter wallet (best-effort) when a Porter account is connected.
+  // 5. Live Porter wallet = the partner's Porter POOL. Resolve the accounts
+  //    tagged into their dispatch group (delivery_provider_groups.porter) PLUS
+  //    any account matching porter_mobile (solo-connected), read each one's live
+  //    wallet, and sum. A pooled partner with NO personal porter_mobile (just a
+  //    shared group like "400") still gets a real balance this way.
   let porterWallet: PorterWalletLive | null = null;
-  if (mobileOf.porter) {
+  if (mobileOf.porter || porterGroup) {
     const list = await bridgeJson(`/api/v1/accounts`, { method: "GET" });
     const rows: Array<Record<string, any>> = Array.isArray(list)
       ? list
       : (list?.data ?? []);
-    const acct = rows.find(
-      (r) => (r.service ?? "porter") === "porter" && String(r.mobile) === mobileOf.porter,
+    const porterRows = rows.filter(
+      (r) => (r.service ?? "porter") === "porter" && r.status === "active",
     );
-    if (acct?._id && acct.status === "active") {
-      const w = await bridgeJson(`/api/v1/porter/wallet`, {
-        method: "POST",
-        json: { accountId: String(acct._id) },
-      });
-      const bal = num(w?.balance);
-      if (bal != null) {
-        porterWallet = {
+    const pool = porterRows.filter(
+      (r) =>
+        (porterGroup && String(r.groupNumber ?? "") === porterGroup) ||
+        (mobileOf.porter && normaliseMobile(r.mobile) === mobileOf.porter),
+    );
+    // Dedup by id + bound the live-wallet fan-out (pools are tiny in practice).
+    const seen = new Set<string>();
+    const uniquePool = pool
+      .filter((r) => {
+        const id = String(r._id ?? "");
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .slice(0, 8);
+
+    const wallets = await Promise.all(
+      uniquePool.map(async (acct) => {
+        const w = await bridgeJson(`/api/v1/porter/wallet`, {
+          method: "POST",
+          json: { accountId: String(acct._id) },
+        });
+        const bal = num(w?.balance);
+        if (bal == null) return null;
+        const label = String(acct.label || acct.mobile || "Porter");
+        const history: PorterWalletTxn[] = (
+          Array.isArray(w?.history) ? w.history : []
+        ).map((h: Record<string, any>) => ({
+          date: String(h?.date ?? ""),
+          title: String(h?.title ?? ""),
+          amount: String(h?.amount ?? ""),
+          type: String(h?.type ?? ""),
+          account: label,
+        }));
+        return {
+          accountId: String(acct._id),
+          label,
           balance: bal,
-          rechargeLink: w?.rechargeLink ?? null,
-          // Real recharges + trip deductions from Porter's wallet API — the
-          // source of truth for Porter (no more manual recharge logging).
-          history: Array.isArray(w?.history) ? w.history : [],
+          rechargeLink: (w?.rechargeLink ?? null) as string | null,
+          history,
         };
-      }
+      }),
+    );
+    const good = wallets.filter((w): w is NonNullable<typeof w> => w != null);
+    if (good.length) {
+      const merged = good
+        .flatMap((a) => a.history)
+        .sort((x, y) => walletTxnTime(y.date) - walletTxnTime(x.date));
+      porterWallet = {
+        balance: good.reduce((s, a) => s + a.balance, 0),
+        rechargeLink: good.find((a) => a.rechargeLink)?.rechargeLink ?? null,
+        history: merged,
+        accounts: good.map((a) => ({
+          accountId: a.accountId,
+          label: a.label,
+          balance: a.balance,
+        })),
+        pooled: good.length > 1,
+      };
     }
   }
 

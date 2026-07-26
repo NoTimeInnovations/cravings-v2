@@ -73,14 +73,30 @@ export interface PorterWalletTxn {
     amount: string;
     /** "credit" (recharge) | "debit" (trip deduction). */
     type: string;
+    /** Which pool account this txn belongs to (shown for pooled partners). */
+    account?: string;
+}
+
+/** One Porter account in a partner's dispatch pool. */
+export interface PorterWalletAccount {
+    accountId: string;
+    label: string;
+    balance: number;
 }
 
 export interface PorterWalletLive {
+    /** The partner's total Porter balance = sum across their pool (1 account
+     *  for a solo-connected partner, N for a pooled/group partner). */
     balance: number;
     rechargeLink: string | null;
-    /** Real transaction history from Porter's wallet API (recharges + trip
-     *  deductions) — replaces the manual recharge log for Porter. */
+    /** Real transactions from Porter's wallet API (recharges + trip
+     *  deductions), merged across the pool, newest first. Replaces the manual
+     *  recharge log for Porter. */
     history: PorterWalletTxn[];
+    /** Per-account balance breakdown; length 1 = solo, >1 = pooled. */
+    accounts: PorterWalletAccount[];
+    /** True when the partner dispatches Porter through a >1-account group. */
+    pooled: boolean;
 }
 
 export interface ThirdPartyChargeData {

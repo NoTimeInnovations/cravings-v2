@@ -147,7 +147,12 @@ export function ThirdPartyChargesSettings() {
                                     <span className="font-semibold">{PROVIDER_LABEL[provider]}</span>
                                     {porterLive ? (
                                         <span className="text-[11px] rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 font-medium text-emerald-700">
-                                            ● Live{s?.connectedMobile ? ` ••${s.connectedMobile.slice(-4)}` : ""}
+                                            ● Live
+                                            {porterLive.pooled
+                                                ? ` · ${porterLive.accounts.length} accts`
+                                                : s?.connectedMobile
+                                                  ? ` ••${s.connectedMobile.slice(-4)}`
+                                                  : ""}
                                         </span>
                                     ) : s?.connectedMobile ? (
                                         <span className="text-[11px] rounded-full bg-white/70 border px-2 py-0.5 text-muted-foreground">
@@ -270,7 +275,30 @@ export function ThirdPartyChargesSettings() {
                             )}
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-3">
+                        {data.porterWallet.pooled && (
+                            <div className="rounded-lg border bg-muted/30 p-2.5 space-y-1.5">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    {data.porterWallet.accounts.length} accounts in your Porter pool
+                                </p>
+                                {data.porterWallet.accounts.map((a) => (
+                                    <div
+                                        key={a.accountId}
+                                        className="flex items-center justify-between text-sm"
+                                    >
+                                        <span className="truncate">{a.label}</span>
+                                        <span
+                                            className={`font-mono tabular-nums ${
+                                                a.balance < PORTER_LOW ? "font-semibold text-amber-600" : ""
+                                            }`}
+                                        >
+                                            {currencySymbol}
+                                            {a.balance.toFixed(2)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                         {data.porterWallet.history.length === 0 ? (
                             <p className="text-sm text-muted-foreground py-3 text-center">
                                 No wallet transactions yet.
@@ -280,7 +308,7 @@ export function ThirdPartyChargesSettings() {
                                 {data.porterWallet.history.map((h, i) => (
                                     <div key={i} className="py-2 flex items-center gap-3">
                                         <span
-                                            className={`text-xs font-medium rounded px-2 py-0.5 w-16 text-center ${
+                                            className={`text-xs font-medium rounded px-2 py-0.5 w-16 text-center shrink-0 ${
                                                 h.type === "credit"
                                                     ? "bg-emerald-100 text-emerald-700"
                                                     : "bg-rose-100 text-rose-700"
@@ -288,8 +316,15 @@ export function ThirdPartyChargesSettings() {
                                         >
                                             {h.type === "credit" ? "Recharge" : "Trip"}
                                         </span>
-                                        <span className="text-sm flex-1 truncate">{h.title}</span>
-                                        <span className="text-xs text-muted-foreground w-28 shrink-0">
+                                        <span className="text-sm flex-1 min-w-0">
+                                            <span className="block truncate">{h.title}</span>
+                                            {data.porterWallet!.pooled && h.account && (
+                                                <span className="block truncate text-xs text-muted-foreground">
+                                                    {h.account}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground w-24 shrink-0">
                                             {h.date}
                                         </span>
                                         <span
