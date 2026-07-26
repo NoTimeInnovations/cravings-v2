@@ -4,9 +4,10 @@ import { cookies } from "next/headers";
 import { encryptText, decryptText } from "@/lib/encrtption";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { INCREMENT_QR_CODE_SCAN_COUNT, INSERT_QR_SCAN } from "@/api/qrcodes";
+import { AUTH_COOKIE, TELEVERY_PARENT_COOKIE } from "@/lib/sessionCookies";
 
 export const getAuthCookie = async () => {
-  const cookie = (await cookies()).get("new_auth_token")?.value;
+  const cookie = (await cookies()).get(AUTH_COOKIE)?.value;
   return cookie
     ? (decryptText(cookie) as {
       id: string;
@@ -18,15 +19,26 @@ export const getAuthCookie = async () => {
     : null;
 };
 
-export const setAuthCookie = async (data: {
-  id: string;
-  role: string;
-  feature_flags: string;
-  status: string;
-  hasSubscription?: boolean;
-}) => {
+export const setAuthCookie = async (
+  data: {
+    id: string;
+    role: string;
+    feature_flags: string;
+    status: string;
+    hasSubscription?: boolean;
+  },
+  options?: {
+    /**
+     * Keep the Televery impersonation marker across this write. ONLY
+     * enterOutletSession may pass this — it re-mints the marker immediately
+     * after, bound to the session minted here.
+     */
+    keepTeleveryParent?: boolean;
+  }
+) => {
+  const cookieStore = await cookies();
   const encrypted = encryptText(data);
-  (await cookies()).set("new_auth_token", encrypted, {
+  cookieStore.set(AUTH_COOKIE, encrypted, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 30,
@@ -34,13 +46,29 @@ export const setAuthCookie = async (data: {
     sameSite: "lax",
   });
 
+  // WHY: the Televery parent cookie is a capability — whoever holds it can
+  // redeem it for Televery's marketplace session (see televerySession.ts). It
+  // must therefore die with the session it was minted alongside. Any other
+  // write here IS a different session (a normal login, an account switch, a
+  // flag refresh), so a marker left over from an earlier swap is stale by
+  // definition and is dropped. Without this, a swap abandoned on a shared
+  // device would still be redeemable by whoever signs in next — including the
+  // managed outlet's real owner, who would be handed Televery's account.
+  // No-op for every non-Televery session (the cookie simply isn't there).
+  if (!options?.keepTeleveryParent) cookieStore.delete(TELEVERY_PARENT_COOKIE);
+
   await removeTempUserIdCookie();
 };
 
 export const removeAuthCookie = async () => {
   console.log("Removing auth cookie");
 
-  (await cookies()).delete("new_auth_token");
+  const cookieStore = await cookies();
+  cookieStore.delete(AUTH_COOKIE);
+  // Sign-out ends the impersonation too: the marker outliving the session that
+  // owns it is exactly what makes it redeemable by the next person on this
+  // device. Same reasoning as setAuthCookie.
+  cookieStore.delete(TELEVERY_PARENT_COOKIE);
 };
 
 export const updateAuthCookie = async (
