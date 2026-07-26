@@ -385,8 +385,18 @@ export async function getThirdPartyChargeData(input: {
     }
   }
 
-  // Partner-set low-balance alert threshold for their Porter pool (0 = off).
-  const lowBalanceThreshold = num(rules.low_balance_threshold) ?? 0;
+  // Low-balance alert threshold for their Porter pool. Default ₹100 when Porter
+  // is connected (a live pool wallet exists) and the partner hasn't set their
+  // own; an explicit 0 = the partner turned alerts off.
+  const hasThreshold = Object.prototype.hasOwnProperty.call(
+    rules,
+    "low_balance_threshold",
+  );
+  const lowBalanceThreshold = hasThreshold
+    ? (num(rules.low_balance_threshold) ?? 0)
+    : porterWallet
+      ? 100
+      : 0;
 
   return {
     ok: true,

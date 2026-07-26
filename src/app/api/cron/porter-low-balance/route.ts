@@ -7,10 +7,12 @@ export const maxDuration = 60;
 /**
  * Partner low-balance alert (#8 + #10). Vercel cron.
  *
- * For each partner that (a) dispatches Porter through a pool group and (b) set a
- * `delivery_rules.low_balance_threshold`, sum their pool's live wallet balance
- * (bridge accounts whose `groupNumber` == their Porter group) and WhatsApp them
- * when it drops below their threshold. Transition-gated via
+ * For each partner that dispatches Porter through a pool group, sum their pool's
+ * live wallet balance (bridge accounts whose `groupNumber` == their Porter group)
+ * and WhatsApp them when it drops below their threshold — the partner's own
+ * `delivery_rules.low_balance_threshold`, or the ₹100 DEFAULT when Porter is
+ * connected and they haven't set one (an explicit 0 turns alerts off).
+ * Transition-gated via
  * `delivery_rules.low_balance_alerted` so a still-low partner isn't re-alerted
  * every tick; recovering back above the threshold re-arms it.
  *
@@ -65,12 +67,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // Only partners who set a threshold (top-level key on the delivery_rules jsonb).
+  // All Porter-bridge-connected partners (they carry a delivery_provider_groups
+  // key). Each is evaluated against its own threshold, or the ₹100 default when
+  // Porter is connected and they haven't set one.
   let partners: Array<Record<string, any>> = [];
   try {
     const d = await fetchFromHasuraServer(
       `query LowBalPartners {
-        partners(where: { delivery_rules: { _has_key: "low_balance_threshold" } }, limit: 2000) {
+        partners(where: { delivery_rules: { _has_key: "delivery_provider_groups" } }, limit: 2000) {
           id store_name phone delivery_rules
         }
       }`,
@@ -103,11 +107,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         ? { ...(p.delivery_rules as Record<string, any>) }
         : {};
     const group = String((rules.delivery_provider_groups ?? {}).porter ?? "").trim();
-    const threshold = num(rules.low_balance_threshold) ?? 0;
-    if (!group || threshold <= 0) continue;
+    if (!group) continue;
 
     const pool = porterAccounts.filter((a) => String(a.groupNumber ?? "") === group);
+    // Porter is "connected" only if the pool has ≥1 active account. No pool → no
+    // default, no alert (avoids a false "₹0 below ₹100" for unconnected partners).
     if (!pool.length) continue;
+
+    // Effective threshold: the partner's own value if set, else the ₹100 default
+    // (Porter IS connected). An explicit 0 = the partner turned alerts off.
+    const hasThreshold = Object.prototype.hasOwnProperty.call(
+      rules,
+      "low_balance_threshold",
+    );
+    const threshold = hasThreshold ? (num(rules.low_balance_threshold) ?? 0) : 100;
+    if (threshold <= 0) continue;
+
     const balance = pool.reduce((s, a) => s + (num(a.walletBalance) ?? 0), 0);
     checked++;
 
