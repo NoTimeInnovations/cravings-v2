@@ -48,14 +48,12 @@ export default function RecommendationCard({
   hoteldata,
   accent,
   canOrder,
-  isPartnersRole,
   hasStockFeature,
 }: {
   recItem: any;
   hoteldata: HotelData;
   accent: string;
   canOrder: boolean;
-  isPartnersRole: boolean;
   hasStockFeature: boolean;
 }) {
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
@@ -93,7 +91,12 @@ export default function RecommendationCard({
   // recommended item rendered with a price but no Add button, while regular menu
   // rows for the same kind of item stayed addable). add() already resolves the
   // cheapest variant (or the base price) for these.
-  const showAdd = canOrder && isOrderable && hasPrice && !isPartnersRole;
+  //
+  // There is deliberately no partner-role check either: "let partners place
+  // customer orders from the storefront" dropped that gate from every item card,
+  // but missed this shared card — so a signed-in partner saw addable menu rows
+  // next to recommendations that could not be added.
+  const showAdd = canOrder && isOrderable && hasPrice;
 
   // The Add pill / stepper sit on a WHITE surface, so a light brand accent (a
   // pale/near-white brand color) would render the "Add" label + stepper controls

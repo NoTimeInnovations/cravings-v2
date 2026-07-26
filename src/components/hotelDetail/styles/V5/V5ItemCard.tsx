@@ -221,7 +221,6 @@ const V5ItemCard = ({
     features?.delivery.enabled && tableNumber === 0 && isDeliveryTimeOpen;
   const hasOrderingFeature =
     features?.ordering.enabled && (tableNumber !== 0 || isTakeawayTimeOpen);
-  const isPartnersRole = auth?.role === "partner";
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement?.enabled;
   const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);
@@ -635,7 +634,6 @@ const V5ItemCard = ({
         hoteldata={hoteldata}
         accent={accent}
         canOrder={canOrder}
-        isPartnersRole={isPartnersRole}
         hasStockFeature={!!hasStockFeature}
       />
       </div>
