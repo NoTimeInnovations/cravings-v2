@@ -461,21 +461,10 @@ export default function OutletPickerScreen({
     }
   }, [areaInput, savedAddress, isDelivery]);
 
-  const canContinue = isDelivery
-    ? Boolean(savedAddress) && displayedOutlets.length > 0
-    : displayedOutlets.length > 0;
-
-  const handleContinue = () => {
-    if (!canContinue) return;
-    const target =
-      displayedOutlets.find((o) => o.id === selectedId) || displayedOutlets[0];
-    if (target) onSelect(target);
-  };
-
-  // Tapping an outlet card redirects straight to that store (no need to then tap
-  // the bottom button — which still works as a fallback). Out-of-range delivery
-  // is re-checked on the destination store / at checkout, so we never block the
-  // navigation here.
+  // Tapping an outlet card redirects straight to that store — it's the only way
+  // to pick an outlet (the outlets page has no bottom button). Out-of-range
+  // delivery is re-checked on the destination store / at checkout, so we never
+  // block the navigation here.
   const handleOutletClick = (o: BranchOutlet) => {
     setSelectedId(o.id);
     onSelect(o);
@@ -487,19 +476,6 @@ export default function OutletPickerScreen({
   const showOutletsView = !isDelivery || view === "outlets";
   const headerBack =
     isDelivery && view === "outlets" ? () => setView("address") : onBack;
-  const bottomLabel = showAddressView
-    ? savedAddress
-      ? "Continue"
-      : "Enter delivery address"
-    : selectedOutOfRange
-      ? "Explore menu"
-      : "Order now";
-  const bottomDisabled = showAddressView ? !savedAddress : !canContinue;
-  const onBottomClick = showAddressView
-    ? () => {
-        if (savedAddress) setView("outlets");
-      }
-    : handleContinue;
 
   return (
     <div
@@ -951,18 +927,23 @@ export default function OutletPickerScreen({
         </div>
       </div>
 
-      <div className="sticky bottom-0 mt-auto bg-white/95 backdrop-blur-lg border-t border-gray-100 z-30">
-        <div className="px-4 pt-3.5 pb-8 lg:max-w-md lg:mx-auto">
-          <button
-            onClick={onBottomClick}
-            disabled={bottomDisabled}
-            className="w-full h-[52px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
-            style={{ backgroundColor: accent }}
-          >
-            {bottomLabel}
-          </button>
+      {/* Bottom bar belongs to the address step only — it's the "confirm the
+          address, move to the outlets page" action. The outlets page has no
+          bottom button: tapping a card already navigates to that store. */}
+      {showAddressView && (
+        <div className="sticky bottom-0 mt-auto bg-white/95 backdrop-blur-lg border-t border-gray-100 z-30">
+          <div className="px-4 pt-3.5 pb-8 lg:max-w-md lg:mx-auto">
+            <button
+              onClick={() => setView("outlets")}
+              disabled={!savedAddress}
+              className="w-full h-[52px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
+              style={{ backgroundColor: accent }}
+            >
+              {savedAddress ? "Continue" : "Enter delivery address"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {isDelivery && (
         <AddressPickerV2
