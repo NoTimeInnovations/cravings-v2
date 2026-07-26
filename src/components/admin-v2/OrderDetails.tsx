@@ -43,6 +43,7 @@ import {
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
+import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
@@ -312,25 +313,27 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     };
 
     const handlePrint = async (type: 'bill' | 'kot') => {
-        if (type === 'bill') {
-            if (order.status === 'accepted') {
-                try {
-                    await updateOrderStatus(orders, order.id, 'completed', setOrders);
-                    toast.success("Order marked as completed");
-
-                } catch (error) {
-                    console.error("Error updating order status on print:", error);
-                }
-            }
-
-            if (!order.payment_method) {
-                setPaymentModalOpen(true);
-            } else {
-                window.open(`/bill/${order.id}`, '_blank');
-            }
-        } else {
+        if (type === 'kot') {
             window.open(`/kot/${order.id}`, '_blank');
+            return;
         }
+        // Bill: completion is tied to choosing a payment method. If none is set,
+        // open the chooser only — cancelling leaves the order untouched and
+        // prints nothing (completion happens in handlePaymentMethodConfirm). If a
+        // method already exists, complete (when accepted) and open the bill.
+        if (!order.payment_method) {
+            setPaymentModalOpen(true);
+            return;
+        }
+        if (order.status === 'accepted') {
+            try {
+                await updateOrderStatus(orders, order.id, 'completed', setOrders);
+                toast.success("Order marked as completed");
+            } catch (error) {
+                console.error("Error updating order status on print:", error);
+            }
+        }
+        window.open(`/bill/${order.id}`, '_blank');
     };
 
     const handlePaymentMethodConfirm = async (method: string) => {
@@ -491,9 +494,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                     </Badge>
                                 )}
                                 <Badge variant="secondary" className="font-medium capitalize">
-                                    {(order.type === 'delivery' && !order.deliveryAddress)
-                                        ? "Takeaway"
-                                        : (order.type === "table_order" ? "Dine-in" : order.type)}
+                                    {getOrderTypeLabel(order)}
                                 </Badge>
                                 {order.order_channel && (
                                     <Badge
@@ -976,7 +977,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         {order.payment_method && (
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Method:</span>
-                                <span className="font-medium capitalize">{order.payment_method}</span>
+                                <span className="font-medium capitalize">{getPaymentDisplayLabel(order)}</span>
                             </div>
                         )}
                         <div className="flex justify-between">

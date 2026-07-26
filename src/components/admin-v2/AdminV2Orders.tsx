@@ -72,19 +72,14 @@ import { AssignDriverDialog } from "./AssignDriverDialog";
 import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
+import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
 
-// Payment mode label for the orders list. An order counts as "prepaid" only
-// when its money is already in via an online gateway — paid AND not cash.
-// Everything else (cash, or not-yet-paid) is COD. Mirrors the prepaid/COD split
-// used by Settlements and daily revenue so the whole dashboard agrees.
-const getPaymentModeLabel = (
-  order: Pick<Order, "is_paid" | "payment_method">,
-): string => {
-  const isPrepaid =
-    order.is_paid === true &&
-    (order.payment_method ?? "").toLowerCase() !== "cash";
-  return isPrepaid ? order.payment_method || "Online" : "COD";
-};
+// Payment label for the orders list. POS orders show their chosen method
+// (Cash / UPI / Card / "Not selected"); customer orders show "Prepaid" (paid
+// online, gateway name hidden) or "COD". Shared with Settlements so the whole
+// dashboard agrees.
+const getPaymentModeLabel = (order: Order): string =>
+  getPaymentDisplayLabel(order);
 
 // "Table / Location" column value, by order type:
 //  - dine-in / table order → "Table: <number>" (or the table's name if unnumbered)
@@ -353,31 +348,32 @@ export function AdminV2Orders() {
   };
 
   const handlePrintBill = async (order: Order) => {
-    await checkAndCompleteOrder(order);
+    // Completion is now tied to choosing a payment method. If none is set yet,
+    // open the chooser and do NOT complete or print — cancelling leaves the
+    // order untouched. If a method already exists, complete + open the bill.
     if (!order.payment_method) {
       setOrderToPrint(order.id);
       setPaymentModalOpen(true);
-    } else {
-      window.open(`/bill/${order.id}`, "_blank");
+      return;
     }
+    await checkAndCompleteOrder(order);
+    window.open(`/bill/${order.id}`, "_blank");
   };
 
   const handlePaymentMethodConfirm = async (method: string) => {
-    if (orderToPrint) {
-      await updateOrderPaymentMethod(orderToPrint, method, orders, setOrders);
-      setPaymentModalOpen(false);
+    if (!orderToPrint) return;
+    const orderId = orderToPrint;
+    await updateOrderPaymentMethod(orderId, method, orders, setOrders);
+    setPaymentModalOpen(false);
 
-      // Re-fetch order or find it to update check logic?
-      // The order object passed to checkAndCompleteOrder needs to be fresh or we use the ID.
-      // But handlePaymentMethodConfirm uses orderToPrint ID.
-      const updatedOrder = orders.find((o) => o.id === orderToPrint);
-      if (updatedOrder) {
-        await checkAndCompleteOrder(updatedOrder);
-      }
-
-      window.open(`/bill/${orderToPrint}`, "_blank");
-      setOrderToPrint(null);
+    // Now that a payment method is chosen, mark the order completed (only if it
+    // was accepted) and open the bill.
+    const order = orders.find((o) => o.id === orderId);
+    if (order) {
+      await checkAndCompleteOrder(order);
     }
+    window.open(`/bill/${orderId}`, "_blank");
+    setOrderToPrint(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -748,11 +744,7 @@ export function AdminV2Orders() {
                         one line); the long date/slot moves to line 2 below */}
                     <div className="flex flex-wrap items-center gap-1">
                       <Badge variant="secondary" className="uppercase">
-                        {order.type === "delivery" && !order.deliveryAddress
-                          ? "Takeaway"
-                          : order.type === "table_order"
-                            ? "Dine-in"
-                            : order.type}
+                        {getOrderTypeLabel(order)}
                       </Badge>
                       {order.scheduled_date && (
                         <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
@@ -920,11 +912,7 @@ export function AdminV2Orders() {
                   </div>
                   <div className="flex flex-wrap items-center gap-1 justify-end">
                     <Badge variant="outline" className="capitalize text-xs">
-                      {order.type === "delivery" && !order.deliveryAddress
-                        ? "Takeaway"
-                        : order.type === "table_order"
-                          ? "Dine-in"
-                          : order.type}
+                      {getOrderTypeLabel(order)}
                     </Badge>
                     {order.scheduled_date && (
                       <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap">
@@ -1040,7 +1028,11 @@ export function AdminV2Orders() {
 
       <PaymentMethodChooseV2
         isOpen={paymentModalOpen}
-        onClose={() => setPaymentModalOpen(false)}
+        onClose={() => {
+          // Cancelling leaves the order not-completed and prints nothing.
+          setPaymentModalOpen(false);
+          setOrderToPrint(null);
+        }}
         onConfirm={handlePaymentMethodConfirm}
       />
 

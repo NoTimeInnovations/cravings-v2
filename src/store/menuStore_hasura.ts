@@ -50,6 +50,19 @@ export interface ModifierGroup {
   pp_addon_group_id?: string;
 }
 
+/** A customer/operator-chosen customization option on a cart / order line.
+ *  Mirrors one picked {@link ModifierOption}; persisted into the order_items
+ *  JSON snapshot as `item.addons`. */
+export interface SelectedModifier {
+  group_id: string;
+  group_name: string;
+  option_id: string;
+  option_name: string;
+  price: number;
+  pp_addon_group_id?: string;
+  pp_addon_item_id?: string;
+}
+
 export interface MenuItem {
   id?: string;
   name: string;
@@ -86,6 +99,9 @@ export interface MenuItem {
   /** Customization / add-on groups (see {@link ModifierGroup}). Additive on top
    *  of variants — a customer can pick a size variant AND customizations. */
   addon_groups?: ModifierGroup[];
+  /** Chosen customization options on a cart / order line (set at add-to-cart by
+   *  ItemCustomizationSheet). Undefined on plain menu rows. */
+  selectedModifiers?: SelectedModifier[];
   is_price_as_per_size?: boolean;
   is_veg?: boolean;
   tags?: string[];

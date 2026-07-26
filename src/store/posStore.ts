@@ -1130,6 +1130,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
                 name: item.name,
                 price: item.price,
                 category: item.category,
+                ...(item.selectedModifiers?.length && { addons: item.selectedModifiers }),
                 ...(item.is_custom && { is_custom: true }),
                 ...(freebieItemIds.has(item.pp_id || "") && { is_freebie: true }),
                 ...(item.tax_inclusive && { tax_inclusive: true }),

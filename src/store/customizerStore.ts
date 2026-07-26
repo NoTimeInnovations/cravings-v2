@@ -11,6 +11,10 @@ export interface CustomizerPayload {
    *  already resolved). Falls back to item.price when omitted. Ignored when the
    *  item has variants (the chosen variant drives the base price instead). */
   basePrice?: number;
+  /** Where the configured line should go. When provided (e.g. the POS), the sheet
+   *  calls this instead of the customer cart (orderStore.addItem). Receives the
+   *  fully-built cart line and the chosen quantity. */
+  onAdd?: (line: any, qty: number) => void;
 }
 
 interface CustomizerState {

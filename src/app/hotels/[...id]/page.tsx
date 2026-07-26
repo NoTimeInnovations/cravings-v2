@@ -147,17 +147,7 @@ export interface HotelDataMenus extends Omit<MenuItem, "category"> {
     offer_price: number;
   }[];
   variantSelections?: any;
-  /** Customer's chosen customizations (addon-group options) for this cart line.
-   *  Set by ItemCustomizationSheet; each entry mirrors a ModifierOption pick. */
-  selectedModifiers?: {
-    group_id: string;
-    group_name: string;
-    option_id: string;
-    option_name: string;
-    price: number;
-    pp_addon_group_id?: string;
-    pp_addon_item_id?: string;
-  }[];
+  // selectedModifiers is inherited from MenuItem (see menuStore_hasura).
 }
 
 const isUUID = (str: string) =>

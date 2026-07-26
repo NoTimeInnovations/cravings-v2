@@ -22,6 +22,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
+import { getFeatures } from "@/lib/getFeatures";
+import { posMethodLabel } from "@/lib/orderLabels";
 import {
   getPartnerDailyRevenue,
   type DailyRevenueRow,
@@ -95,6 +97,11 @@ export function AdminV2Settlements() {
   const tz = ((userData as any)?.timezone as string) || "Asia/Kolkata";
   const enabled =
     !!(userData as any)?.accept_payments_via_cashfree && !!(userData as any)?.cashfree_merchant_id;
+  // Show the per-transaction Source column (Customer / POS) only when the partner
+  // does in-store billing — POS or captain ordering. Independent of the Cashfree
+  // gate above so it works for POS-only partners too.
+  const posFeatures = getFeatures((userData as any)?.feature_flags || null);
+  const isPosEnabled = !!posFeatures?.pos?.enabled || !!posFeatures?.captainordering?.enabled;
 
   const today = useMemo(() => isoUTC(todayDate(tz)), [tz]);
   const initialCustom = useMemo(() => presetRange("7d", tz), [tz]);
@@ -210,13 +217,24 @@ export function AdminV2Settlements() {
     let name: string;
 
     if (currentRange && currentRange.startDate === currentRange.endDate) {
-      // Single day → per-transaction breakdown.
-      head = ["Time", "Order No.", "Payment", "Amount"];
-      lines = transactions.map((t) =>
-        [fmtTime(t.createdAt), fmtOrderNo(t), t.prepaid ? "Online" : "COD", t.amount.toFixed(2)]
-          .map(esc)
-          .join(","),
-      );
+      // Single day → per-transaction breakdown. Mirror the on-screen table:
+      // add the Source column when POS is enabled, and show the POS method /
+      // customer Prepaid-COD payment label (not the raw gateway).
+      head = isPosEnabled
+        ? ["Time", "Order No.", "Source", "Payment", "Amount"]
+        : ["Time", "Order No.", "Payment", "Amount"];
+      lines = transactions.map((t) => {
+        const isPos = t.source === "pos";
+        const pay = isPos
+          ? posMethodLabel(t.paymentMethod)
+          : t.prepaid
+            ? "Prepaid"
+            : "COD";
+        const cols = isPosEnabled
+          ? [fmtTime(t.createdAt), fmtOrderNo(t), isPos ? "POS" : "Customer", pay, t.amount.toFixed(2)]
+          : [fmtTime(t.createdAt), fmtOrderNo(t), pay, t.amount.toFixed(2)];
+        return cols.map(esc).join(",");
+      });
       name = `transactions_${rr.startDate}`;
     } else {
       head = ["Date", "Orders", "Prepaid", "COD", "Revenue"];
@@ -388,6 +406,9 @@ export function AdminV2Settlements() {
                 <tr className="border-b bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-2.5 text-left font-medium">Time</th>
                   <th className="px-4 py-2.5 text-left font-medium">Order No.</th>
+                  {isPosEnabled && (
+                    <th className="px-4 py-2.5 text-left font-medium">Source</th>
+                  )}
                   <th className="px-4 py-2.5 text-left font-medium">Payment</th>
                   <th className="px-4 py-2.5 text-right font-medium">Amount</th>
                 </tr>
@@ -395,20 +416,20 @@ export function AdminV2Settlements() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-14 text-center text-muted-foreground">
+                    <td colSpan={isPosEnabled ? 5 : 4} className="px-4 py-14 text-center text-muted-foreground">
                       <Loader2 className="mx-auto size-5 animate-spin" />
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-12 text-center">
+                    <td colSpan={isPosEnabled ? 5 : 4} className="px-4 py-12 text-center">
                       <AlertCircle className="mx-auto size-6 text-amber-500" />
                       <div className="mt-2 text-sm text-muted-foreground">{error}</div>
                     </td>
                   </tr>
                 ) : transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-12 text-center">
+                    <td colSpan={isPosEnabled ? 5 : 4} className="px-4 py-12 text-center">
                       <div className="text-sm font-medium">No orders on this day</div>
                       <div className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
                         Each order&rsquo;s time, payment type and amount shows here as it comes in.
@@ -416,33 +437,60 @@ export function AdminV2Settlements() {
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((t) => (
+                  transactions.map((t) => {
+                    const isPos = t.source === "pos";
+                    // POS → the chosen method (Cash/UPI/Card) or "Not selected";
+                    // customer → Prepaid (paid online) or COD.
+                    const payLabel = isPos
+                      ? posMethodLabel(t.paymentMethod)
+                      : t.prepaid
+                        ? "Prepaid"
+                        : "COD";
+                    const payCls = isPos
+                      ? t.paymentMethod
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-gray-100 text-gray-500"
+                      : t.prepaid
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-50 text-amber-700";
+                    return (
                     <tr key={t.id} className="border-b border-muted last:border-0 hover:bg-muted/30">
                       <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{fmtTime(t.createdAt)}</td>
                       <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs">{fmtOrderNo(t)}</td>
+                      {isPosEnabled && (
+                        <td className="whitespace-nowrap px-4 py-2.5">
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
+                              isPos ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600",
+                            )}
+                          >
+                            {isPos ? "POS" : "Customer"}
+                          </span>
+                        </td>
+                      )}
                       <td className="whitespace-nowrap px-4 py-2.5">
                         <span
                           className={cn(
                             "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-                            t.prepaid
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-amber-50 text-amber-700",
+                            payCls,
                           )}
                         >
-                          {t.prepaid ? "Online" : "COD"}
+                          {payLabel}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right font-medium tabular-nums">
                         {money(t.amount)}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
               {!loading && !error && transactions.length > 0 && (
                 <tfoot>
                   <tr className="border-t bg-muted/20 font-semibold">
-                    <td className="px-4 py-2.5 text-left" colSpan={3}>
+                    <td className="px-4 py-2.5 text-left" colSpan={isPosEnabled ? 4 : 3}>
                       Total ({totals.orders.toLocaleString("en-IN")} orders)
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-primary">

@@ -56,6 +56,7 @@ import { PickupOtpBadge } from "./PickupOtpBadge";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
+import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
@@ -512,7 +513,7 @@ export function AdminV2AllOrders() {
                         variant="outline"
                         className="bg-gray-50 text-black dark:text-black"
                       >
-                        {order.payment_method || "N/A"}
+                        {getPaymentDisplayLabel(order)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -524,11 +525,7 @@ export function AdminV2AllOrders() {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-1">
                         <Badge variant="secondary" className="uppercase">
-                          {order.type === "delivery" && !order.deliveryAddress
-                            ? "Takeaway"
-                            : order.type === "table_order"
-                              ? "Dine-in"
-                              : order.type}
+                          {getOrderTypeLabel(order)}
                         </Badge>
                         {order.scheduled_date && (
                           <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 whitespace-nowrap">
@@ -721,7 +718,7 @@ export function AdminV2AllOrders() {
                     <div className="flex items-center gap-2 justify-end">
                       <CreditCard className="h-4 w-4 text-muted-foreground" />
                       <span className="capitalize">
-                        {order.payment_method || "N/A"}
+                        {getPaymentDisplayLabel(order)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -732,11 +729,7 @@ export function AdminV2AllOrders() {
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-1">
                       <Badge variant="outline" className="capitalize text-xs">
-                        {order.type === "delivery" && !order.deliveryAddress
-                          ? "Takeaway"
-                          : order.type === "table_order"
-                            ? "Dine-in"
-                            : order.type}
+                        {getOrderTypeLabel(order)}
                       </Badge>
                       {order.scheduled_date && (
                         <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap">

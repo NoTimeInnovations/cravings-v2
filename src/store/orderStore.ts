@@ -393,6 +393,9 @@ export interface Order {
   deliveryAddress?: string | null;
   gstIncluded?: number;
   orderedby?: string;
+  /** Order origin: "pos" (staff/captain in-store billing) or "customer"
+   *  (storefront/app). Used to label source & payment across the dashboard. */
+  source?: string | null;
   delivery_charge?: number | null;
   delivery_location?: {
     type: string;
@@ -2027,6 +2030,7 @@ const useOrderStore = create(
                     price: item.price,
                     offers: item.offers,
                     category: item.category,
+                    ...(item.selectedModifiers?.length && { addons: item.selectedModifiers }),
                     ...(item.tax_inclusive && { tax_inclusive: true }),
                   },
                 })),
@@ -2199,6 +2203,8 @@ const useOrderStore = create(
                 user_id
                 orderedby
                 captain_id
+                source
+                is_paid
                 qr_code{
                   table_name
                 }
@@ -2294,6 +2300,8 @@ const useOrderStore = create(
               user: order.user,
               orderedby: order.orderedby,
               captain_id: order.captain_id,
+              source: order.source ?? null,
+              is_paid: order.is_paid || false,
               tableName: order.qr_code?.table_name || order.table_name || null,
               captain: captainData, // Use the properly structured captain data
               delivery_boy_id: order.delivery_boy_id,
@@ -2408,6 +2416,7 @@ function transformOrderFromHasura(order: any): Order {
     deliveryAddress: order.delivery_address,
     gstIncluded: order.gst_included || 0,
     orderedby: order.orderedby,
+    source: order.source ?? null,
     tableName: order.qr_code?.table_name || null,
     delivery_charge: order.delivery_charge || null,
     delivery_location: order.delivery_location,

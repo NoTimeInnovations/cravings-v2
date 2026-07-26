@@ -191,7 +191,11 @@ export default function ItemCustomizationSheet() {
             selectedModifiers: optionEntries,
         };
 
-        for (let i = 0; i < qty; i++) addItem(line as any);
+        if (payload?.onAdd) {
+            payload.onAdd(line, qty);
+        } else {
+            for (let i = 0; i < qty; i++) addItem(line as any);
+        }
         close();
         toast.success(`${item.name} added to cart`);
     };

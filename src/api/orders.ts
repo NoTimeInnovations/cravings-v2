@@ -32,6 +32,8 @@ export const getOrdersOfPartnerQuery = `
       loyalty_points_earned
       phone
       captain_id
+      source
+      is_paid
       order_items {
         id
         quantity
@@ -521,6 +523,7 @@ subscription GetPaginatedPartnerOrders(
     user_id
     orderedby
     captain_id
+    source
     qr_code {
       table_name
     }

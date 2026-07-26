@@ -12,11 +12,32 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCustomizerStore } from "@/store/customizerStore";
 
 const PosItemCard = ({ item }: { item: MenuItem }) => {
   const { addToCart, cartItems, decreaseQuantity, removeFromCart, savedPrices, setSavedPrice } = usePOSStore();
   const { userData } = useAuthStore();
+  const openCustomizer = useCustomizerStore((s) => s.open);
   const hasVariants = item.variants && item.variants.length > 0;
+  const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
+
+  // Items with customization groups open the shared configurator sheet (which
+  // also handles the variant choice); the built line is pushed to the POS cart.
+  const openPosCustomizer = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    openCustomizer({
+      item: item as any,
+      currency: (userData as Partner)?.currency || "₹",
+      accent: "#ea580c",
+      basePrice: item.price,
+      onAdd: (line, qty) => {
+        for (let i = 0; i < qty; i++) addToCart(line);
+      },
+    });
+  };
+  const customizeCount = cartItems
+    .filter((i) => i.id?.startsWith(`${item.id}|`))
+    .reduce((s, i) => s + i.quantity, 0);
 
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
   const [customPrice, setCustomPrice] = useState("");
@@ -196,7 +217,37 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
         </div>
       )}
 
-      {hasVariants ? (
+      {hasCustomizations ? (
+        <Card
+          onClick={openPosCustomizer}
+          className="h-full hover:shadow-md transition-all cursor-pointer border shadow-sm group active:scale-[0.98] duration-200 bg-card"
+        >
+          <CardContent className="p-3">
+            {thumb}
+            <h3 className="font-semibold text-sm leading-tight line-clamp-2 text-card-foreground mb-1.5">
+              {item.name}
+            </h3>
+            <p className="text-sm font-bold text-card-foreground mb-2">
+              {hasVariants ? (
+                <>
+                  <span className="text-xs font-medium text-muted-foreground">From </span>
+                  {(userData as Partner)?.currency}
+                  {[...(item.variants ?? [])].sort((a, b) => a.price - b.price)[0]?.price ?? item.price}
+                </>
+              ) : (
+                <>
+                  {(userData as Partner)?.currency}
+                  {item.price}
+                </>
+              )}
+            </p>
+            <div className="flex items-center gap-1 text-xs text-primary font-medium bg-primary/10 px-2 py-1 rounded-full w-fit">
+              <span>{customizeCount > 0 ? `Added (${customizeCount})` : "Customize"}</span>
+              <ChevronDown className="h-3 w-3" />
+            </div>
+          </CardContent>
+        </Card>
+      ) : hasVariants ? (
         <Popover>
           <PopoverTrigger asChild>
             <Card className="h-full hover:shadow-md transition-all cursor-pointer border shadow-sm group active:scale-[0.98] duration-200 bg-card">

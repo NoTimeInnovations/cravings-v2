@@ -37,6 +37,10 @@ export type RevenueTransaction = {
   amount: number;
   /** Paid online up-front vs cash / pay-at-counter. */
   prepaid: boolean;
+  /** Order origin: "pos" (staff in-store) or "customer" (online/storefront). */
+  source: string | null;
+  /** POS payment method chosen at billing: cash / upi / card (null = not set). */
+  paymentMethod: string | null;
 };
 
 export type DailyRevenueResult =
@@ -81,6 +85,7 @@ const getPartnerOrders = `
       total_price
       is_paid
       payment_method
+      source
       status
       source
     }
@@ -212,6 +217,8 @@ export async function getPartnerDailyRevenue(
         createdAt: o.created_at,
         amount,
         prepaid,
+        source: o.source ?? null,
+        paymentMethod: o.payment_method ?? null,
       });
     }
   }

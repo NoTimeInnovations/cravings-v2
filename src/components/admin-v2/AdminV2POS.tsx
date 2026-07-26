@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { POSMenu } from "./pos/POSMenu";
 import { POSCartSidebar } from "@/components/admin-v2/pos/POSCartSidebar";
 import { EditOrderModal } from "@/components/admin/pos/EditOrderModal";
+import ItemCustomizationSheet from "@/components/hotelDetail/ItemCustomizationSheet";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 
 export function AdminV2POS() {
@@ -197,6 +198,9 @@ export function AdminV2POS() {
             )}
 
             <EditOrderModal />
+            {/* Shared customization sheet for POS items with addon_groups —
+                the built line is pushed to the POS cart via onAdd. */}
+            <ItemCustomizationSheet />
         </div>
     );
 }
