@@ -60,7 +60,7 @@ const PLACED_AT = 8300;
 const MENU_CLOSE_AT = 9200;
 const LOOP_AT = 18200;
 
-const STORE = "Spice Garden";
+const STORE = "Kaifan Restaurant";
 // Emerald accent (storefront / ADD buttons / veg marks) and the blue used for
 // the delivery address + checkout primary actions — both taken from the real UI.
 const ACCENT = "#059669";
@@ -68,36 +68,36 @@ const BLUE = "#2563eb";
 
 const MENU_ITEMS = [
   {
-    name: "Butter Chicken",
+    name: "Chicken Mandi",
     price: 320,
+    tone: "#D98324",
+    veg: false,
+    emoji: "🍚",
+    desc: "Smoky slow-cooked chicken over fragrant spiced rice.",
+  },
+  {
+    name: "Chicken Shawarma",
+    price: 180,
     tone: "#E8753B",
     veg: false,
-    emoji: "🍛",
-    desc: "Tender chicken in a rich, creamy tomato gravy.",
+    emoji: "🌯",
+    desc: "Spit-roasted chicken, garlic toum & pickles in warm bread.",
   },
   {
-    name: "Paneer Tikka",
-    price: 260,
-    tone: "#19A463",
-    veg: true,
-    emoji: "🧆",
-    desc: "Char-grilled cottage cheese with smoky spices.",
-  },
-  {
-    name: "Garlic Naan",
+    name: "Pita Bread",
     price: 60,
     tone: "#E9B949",
     veg: true,
     emoji: "🫓",
-    desc: "Soft tandoor flatbread brushed with garlic butter.",
+    desc: "Soft, fluffy Arabic flatbread, fresh from the oven.",
   },
   {
-    name: "Veg Biryani",
-    price: 220,
-    tone: "#D98324",
+    name: "Falafel Plate",
+    price: 140,
+    tone: "#19A463",
     veg: true,
-    emoji: "🍚",
-    desc: "Fragrant basmati rice layered with spiced vegetables.",
+    emoji: "🧆",
+    desc: "Crisp herbed falafel with tahini sauce & fresh salad.",
   },
 ];
 
@@ -219,8 +219,11 @@ export default function WhatsAppOrderDemo({
               {/* Contact row */}
               <div className="flex items-center gap-3 px-3 pb-2.5 pt-1">
                 <ChevronLeft className="h-5 w-5 opacity-90" />
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-sm font-bold">
-                  SG
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
+                  style={{ backgroundColor: "#0c0d13", color: "#f3c23b" }}
+                >
+                  K
                 </div>
                 <div className="min-w-0 flex-1 leading-tight">
                   <p className="truncate text-[14px] font-semibold">{STORE}</p>
@@ -291,8 +294,8 @@ export default function WhatsAppOrderDemo({
                   ✅ Order #2471 received
                 </p>
                 <div className="mt-1.5 space-y-0.5 text-[12px] text-[#3b4a54]">
-                  <Row l="1× Butter Chicken" r="₹320" />
-                  <Row l="2× Garlic Naan" r="₹120" />
+                  <Row l="1× Chicken Mandi" r="₹320" />
+                  <Row l="2× Pita Bread" r="₹120" />
                   <Row l="Taxes & charges" r="₹32" />
                   <div className="my-1 h-px bg-black/10" />
                   <Row l="To Pay" r="₹472" bold />
@@ -309,15 +312,15 @@ export default function WhatsAppOrderDemo({
               <StatusBubble emoji="🍽️" text="Your food is ready & packed." time="7:48 PM" />
             )}
             {visible("rider") && (
-              <StatusBubble emoji="🛵" text="Rider assigned — Ravi is heading to the restaurant." time="7:50 PM" />
+              <StatusBubble emoji="🛵" text="Rider assigned — Yousef is heading to the restaurant." time="7:50 PM" />
             )}
             {visible("dispatched") && (
-              <StatusBubble emoji="📦" text="Dispatched! Your order has left Spice Garden." time="7:52 PM" />
+              <StatusBubble emoji="📦" text={`Dispatched! Your order has left ${STORE}.`} time="7:52 PM" />
             )}
             {visible("onway") && (
               <Bubble side="in" wide>
                 <p className="text-[13px] text-[#111]">
-                  🛵 <b>On the way!</b> Ravi is 5 mins from you.
+                  🛵 <b>On the way!</b> Yousef is 5 mins from you.
                 </p>
                 <Meta side="in" time="7:55 PM" />
                 <button className="mt-2 -mx-1 flex w-[calc(100%+0.5rem)] items-center justify-center gap-2 rounded-lg border-t border-black/5 py-2 text-[14px] font-semibold text-[#0a7cff]">
@@ -413,8 +416,8 @@ export default function WhatsAppOrderDemo({
                       {/* Items card */}
                       <div className="rounded-xl bg-white p-2.5 shadow-sm">
                         {[
-                          { name: "Butter Chicken", price: "₹320" },
-                          { name: "Garlic Naan", price: "₹120" },
+                          { name: "Chicken Mandi", price: "₹320" },
+                          { name: "Pita Bread", price: "₹120" },
                         ].map((it, idx) => (
                           <div
                             key={it.name}
@@ -519,14 +522,17 @@ export default function WhatsAppOrderDemo({
                       {/* Auto-login confirmation */}
                       <div className="mx-3 mt-2 flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
                         <Check className="h-2.5 w-2.5" strokeWidth={3} />
-                        Signed in as Anjali — no login needed
+                        Signed in as Fatima — no login needed
                       </div>
 
                       {/* Hero */}
                       <div className="px-3 pt-2.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#E8753B] to-[#D9412B] text-[12px] font-bold text-white shadow-sm ring-1 ring-black/5">
-                            SG
+                          <div
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-[14px] font-bold shadow-sm ring-1 ring-black/5"
+                            style={{ backgroundColor: "#0c0d13", color: "#f3c23b" }}
+                          >
+                            K
                           </div>
                           <div className="min-w-0 flex-1">
                             <h1
@@ -536,7 +542,7 @@ export default function WhatsAppOrderDemo({
                               {STORE}
                             </h1>
                             <p className="truncate text-[10px] text-gray-400">
-                              North Indian · Biryani · Tandoor
+                              Arabic · Mandi · Grills
                             </p>
                           </div>
                         </div>
@@ -592,7 +598,7 @@ export default function WhatsAppOrderDemo({
 
                       {/* Category pills */}
                       <div className="flex gap-1.5 overflow-hidden border-b border-gray-200/60 px-3 py-1.5">
-                        {["Main Course", "Breads", "Biryani"].map((c, i) => (
+                        {["Mains", "Grills", "Mezze"].map((c, i) => (
                           <span
                             key={c}
                             className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
@@ -608,7 +614,7 @@ export default function WhatsAppOrderDemo({
                       <div className="px-3 pt-2.5">
                         <div className="flex items-center gap-1.5">
                           <h2 className="text-[12px] font-extrabold tracking-tight text-gray-900">
-                            Main Course
+                            Mains
                           </h2>
                           <span className="text-[10px] text-gray-400">
                             ({MENU_ITEMS.length})

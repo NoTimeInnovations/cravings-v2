@@ -441,7 +441,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     }
 
-    // Remove httpOnly auth cookie (must await — can't delete from client JS)
+    // Remove httpOnly auth cookie (must await — can't delete from client JS).
+    // This also drops the Televery impersonation marker, so a swap can never
+    // outlive the sign-out and be redeemed by the next person on this device.
     await removeAuthCookie().catch(() => {});
 
     // Fire remaining cleanup in background
