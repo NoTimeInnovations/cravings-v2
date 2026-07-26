@@ -207,6 +207,7 @@ export async function proxy(request: NextRequest) {
     "/captainlogin",
     "/partnerlogin",
     "/newlogin",
+    "/televeryLogin",
     "/get-started",
     "/demo",
     // Partner call-flow editor (menuthere.com/flow/<partnerId>) — opened from the
@@ -259,6 +260,11 @@ export async function proxy(request: NextRequest) {
       // Partner always redirects to /admin-v2
       if (decrypted?.role === "partner") {
         return NextResponse.redirect(new URL("/admin-v2", request.url));
+      }
+
+      // Televery (marketplace parent) gets its own dashboard, not /admin-v2
+      if (decrypted?.role === "televery") {
+        return NextResponse.redirect(new URL("/televery", request.url));
       }
 
       // User stays on home page
@@ -347,6 +353,13 @@ export async function proxy(request: NextRequest) {
     },
     captain: {
       allowed: ["/captain", "/captain/pos"],
+      redirect: "/",
+    },
+    // Marketplace parent. Listing "/televery" here does double duty: it makes the
+    // path a protected route (isProtectedRoute is derived from these lists) and
+    // stops the `|| roleAccessRules.user` fallback from bouncing Televery to "/".
+    televery: {
+      allowed: ["/televery", "/profile"],
       redirect: "/",
     },
   };

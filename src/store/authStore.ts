@@ -21,6 +21,7 @@ import {
 } from "@/app/auth/actions";
 import { sendRegistrationWhatsAppMsg } from "@/app/actions/sendWhatsappMsgs";
 import { FeatureFlags, getFeatures } from "@/lib/getFeatures";
+import { TELEVERY_ROLE, isTeleveryPartner } from "@/lib/televery";
 import { DeliveryRules, DeliveryRecharge } from "./orderStore";
 import { Notification } from "@/app/actions/notification";
 import { addAccount, getAccounts, getAllAccounts } from "@/lib/addAccount";
@@ -43,7 +44,7 @@ const NEW_PARTNER_TRIAL_FEATURE_FLAGS = NEW_PARTNER_FEATURE_FLAGS;
 interface BaseUser {
   id: string;
   email: string;
-  role: "user" | "partner" | "superadmin" | "captain";
+  role: "user" | "partner" | "superadmin" | "captain" | "televery";
 }
 export interface GeoLocation {
   type: "Point";
@@ -77,7 +78,10 @@ export interface User extends BaseUser {
 }
 
 export interface Partner extends BaseUser {
-  role: "partner";
+  // Televery is a partner row too — it just signs in at /televeryLogin and gets
+  // the marketplace session role so middleware routes it to /televery instead of
+  // the normal partner dashboard. Same columns, different session role.
+  role: "partner" | "televery";
   name: string;
   password: string;
   store_name: string;
@@ -237,6 +241,7 @@ interface AuthState {
   ) => Promise<Partner>;
   signInWithPhone: (phone: string, partnerId?: string, countryInfo?: UserCountryInfo) => Promise<User | null>;
   signInPartnerWithEmail: (email: string, password: string) => Promise<Partner | void>;
+  signInTeleveryWithEmail: (email: string, password: string) => Promise<Partner | void>;
   signInSuperAdminWithEmail: (email: string, password: string) => Promise<void>;
   signInCaptainWithEmail: (email: string, password: string) => Promise<void>;
   fetchUser: () => Promise<void>;
@@ -535,6 +540,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         role: "partner",
         id: partner.id,
         password: partner.password || "123456",
+      });
+      return partner;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Televery signs in with its ordinary partner credentials, but the session is
+  // stamped with the `televery` role so middleware routes it to the marketplace
+  // dashboard instead of /admin-v2. Deliberately scoped to the single Televery
+  // account: any other partner's credentials are rejected here and must use the
+  // normal partner login.
+  signInTeleveryWithEmail: async (email, password) => {
+    try {
+      await get().signOut(true);
+
+      const response = (await fetchFromHasura(partnerLoginQuery, {
+        email,
+        password,
+      })) as { partners: Partner[] };
+
+      const partner = response?.partners?.[0];
+      if (!partner) throw new Error("Invalid credentials");
+      if (!isTeleveryPartner(partner as { id?: string; username?: string })) {
+        throw new Error("This login is only for the Televery account.");
+      }
+
+      await setAuthCookie({
+        id: partner.id,
+        role: TELEVERY_ROLE,
+        feature_flags: partner.feature_flags || "",
+        status: partner.status || "inactive",
+        hasSubscription: !!partner.subscription_details,
+      });
+      localStorage?.setItem("userId", partner.id);
+      set({
+        userData: { ...partner, role: TELEVERY_ROLE },
+        features: getFeatures(partner?.feature_flags as string),
       });
       return partner;
     } catch (error) {
