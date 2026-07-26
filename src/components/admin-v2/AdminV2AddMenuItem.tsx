@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, X, Edit, Trash2, Plus } from "lucide-react";
-import { useMenuStore, MenuItem } from "@/store/menuStore_hasura";
+import { useMenuStore, MenuItem, ModifierGroup } from "@/store/menuStore_hasura";
+import { ModifierGroupsEditor, sanitizeModifierGroups } from "./ModifierGroupsEditor";
 import { toast } from "sonner";
 import Img from "../Img";
 import { ImageGridModalV2 } from "../bulkMenuUpload/ImageGridModalV2";
@@ -66,6 +67,8 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
     const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null);
     const [showVariantForm, setShowVariantForm] = useState(false);
 
+    const [addonGroups, setAddonGroups] = useState<ModifierGroup[]>([]);
+
     useEffect(() => {
         if (userData?.id) {
             fetchCategories(userData.id);
@@ -84,6 +87,21 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
             return;
         }
 
+        // Validate customization groups: a named group needs ≥1 option, and any
+        // options need a group name. Fully-empty groups are dropped silently on save.
+        for (const g of addonGroups) {
+            const named = g.name.trim();
+            const hasOption = g.options.some((o) => o.name.trim());
+            if (named && !hasOption) {
+                toast.error(`Add at least one option to "${g.name}" or remove the group`);
+                return;
+            }
+            if (!named && hasOption) {
+                toast.error("Give every customization group a name");
+                return;
+            }
+        }
+
         setIsSubmitting(true);
         try {
             await addItem({
@@ -96,6 +114,7 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
                 category: newItem.category,
                 is_veg: newItem.is_veg,
                 variants: variants.length > 0 ? variants : [],
+                addon_groups: sanitizeModifierGroups(addonGroups),
                 tags: newItem.tags,
                 is_available: true,
                 tax_inclusive: newItem.tax_inclusive,
@@ -384,6 +403,12 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
                             )}
                         </CardContent>
                     </Card>
+
+                    <ModifierGroupsEditor
+                        value={addonGroups}
+                        onChange={setAddonGroups}
+                        currencySymbol={(userData as any)?.currency || "₹"}
+                    />
                 </div>
 
                 <div className="space-y-6">

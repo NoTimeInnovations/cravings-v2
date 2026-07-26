@@ -25,6 +25,31 @@ interface MenuItemCategory {
   visibility_config?: any;
 }
 
+/** One selectable option inside a {@link ModifierGroup} (e.g. "Double patty").
+ *  `price` is a DELTA added on top of the item/variant price (0 = free).
+ *  The `pp_*` ids are populated by the Petpooja menu-pull sync (later phase);
+ *  they stay undefined for non-Petpooja partners. */
+export interface ModifierOption {
+  id: string;
+  name: string;
+  price: number;
+  is_default?: boolean;
+  pp_addon_item_id?: string;
+}
+
+/** A customization/add-on group on a menu item (e.g. "Choose your patty",
+ *  "Add-ons"). Maps 1:1 to a Petpooja addon group.
+ *  - `min` 0 = optional, ≥1 = required (minimum selections)
+ *  - `max` 1 = single-select (radio), >1 = multi-select (checkbox, up to max) */
+export interface ModifierGroup {
+  id: string;
+  name: string;
+  min: number;
+  max: number;
+  options: ModifierOption[];
+  pp_addon_group_id?: string;
+}
+
 export interface MenuItem {
   id?: string;
   name: string;
@@ -58,6 +83,9 @@ export interface MenuItem {
     price: number;
     delivery_price?: number;
   }[];
+  /** Customization / add-on groups (see {@link ModifierGroup}). Additive on top
+   *  of variants — a customer can pick a size variant AND customizations. */
+  addon_groups?: ModifierGroup[];
   is_price_as_per_size?: boolean;
   is_veg?: boolean;
   tags?: string[];
@@ -277,6 +305,9 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         if (mi.variants) {
           menuItem.variants = mi.variants;
         }
+        if (mi.addon_groups) {
+          menuItem.addon_groups = mi.addon_groups;
+        }
         if (mi.stocks) {
           menuItem.stocks = mi.stocks;
         }
@@ -355,6 +386,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         is_veg: item.is_veg ?? null,
         tags: item.tags || [],
         recommendations: item.recommendations ?? [],
+        addon_groups: item.addon_groups ?? [],
       };
 
       const { insert_menu } = await fetchFromHasura(addMenu, {

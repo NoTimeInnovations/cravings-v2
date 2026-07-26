@@ -17,6 +17,7 @@ export const getMenu = `
             image_url
             image_source
             variants
+            addon_groups
             partner_id
             priority
             is_price_as_per_size
@@ -131,6 +132,7 @@ export const addMenu = `
             is_available
             is_veg
             variants
+            addon_groups
             tags
             tax_inclusive
             recommendations
@@ -166,6 +168,7 @@ export const updateMenu = `
             is_veg
             tags
             variants
+            addon_groups
             recommendations
             reactivate_at
             }
