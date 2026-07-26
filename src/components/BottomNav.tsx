@@ -103,7 +103,7 @@ const BottomNav = () => {
       "sentry-example-page",
       "solutions",
       "superadmin",
-      "televery",
+      "televeryDashboard",
       "televeryLogin",
       "superLogin",
       "terms-and-conditions",

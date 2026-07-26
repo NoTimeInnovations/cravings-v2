@@ -264,7 +264,7 @@ export async function proxy(request: NextRequest) {
 
       // Televery (marketplace parent) gets its own dashboard, not /admin-v2
       if (decrypted?.role === "televery") {
-        return NextResponse.redirect(new URL("/televery", request.url));
+        return NextResponse.redirect(new URL("/televeryDashboard", request.url));
       }
 
       // User stays on home page
@@ -355,11 +355,13 @@ export async function proxy(request: NextRequest) {
       allowed: ["/captain", "/captain/pos"],
       redirect: "/",
     },
-    // Marketplace parent. Listing "/televery" here does double duty: it makes the
-    // path a protected route (isProtectedRoute is derived from these lists) and
-    // stops the `|| roleAccessRules.user` fallback from bouncing Televery to "/".
+    // Marketplace parent. Listing "/televeryDashboard" here does double duty: it
+    // makes the path a protected route (isProtectedRoute is derived from these
+    // lists) and stops the `|| roleAccessRules.user` fallback bouncing it to "/".
+    // NOTE: matching is by prefix, so this must NOT be "/televery" — that is the
+    // Televery partner's own storefront username route and would 307 customers away.
     televery: {
-      allowed: ["/televery", "/profile"],
+      allowed: ["/televeryDashboard", "/profile"],
       redirect: "/",
     },
   };

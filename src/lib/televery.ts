@@ -16,7 +16,7 @@ export const TELEVERY_PARTNER_ID = "4cadd5f2-80ed-499d-a3c2-522e92c94666";
 /** Fallback identity check, in case the row is ever recreated under a new id. */
 export const TELEVERY_USERNAME = "televery";
 
-export const TELEVERY_DASHBOARD_PATH = "/televery";
+export const TELEVERY_DASHBOARD_PATH = "/televeryDashboard";
 export const TELEVERY_LOGIN_PATH = "/televeryLogin";
 
 /**
