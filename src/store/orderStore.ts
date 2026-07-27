@@ -2272,6 +2272,13 @@ const useOrderStore = create(
                 captain_id
                 source
                 is_paid
+                # Same class of bug as the prebooking fields below: OrderDetails
+                # renders the customer's Order Note and the Cashfree ID, but they
+                # were never selected here, so in "Show All Orders" they were
+                # always undefined and both rows silently vanished — while the
+                # live Orders screen (a different subscription) showed them.
+                notes
+                cashfree_payment_id
                 # Prebooking fields. The mapper below already reads these, and
                 # AdminV2AllOrders renders a Prebooked/Table badge from them —
                 # without them selected here they were always null, so that badge
@@ -2377,6 +2384,8 @@ const useOrderStore = create(
               captain_id: order.captain_id,
               source: order.source ?? null,
               is_paid: order.is_paid || false,
+              notes: order.notes ?? null,
+              cashfree_payment_id: order.cashfree_payment_id ?? null,
               tableName: order.qr_code?.table_name || order.table_name || null,
               captain: captainData, // Use the properly structured captain data
               delivery_boy_id: order.delivery_boy_id,
