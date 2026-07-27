@@ -2279,6 +2279,11 @@ const useOrderStore = create(
                 # live Orders screen (a different subscription) showed them.
                 notes
                 cashfree_payment_id
+                # Same again: OrderDetails renders a "Cancelled · by X" banner
+                # with the reason, so without these a cancelled order always read
+                # "No reason provided" here while the live screen showed it.
+                cancel_reason
+                cancelled_by
                 # Prebooking fields. The mapper below already reads these, and
                 # AdminV2AllOrders renders a Prebooked/Table badge from them —
                 # without them selected here they were always null, so that badge
@@ -2386,6 +2391,8 @@ const useOrderStore = create(
               is_paid: order.is_paid || false,
               notes: order.notes ?? null,
               cashfree_payment_id: order.cashfree_payment_id ?? null,
+              cancel_reason: order.cancel_reason ?? null,
+              cancelled_by: order.cancelled_by ?? null,
               tableName: order.qr_code?.table_name || order.table_name || null,
               captain: captainData, // Use the properly structured captain data
               delivery_boy_id: order.delivery_boy_id,
