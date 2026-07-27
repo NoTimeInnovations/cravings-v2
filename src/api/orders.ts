@@ -704,12 +704,17 @@ subscription GetUpcomingPrebookings(
 }
 `;
 
+// Counts the orders the paginated feed can actually return, so it MUST carry the
+// same created_at window as paginatedOrdersSubscription. Without it this counted
+// every order the partner has ever taken while the feed only showed the last 24
+// hours, so hasNextPage advertised pages that render empty.
 export const ordersCountSubscription = `
-subscription GetOrdersCount($partner_id: uuid!) {
+subscription GetOrdersCount($partner_id: uuid!, $today_start: timestamptz!) {
   orders_aggregate(
     where: {
       partner_id: { _eq: $partner_id },
-      status: { _nin: ["pending_payment", "expired"] }
+      status: { _nin: ["pending_payment", "expired"] },
+      created_at: { _gte: $today_start }
     }
   ) {
     aggregate {

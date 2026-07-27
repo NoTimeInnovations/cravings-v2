@@ -1153,9 +1153,16 @@ const useOrderStore = create(
           return () => { };
         }
 
+        // Same 24h window the paged feed uses — the count has to describe the
+        // same set of rows or the pager offers pages that come back empty.
+        const countWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
         return subscribeToHasura({
           query: ordersCountSubscription,
-          variables: { partner_id: userData.id },
+          variables: {
+            partner_id: userData.id,
+            today_start: countWindowStart.toISOString(),
+          },
           onNext: (data) => {
             if (data?.data?.orders_aggregate?.aggregate?.count !== undefined) {
               const count = data.data.orders_aggregate.aggregate.count;
@@ -2265,6 +2272,14 @@ const useOrderStore = create(
                 captain_id
                 source
                 is_paid
+                # Prebooking fields. The mapper below already reads these, and
+                # AdminV2AllOrders renders a Prebooked/Table badge from them —
+                # without them selected here they were always null, so that badge
+                # never appeared in "Show All Orders".
+                scheduled_date
+                scheduled_time
+                scheduled_time_to
+                booking_persons
                 qr_code{
                   table_name
                 }
