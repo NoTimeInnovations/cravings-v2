@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, type Dispatch, type SetStateAction } from "react";
-import axios from "axios";
 import {
   AlertCircle,
   FileText,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
+import { searchMenuItemImages } from "@/app/actions/televeryItemImages";
 import { ImageGridModalV2 } from "@/components/bulkMenuUpload/ImageGridModalV2";
 import Img from "@/components/Img";
 import { Button } from "@/components/ui/button";
@@ -175,38 +175,46 @@ export function StepMenu({
   };
 
   /**
-   * Same bulk background fill /get-started uses: one lookup per item against
-   * the image service, capped at 10. The URLs it returns are the service's own
-   * (they can expire), which is why it's an explicit opt-in rather than
-   * something we do automatically.
+   * Bulk image fill, capped at 10 items.
+   *
+   * Goes through Apify (a server action — the token is server-only), sent as ONE
+   * batched call for the whole menu rather than the previous request-per-item
+   * loop against images.cravings.live. That endpoint stopped responding
+   * altogether (it accepts the connection and never replies) and the calls had
+   * no timeout, so this button parked on a spinner forever with no error.
+   *
+   * The URLs are remote Google results and can expire, which is why this stays
+   * an explicit opt-in rather than something we run automatically.
    */
   const bulkFillImages = async () => {
     const targets = items.filter((i) => !i.image_url).slice(0, BULK_IMAGE_CAP);
     if (!targets.length) return;
     setBulkFilling(true);
-    let filled = 0;
-    // Sequential on purpose — the image service is rate-limited.
     const found = new Map<string, string>();
-    for (const item of targets) {
-      try {
-        const res = await axios.post(
-          "https://images.cravings.live/api/images/search-google",
-          {
-            itemName: item.name.includes(item.category)
-              ? item.name
-              : `${item.name} ${item.category}`,
-          },
-          { headers: { "Content-Type": "application/json" } },
-        );
-        const url = res.data?.data?.imageUrl;
+    let filled = 0;
+    // Same query shape as before: append the category unless the name already
+    // carries it, so "Biriyani" in a "Chicken" category still searches sensibly.
+    const queryFor = (i: DraftItem) =>
+      (i.category && !i.name.includes(i.category)
+        ? `${i.name} ${i.category}`
+        : i.name
+      ).trim();
+    try {
+      const byQuery = await searchMenuItemImages(targets.map(queryFor));
+      for (const item of targets) {
+        const url = byQuery[queryFor(item)];
         if (url) {
           found.set(item.key, url);
           filled += 1;
         }
-      } catch (err) {
-        console.error(`image lookup failed for ${item.name}`, err);
       }
+    } catch (err) {
+      console.error("bulk image fill failed", err);
+      setBulkFilling(false);
+      toast.error("Image search is unavailable right now — add images manually.");
+      return;
     }
+
     // One state write at the end, against the LATEST list rather than the
     // snapshot this run started from — items added or edited while the lookups
     // ran must survive (matching is by key, so deleted ones simply drop out).
@@ -216,9 +224,15 @@ export function StepMenu({
       ),
     );
     setBulkFilling(false);
-    toast[filled ? "success" : "error"](
-      filled ? `Found ${filled} image(s)` : "No images found",
-    );
+    if (filled) {
+      // Say how many missed, so a partial result isn't mistaken for a full one.
+      toast.success(
+        `Found ${filled} image${filled === 1 ? "" : "s"}` +
+          (filled < targets.length ? ` — ${targets.length - filled} had no match` : ""),
+      );
+    } else {
+      toast.error("No images found for these items");
+    }
   };
 
   const busy = disabled || extracting || bulkFilling;
