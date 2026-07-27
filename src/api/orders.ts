@@ -456,6 +456,9 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
         id
         name
         price
+        # POS bills GST off this: a tax-inclusive price already contains the tax,
+        # so without it the placed-order view re-adds GST on top (see POSCartSidebar).
+        tax_inclusive
         category {
           id
           name

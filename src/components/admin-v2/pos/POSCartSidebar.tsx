@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, ChevronUp, Utensils, ShoppingBag, Bike, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
+import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import Img from "@/components/Img";
 import { formatCurrency } from "@/lib/utils";
 import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
@@ -410,8 +410,34 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const activeOrderDataDiscountedFoodSubtotal = Math.max(0, activeOrderDataSubtotal - activeOrderDataDiscountAmount);
 
     const activeOrderDataGstPercentage = partnerData?.gst_percentage || 0;
+    // Must match the cart's calculation (calculateGstForItems above), not a flat
+    // percentage. getGstAmount() ignores tax_inclusive, so a tax-inclusive item
+    // — whose price ALREADY contains the GST — had 5% added again once the order
+    // was placed: the cart correctly showed GST 0 / total 70, then the same
+    // order re-opened as GST 3.50 / total 73.50, i.e. the customer is billed tax
+    // twice. Only tax-EXCLUSIVE items get anything added on top.
+    const activeOrderDataItems = activeOrderData
+        ? ((activeOrderData.items || activeOrderData.order_items) || []).map((item: any) => {
+              const itemData = item.item || item;
+              return {
+                  price: itemData.price || 0,
+                  quantity: item.quantity || 1,
+                  // The order_items.item jsonb snapshot only carries
+                  // {category,id,name,offers,price} — no tax flag — so fall back
+                  // to the live menu row, which the subscription now selects.
+                  tax_inclusive: itemData.tax_inclusive ?? item.menu?.tax_inclusive,
+              };
+          })
+        : [];
+    // The discount applies to the food subtotal, so scale the GST by the same
+    // ratio rather than taxing the pre-discount amount.
+    const activeOrderDataTaxableRatio =
+        activeOrderDataSubtotal > 0
+            ? activeOrderDataDiscountedFoodSubtotal / activeOrderDataSubtotal
+            : 0;
     const activeOrderDataGstAmount = activeOrderData
-        ? getGstAmount(activeOrderDataDiscountedFoodSubtotal, activeOrderDataGstPercentage)
+        ? calculateGstForItems(activeOrderDataItems, activeOrderDataGstPercentage)
+              .additionalGst * activeOrderDataTaxableRatio
         : 0;
 
     const activeOrderDataGrandTotal = activeOrderDataDiscountedTotal + activeOrderDataGstAmount;
