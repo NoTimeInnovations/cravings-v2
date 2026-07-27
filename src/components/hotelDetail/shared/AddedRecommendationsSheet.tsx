@@ -11,17 +11,14 @@ import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { useItemSheetStore } from "@/store/itemSheetStore";
 import { useCustomizerStore } from "@/store/customizerStore";
 
-// After an item sheet closes: long enough to clear its close animation (280ms)
-// plus the fly-to-cart hop that follows (~80ms delay + 380ms flight), so the
-// pairings don't slide up over the animation or hide the pill it flies into.
-const FLUSH_AFTER_SHEET_MS = 520;
-// For an add with nothing open: a single beat so a sheet opened by the SAME tap
-// (V6's grid "+" on a variant item adds the first variant and then opens the
-// variant sheet in one batch) has mounted and registered before we decide.
-const SETTLE_MS = 90;
-// Don't resurrect a very old parked add (e.g. parked, then the customer browsed
-// other sheets for a while) — the "Added X" line would read as stale.
-const PENDING_STALE_MS = 20_000;
+// One beat before the pairings slide up, used by every path. Sized to clear the
+// fly-to-cart hop (80ms delay + a 720ms flight — see v6FlyToCart) so the sheet
+// never lands on top of the animation or hides the cart pill the item flies into.
+// It also gives a sheet opened by the SAME tap (V6's grid "+" on a variant item
+// adds the first variant and then opens the variant sheet in one batch) time to
+// mount and register — though the same-tick protection does NOT rely on this
+// length: that comes from always parking and re-reading live state on fire.
+const FLUSH_DELAY_MS = 820;
 
 // Global "you will love pairing it with" bottom sheet for the DENSE layouts
 // (Sidebar, V6) where an inline recommendation strip doesn't fit gracefully.
@@ -63,11 +60,7 @@ export default function AddedRecommendationsSheet({
   const [pending, setPending] = useState<{
     base: HotelDataMenus;
     recs: HotelDataMenus[];
-    at: number;
   } | null>(null);
-  // True once a parked add has actually waited behind something, so the flush
-  // uses the longer post-close beat instead of the short settle.
-  const waitedRef = useRef(false);
 
   // Items we've already pitched pairings for. Every "+" tap — on the grid card
   // or in a sheet — is a full addItem (increaseQuantity deliberately doesn't
@@ -108,7 +101,6 @@ export default function AddedRecommendationsSheet({
     // announce an older item than the one just added.
     if (resolved.length === 0) {
       setPending(null);
-      waitedRef.current = false;
       return;
     }
 
@@ -116,14 +108,16 @@ export default function AddedRecommendationsSheet({
     // (V6's grid "+" adds the first variant and then opens the variant sheet in
     // one batch) has not mounted yet at this point, so deciding now would pop the
     // pairings over it. The effect below decides a beat later against live state.
-    waitedRef.current = false;
-    setPending({ base, recs: resolved, at: lastItemAddedAt });
+    setPending({ base, recs: resolved });
   }, [lastItemAddedAt, lastAddedItem, hoteldata]);
 
-  // Remember that this parked add had to wait, so it gets the longer beat.
+  // The customizer is a plain in-tree overlay, but this sheet is a MODAL drawer —
+  // while it's open Radix sets body pointer-events:none, which would leave a
+  // customizer opened from a recommendation card visible but dead. So step aside
+  // when it opens, exactly as the item cards do before calling openCustomizer.
   useEffect(() => {
-    if (anySheetOpen && pending) waitedRef.current = true;
-  }, [anySheetOpen, pending]);
+    if (customizerOpen) setOpen(false);
+  }, [customizerOpen]);
 
   // Decide when (and whether) a parked add's pairings surface.
   useEffect(() => {
@@ -136,10 +130,7 @@ export default function AddedRecommendationsSheet({
         useItemSheetStore.getState().openCount > 0 ||
         useCustomizerStore.getState().isOpen ||
         !!useOrderStore.getState().open_place_order_modal;
-      if (busy) {
-        waitedRef.current = true;
-        return; // keep it parked; this effect re-runs once things close
-      }
+      if (busy) return; // keep it parked; this effect re-runs once things close
       // Keep it parked while our own sheet is up — it retries when that closes,
       // rather than being dropped on the floor.
       if (openRef.current) return;
@@ -152,16 +143,14 @@ export default function AddedRecommendationsSheet({
       const stillInCart = cart.some(
         (i) => baseItemId(i.id) === pendingBaseId && i.quantity > 0,
       );
-      const fresh = Date.now() - parked.at < PENDING_STALE_MS;
       const alreadyPitched = shownRef.current.has(pendingBaseId);
       setPending(null);
-      waitedRef.current = false;
-      if (!stillInCart || !fresh || alreadyPitched) return;
+      if (!stillInCart || alreadyPitched) return;
       shownRef.current.add(pendingBaseId);
       setBaseItem(parked.base);
       setRecItems(parked.recs);
       setOpen(true);
-    }, waitedRef.current ? FLUSH_AFTER_SHEET_MS : SETTLE_MS);
+    }, FLUSH_DELAY_MS);
     return () => window.clearTimeout(t);
     // `open` is a dep so a parked add left waiting behind OUR sheet retries the
     // moment that sheet is dismissed.
@@ -187,7 +176,13 @@ export default function AddedRecommendationsSheet({
           (it waits for them to close — see the flush effect above), and it MUST
           stay below the customizer at z-[9998]/[9999], which opens FROM here when
           a recommended item has add-ons. */}
-      <DrawerContent className="max-h-[80vh]">
+      {/* Threaded between the cart chrome and the customizer: above the sticky
+          cart bar (z-[200]) and Sidebar's bottom nav (z-[999]) — at the default
+          z-50 those covered the pairings' own Add buttons — but BELOW the
+          customizer (z-[9998]/[9999]) that opens FROM here for an add-on item.
+          It never has to out-stack an item sheet, because it waits for those to
+          close (see the flush effect above). */}
+      <DrawerContent className="max-h-[80vh] z-[1000]" overlayClassName="z-[1000]">
         <div className="mx-auto w-full max-w-2xl px-4 pb-6 pt-2">
           {baseItem && (
             <p className="mb-0.5 text-[13px] font-medium text-gray-500">
