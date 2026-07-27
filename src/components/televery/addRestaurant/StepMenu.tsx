@@ -446,36 +446,67 @@ export function StepMenu({
                 )}
               </button>
 
+              {/* Labels are persistent, not placeholders. Extraction fills every
+                  field the moment the menu is parsed, so placeholder-only fields
+                  are blank-labelled in practice — and "Chicken" in the second box
+                  is impossible to read as a category rather than a description. */}
               <div className="min-w-0 flex-1 space-y-1.5">
-                <Input
-                  value={item.name}
-                  onChange={(e) => patchItem(item.key, { name: e.target.value })}
-                  placeholder="Item name"
-                  disabled={busy}
-                  className="h-8 text-sm"
-                />
+                <div className="space-y-0.5">
+                  <label
+                    htmlFor={`item-name-${item.key}`}
+                    className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                  >
+                    Item name
+                  </label>
+                  <Input
+                    id={`item-name-${item.key}`}
+                    value={item.name}
+                    onChange={(e) => patchItem(item.key, { name: e.target.value })}
+                    placeholder="e.g. Chicken Biriyani"
+                    disabled={busy}
+                    className="h-8 text-sm"
+                  />
+                </div>
                 <div className="flex gap-1.5">
-                  <Input
-                    value={item.category}
-                    onChange={(e) =>
-                      patchItem(item.key, { category: e.target.value })
-                    }
-                    placeholder="Category"
-                    disabled={busy}
-                    className="h-8 text-xs"
-                  />
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={item.price || ""}
-                    onChange={(e) =>
-                      patchItem(item.key, { price: Number(e.target.value) || 0 })
-                    }
-                    placeholder="Price"
-                    disabled={busy}
-                    className="h-8 w-24 shrink-0 text-xs"
-                  />
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <label
+                      htmlFor={`item-cat-${item.key}`}
+                      className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
+                      Category
+                    </label>
+                    <Input
+                      id={`item-cat-${item.key}`}
+                      value={item.category}
+                      onChange={(e) =>
+                        patchItem(item.key, { category: e.target.value })
+                      }
+                      placeholder="e.g. Main course"
+                      disabled={busy}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="w-24 shrink-0 space-y-0.5">
+                    <label
+                      htmlFor={`item-price-${item.key}`}
+                      className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
+                      Price
+                    </label>
+                    <Input
+                      id={`item-price-${item.key}`}
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      value={item.price || ""}
+                      onChange={(e) =>
+                        patchItem(item.key, { price: Number(e.target.value) || 0 })
+                      }
+                      placeholder="0"
+                      disabled={busy}
+                      className="h-8 w-full text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 
