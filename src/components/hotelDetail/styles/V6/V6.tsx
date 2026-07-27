@@ -46,6 +46,13 @@ type View = "home" | "categories" | "items";
 // tab bar below it — used to align scrolled-to sections and drive scroll-spy.
 const ITEMS_STICKY_OFFSET = 116;
 
+// Home feed: how many categories are mounted below the Popular grid to begin
+// with, and how many more are appended each time the sentinel comes into view.
+const HOME_FEED_INITIAL = 2;
+const HOME_FEED_STEP = 2;
+// How close to the bottom (px) before the next slice is appended.
+const HOME_FEED_REVEAL_PX = 600;
+
 // Resolve the active-offer / upcoming-offer metadata for one item — mirrors the
 // per-item offer computation used by V5 so pricing + variant behaviour match.
 function getOfferMeta(item: any, offers: any[]) {
@@ -160,6 +167,10 @@ const V6 = ({
   // rail reads as a clean toolbar over the scrolling grid instead of blending in.
   const [railStuck, setRailStuck] = useState(false);
   const railSentinelRef = useRef<HTMLDivElement>(null);
+  // How many of the trailing categories are currently mounted below the home
+  // Popular grid — grows as the customer nears the bottom (see the sentinel
+  // effect below), so the home view keeps scrolling instead of dead-ending.
+  const [homeFeedCount, setHomeFeedCount] = useState(HOME_FEED_INITIAL);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
@@ -339,6 +350,32 @@ const V6 = ({
     return [...mustTry, ...firstCat.filter((i) => !seen.has(i.id))];
   }, [groupById, menuCategories]);
 
+  // The categories the Home feed continues into BELOW the Popular grid, minus
+  // whichever one the grid has already emptied onto the screen.
+  //
+  // De-dup rule: gridItems falls back to the FIRST category when there are no
+  // Must-Try items, and tops itself up from that same first category when there
+  // are only 1-3 — and in BOTH cases it emits every one of that category's
+  // items (the top-up merely drops the ones already showing as Must-Try). So the
+  // whole first category is on screen under "Popular"; we drop it wholesale
+  // rather than offsetting it, otherwise the customer scrolls out of Popular
+  // straight into a repeat of the section they just passed.
+  //
+  // What we deliberately DON'T de-dup: with 4+ Must-Try items the grid is
+  // bestsellers pulled from across the menu, so those items appear again in
+  // their own categories below. That repetition is intended — "Popular" is a
+  // shortcut, not a section the item has moved out of — and it matches V3/V5,
+  // which both render a Recommended group above the full category list.
+  // Suppressing it would mean punching holes in real categories.
+  const homeFeedCategories = useMemo(() => {
+    const mustTry = groupById.get("must-try")?.items || [];
+    // NB: no `menuCategories.length <= 1` guard here. On a single-category store
+    // with 4+ bestsellers the grid holds only those bestsellers, so slicing the
+    // lone category away hid the rest of the catalogue and re-created the exact
+    // dead-end this feed exists to fix.
+    return mustTry.length < 4 ? menuCategories.slice(1) : menuCategories;
+  }, [groupById, menuCategories]);
+
   const searchableMenu = useMemo(() => {
     const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
     const hideUnav = hoteldata?.hide_unavailable;
@@ -378,6 +415,53 @@ const V6 = ({
     io.observe(el);
     return () => io.disconnect();
   }, [view]);
+
+  // Home: reset the feed window whenever the view (or the category set) changes,
+  // so coming back Home starts small again instead of re-mounting every card.
+  useEffect(() => {
+    setHomeFeedCount(HOME_FEED_INITIAL);
+  }, [view, homeFeedCategories]);
+
+  // Home: append the next slice of categories as the customer nears the bottom.
+  // Rendering is progressive because a grocery catalogue can run to hundreds of
+  // items and renderGrid mounts a card (with an image) per item — mounting every
+  // category up front would stall the first paint and burn memory on rows the
+  // customer may never reach.
+  //
+  // Deliberately a scroll listener rather than an IntersectionObserver on a
+  // sentinel: the storefront mounts this view TWICE (one copy sits in a hidden
+  // subtree), so a single ref ends up holding whichever node mounted last. When
+  // that was the hidden one the observer watched an element that can never
+  // intersect and the feed silently never grew. Page distance-to-bottom has no
+  // such ambiguity, and it matches the rAF-throttled scroll spy used above.
+  useEffect(() => {
+    if (view !== "home") return;
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      const doc = document.documentElement;
+      const scrolled = window.scrollY || doc.scrollTop || 0;
+      const remaining = doc.scrollHeight - (scrolled + window.innerHeight);
+      if (remaining > HOME_FEED_REVEAL_PX) return;
+      setHomeFeedCount((n) =>
+        n >= homeFeedCategories.length
+          ? n
+          : Math.min(n + HOME_FEED_STEP, homeFeedCategories.length),
+      );
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(check);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    // Run once so a tall viewport (or a short catalogue) fills without a scroll.
+    check();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [view, homeFeedCategories, homeFeedCount]);
 
   // Items view: when the active category changes (or on entering the view),
   // reveal its tab in the sticky rail so the selected category is visible +
@@ -725,6 +809,26 @@ const V6 = ({
             </div>
 
             <div className="pt-1">{renderGrid(gridItems)}</div>
+
+            {/* Continuous feed — Home used to dead-end after Popular; now the
+                scroll flows straight on into the next category and onward, using
+                the same section / heading / grid markup as the items view. These
+                sections deliberately don't register a sectionRef: the scroll-spy
+                is items-only and the rail tiles here open the items view rather
+                than scrolling in place, so refs would only risk clobbering the
+                items view's map. Only the first `homeFeedCount` are mounted. */}
+            {homeFeedCategories.slice(0, homeFeedCount).map((g) => (
+              <section key={g.category.id} className="scroll-mt-[116px] pt-2">
+                <h2 className="px-4 pb-0.5 pt-1 text-[16px] font-extrabold tracking-tight text-gray-900">
+                  {formatDisplayName(g.category.name)}
+                </h2>
+                {renderGrid(g.items, g.category)}
+              </section>
+            ))}
+
+            {/* Sentinel that pulls in the next slice — mounted only while there
+                are categories left, and kept ABOVE the store-name footer so the
+                footer stays the last thing on the page. */}
 
             <p translate="no" className="py-6 text-center text-[10px] text-gray-300 notranslate">
               {hoteldata?.store_name}
