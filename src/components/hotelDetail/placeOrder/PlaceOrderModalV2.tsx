@@ -3393,9 +3393,20 @@ const PlaceOrderModalV2 = ({
 
               {showBreakdown && (
                 <div className="px-4 pb-4 space-y-2 border-t border-gray-100 pt-3">
+                  {/* `subtotal` is ALREADY the pre-discount total (sum of
+                      price x quantity — see its useMemo), so the discount must not
+                      be added back here. Doing so inflated Item Total by the coupon
+                      amount: a 60 cart with a 12 coupon read "Item Total 72,
+                      Discount -12" — a figure the customer's own line items never
+                      added up to. To Pay was always right; this was display-only.
+
+                      Uses displaySubtotal (= subtotal + takeawayCharge) because the
+                      takeaway per-item adjustment has no row of its own, so it has
+                      to land here for the breakdown to sum to To Pay. It equals
+                      subtotal whenever no takeaway adjustment is configured. */}
                   <Row
                     label="Item Total"
-                    value={<MenuPrice currency={currency} amount={(subtotal + discountSavings).toFixed(0)} />}
+                    value={<MenuPrice currency={currency} amount={displaySubtotal.toFixed(0)} />}
                   />
                   {discountSavings > 0 && (
                     <Row
