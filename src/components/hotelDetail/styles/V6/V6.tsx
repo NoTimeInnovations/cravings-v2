@@ -818,8 +818,11 @@ const V6 = ({
                 than scrolling in place, so refs would only risk clobbering the
                 items view's map. Only the first `homeFeedCount` are mounted. */}
             {homeFeedCategories.slice(0, homeFeedCount).map((g) => (
-              <section key={g.category.id} className="scroll-mt-[116px] pt-2">
-                <h2 className="px-4 pb-0.5 pt-1 text-[16px] font-extrabold tracking-tight text-gray-900">
+              // Generous space above the heading and a clear gap below it, so the
+              // title reads as the start of a new category rather than crowding
+              // the previous category's last row of cards.
+              <section key={g.category.id} className="scroll-mt-[116px] pt-6">
+                <h2 className="px-4 pb-3 text-[16px] font-extrabold tracking-tight text-gray-900">
                   {formatDisplayName(g.category.name)}
                 </h2>
                 {renderGrid(g.items, g.category)}
