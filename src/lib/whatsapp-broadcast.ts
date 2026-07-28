@@ -103,6 +103,23 @@ export interface BroadcastSendConfig {
   // single hosted public URL is sent to every recipient via {<type>: { link }}.
   headerMediaUrl?: string | null;
   headerMediaType?: HeaderMediaType | null;
+  // Per-recipient suffix for a dynamic URL button (a template whose button URL
+  // ends in {{1}}). Needed for one-tap reorder links, which differ per customer —
+  // without this every recipient would have to share one static link.
+  urlButtonSuffix?: ((recipient: BroadcastRecipient) => string | null) | null;
+  // Index of the URL button in the template's BUTTONS component. Meta addresses
+  // buttons positionally, so this must match the template's own ordering.
+  urlButtonIndex?: number;
+  // Whether a failure on the partner's own number may retry from Menuthere's
+  // shared number. Defaults true, preserving manual-broadcast behaviour.
+  //
+  // Automated marketing sets this FALSE. One shared number carries 32 partners
+  // here, and opt-outs are recorded per-partner: a customer who told restaurant A
+  // to stop would keep receiving marketing from the other 31 on the number they
+  // recognise, and their block lands on a number every one of them depends on for
+  // order confirmations. A win-back arriving from the wrong business name also
+  // defeats its own purpose.
+  allowSharedFallback?: boolean;
 }
 
 interface PartnerWhatsApp {
@@ -225,6 +242,15 @@ export async function sendBroadcastTemplate(
   const menutherePhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
   const to = normalizePhone(recipient.phone);
 
+  // A caller that has opted out of the shared number must not reach it by the
+  // "partner has no number connected" path either.
+  if (cfg.allowSharedFallback === false && !partnerWa.partnerPhoneNumberId) {
+    return {
+      ok: false,
+      error: "No WhatsApp number connected for this partner (shared-number fallback disabled).",
+    };
+  }
+
   const components: any[] = [];
   if (cfg.headerMediaUrl && cfg.headerMediaType) {
     // Media header: WhatsApp wants { type: "<media>", <media>: { link } }.
@@ -245,6 +271,17 @@ export async function sendBroadcastTemplate(
   }));
   if (bodyParams.length) {
     components.push({ type: "body", parameters: bodyParams });
+  }
+  if (cfg.urlButtonSuffix) {
+    const suffix = cfg.urlButtonSuffix(recipient);
+    if (suffix) {
+      components.push({
+        type: "button",
+        sub_type: "url",
+        index: String(cfg.urlButtonIndex ?? 0),
+        parameters: [{ type: "text", text: suffix }],
+      });
+    }
   }
 
   const messagePayload: any = {
@@ -287,8 +324,23 @@ export async function sendBroadcastTemplate(
   // exist" that masks the actual partner-side error (e.g. the number is still
   // On-Premise / on the Business App and not registered on the Cloud API).
   let partnerError: string | null = null;
+  const allowFallback = cfg.allowSharedFallback !== false;
   if (!res.ok && partnerWa.partnerPhoneNumberId) {
     partnerError = await res.text();
+    if (!allowFallback) {
+      // Caller opted out of the shared number (automated marketing). Surface the
+      // partner-side error as-is rather than burning a second Graph call on a
+      // fallback that would send from the wrong business.
+      logWhatsAppMessage({
+        partnerId: cfg.partnerId,
+        phone: to,
+        templateName: cfg.templateName,
+        status: "failed",
+        errorDetails: partnerError,
+        sentFromPhoneNumberId: usedPhoneNumberId,
+      });
+      return { ok: false, error: partnerError.slice(0, 500), sentFromPhoneNumberId: usedPhoneNumberId };
+    }
     console.warn(
       "Broadcast send via partner number failed, retrying from Menuthere:",
       res.status,

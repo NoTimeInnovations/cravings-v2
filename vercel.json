@@ -43,6 +43,10 @@
     {
       "path": "/api/cron/prebooking-reminders",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/comeback",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
