@@ -324,23 +324,21 @@ export function AdminV2WhatsAppComeback() {
               </Select>
             </div>
             <div>
-              <Label className="text-sm">Only customers who came at least</Label>
-              <Select
-                value={String(settings.min_visits)}
-                onValueChange={(v) => saveSettings({ min_visits: Number(v) })}
-              >
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">once (includes one-time visitors)</SelectItem>
-                  <SelectItem value="2">twice</SelectItem>
-                  <SelectItem value="3">three times</SelectItem>
-                  <SelectItem value="5">five times</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Someone who came once and never returned is a different problem — usually
-                the first visit, not the marketing.
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Label className="text-sm">Include people who only came once</Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Off by default. Someone who came once and never returned is usually a
+                    first-visit problem rather than a marketing one, and they are the
+                    coldest group to message — lowest response, most likely to block.
+                    Turn it on if your regulars alone are too few to be worth a message.
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.min_visits <= 1}
+                  onCheckedChange={(v) => saveSettings({ min_visits: v ? 1 : 2 })}
+                />
+              </div>
             </div>
 
             <div className="sm:col-span-2">
