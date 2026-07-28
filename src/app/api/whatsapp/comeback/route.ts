@@ -26,8 +26,12 @@ const PARTNER = `
       id store_name username currency timezone country country_code custom_domain
     }
     comeback_settings_by_pk(partner_id: $id) {
-      partner_id enabled segments min_visits template_id template_name template_language
+      partner_id enabled auto_send trigger_days check_every_hours segments min_visits
+      template_id template_name template_language
       url_button_index send_from_phone_number_id monthly_message_cap last_built_at
+    }
+    comeback_segment_templates(where: { partner_id: { _eq: $id } }) {
+      segment enabled template_id template_name template_language url_button_index trigger_days
     }
     comeback_batches(
       where: { partner_id: { _eq: $id } }
@@ -50,7 +54,8 @@ const UPSERT_SETTINGS = `
         constraint: comeback_settings_pkey
         update_columns: [enabled, segments, min_visits, template_id, template_name,
                          template_language, url_button_index, send_from_phone_number_id,
-                         monthly_message_cap, updated_at]
+                         monthly_message_cap, auto_send, trigger_days, check_every_hours,
+                         updated_at]
       }
     ) { partner_id }
   }
@@ -104,8 +109,9 @@ const BATCH_DETAIL = `
       treatment_count est_cost
     }
     comeback_recipients(where: { batch_id: { _eq: $id }, arm: { _eq: "treatment" } }) {
-      identity_key phone name
+      identity_key phone name segment
     }
+    comeback_settings_by_pk(partner_id: $id) { auto_send }
   }
 `;
 
@@ -149,6 +155,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       partner: data?.partners_by_pk || null,
       settings: data?.comeback_settings_by_pk || null,
+      segmentTemplates: data?.comeback_segment_templates || [],
       batches: data?.comeback_batches || [],
     });
   } catch (e: any) {
@@ -172,6 +179,8 @@ export async function POST(req: NextRequest) {
   switch (action) {
     case "saveSettings":
       return saveSettings(partnerId, body);
+    case "saveSegmentTemplate":
+      return saveSegmentTemplate(partnerId, body);
     case "build":
       return build(partnerId, body);
     case "approve":
@@ -180,6 +189,46 @@ export async function POST(req: NextRequest) {
       return discard(body.batchId);
     default:
       return NextResponse.json({ error: "unknown_action" }, { status: 400 });
+  }
+}
+
+const UPSERT_SEGMENT_TEMPLATE = `
+  mutation ComebackUpsertSegTpl($object: comeback_segment_templates_insert_input!) {
+    insert_comeback_segment_templates_one(
+      object: $object
+      on_conflict: {
+        constraint: comeback_segment_templates_pkey
+        update_columns: [enabled, template_id, template_name, template_language,
+                         url_button_index, trigger_days, updated_at]
+      }
+    ) { segment }
+  }
+`;
+
+/** One message per segment: what you say to a lapsed regular is not what you say
+ *  to someone who enquired and never ordered. */
+async function saveSegmentTemplate(partnerId: string, body: any) {
+  if (!body.segment) {
+    return NextResponse.json({ error: "segment required" }, { status: 400 });
+  }
+  try {
+    await fetchFromHasuraServer(UPSERT_SEGMENT_TEMPLATE, {
+      object: {
+        partner_id: partnerId,
+        segment: body.segment,
+        enabled: body.enabled !== false,
+        template_id: body.templateId || null,
+        template_name: body.templateName || null,
+        template_language: body.templateLanguage || "en",
+        url_button_index: body.urlButtonIndex ?? null,
+        trigger_days: body.triggerDays ?? null,
+        updated_at: new Date().toISOString(),
+      },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("[comeback] saveSegmentTemplate failed:", e?.message || e);
+    return NextResponse.json({ error: "save_failed" }, { status: 500 });
   }
 }
 
@@ -197,6 +246,9 @@ async function saveSettings(partnerId: string, body: any) {
         url_button_index: body.urlButtonIndex ?? null,
         send_from_phone_number_id: body.sendFromPhoneNumberId || null,
         monthly_message_cap: body.monthlyMessageCap ?? 400,
+        auto_send: !!body.autoSend,
+        trigger_days: body.triggerDays ?? null,
+        check_every_hours: body.checkEveryHours ?? 24,
         updated_at: new Date().toISOString(),
       },
     });
@@ -243,8 +295,21 @@ async function build(partnerId: string, body: any) {
     if (!(await isWhatsappEnabled(partnerId))) {
       return blockRow("whatsapp_off", "WhatsApp is turned off for this account.");
     }
-    if (!settings?.template_name) {
-      return blockRow("no_template", "Choose an approved marketing template first.");
+    // One message per segment. A segment with no template simply is not messaged,
+    // which is also how a partner turns a segment off.
+    const segTpls: any[] = (ctx?.comeback_segment_templates || []).filter(
+      (t: any) => t.enabled && t.template_name,
+    );
+    if (!segTpls.length) {
+      return blockRow(
+        "no_template",
+        "Write a message for at least one customer group first.",
+      );
+    }
+    const activeSegments = segTpls.map((t) => t.segment);
+    const triggerBySegment: Record<string, number> = {};
+    for (const t of segTpls) {
+      if (t.trigger_days != null) triggerBySegment[t.segment] = t.trigger_days;
     }
 
     const phoneNumberId = settings.send_from_phone_number_id || null;
@@ -269,8 +334,10 @@ async function build(partnerId: string, body: any) {
     const built = await buildBatch({
       partnerId,
       partner,
-      minVisits: settings.min_visits ?? 2,
-      segments: settings.segments || [],
+      minVisits: settings?.min_visits ?? 2,
+      segments: activeSegments,
+      triggerBySegment,
+      triggerDays: settings?.trigger_days ?? null,
       phoneNumberId: wa.partnerPhoneNumberId,
       requireConsent: !!body.requireConsent,
       maxRecipients: cap,
@@ -289,8 +356,8 @@ async function build(partnerId: string, body: any) {
         est_cost: built.estCost,
         est_cost_currency: partner.currency || "₹",
         est_discount_exposure: 0,
-        template_name: settings.template_name,
-        template_language: settings.template_language || "en",
+        template_name: segTpls.map((t) => t.template_name).join(", "),
+        template_language: segTpls[0]?.template_language || "en",
         message_preview: body.messagePreview || null,
         send_from_phone_number_id: wa.partnerPhoneNumberId,
         phone_coverage: built.phoneCoverage,
@@ -319,6 +386,15 @@ async function build(partnerId: string, body: any) {
       })),
     });
 
+    // When the partner has turned auto-send on, the rule IS the decision — there
+    // is no preview to sit and wait for approval.
+    if (settings?.auto_send) {
+      const res = await approve(batchId, "auto");
+      const j = await res.json();
+      return NextResponse.json({
+        ok: true, batchId, autoSent: true, ...j, ...summarise(built),
+      });
+    }
     return NextResponse.json({ ok: true, batchId, capped: built.capped, ...summarise(built) });
   } catch (e: any) {
     console.error("[comeback] build failed:", e?.message || e);
@@ -382,30 +458,56 @@ async function approve(batchId: string, approvedBy?: string) {
       return NextResponse.json({ ok: false, error: "empty_batch" });
     }
 
-    const bc = await fetchFromHasuraServer(INSERT_BROADCAST, {
-      object: {
-        partner_id: batch.partner_id,
-        template_name: batch.template_name,
-        language: batch.template_language || "en",
-        category: "MARKETING",
-        variable_map: [{ source: "name" }],
-        status: "scheduled",
-        scheduled_at: now.toISOString(),
-        total_recipients: recipients.length,
-        send_from_phone_number_id: batch.send_from_phone_number_id,
-        created_by: approvedBy || "comeback",
-      },
-    });
-    const broadcastId = bc?.insert_whatsapp_broadcasts_one?.id;
+    // Each segment goes out on its own template, so a batch becomes one broadcast
+    // per segment rather than one for everybody.
+    const tplRes = await fetchFromHasuraServer(
+      `query ComebackSegTpls($pid: uuid!) {
+         comeback_segment_templates(where: { partner_id: { _eq: $pid }, enabled: { _eq: true } }) {
+           segment template_name template_language
+         }
+       }`,
+      { pid: batch.partner_id },
+    );
+    const tplBySegment = new Map<string, any>(
+      (tplRes?.comeback_segment_templates || []).map((t: any) => [t.segment, t]),
+    );
 
-    await fetchFromHasuraServer(INSERT_BROADCAST_RECIPIENTS, {
-      objects: recipients.map((r: any) => ({
-        broadcast_id: broadcastId,
-        name: r.name,
-        phone: r.phone,
-        status: "pending",
-      })),
-    });
+    const bySegment = new Map<string, any[]>();
+    for (const r of recipients) {
+      const seg = r.segment || "unknown";
+      if (!tplBySegment.has(seg)) continue; // segment switched off since the build
+      (bySegment.get(seg) || bySegment.set(seg, []).get(seg)!).push(r);
+    }
+
+    const broadcastIds: string[] = [];
+    let queued = 0;
+    for (const [seg, rows] of bySegment) {
+      const tpl = tplBySegment.get(seg);
+      const bc = await fetchFromHasuraServer(INSERT_BROADCAST, {
+        object: {
+          partner_id: batch.partner_id,
+          template_name: tpl.template_name,
+          language: tpl.template_language || "en",
+          category: "MARKETING",
+          variable_map: [{ source: "name" }],
+          status: "scheduled",
+          scheduled_at: now.toISOString(),
+          total_recipients: rows.length,
+          send_from_phone_number_id: batch.send_from_phone_number_id,
+          created_by: approvedBy || "comeback",
+        },
+      });
+      const bid = bc?.insert_whatsapp_broadcasts_one?.id;
+      if (!bid) continue;
+      broadcastIds.push(bid);
+      queued += rows.length;
+      await fetchFromHasuraServer(INSERT_BROADCAST_RECIPIENTS, {
+        objects: rows.map((r: any) => ({
+          broadcast_id: bid, name: r.name, phone: r.phone, status: "pending",
+        })),
+      });
+    }
+    const broadcastId = broadcastIds[0] || null;
 
     // Commit the ledger for BOTH arms. The holdout gets a virtual send so the
     // control group ages out of the pool at the same rate as the treatment — a
@@ -445,8 +547,9 @@ async function approve(batchId: string, approvedBy?: string) {
     return NextResponse.json({
       ok: true,
       broadcastId,
-      queued: recipients.length,
-      estCost: recipients.length * EST_MARKETING_COST_INR,
+      broadcasts: broadcastIds.length,
+      queued,
+      estCost: queued * EST_MARKETING_COST_INR,
     });
   } catch (e: any) {
     console.error("[comeback] approve failed:", e?.message || e);

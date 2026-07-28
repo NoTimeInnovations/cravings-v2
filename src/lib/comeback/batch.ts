@@ -115,6 +115,10 @@ export interface BuildBatchInput {
   partner: PartnerDialContext & { timezone?: string | null; currency?: string | null };
   minVisits?: number;
   segments?: any[];
+  /** Per-segment days-of-silence thresholds, set by the partner. */
+  triggerBySegment?: Record<string, number>;
+  /** Partner-wide fallback for segments without their own number. */
+  triggerDays?: number | null;
   phoneNumberId: string | null;
   /**
    * When true, only customers with a recorded marketing consent are eligible.
@@ -152,6 +156,8 @@ export async function buildBatch(input: BuildBatchInput): Promise<BuiltBatch> {
     partner: input.partner,
     minVisits: input.minVisits,
     segments: input.segments,
+    triggerBySegment: input.triggerBySegment as any,
+    triggerDays: input.triggerDays,
     now,
   });
 

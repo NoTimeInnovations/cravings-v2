@@ -29,13 +29,18 @@ import {
 import { ComebackTemplateCreator } from "@/components/admin-v2/comeback/ComebackTemplateCreator";
 
 /**
- * Comeback Messages — win back customers who quietly stopped ordering.
+ * Comeback Messages — a standing rule that watches every customer.
  *
- * Preview-first by design. The system finds who has gone quiet and drafts a batch;
- * nothing leaves until the owner has seen the exact recipients, the exact cost and
- * the reason each person was picked, and approved it. This sends marketing from
- * the same WhatsApp number that carries their order confirmations, so an
- * unattended sender is not something to hand someone on day one.
+ * The partner says, per customer group, what to send and how many days of silence
+ * should pass first. The rule then keeps checking on its own: anyone who crosses
+ * their group's threshold gets that group's message. What you say to a lapsed
+ * regular is not what you say to someone who enquired and never ordered, which is
+ * why the template is per segment rather than one for everybody.
+ *
+ * Auto-send is a switch. With it off the rule still runs but stops at a preview
+ * for approval — useful while a partner is deciding whether to trust it, since
+ * this sends marketing from the same number that carries their order
+ * confirmations. With it on, no one is in the loop and the rule just runs.
  */
 
 const TEMPLATES_QUERY = `
@@ -61,6 +66,18 @@ interface Settings {
   send_from_phone_number_id: string | null;
   monthly_message_cap: number;
   url_button_index: number | null;
+  auto_send: boolean;
+  trigger_days: number | null;
+}
+
+interface SegTpl {
+  segment: string;
+  enabled: boolean;
+  template_id: string | null;
+  template_name: string | null;
+  template_language: string;
+  url_button_index: number | null;
+  trigger_days: number | null;
 }
 
 interface Batch {
@@ -120,6 +137,7 @@ export function AdminV2WhatsAppComeback() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [creatorOpen, setCreatorOpen] = useState(false);
+  const [segTpls, setSegTpls] = useState<SegTpl[]>([]);
 
   const load = useCallback(async () => {
     if (!partnerId) return;
@@ -134,10 +152,11 @@ export function AdminV2WhatsAppComeback() {
           enabled: false, segments: [], min_visits: 2, template_id: null,
           template_name: null, template_language: "en",
           send_from_phone_number_id: null, monthly_message_cap: 400,
-          url_button_index: null,
+          url_button_index: null, auto_send: false, trigger_days: null,
         },
       );
       setBatches(res?.batches || []);
+      setSegTpls(res?.segmentTemplates || []);
       setTemplates(tpl?.whatsapp_message_templates || []);
     } catch {
       toast.error("Couldn't load Comeback Messages");
@@ -169,7 +188,32 @@ export function AdminV2WhatsAppComeback() {
       templateName: merged.template_name,
       templateLanguage: merged.template_language,
       urlButtonIndex: merged.url_button_index,
+      autoSend: merged.auto_send,
+      triggerDays: merged.trigger_days,
       monthlyMessageCap: merged.monthly_message_cap,
+    });
+    if (res?.error) toast.error("Couldn't save");
+  };
+
+  const saveSegTpl = async (segment: string, patch: Partial<SegTpl>) => {
+    const cur = segTpls.find((t) => t.segment === segment) || {
+      segment, enabled: true, template_id: null, template_name: null,
+      template_language: "en", url_button_index: null, trigger_days: null,
+    };
+    const next = { ...cur, ...patch };
+    setSegTpls((list) => {
+      const rest = list.filter((t) => t.segment !== segment);
+      return [...rest, next];
+    });
+    const res = await post({
+      action: "saveSegmentTemplate",
+      segment,
+      enabled: next.enabled,
+      templateId: next.template_id,
+      templateName: next.template_name,
+      templateLanguage: next.template_language,
+      urlButtonIndex: next.url_button_index,
+      triggerDays: next.trigger_days,
     });
     if (res?.error) toast.error("Couldn't save");
   };
@@ -243,8 +287,8 @@ export function AdminV2WhatsAppComeback() {
             <Sparkles className="h-5 w-5 text-orange-500" /> Comeback Messages
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Finds customers who have quietly stopped ordering and drafts a message to
-            bring them back. Nothing sends until you have seen exactly who it goes to.
+            Keeps an eye on every customer and messages them when they go quiet for
+            longer than you have allowed — with wording you choose per group.
           </p>
         </div>
         <HowItWorks />
@@ -292,98 +336,112 @@ export function AdminV2WhatsAppComeback() {
 
         {settings?.enabled && (
           <div className="mt-5 grid gap-4 border-t pt-5 sm:grid-cols-2">
-            <div>
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-sm">Message template</Label>
-                <button
-                  type="button"
-                  onClick={() => setCreatorOpen(true)}
-                  className="text-xs font-medium text-orange-600 hover:underline"
-                >
-                  Write another
-                </button>
-              </div>
-              <Select
-                value={settings.template_id || ""}
-                onValueChange={(v) => {
-                  const t = templates.find((x) => x.id === v);
-                  saveSettings({
-                    template_id: v,
-                    template_name: t?.name || null,
-                    template_language: t?.language || "en",
-                    url_button_index: dynamicUrlButtonIndex(t?.components),
-                  });
-                }}
-              >
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Choose a template" /></SelectTrigger>
-                <SelectContent>
-                  {approved.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <div className="flex items-start justify-between gap-3">
+            <div className="sm:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <Label className="text-sm">Include people who only came once</Label>
+                  <Label className="text-sm">Send automatically</Label>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Off by default. Someone who came once and never returned is usually a
-                    first-visit problem rather than a marketing one, and they are the
-                    coldest group to message — lowest response, most likely to block.
-                    Turn it on if your regulars alone are too few to be worth a message.
+                    When on, the rule runs on its own and messages go out without
+                    you approving each batch.
                   </p>
                 </div>
                 <Switch
-                  checked={settings.min_visits <= 1}
-                  onCheckedChange={(v) => saveSettings({ min_visits: v ? 1 : 2 })}
+                  checked={!!settings.auto_send}
+                  onCheckedChange={(v) => saveSettings({ auto_send: v })}
                 />
               </div>
             </div>
 
             <div className="sm:col-span-2">
-              <Label className="text-sm">Which customers to include</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-sm">A message for each group</Label>
+                <button
+                  type="button"
+                  onClick={() => setCreatorOpen(true)}
+                  className="text-xs font-medium text-orange-600 hover:underline"
+                >
+                  <Plus className="mr-1 inline h-3 w-3" />Write a message
+                </button>
+              </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Leave all off to reach everyone who is overdue by their own habits —
-                that is usually what you want. Pick specific groups to narrow it.
+                Pick who to chase, what to say to them, and how many days of
+                silence should pass first. Groups with no message are left alone.
               </p>
-              <div className="mt-2.5 flex flex-wrap gap-2">
+
+              <div className="mt-3 space-y-2">
                 {SEGMENTS.map((seg) => {
-                  const on = (settings.segments || []).includes(seg.id);
+                  const t = segTpls.find((x) => x.segment === seg.id);
+                  const on = !!t?.enabled && !!t?.template_name;
                   return (
-                    <button
+                    <div
                       key={seg.id}
-                      type="button"
-                      title={seg.definition}
-                      onClick={() => {
-                        const cur = settings.segments || [];
-                        saveSettings({
-                          segments: on ? cur.filter((x) => x !== seg.id) : [...cur, seg.id],
-                        });
-                      }}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                        on ? seg.className + " border-transparent" : "text-muted-foreground hover:border-muted-foreground/50"
-                      }`}
+                      className={`rounded-lg border p-3 ${on ? "" : "bg-muted/30"}`}
                     >
-                      {seg.label}
-                    </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={`${seg.className} shrink-0`}>{seg.label}</Badge>
+                        <span className="min-w-0 flex-1 text-xs text-muted-foreground">
+                          {seg.definition}
+                        </span>
+                        <Switch
+                          checked={!!t?.enabled}
+                          onCheckedChange={(v) => saveSegTpl(seg.id, { enabled: v })}
+                        />
+                      </div>
+                      {t?.enabled && (
+                        <div className="mt-2.5 grid gap-2 sm:grid-cols-[1fr_auto]">
+                          <Select
+                            value={t?.template_id || ""}
+                            onValueChange={(v) => {
+                              const tpl = templates.find((x) => x.id === v);
+                              saveSegTpl(seg.id, {
+                                template_id: v,
+                                template_name: tpl?.name || null,
+                                template_language: tpl?.language || "en",
+                                url_button_index: dynamicUrlButtonIndex(tpl?.components),
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Choose what to say" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {approved.map((x) => (
+                                <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <div className="flex items-center gap-1.5">
+                            <span className="whitespace-nowrap text-xs text-muted-foreground">
+                              after
+                            </span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={STALENESS_CAP_DAYS}
+                              value={t?.trigger_days ?? ""}
+                              placeholder="auto"
+                              onChange={(e) =>
+                                saveSegTpl(seg.id, {
+                                  trigger_days: e.target.value ? Number(e.target.value) : null,
+                                })
+                              }
+                              className="h-9 w-20 rounded-md border bg-background px-2 text-sm"
+                            />
+                            <span className="whitespace-nowrap text-xs text-muted-foreground">
+                              days quiet
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
-              {(settings.segments || []).length > 0 && (
-                <div className="mt-2.5 space-y-1 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-                  {SEGMENTS.filter((sg) => (settings.segments || []).includes(sg.id)).map((sg) => (
-                    <p key={sg.id}>
-                      <strong className="text-foreground">{sg.label}</strong> — {sg.definition}
-                    </p>
-                  ))}
-                  <p className="border-t pt-1.5">
-                    These labels match the Customers screen. A customer still has to be
-                    overdue by their own ordering rhythm to be included — the groups only
-                    narrow that further.
-                  </p>
-                </div>
-              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Leave the days box empty to let each customer&apos;s own ordering
+                rhythm decide — someone who used to come twice a week is overdue
+                far sooner than someone who came monthly.
+              </p>
             </div>
           </div>
         )}

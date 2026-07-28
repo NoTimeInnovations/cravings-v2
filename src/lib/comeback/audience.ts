@@ -161,6 +161,15 @@ export interface BuildAudienceOptions {
   minVisits?: number;
   /** Restrict to these display segments. Empty/undefined means no segment filter. */
   segments?: SegmentId[];
+  /**
+   * Days of silence before a customer in a given segment is due a message.
+   * A partner setting this is saying "chase my regulars after a week, my lapsed
+   * after two months" — an explicit rule, which beats an inferred one for
+   * predictability. Falls back to triggerDays, then to the customer's own rhythm.
+   */
+  triggerBySegment?: Partial<Record<SegmentId, number>>;
+  /** Partner-wide override, used for any segment without its own number. */
+  triggerDays?: number | null;
   now?: number;
 }
 
@@ -281,21 +290,15 @@ export async function buildAudience(opts: BuildAudienceOptions): Promise<Audienc
     const lastOrderAt = visits[visits.length - 1];
     const daysQuiet = (now - lastOrderAt) / DAY_MS;
     const cadence = median(gaps);
-    const trigger = triggerFor(cadence, storeCadence);
 
     if (visits.length < minVisits) {
       breakdown.tooFewVisits++;
       continue;
     }
-    if (daysQuiet <= trigger) {
-      breakdown.tooRecent++;
-      continue;
-    }
-    if (daysQuiet > STALENESS_CAP_DAYS) {
-      breakdown.tooStale++;
-      continue;
-    }
 
+    // Segment BEFORE recency, because the threshold now depends on it: a partner
+    // can chase regulars after a week and lapsed customers after two months, and
+    // which rule applies cannot be known until the customer is classified.
     const segment = assignSegment(
       {
         totalOrders: visits.length,
@@ -307,6 +310,20 @@ export async function buildAudience(opts: BuildAudienceOptions): Promise<Audienc
       now,
     );
     if (opts.segments?.length && !opts.segments.includes(segment)) continue;
+
+    const trigger =
+      opts.triggerBySegment?.[segment] ??
+      opts.triggerDays ??
+      triggerFor(cadence, storeCadence);
+
+    if (daysQuiet <= trigger) {
+      breakdown.tooRecent++;
+      continue;
+    }
+    if (daysQuiet > STALENESS_CAP_DAYS) {
+      breakdown.tooStale++;
+      continue;
+    }
 
     members.push({
       key: c.idKey,

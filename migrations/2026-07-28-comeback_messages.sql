@@ -213,3 +213,31 @@ CREATE INDEX IF NOT EXISTS marketing_consent_partner_idx
 -- nightly build is a seq scan of the orders table per partner.
 CREATE INDEX IF NOT EXISTS orders_partner_created_idx
   ON orders (partner_id, created_at DESC);
+
+-- ─────────────── per-segment messages (added same day) ───────────────
+--
+-- One template per customer group rather than one for everybody: "we miss you"
+-- is wrong for someone who enquired and never ordered, and a lapsed VIP should
+-- not get the same words as a one-and-done. A group with no template here is
+-- simply never messaged, which is also how a partner switches one off.
+
+CREATE TABLE IF NOT EXISTS comeback_segment_templates (
+  partner_id        uuid NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
+  segment           text NOT NULL,
+  enabled           boolean NOT NULL DEFAULT true,
+  template_id       uuid,
+  template_name     text,
+  template_language text NOT NULL DEFAULT 'en',
+  url_button_index  integer,
+  -- Days of silence before THIS group is messaged. Null falls back to the
+  -- partner-wide setting, and then to each customer's own ordering rhythm.
+  trigger_days      integer,
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (partner_id, segment)
+);
+
+ALTER TABLE comeback_settings
+  -- With auto_send on, the rule runs unattended: no preview waits for approval.
+  ADD COLUMN IF NOT EXISTS auto_send boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS trigger_days integer,
+  ADD COLUMN IF NOT EXISTS check_every_hours integer NOT NULL DEFAULT 24;
