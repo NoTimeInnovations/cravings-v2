@@ -414,6 +414,36 @@ function toRecipient(batchId: string, m: any) {
   };
 }
 
+/**
+ * One parameter per {{n}} the template's BODY actually declares.
+ *
+ * Meta rejects the whole message when the counts disagree — "number of
+ * localizable_params (1) does not match the expected number of params (2)" —
+ * which is exactly what a hardcoded single-name map produced against the
+ * two-variable drafts this feature ships. Deriving it from the template means a
+ * partner can edit their wording, or write their own, without this breaking.
+ *
+ * The positions follow the drafts in ComebackTemplateCreator: 1 is the customer,
+ * 2 is the store, 3 is the offer. Anything beyond that gets an empty string
+ * rather than a refusal — a blank in the message is recoverable, a message that
+ * never sends is not.
+ */
+function buildVariableMap(components: any, storeName: string) {
+  const comps = Array.isArray(components) ? components : [];
+  const body = comps.find((c: any) => c?.type === "BODY")?.text || "";
+  const nums = new Set(
+    Array.from(String(body).matchAll(/\{\{(\d+)\}\}/g)).map((m) => Number(m[1])),
+  );
+  const count = nums.size ? Math.max(...nums) : 0;
+  const map: any[] = [];
+  for (let i = 1; i <= count; i++) {
+    if (i === 1) map.push({ source: "name" });
+    else if (i === 2) map.push({ source: "fixed", value: storeName });
+    else map.push({ source: "fixed", value: "" });
+  }
+  return map;
+}
+
 function summarise(b: any) {
   return {
     treatment: b.treatment.length,
@@ -462,8 +492,16 @@ async function send(batchId: string, approvedBy?: string) {
          comeback_segment_templates(where: { partner_id: { _eq: $pid }, enabled: { _eq: true } }) {
            segment template_name template_language
          }
+         partners_by_pk(id: $pid) { store_name }
+         whatsapp_message_templates(where: { partner_id: { _eq: $pid } }) {
+           name language components
+         }
        }`,
       { pid: batch.partner_id },
+    );
+    const storeName = tplRes?.partners_by_pk?.store_name || "";
+    const componentsByName = new Map<string, any>(
+      (tplRes?.whatsapp_message_templates || []).map((t: any) => [t.name, t.components]),
     );
     const tplBySegment = new Map<string, any>(
       (tplRes?.comeback_segment_templates || []).map((t: any) => [t.segment, t]),
@@ -486,7 +524,7 @@ async function send(batchId: string, approvedBy?: string) {
           template_name: tpl.template_name,
           language: tpl.template_language || "en",
           category: "MARKETING",
-          variable_map: [{ source: "name" }],
+          variable_map: buildVariableMap(componentsByName.get(tpl.template_name), storeName),
           status: "scheduled",
           scheduled_at: now.toISOString(),
           total_recipients: rows.length,
