@@ -1,4 +1,6 @@
 "use client";
+
+import { MarketingOptIn } from "@/components/hotelDetail/placeOrder/MarketingOptIn";
 import useOrderStore, { OrderItem } from "@/store/orderStore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
@@ -4318,6 +4320,11 @@ const PlaceOrderModal = ({
             }}
           >
             <div className="max-w-2xl mx-auto">
+              <MarketingOptIn
+                partnerId={(hotelData as any)?.id}
+                phone={(user as any)?.phone}
+                storeName={(hotelData as any)?.store_name}
+              />
               {user?.role !== "superadmin" ? (
                 <div className="flex items-center gap-2">
                   {/* Left: Pay Using selector */}

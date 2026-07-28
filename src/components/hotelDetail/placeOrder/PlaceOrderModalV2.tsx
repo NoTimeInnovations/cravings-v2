@@ -1,5 +1,7 @@
 "use client";
 
+import { MarketingOptIn } from "@/components/hotelDetail/placeOrder/MarketingOptIn";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -3558,6 +3560,13 @@ const PlaceOrderModalV2 = ({
         payment method; tap it (when both are offered) to switch via the sheet. */}
     {view === "main" && (items?.length ?? 0) > 0 && (
       <div className="v2-checkout-fixed fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[510]">
+        <div className="px-3 pt-1.5">
+          <MarketingOptIn
+            partnerId={(hotelData as any)?.id}
+            phone={(user as any)?.phone}
+            storeName={(hotelData as any)?.store_name}
+          />
+        </div>
         <div className="px-3 py-2.5 flex items-center gap-2.5">
           {/* Left: PAY USING selector */}
           <button

@@ -9,6 +9,31 @@ import {
   type VariableMapItem,
 } from "@/lib/whatsapp-broadcast";
 import { isWhatsappEnabled } from "@/lib/whatsapp-features";
+import { explainWhatsAppError, categoryForCode } from "@/lib/whatsapp-errors";
+import {
+  BENIGN_ERROR_CODES,
+  CONSECUTIVE_FAILURE_ABORT,
+  BATCH_FAILURE_ABORT_RATIO,
+} from "@/lib/comeback/config";
+import { comebackLinkSuffix } from "@/lib/comeback/orderLinkSuffix";
+
+// Is this broadcast a Comeback batch, and does its template carry a dynamic URL
+// button? Looked up ONCE per broadcast rather than per recipient. A plain manual
+// broadcast matches nothing here and is sent exactly as before.
+const COMEBACK_CONTEXT = `
+  query ComebackContextForBroadcast($broadcast_id: uuid!) {
+    comeback_batches(where: { broadcast_id: { _eq: $broadcast_id } }, limit: 1) {
+      partner_id
+      partner { username custom_domain country country_code }
+    }
+  }
+`;
+
+const COMEBACK_BUTTON_INDEX = `
+  query ComebackButtonIndex($partner_id: uuid!) {
+    comeback_settings_by_pk(partner_id: $partner_id) { url_button_index }
+  }
+`;
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -234,6 +259,39 @@ export async function GET(req: NextRequest) {
         b.partner_id,
         b.send_from_phone_number_id,
       );
+
+      // Comeback batches get a per-recipient signed-in link in the template's URL
+      // button, and never fall back to the shared Menuthere number.
+      let comebackLink:
+        | { partnerId: string; username: string | null; customDomain: string | null; country: string | null; country_code: string | null }
+        | null = null;
+      let urlButtonIndex: number | null = null;
+      let isComeback = false;
+      try {
+        const cc = await fetchFromHasuraServer(COMEBACK_CONTEXT, { broadcast_id: b.id });
+        const row = cc?.comeback_batches?.[0];
+        if (row) {
+          isComeback = true;
+          const idx = await fetchFromHasuraServer(COMEBACK_BUTTON_INDEX, {
+            partner_id: row.partner_id,
+          });
+          urlButtonIndex = idx?.comeback_settings_by_pk?.url_button_index ?? null;
+          if (urlButtonIndex != null) {
+            comebackLink = {
+              partnerId: row.partner_id,
+              username: row.partner?.username ?? null,
+              customDomain: row.partner?.custom_domain ?? null,
+              country: row.partner?.country ?? null,
+              country_code: row.partner?.country_code ?? null,
+            };
+          }
+        }
+      } catch (e: any) {
+        // Not knowing is not a reason to send the wrong thing: without the
+        // context we simply send without a button parameter, which is what a
+        // template with a static button expects anyway.
+        console.error("[dispatch-broadcasts] comeback context lookup failed:", e?.message || e);
+      }
       // Send-time blocklist gate: never message a customer who has opted out —
       // even if they replied STOP AFTER this broadcast was created/queued.
       const optedOut = await getPartnerOptOuts(b.partner_id);
@@ -241,7 +299,24 @@ export async function GET(req: NextRequest) {
       let failed = 0;
       let skipped = 0;
 
+      // Circuit breaker. Meta's quality rating is a rolling score that can turn
+      // between the moment a batch is queued and the moment it runs, and once a
+      // number is rate-limited or restricted every further send is both wasted
+      // and actively harmful — failures are what the rating punishes. So the tick
+      // stops on the first error that says "the NUMBER is the problem", rather
+      // than working through the remaining recipients into a wall.
+      //
+      // Per-recipient errors that say nothing about the number are excluded:
+      // 131049 (that user's own marketing cap), 130472 (Meta's holdout
+      // experiment) and 131050 (that user opted out) are all expected at some
+      // rate in any marketing batch and must not trip anything.
+      let abortReason: string | null = null;
+      let consecutive = 0;
+      let attempted = 0; // sends actually made — denominator for the failure ratio
+      let processed = 0; // rows taken off the pending list, including skips
+
       for (const r of recipients) {
+        if (abortReason) break;
         if (optedOut.has(normalizePhone(r.phone))) {
           await fetchFromHasuraServer(UPDATE_RECIPIENT, {
             id: r.id,
@@ -252,6 +327,7 @@ export async function GET(req: NextRequest) {
             },
           }).catch(() => {});
           skipped++;
+          processed++;
           continue;
         }
         const result = await sendBroadcastTemplate(
@@ -267,6 +343,13 @@ export async function GET(req: NextRequest) {
               | "video"
               | "document"
               | null) || null,
+            // Marketing must never reach the shared number — see the note on
+            // allowSharedFallback in whatsapp-broadcast.ts.
+            allowSharedFallback: !isComeback,
+            urlButtonIndex: urlButtonIndex ?? 0,
+            urlButtonSuffix: comebackLink
+              ? (rec) => comebackLinkSuffix(comebackLink!, rec.phone)
+              : null,
           },
           r,
           partnerWa,
@@ -294,16 +377,47 @@ export async function GET(req: NextRequest) {
           const { sent_from_phone_number_id, ...legacy } = fullSet;
           await fetchFromHasuraServer(UPDATE_RECIPIENT, { id: r.id, set: legacy });
         }
-        if (result.ok) sent++;
-        else failed++;
+        attempted++;
+        processed++;
+        if (result.ok) {
+          sent++;
+          consecutive = 0;
+          continue;
+        }
+        failed++;
+
+        const { code } = explainWhatsAppError(null, result.error);
+        const codeStr = code == null ? "" : String(code);
+        if (BENIGN_ERROR_CODES.includes(codeStr)) continue;
+
+        const category = categoryForCode(code);
+        if (category === "quality_rate") {
+          abortReason =
+            "Paused: WhatsApp is rate-limiting this number right now. The rest will go out when you resume.";
+        } else if (category === "auth") {
+          abortReason =
+            "Paused: this number's WhatsApp connection needs reconnecting in Settings.";
+        } else {
+          consecutive++;
+          if (consecutive >= CONSECUTIVE_FAILURE_ABORT) {
+            abortReason = `Paused after ${consecutive} sends in a row failed. The rest will go out when you resume.`;
+          } else if (
+            attempted >= 10 &&
+            failed / attempted > BATCH_FAILURE_ABORT_RATIO
+          ) {
+            abortReason = `Paused: ${failed} of the first ${attempted} sends failed. The rest will go out when you resume.`;
+          }
+        }
       }
 
       summary.sent += sent;
       summary.failed += failed;
       summary.skipped += skipped;
 
-      // Did we drain the list this tick?
-      const remainingAfter = pendingTotal - recipients.length;
+      // Did we drain the list this tick? Count what we actually ATTEMPTED, not the
+      // batch we fetched — the breaker may have stopped us partway, and the
+      // untouched recipients are still pending.
+      const remainingAfter = pendingTotal - processed;
       const hitCapThisTick = sent >= remainingQuota && remainingAfter > 0;
 
       const set: Record<string, unknown> = {
@@ -312,7 +426,14 @@ export async function GET(req: NextRequest) {
         locked_at: null,
         updated_at: nowIso,
       };
-      if (remainingAfter <= 0) {
+      if (abortReason) {
+        // Stop the whole broadcast, not just this tick — leaving it 'sending'
+        // would have the next tick walk straight back into the same wall a
+        // minute later.
+        set.status = "paused";
+        set.last_error = abortReason;
+        summary.paused++;
+      } else if (remainingAfter <= 0) {
         set.status = "completed";
         set.completed_at = nowIso;
         summary.completed++;

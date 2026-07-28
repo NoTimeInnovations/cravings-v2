@@ -148,9 +148,11 @@ CREATE TABLE IF NOT EXISTS comeback_recipients (
 );
 
 -- One row per human per batch, enforced on the PHONE identity rather than on a
--- user_id, because the same person can arrive through both.
-CREATE UNIQUE INDEX IF NOT EXISTS comeback_recipients_unique_idx
-  ON comeback_recipients (batch_id, identity_key);
+-- user_id, because the same person can arrive through both. A CONSTRAINT, not a
+-- unique index: Hasura only accepts real constraints in on_conflict.
+ALTER TABLE comeback_recipients
+  DROP CONSTRAINT IF EXISTS comeback_recipients_batch_identity_key,
+  ADD CONSTRAINT comeback_recipients_batch_identity_key UNIQUE (batch_id, identity_key);
 
 CREATE INDEX IF NOT EXISTS comeback_recipients_batch_idx
   ON comeback_recipients (batch_id, arm);
@@ -196,8 +198,11 @@ CREATE TABLE IF NOT EXISTS marketing_consent (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS marketing_consent_unique_idx
-  ON marketing_consent (partner_id, identity_key);
+-- Must be a CONSTRAINT rather than a unique index — the consent upsert relies on
+-- it in on_conflict, and Hasura rejects bare unique indexes there.
+ALTER TABLE marketing_consent
+  DROP CONSTRAINT IF EXISTS marketing_consent_partner_identity_key,
+  ADD CONSTRAINT marketing_consent_partner_identity_key UNIQUE (partner_id, identity_key);
 
 CREATE INDEX IF NOT EXISTS marketing_consent_partner_idx
   ON marketing_consent (partner_id) WHERE revoked_at IS NULL;

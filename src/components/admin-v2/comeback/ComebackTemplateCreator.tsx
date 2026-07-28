@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, Check } from "lucide-react";
+import { COMEBACK_BUTTON_BASE } from "@/lib/comeback/orderLinkSuffix";
 
 /**
  * Write and submit a comeback template without leaving the screen.
@@ -41,6 +42,11 @@ export interface TemplateDraft {
   /** Shown under the message in the WhatsApp bubble. */
   footer?: string;
   includeMenuButton: boolean;
+  /**
+   * Uses a DYNAMIC url button, so each recipient gets their own signed-in link
+   * straight into the menu instead of a shared "visit our site" address.
+   */
+  personalLink?: boolean;
 }
 
 export const COMEBACK_DRAFTS: TemplateDraft[] = [
@@ -67,6 +73,19 @@ export const COMEBACK_DRAFTS: TemplateDraft[] = [
       "Come see what's cooking 👇",
     footer: "Reply STOP to unsubscribe",
     includeMenuButton: true,
+  },
+  {
+    key: "one_tap",
+    label: "One tap back in",
+    rationale:
+      "Each customer gets their own link that signs them in and opens your menu — no login, no searching. The lowest-friction option, and the one to pick if you only try one.",
+    body:
+      "Hi {{1}}, it's been a while since your last order from {{2}} 🙂\n\n" +
+      "Your usual is a tap away — we've kept you signed in.\n\n" +
+      "See what's on today 👇",
+    footer: "Reply STOP to unsubscribe",
+    includeMenuButton: true,
+    personalLink: true,
   },
   {
     key: "thank_you_offer",
@@ -102,7 +121,7 @@ export function ComebackTemplateCreator({
   storeName: string;
   username: string | null;
   phoneNumberId?: string | null;
-  onCreated: () => void;
+  onCreated: (urlButtonIndex: number | null) => void;
 }) {
   const [draftKey, setDraftKey] = useState(COMEBACK_DRAFTS[0].key);
   const draft = useMemo(
@@ -142,10 +161,18 @@ export function ComebackTemplateCreator({
 
     // One button TYPE per template — never a URL and a quick-reply together (see
     // the note at the top of this file). The opt-out route differs accordingly.
-    const buttons: any[] =
-      draft.includeMenuButton && username
-        ? [{ type: "URL", text: "See the menu", url: `https://menuthere.com/${username}` }]
-        : [{ type: "QUICK_REPLY", text: "Stop these messages" }];
+    // A dynamic button's URL ends in {{1}} and Meta requires a sample value; the
+    // real per-recipient suffix is filled in at send time by the dispatcher.
+    const buttons: any[] = !draft.includeMenuButton || !username
+      ? [{ type: "QUICK_REPLY", text: "Stop these messages" }]
+      : draft.personalLink
+        ? [{
+            type: "URL",
+            text: "Open my menu",
+            url: COMEBACK_BUTTON_BASE,
+            example: [`https://menuthere.com/${username}?olt=abc123`],
+          }]
+        : [{ type: "URL", text: "See the menu", url: `https://menuthere.com/${username}` }];
     components.push({ type: "BUTTONS", buttons });
 
     setSaving(true);
@@ -169,7 +196,9 @@ export function ComebackTemplateCreator({
       }
       toast.success("Sent to WhatsApp for approval — usually a few minutes.");
       onOpenChange(false);
-      onCreated();
+      // Tell the caller whether this template carries a dynamic button, so the
+      // settings row records which button index to fill at send time.
+      onCreated(draft.personalLink ? 0 : null);
     } catch {
       toast.error("Couldn't create the template");
     } finally {
@@ -238,7 +267,11 @@ export function ComebackTemplateCreator({
                 )}
                 <div className="mt-2 space-y-1 border-t pt-2">
                   <p className="text-center text-sm text-blue-600">
-                    {draft.includeMenuButton && username ? "See the menu" : "Stop these messages"}
+                    {!draft.includeMenuButton || !username
+                      ? "Stop these messages"
+                      : draft.personalLink
+                        ? "Open my menu"
+                        : "See the menu"}
                   </p>
                 </div>
               </div>

@@ -60,6 +60,7 @@ interface Settings {
   template_language: string;
   send_from_phone_number_id: string | null;
   monthly_message_cap: number;
+  url_button_index: number | null;
 }
 
 interface Batch {
@@ -83,6 +84,25 @@ interface Batch {
   measured_at: string | null;
   results: any;
   created_at: string;
+}
+
+/**
+ * Position of a DYNAMIC url button (one whose URL ends in a {{n}} variable) in a
+ * template's BUTTONS component, or null if it has none.
+ *
+ * Read from the template itself rather than remembered from when it was created,
+ * so a template written in the Templates screen — or edited later — is handled
+ * correctly too. Meta addresses buttons positionally, so the index has to match
+ * the template's own ordering.
+ */
+function dynamicUrlButtonIndex(components: any): number | null {
+  const comps = Array.isArray(components) ? components : [];
+  const btns = comps.find((c: any) => c?.type === "BUTTONS")?.buttons;
+  if (!Array.isArray(btns)) return null;
+  const i = btns.findIndex(
+    (b: any) => b?.type === "URL" && /\{\{\d+\}\}/.test(String(b?.url || "")),
+  );
+  return i >= 0 ? i : null;
 }
 
 const fmtDate = (s: string | null) =>
@@ -114,6 +134,7 @@ export function AdminV2WhatsAppComeback() {
           enabled: false, segments: [], min_visits: 2, template_id: null,
           template_name: null, template_language: "en",
           send_from_phone_number_id: null, monthly_message_cap: 400,
+          url_button_index: null,
         },
       );
       setBatches(res?.batches || []);
@@ -147,6 +168,7 @@ export function AdminV2WhatsAppComeback() {
       templateId: merged.template_id,
       templateName: merged.template_name,
       templateLanguage: merged.template_language,
+      urlButtonIndex: merged.url_button_index,
       monthlyMessageCap: merged.monthly_message_cap,
     });
     if (res?.error) toast.error("Couldn't save");
@@ -289,6 +311,7 @@ export function AdminV2WhatsAppComeback() {
                     template_id: v,
                     template_name: t?.name || null,
                     template_language: t?.language || "en",
+                    url_button_index: dynamicUrlButtonIndex(t?.components),
                   });
                 }}
               >
@@ -318,6 +341,51 @@ export function AdminV2WhatsAppComeback() {
                 Someone who came once and never returned is a different problem — usually
                 the first visit, not the marketing.
               </p>
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label className="text-sm">Which customers to include</Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Leave all off to reach everyone who is overdue by their own habits —
+                that is usually what you want. Pick specific groups to narrow it.
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {SEGMENTS.map((seg) => {
+                  const on = (settings.segments || []).includes(seg.id);
+                  return (
+                    <button
+                      key={seg.id}
+                      type="button"
+                      title={seg.definition}
+                      onClick={() => {
+                        const cur = settings.segments || [];
+                        saveSettings({
+                          segments: on ? cur.filter((x) => x !== seg.id) : [...cur, seg.id],
+                        });
+                      }}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        on ? seg.className + " border-transparent" : "text-muted-foreground hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      {seg.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {(settings.segments || []).length > 0 && (
+                <div className="mt-2.5 space-y-1 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+                  {SEGMENTS.filter((sg) => (settings.segments || []).includes(sg.id)).map((sg) => (
+                    <p key={sg.id}>
+                      <strong className="text-foreground">{sg.label}</strong> — {sg.definition}
+                    </p>
+                  ))}
+                  <p className="border-t pt-1.5">
+                    These labels match the Customers screen. A customer still has to be
+                    overdue by their own ordering rhythm to be included — the groups only
+                    narrow that further.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -355,7 +423,7 @@ export function AdminV2WhatsAppComeback() {
           storeName={partner?.store_name || ""}
           username={partner?.username || null}
           phoneNumberId={settings?.send_from_phone_number_id}
-          onCreated={load}
+          onCreated={() => load()}
         />
       )}
 
