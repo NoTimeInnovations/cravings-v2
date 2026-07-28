@@ -16,7 +16,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuthStore } from "@/store/authStore";
-import { fetchFromHasura } from "@/lib/hasuraClient";
 import { SEGMENTS } from "@/lib/customerSegments";
 import {
   MIN_AUDIENCE_FOR_HOLDOUT, MIN_PHONE_COVERAGE_FOR_HEADLINE,
@@ -43,18 +42,21 @@ import { ComebackTemplateCreator } from "@/components/admin-v2/comeback/Comeback
  * confirmations. With it on, no one is in the loop and the rule just runs.
  */
 
-const TEMPLATES_QUERY = `
-  query ComebackTemplates($partner_id: uuid!) {
-    whatsapp_message_templates(
-      where: {
-        partner_id: { _eq: $partner_id }
-        status: { _in: ["APPROVED", "PENDING"] }
-        category: { _eq: "MARKETING" }
-      }
-      order_by: { created_at: desc }
-    ) { id name language status components }
-  }
-`;
+/**
+ * Templates come from the API with ?sync=1, not straight from Hasura.
+ *
+ * whatsapp_message_templates is a local MIRROR of Meta's list, and it is only
+ * reconciled when someone loads the Templates screen. Reading it directly meant a
+ * template written here sat at PENDING until the partner happened to visit
+ * another screen — so a message they had just created, and which Meta had already
+ * approved, simply was not in this dropdown.
+ */
+async function loadTemplates(partnerId: string) {
+  const r = await fetch(
+    `/api/whatsapp/templates?partnerId=${partnerId}&sync=1`,
+  ).then((x) => x.json());
+  return (r?.templates || []).filter((t: any) => t.category === "MARKETING");
+}
 
 interface Settings {
   enabled: boolean;
@@ -144,7 +146,7 @@ export function AdminV2WhatsAppComeback() {
     try {
       const [res, tpl] = await Promise.all([
         fetch(`/api/whatsapp/comeback?partnerId=${partnerId}`).then((r) => r.json()),
-        fetchFromHasura(TEMPLATES_QUERY, { partner_id: partnerId }).catch(() => null),
+        loadTemplates(partnerId).catch(() => []),
       ]);
       setPartner(res?.partner || null);
       setSettings(
@@ -157,7 +159,7 @@ export function AdminV2WhatsAppComeback() {
       );
       setBatches(res?.batches || []);
       setSegTpls(res?.segmentTemplates || []);
-      setTemplates(tpl?.whatsapp_message_templates || []);
+      setTemplates(tpl || []);
     } catch {
       toast.error("Couldn't load Comeback Messages");
     } finally {
@@ -407,6 +409,11 @@ export function AdminV2WhatsAppComeback() {
                             <SelectContent>
                               {approved.map((x) => (
                                 <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>
+                              ))}
+                              {pending.map((x) => (
+                                <SelectItem key={x.id} value={x.id} disabled>
+                                  {x.name} — waiting for WhatsApp
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
