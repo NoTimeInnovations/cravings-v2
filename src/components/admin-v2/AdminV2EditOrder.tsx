@@ -17,6 +17,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useMenuStore } from "@/store/menuStore_hasura";
+import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -89,6 +90,8 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
             id?: string;
             menu_id: string;
             quantity: number;
+            /** GST is added ONLY on tax-exclusive lines. */
+            tax_inclusive?: boolean;
             menu: {
                 name: string;
                 price: number;
@@ -140,6 +143,8 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                         id: item.id,
                         menu_id: item.menu.id,
                         quantity: item.quantity,
+                        tax_inclusive:
+                            item.item?.tax_inclusive ?? item.menu?.tax_inclusive ?? false,
                         menu: {
                             name: item.item.name || item.menu.name,
                             price: item.item.price || item.menu.price || 0,
@@ -176,6 +181,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     const calculateTotal = (
         currentItems: Array<{
             quantity: number;
+            tax_inclusive?: boolean;
             menu: {
                 price: number;
             };
@@ -213,7 +219,18 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         const discountedSubtotal = Math.max(0, subtotal - discountAmount);
         const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
 
-        const gstAmount = gstPercentage > 0 ? (discountedFoodSubtotal * gstPercentage) / 100 : 0;
+        // GST is added ONLY on tax-EXCLUSIVE lines. A flat percentage here used
+        // to re-tax tax-inclusive prices and then persist the inflated total.
+        // Scale by the discount ratio first, exactly as posStore.updateOrder does.
+        const ratio = foodSubtotal > 0 ? discountedFoodSubtotal / foodSubtotal : 0;
+        const { additionalGst: gstAmount } = calculateGstForItems(
+            currentItems.map((i) => ({
+                price: i.menu.price * ratio,
+                quantity: i.quantity,
+                tax_inclusive: i.tax_inclusive,
+            })),
+            gstPercentage,
+        );
 
         return discountedSubtotal + gstAmount;
     };
@@ -276,6 +293,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         let itemToAdd: {
             menu_id: string;
             quantity: number;
+            tax_inclusive?: boolean;
             menu: { name: string; price: number };
         };
 
@@ -285,6 +303,8 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
             itemToAdd = {
                 menu_id: baseId,
                 quantity: 1,
+                // Variants have no tax flag of their own — they inherit the row's.
+                tax_inclusive: (menuItem as any).tax_inclusive ?? false,
                 menu: {
                     name: `${menuItem.name} (${variant.name})`,
                     price: variant.price,
@@ -294,6 +314,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
             itemToAdd = {
                 menu_id: baseId,
                 quantity: 1,
+                tax_inclusive: (menuItem as any).tax_inclusive ?? false,
                 menu: {
                     name: menuItem.name,
                     price: menuItem.price,
@@ -849,7 +870,15 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                     }, 0);
 
                                                     const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
-                                                    return ((discountedFoodSubtotal * gstPercentage) / 100).toFixed(2);
+                                                    const ratio = foodSubtotal > 0 ? discountedFoodSubtotal / foodSubtotal : 0;
+                                                    return calculateGstForItems(
+                                                        items.map((i) => ({
+                                                            price: i.menu.price * ratio,
+                                                            quantity: i.quantity,
+                                                            tax_inclusive: i.tax_inclusive,
+                                                        })),
+                                                        gstPercentage,
+                                                    ).additionalGst.toFixed(2);
                                                 })()}
                                             </span>
                                         </div>

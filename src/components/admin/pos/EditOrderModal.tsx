@@ -89,6 +89,8 @@ export const EditOrderModal = () => {
       menu: {
         name: string;
         price: number;
+        /** GST is added ONLY on tax-exclusive lines. */
+        tax_inclusive?: boolean;
       };
     }>
   >([]);
@@ -160,6 +162,8 @@ export const EditOrderModal = () => {
             menu: {
               name: item.item.name || item.menu.name,
               price: item.item.price || item.menu.price || 0,
+              tax_inclusive:
+                item.item?.tax_inclusive ?? item.menu?.tax_inclusive ?? false,
             },
           }))
         );
@@ -188,6 +192,7 @@ export const EditOrderModal = () => {
       quantity: number;
       menu: {
         price: number;
+        tax_inclusive?: boolean;
       };
     }>,
     currentExtraCharges: ExtraCharge[]
@@ -210,7 +215,14 @@ export const EditOrderModal = () => {
       : 0;
 
     const { additionalGst: gstAmount } = calculateGstForItems(
-      currentItems.map((i: any) => ({ price: i.price, quantity: i.quantity, tax_inclusive: i.tax_inclusive })),
+      // These live under `menu` — reading them off the top level yielded
+      // undefined, so amount = undefined * qty = NaN and the saved total_price
+      // was written as NaN/null.
+      currentItems.map((i) => ({
+        price: i.menu.price,
+        quantity: i.quantity,
+        tax_inclusive: i.menu.tax_inclusive,
+      })),
       gstPercentage,
     );
     return subtotal + extraChargesTotal + qrGroupCharges + gstAmount;
@@ -266,7 +278,7 @@ export const EditOrderModal = () => {
     let itemToAdd: {
       menu_id: string;
       quantity: number;
-      menu: { name: string; price: number };
+      menu: { name: string; price: number; tax_inclusive?: boolean };
     };
 
     if (variantName) {
@@ -278,6 +290,8 @@ export const EditOrderModal = () => {
         menu: {
           name: `${menuItem.name} (${variant.name})`,
           price: variant.price,
+          // Variants have no tax flag of their own — they inherit the row's.
+          tax_inclusive: (menuItem as any).tax_inclusive ?? false,
         },
       };
     } else {
@@ -287,6 +301,7 @@ export const EditOrderModal = () => {
         menu: {
           name: menuItem.name,
           price: menuItem.price,
+          tax_inclusive: (menuItem as any).tax_inclusive ?? false,
         },
       };
     }

@@ -375,6 +375,10 @@ export const getOrderByIdQuery = `
           id
           name
           price
+          # Needed by the order editors: GST must be added ONLY on tax-exclusive
+          # lines. Without this they fell back to a flat percentage and re-taxed
+          # a tax-inclusive price. The item snapshot above may also carry it.
+          tax_inclusive
           category {
             name
           }
