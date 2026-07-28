@@ -55,7 +55,7 @@ import { OrderDetails } from "./OrderDetails";
 import { PickupOtpBadge } from "./PickupOtpBadge";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
-import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
+import { isCompletedOrderLockEnabled, isCancelledOrderFrozen, isOrderCompleted } from "@/lib/orderStatus";
 import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -620,14 +620,19 @@ export function AdminV2AllOrders() {
                           <ReceiptText className="h-4 w-4 text-green-500" />
                         </Button>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleDeleteOrder(order)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                        {/* A completed order is a financial record — the sale
+                            happened. Deleting it would silently rewrite revenue,
+                            so the action is withdrawn once it is done. */}
+                        {!isOrderCompleted(order) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleDeleteOrder(order)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -790,14 +795,16 @@ export function AdminV2AllOrders() {
                     >
                       <ReceiptText className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-red-500"
-                      onClick={() => handleDeleteOrder(order)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {!isOrderCompleted(order) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-500"
+                        onClick={() => handleDeleteOrder(order)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardFooter>
               </Card>

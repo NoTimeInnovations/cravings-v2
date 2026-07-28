@@ -70,7 +70,7 @@ import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { AssignDriverDialog } from "./AssignDriverDialog";
-import { isCompletedOrderLockEnabled, isCancelledOrderFrozen } from "@/lib/orderStatus";
+import { isCompletedOrderLockEnabled, isCancelledOrderFrozen, isOrderCompleted } from "@/lib/orderStatus";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
@@ -1232,14 +1232,19 @@ export function AdminV2Orders() {
                           <ReceiptText className="h-4 w-4 text-green-500" />
                         </Button>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleDeleteOrder(order)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                        {/* A completed order is a financial record — the sale
+                            happened. Deleting it would silently rewrite revenue,
+                            so the action is withdrawn once it is done. */}
+                        {!isOrderCompleted(order) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleDeleteOrder(order)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1427,14 +1432,16 @@ export function AdminV2Orders() {
                     >
                       <ReceiptText className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-red-500"
-                      onClick={() => handleDeleteOrder(order)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {!isOrderCompleted(order) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-500"
+                        onClick={() => handleDeleteOrder(order)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardFooter>
               </Card>
