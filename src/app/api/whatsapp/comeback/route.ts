@@ -11,13 +11,18 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Comeback Messages — settings, batch previews, and the approve/discard decision.
+ * Comeback Messages — the standing rule's settings, and the run that acts on it.
  *
- * Approving does NOT introduce a second sender. It writes an ordinary
- * whatsapp_broadcasts row plus its recipients and lets /api/cron/dispatch-broadcasts
- * do the sending, so comeback traffic inherits delivery receipts, cost
- * reconciliation, cancel/resume and — importantly — the same daily-cap accounting
- * as every other message on the number.
+ * There is no preview to approve. Turning the rule on IS the decision; after that
+ * it finds who is due and sends, so a "run" goes straight to sent. A batch row is
+ * still written, because it is the record of what went out to whom and why, and
+ * what the results were — just not a gate.
+ *
+ * Sending does NOT introduce a second sender. A run writes ordinary
+ * whatsapp_broadcasts rows (one per segment) plus their recipients and lets
+ * /api/cron/dispatch-broadcasts do the work, so comeback traffic inherits
+ * delivery receipts, cost reconciliation, cancel/resume and — importantly — the
+ * same daily-cap accounting as every other message on the number.
  */
 
 const PARTNER = `
@@ -111,7 +116,6 @@ const BATCH_DETAIL = `
     comeback_recipients(where: { batch_id: { _eq: $id }, arm: { _eq: "treatment" } }) {
       identity_key phone name segment
     }
-    comeback_settings_by_pk(partner_id: $id) { auto_send }
   }
 `;
 
@@ -181,12 +185,9 @@ export async function POST(req: NextRequest) {
       return saveSettings(partnerId, body);
     case "saveSegmentTemplate":
       return saveSegmentTemplate(partnerId, body);
-    case "build":
+    case "run":
+    case "build": // legacy name, same thing
       return build(partnerId, body);
-    case "approve":
-      return approve(body.batchId, body.approvedBy);
-    case "discard":
-      return discard(body.batchId);
     default:
       return NextResponse.json({ error: "unknown_action" }, { status: 400 });
   }
@@ -386,16 +387,12 @@ async function build(partnerId: string, body: any) {
       })),
     });
 
-    // When the partner has turned auto-send on, the rule IS the decision — there
-    // is no preview to sit and wait for approval.
-    if (settings?.auto_send) {
-      const res = await approve(batchId, "auto");
-      const j = await res.json();
-      return NextResponse.json({
-        ok: true, batchId, autoSent: true, ...j, ...summarise(built),
-      });
-    }
-    return NextResponse.json({ ok: true, batchId, capped: built.capped, ...summarise(built) });
+    // The rule sends. Switching it on was the decision; nothing waits here.
+    const res = await send(batchId, body.triggeredBy || "rule");
+    const j = await res.json();
+    return NextResponse.json({
+      ok: true, batchId, capped: built.capped, ...j, ...summarise(built),
+    });
   } catch (e: any) {
     console.error("[comeback] build failed:", e?.message || e);
     return NextResponse.json({ error: "build_failed", detail: String(e?.message || e) }, { status: 500 });
@@ -428,14 +425,14 @@ function summarise(b: any) {
 }
 
 /**
- * Approve → become a real broadcast.
+ * Turn a built run into real broadcasts.
  *
- * The first statement is a guarded status transition that only matches a batch
- * still in 'preview'. A double-tapped confirm or a retried fetch loses the race
- * and returns the already-approved result instead of inserting a second broadcast
- * and charging the partner twice.
+ * The first statement is a guarded status transition. It matters more now than it
+ * did behind a button: the cron can retry, and two overlapping ticks must not
+ * both convert the same run and charge the partner twice. Whoever loses the race
+ * gets the already-handled answer instead of a second set of broadcasts.
  */
-async function approve(batchId: string, approvedBy?: string) {
+async function send(batchId: string, approvedBy?: string) {
   if (!batchId) return NextResponse.json({ error: "batchId required" }, { status: 400 });
   const now = new Date();
   try {
@@ -559,40 +556,5 @@ async function approve(batchId: string, approvedBy?: string) {
       set: { status: "preview", approved_at: null },
     }).catch(() => {});
     return NextResponse.json({ error: "approve_failed" }, { status: 500 });
-  }
-}
-
-/** Discard a preview and release everyone it was holding. */
-async function discard(batchId: string) {
-  if (!batchId) return NextResponse.json({ error: "batchId required" }, { status: 400 });
-  try {
-    const d = await fetchFromHasuraServer(
-      `query ComebackDiscardScope($id: uuid!) {
-         comeback_batches_by_pk(id: $id) { partner_id status }
-         comeback_recipients(where: { batch_id: { _eq: $id } }) { identity_key }
-       }`,
-      { id: batchId },
-    );
-    const partnerId = d?.comeback_batches_by_pk?.partner_id;
-    await fetchFromHasuraServer(SET_BATCH, {
-      id: batchId,
-      set: { status: "discarded", updated_at: new Date().toISOString() },
-    });
-    if (partnerId) {
-      // Clearing the hold puts these customers straight back in the pool, which
-      // is what "not this batch" should mean.
-      await fetchFromHasuraServer(RESERVE_LEDGER, {
-        objects: (d?.comeback_recipients || []).map((r: any) => ({
-          partner_id: partnerId,
-          identity_key: r.identity_key,
-          reserved_until: null,
-          updated_at: new Date().toISOString(),
-        })),
-      });
-    }
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    console.error("[comeback] discard failed:", e?.message || e);
-    return NextResponse.json({ error: "discard_failed" }, { status: 500 });
   }
 }

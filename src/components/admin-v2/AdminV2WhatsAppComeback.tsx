@@ -10,11 +10,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useAuthStore } from "@/store/authStore";
 import { SEGMENTS } from "@/lib/customerSegments";
 import {
@@ -133,7 +128,6 @@ export function AdminV2WhatsAppComeback() {
 
   const [loading, setLoading] = useState(true);
   const [building, setBuilding] = useState(false);
-  const [acting, setActing] = useState<string | null>(null);
   const [partner, setPartner] = useState<any>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -220,50 +214,24 @@ export function AdminV2WhatsAppComeback() {
     if (res?.error) toast.error("Couldn't save");
   };
 
-  const buildPreview = async () => {
+  // Manual kick, for a partner who does not want to wait for the next tick.
+  // Identical to what the rule does on its own — there is no approval step.
+  const runNow = async () => {
     setBuilding(true);
     try {
-      const res = await post({ action: "build" });
+      const res = await post({ action: "run" });
       if (res?.blocked) toast.error(res.blocked.detail);
-      else if (res?.error) toast.error("Couldn't build a preview");
-      else {
-        toast.success(
-          res.treatment ? `${res.treatment} customers ready to review` : "Nothing to send right now",
-        );
-      }
+      else if (res?.error) toast.error("Couldn't run");
+      else if (res?.queued) toast.success(`Sending to ${res.queued} customers`);
+      else toast.info("Nobody is due a message right now");
       await load();
     } finally {
       setBuilding(false);
     }
   };
 
-  const approve = async (batchId: string) => {
-    setActing(batchId);
-    try {
-      const res = await post({ action: "approve", batchId, approvedBy: (userData as any)?.email });
-      if (res?.ok && res.queued) toast.success(`Queued for ${res.queued} customers`);
-      else if (res?.alreadyHandled) toast.info("Already sent");
-      else toast.error("Couldn't approve");
-      await load();
-    } finally {
-      setActing(null);
-    }
-  };
-
-  const discard = async (batchId: string) => {
-    setActing(batchId);
-    try {
-      await post({ action: "discard", batchId });
-      toast.success("Discarded");
-      await load();
-    } finally {
-      setActing(null);
-    }
-  };
-
-  const live = useMemo(() => batches.find((b) => b.status === "preview"), [batches]);
   const history = useMemo(
-    () => batches.filter((b) => b.status !== "preview" && b.status !== "blocked"),
+    () => batches.filter((b) => b.status !== "blocked"),
     [batches],
   );
   const lastBlocked = useMemo(() => batches.find((b) => b.status === "blocked"), [batches]);
@@ -338,22 +306,6 @@ export function AdminV2WhatsAppComeback() {
 
         {settings?.enabled && (
           <div className="mt-5 grid gap-4 border-t pt-5 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <Label className="text-sm">Send automatically</Label>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    When on, the rule runs on its own and messages go out without
-                    you approving each batch.
-                  </p>
-                </div>
-                <Switch
-                  checked={!!settings.auto_send}
-                  onCheckedChange={(v) => saveSettings({ auto_send: v })}
-                />
-              </div>
-            </div>
-
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between gap-2">
                 <Label className="text-sm">A message for each group</Label>
@@ -454,29 +406,33 @@ export function AdminV2WhatsAppComeback() {
         )}
       </div>
 
-      {/* The live preview — the heart of the screen */}
-      {live ? (
-        <PreviewCard
-          batch={live}
-          currency={currency}
-          busy={acting === live.id}
-          onApprove={() => approve(live.id)}
-          onDiscard={() => discard(live.id)}
-        />
-      ) : (
-        <div className="rounded-xl border bg-card p-6 text-center">
-          <Users className="mx-auto h-8 w-8 text-muted-foreground/50" />
-          <p className="mt-3 font-medium">No batch waiting for you</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            {lastBlocked?.blocked_detail ||
-              "Build a preview to see who has gone quiet and what it would cost to reach them."}
-          </p>
-          <Button className="mt-4" onClick={buildPreview} disabled={building || !settings?.enabled || noTemplate}>
-            {building ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
-            Build a preview
-          </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-5">
+        <div className="flex items-start gap-3">
+          <Users className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+          <div>
+            <p className="font-medium">
+              {settings?.enabled && !noTemplate
+                ? "The rule is running"
+                : "The rule is off"}
+            </p>
+            <p className="mt-0.5 max-w-lg text-sm text-muted-foreground">
+              {noTemplate
+                ? "Write a message for at least one group to start."
+                : settings?.enabled
+                  ? "Customers are checked regularly. Anyone past their group's limit is messaged automatically — you don't need to approve anything."
+                  : "Switch it on above and customers will be checked and messaged automatically."}
+            </p>
+          </div>
         </div>
-      )}
+        <Button
+          variant="outline"
+          onClick={runNow}
+          disabled={building || !settings?.enabled || noTemplate}
+        >
+          {building ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+          Run now
+        </Button>
+      </div>
 
       {partnerId && (
         <ComebackTemplateCreator
@@ -542,89 +498,6 @@ function Breakdown({ b, coverage }: { b: any; coverage: number | null }) {
           counter won&apos;t be visible in the results.
         </p>
       )}
-    </div>
-  );
-}
-
-function PreviewCard({
-  batch, currency, busy, onApprove, onDiscard,
-}: {
-  batch: Batch; currency: string; busy: boolean;
-  onApprove: () => void; onDiscard: () => void;
-}) {
-  const total = batch.treatment_count + batch.holdout_count;
-  return (
-    <div className="rounded-xl border-2 border-orange-200 bg-card p-5 dark:border-orange-900/50">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Waiting for you</Badge>
-            <span className="text-xs text-muted-foreground">
-              built {fmtDate(batch.built_at)} · expires {fmtDate(batch.expires_at)}
-            </span>
-          </div>
-          <p className="mt-2 text-2xl font-bold">
-            {batch.treatment_count} <span className="text-base font-normal text-muted-foreground">customers to message</span>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            about {currency}{batch.est_cost?.toFixed(2)} in WhatsApp fees
-            {batch.scheduled_at ? ` · would send around ${fmtDate(batch.scheduled_at)}` : ""}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={onDiscard} disabled={busy}>Not now</Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" disabled={busy || batch.treatment_count === 0}>
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Approve &amp; send
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Send to {batch.treatment_count} customers?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This sends a marketing message from your own WhatsApp number and costs
-                  about {currency}{batch.est_cost?.toFixed(2)}. Each customer can stop
-                  future messages by replying, and won&apos;t be contacted again for at
-                  least {PER_CUSTOMER_COOLDOWN_DAYS} days.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onApprove}>Send it</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <Breakdown b={batch.breakdown} coverage={batch.phone_coverage} />
-        <div className="space-y-2 text-xs text-muted-foreground">
-          {batch.holdout_count > 0 ? (
-            <p className="rounded-lg bg-muted/50 p-3">
-              <strong className="text-foreground">{batch.holdout_count} held back on purpose.</strong>{" "}
-              We leave a small group un-messaged so that in {ATTRIBUTION_WINDOW_DAYS} days we
-              can tell you how many extra orders this actually caused — rather than counting
-              people who would have come back anyway.
-            </p>
-          ) : total > 0 ? (
-            <p className="rounded-lg bg-muted/50 p-3">
-              This batch is under {MIN_AUDIENCE_FOR_HOLDOUT} people, so we aren&apos;t holding
-              a comparison group back — it would be too small to mean anything. Results will
-              build up across batches instead.
-            </p>
-          ) : null}
-          {batch.store_cadence_days != null && (
-            <p className="rounded-lg bg-muted/50 p-3">
-              Your customers typically return every{" "}
-              <strong className="text-foreground">{batch.store_cadence_days} days</strong>.
-              Everyone here is well past their own usual gap.
-            </p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

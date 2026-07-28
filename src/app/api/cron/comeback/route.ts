@@ -18,12 +18,14 @@ export const maxDuration = 60;
  *      rating, so it is promoted to a real opt-out immediately rather than at
  *      measurement time two weeks later;
  *   2. measure batches whose attribution window has closed;
- *   3. build previews for partners who are due one.
+ *   3. run the rule for partners who are due — find who has gone quiet past
+ *      their group's limit and send. There is no preview and no approval; the
+ *      partner switching the rule on was the decision.
  *
- * Build is last and strictly bounded because it is by far the most expensive
+ * The run is last and strictly bounded because it is by far the most expensive
  * step: an unbounded loop over every enabled partner would be killed partway
  * through by the 60s limit, and the partners after the cut-off would silently
- * never get a batch.
+ * never be run.
  */
 
 const BATCH_LIMIT = 5; // partners built per tick
@@ -139,7 +141,7 @@ const RELEASE_PARTNER = `
   }
 `;
 
-/** A partner with an unresolved preview is skipped — one live batch at a time. */
+/** Guards against a run still in flight — one at a time per partner. */
 const HAS_LIVE = `
   query ComebackHasLive($pid: uuid!) {
     comeback_batches_aggregate(
@@ -290,9 +292,9 @@ export async function GET(req: NextRequest) {
 
         const liveRes = await fetchFromHasuraServer(HAS_LIVE, { pid });
         if ((liveRes?.comeback_batches_aggregate?.aggregate?.count || 0) > 0) {
-          // An undecided preview is already waiting; a second would double-book
-          // the same customers. Release without stamping last_built_at so this
-          // partner is reconsidered as soon as they act on the one they have.
+          // A previous run has not finished converting to broadcasts yet. Starting
+          // a second would double-book the same customers, so release the lock
+          // without stamping last_built_at and pick this partner up next tick.
           await fetchFromHasuraServer(
             `mutation ComebackUnlock($pid: uuid!) {
                update_comeback_settings_by_pk(pk_columns: {partner_id: $pid}, _set: {locked_at: null}) { partner_id }
