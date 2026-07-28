@@ -65,3 +65,50 @@ export async function findOrCreateUserByPhone(
     return null;
   }
 }
+
+// Partner calling codes barely ever change, and the inbound path runs on every
+// single message, so the lookup is cached for the life of the lambda instance.
+const callingCodeCache = new Map<string, string | null>();
+
+const PARTNER_CC = `
+  query PartnerCallingCode($id: uuid!) {
+    partners_by_pk(id: $id) { country_code }
+  }
+`;
+
+/**
+ * Make sure anyone who messages a restaurant has an account, whatever they said.
+ *
+ * Previously this only happened once an inbound message MATCHED a flow trigger,
+ * which is why roughly half the people who have written to a partner have no
+ * account at all: "hi" created one, "do you deliver to Kakkanad?" did not. Since
+ * the account is what later lets them be recognised, auto-signed-in from a link,
+ * and credited with their orders, the useful moment to create it is first
+ * contact — not first correctly-worded contact.
+ *
+ * Idempotent (find-or-create keyed on the local phone) and never throws: this
+ * runs on the reply path, and a customer waiting on an answer must not be made
+ * to wait on account bookkeeping, nor lose the reply if it fails.
+ */
+export async function ensureCustomerAccount(
+  partnerId: string,
+  contactPhone: string,
+  contactName?: string | null,
+): Promise<string | null> {
+  try {
+    let cc = callingCodeCache.get(partnerId);
+    if (cc === undefined) {
+      const res = (await fetchFromHasura(PARTNER_CC, { id: partnerId })) as {
+        partners_by_pk?: { country_code?: string | null } | null;
+      };
+      cc = res?.partners_by_pk?.country_code ?? null;
+      callingCodeCache.set(partnerId, cc);
+    }
+    const local = toLocalPhone(contactPhone, cc);
+    if (!local || local.length < 6) return null;
+    return await findOrCreateUserByPhone(local, contactName);
+  } catch (e) {
+    console.error("[silentUser] ensureCustomerAccount failed:", e);
+    return null;
+  }
+}

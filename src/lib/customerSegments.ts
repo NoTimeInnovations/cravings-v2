@@ -19,6 +19,7 @@ export const REGULAR_MIN_ORDERS = 5;
 export const VIP_TOP_PERCENT = 10;
 
 export type SegmentId =
+  | "lead"
   | "vip"
   | "regulars"
   | "repeat"
@@ -39,6 +40,15 @@ export interface SegmentMeta {
 }
 
 export const SEGMENTS: SegmentMeta[] = [
+  {
+    id: "lead",
+    label: "Enquired",
+    definition:
+      "Messaged you on WhatsApp but has never placed an order.",
+    action:
+      "They already raised their hand — something stopped them before checkout. The cheapest sale in the building is the one that nearly happened.",
+    className: "bg-teal-100 text-teal-800 hover:bg-teal-100",
+  },
   {
     id: "vip",
     label: "VIPs",
@@ -157,6 +167,11 @@ export function assignSegment(
   vipSpendFloor: number,
   now: number = Date.now(),
 ): SegmentId {
+  // Someone who has contacted the restaurant but never ordered. They come from
+  // WhatsApp rather than the orders table, so none of the recency/frequency
+  // reasoning below applies to them.
+  if (c.totalOrders === 0) return "lead";
+
   const days = (now - c.lastOrderAt) / 86_400_000;
 
   if (c.totalOrders >= 2 && days <= LAPSED_DAYS && vipSpendFloor > 0 && c.totalSpent >= vipSpendFloor) {

@@ -9,7 +9,7 @@
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 import { buildOrderLink } from "@/lib/whatsappFlow/orderLink";
-import { findOrCreateUserByPhone, toLocalPhone } from "@/lib/whatsappFlow/silentUser";
+import { findOrCreateUserByPhone, toLocalPhone, ensureCustomerAccount } from "@/lib/whatsappFlow/silentUser";
 import type {
   FlowGraph,
   FlowNode,
@@ -862,6 +862,15 @@ export async function runFlowForInbound(args: {
 
   const [isDuplicate, activeRes] = await Promise.all([eventP, activeP]);
   if (isDuplicate) return;
+
+  // Every first contact becomes a customer record, whatever they wrote. This used
+  // to live inside startNewRun, past its "no flows configured" and "nothing
+  // matched" returns, so "hi" created an account and "do you deliver to
+  // Kakkanad?" did not — which is why roughly half the people who have written to
+  // a partner have none. Started here and settled at the end of the function, so
+  // it overlaps building the reply rather than delaying it.
+  const accountP = ensureCustomerAccount(partnerId, contactPhone, contactName);
+  accountP.catch(() => {});
   const active = activeRes?.whatsapp_flow_execution_state?.[0];
 
   if (active) {
@@ -876,9 +885,11 @@ export async function runFlowForInbound(args: {
       // we're about to abort; the optimistic waveP is dropped.
       await abortRun(active.id);
       await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken, undefined, flowTyping);
+      await accountP.catch(() => {});
       return;
     } else {
       await resumeRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, active);
+      await accountP.catch(() => {});
       return;
     }
   }
@@ -896,6 +907,7 @@ export async function runFlowForInbound(args: {
     flowTyping,
     readTypingP,
   );
+  await accountP.catch(() => {});
 }
 
 // True if the inbound matches a SPECIFIC (exact/contains) keyword trigger of an
@@ -1326,15 +1338,9 @@ async function startNewRun(
     }
   }
 
-  // AFTER the customer already has the message, make sure the silent account
-  // exists — so a customer who never taps the link still lands in the partner's
-  // CRM, exactly like before. The tap path also find-or-creates (idempotent by
-  // phone/email), so this is a head start, not a dependency. Kept inside the
-  // awaited request (not fire-and-forget) so it can't be dropped on a serverless
-  // freeze, but it runs post-reply so it never delays the message.
-  if (localPhone) {
-    await findOrCreateUserByPhone(localPhone, contactName).catch(() => {});
-  }
+  // No account creation here any more: runFlowForInbound does it for EVERY
+  // inbound message, before the "no flows" / "nothing matched" returns above,
+  // so a customer who writes something unexpected is registered too.
 }
 
 // ─── Order-triggered flows ───────────────────────────────────────

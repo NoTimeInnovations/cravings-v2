@@ -83,6 +83,33 @@ const getCustomerOrdersQuery = `
   }
 `;
 
+/**
+ * People who have written to the restaurant on WhatsApp. Folded in alongside
+ * orders so that someone who asked a question and never checked out still shows
+ * up as a customer — platform-wide that is ~6,900 people who were previously
+ * invisible here, because this screen only ever read the orders table.
+ *
+ * Deliberately queried separately rather than joined: a lead has no order to
+ * hang off, and the two sources are merged on the phone below.
+ */
+const getWhatsappContactsQuery = `
+  query GetWhatsappContacts($partner_id: uuid!) {
+    whatsapp_messages(
+      where: { partner_id: { _eq: $partner_id }, direction: { _eq: "in" } }
+      order_by: { created_at: desc }
+    ) {
+      contact_phone
+      contact_name
+      created_at
+    }
+  }
+`;
+
+/** Last 9 digits — the same identity rule the comeback audience uses, so a
+ *  local-format order phone and a country-code-prefixed WhatsApp number for one
+ *  person collapse instead of showing up as two customers. */
+const phoneKey = (p: string) => String(p || "").replace(/\D/g, "").slice(-9);
+
 type DiscountFilter = "all" | "dependent" | "full_price";
 
 export function AdminV2Customers() {
@@ -105,9 +132,12 @@ export function AdminV2Customers() {
     const fetchCustomers = async () => {
       setIsLoading(true);
       try {
-        const result = await fetchFromHasura(getCustomerOrdersQuery, {
-          partner_id: userData.id,
-        });
+        const [result, waResult] = await Promise.all([
+          fetchFromHasura(getCustomerOrdersQuery, { partner_id: userData.id }),
+          fetchFromHasura(getWhatsappContactsQuery, { partner_id: userData.id }).catch(
+            () => null,
+          ),
+        ]);
 
         const orders = result?.orders || [];
         const customerMap = new Map<string, CustomerData>();
@@ -163,6 +193,45 @@ export function AdminV2Customers() {
           }
         }
 
+        // Fold in WhatsApp enquiries. Anyone who already has an order is skipped —
+        // the order record is richer and the phone match is what identifies them
+        // as the same person. What remains are the people who asked and never
+        // bought, who until now simply were not on this screen.
+        const byPhone = new Map<string, CustomerData>();
+        for (const c of customerMap.values()) {
+          const k = phoneKey(c.phone);
+          if (k) byPhone.set(k, c);
+        }
+        for (const m of waResult?.whatsapp_messages || []) {
+          const k = phoneKey(m.contact_phone);
+          if (!k || byPhone.has(k)) continue;
+          const at = new Date(m.created_at).getTime();
+          const seen = customerMap.get(`wa:${k}`);
+          if (seen) {
+            // Messages arrive newest-first, but recency is taken explicitly.
+            if (at > seen.lastOrderAt) {
+              seen.lastOrderAt = at;
+              seen.lastOrderDate = m.created_at;
+            }
+            if (!seen.name && m.contact_name) seen.name = m.contact_name;
+            continue;
+          }
+          customerMap.set(`wa:${k}`, {
+            phone: m.contact_phone || "N/A",
+            name: m.contact_name || "",
+            totalOrders: 0,
+            totalSpent: 0,
+            // For an enquiry this is the last time they wrote, which is the only
+            // recency signal they have.
+            lastOrderDate: m.created_at,
+            lastOrderAt: at,
+            discountedOrders: 0,
+            orderTypes: new Set(),
+            channels: new Set(["whatsapp"]),
+            segment: "lead",
+          });
+        }
+
         const list = Array.from(customerMap.values());
         // The VIP cut-off is a percentile of THIS restaurant's customers, so it
         // can only be computed once the whole cohort is known.
@@ -170,7 +239,7 @@ export function AdminV2Customers() {
         const now = Date.now();
         for (const c of list) c.segment = assignSegment(c, vipFloor, now);
 
-        list.sort((a, b) => b.totalOrders - a.totalOrders);
+        list.sort((a, b) => b.totalOrders - a.totalOrders || b.lastOrderAt - a.lastOrderAt);
         setCustomers(list);
       } catch (error) {
         console.error("Failed to fetch customer data:", error);
@@ -253,7 +322,7 @@ export function AdminV2Customers() {
           { v: "Segment", s: headerStyle },
           { v: "Total Orders", s: headerStyle },
           { v: `Total Spent (${currency})`, s: headerStyle },
-          { v: "Last Order", s: headerStyle },
+          { v: "Last Activity", s: headerStyle },
         ],
         ...filteredCustomers.map((c) => [
           { v: c.phone, s: cellStyle },
@@ -497,7 +566,7 @@ export function AdminV2Customers() {
                 <TableHead className="text-right">Orders</TableHead>
                 <TableHead className="text-right">Total Spent</TableHead>
                 <TableHead className="hidden md:table-cell">
-                  Last Order
+                  Last Activity
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -526,6 +595,11 @@ export function AdminV2Customers() {
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">
                       {new Date(customer.lastOrderDate).toLocaleDateString()}
+                      {customer.totalOrders === 0 && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">
+                          messaged
+                        </span>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
