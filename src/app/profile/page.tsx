@@ -366,7 +366,7 @@ export default function ProfilePage() {
           const response = await fetchFromHasura(
             `
             query GetCaptainOrders($partner_id: uuid!) {
-              orders(where: {partner_id: {_eq: $partner_id}, orderedby: {_eq: "captain"}, status: {_nin: ["pending_payment", "expired"]}}, order_by: {created_at: desc}) {
+              orders(where: {partner_id: {_eq: $partner_id}, deletion_status: {_eq: 0}, orderedby: {_eq: "captain"}, status: {_nin: ["pending_payment", "expired"]}}, order_by: {created_at: desc}) {
                 id
                 status
                 created_at

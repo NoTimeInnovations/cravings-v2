@@ -14,7 +14,7 @@ export const MyOrdersButton = () => {
     const [hasAPendingOrder, setHasAPendingOrder] = useState(false);
 
     const SUBSCRIPTION_QUERY = `subscription MyOrders($userId: uuid!) {
-              orders(where: {user_id: {_eq: $userId}}, order_by: {created_at: desc}, limit: 1) {
+              orders(where: {user_id: {_eq: $userId}, deletion_status: {_eq: 0}}, order_by: {created_at: desc}, limit: 1) {
                 id
                 status_history
                 status

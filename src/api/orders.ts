@@ -3,7 +3,7 @@
 export const getOrdersOfPartnerQuery = `
   query GetOrdersOfPartner($partner_id: uuid!) {
     orders(
-      where: { partner_id: { _eq: $partner_id }, status: { _nin: ["pending_payment", "expired"] } }
+      where: { partner_id: { _eq: $partner_id }, deletion_status: { _eq: 0 }, status: { _nin: ["pending_payment", "expired"] } }
       order_by: { created_at: desc }
     ) {
       id
@@ -395,6 +395,7 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
   orders(
     where: {
       partner_id: { _eq: $partner_id },
+      deletion_status: { _eq: 0 },
       status: { _nin: ["pending_payment", "expired"] },
       created_at: { _gte: $today_start, _lte: $today_end }
     }
@@ -493,6 +494,7 @@ subscription GetPaginatedPartnerOrders(
   orders(
     where: {
       partner_id: { _eq: $partner_id },
+      deletion_status: { _eq: 0 },
       status: { _nin: ["pending_payment", "expired"] },
       created_at: { _gte: $today_start }
     }
@@ -614,6 +616,7 @@ subscription GetUpcomingPrebookings(
   orders(
     where: {
       partner_id: { _eq: $partner_id },
+      deletion_status: { _eq: 0 },
       status: { _nin: ["pending_payment", "expired", "completed", "cancelled"] },
       scheduled_date: { _gte: $from_date, _lte: $through_date }
     }
@@ -720,6 +723,7 @@ subscription GetOrdersCount($partner_id: uuid!, $today_start: timestamptz!) {
   orders_aggregate(
     where: {
       partner_id: { _eq: $partner_id },
+      deletion_status: { _eq: 0 },
       status: { _nin: ["pending_payment", "expired"] },
       created_at: { _gte: $today_start }
     }
@@ -740,6 +744,7 @@ subscription GetDraftOrders($partner_id: uuid!) {
   orders(
     where: {
       partner_id: { _eq: $partner_id },
+      deletion_status: { _eq: 0 },
       status: { _eq: "pending_payment" }
     }
     order_by: { created_at: desc }
@@ -795,7 +800,7 @@ subscription GetDraftOrders($partner_id: uuid!) {
 export const userSubscriptionQuery = `
 subscription GetUserOrders($user_id: uuid!) {
   orders(
-    where: { user_id: { _eq: $user_id }, status: { _neq: "expired" } }
+    where: { user_id: { _eq: $user_id }, deletion_status: { _eq: 0 }, status: { _neq: "expired" } }
     order_by: { created_at: desc }
   ) {
     id
@@ -881,7 +886,7 @@ subscription GetUserOrders($user_id: uuid!) {
 export const userPartnerOrdersSubscription = `
 subscription UserPartnerOrders($user_id: uuid!, $partner_id: uuid!, $limit: Int!) {
   orders(
-    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id }, status: { _neq: "expired" } }
+    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id }, deletion_status: { _eq: 0 }, status: { _neq: "expired" } }
     order_by: { created_at: desc }
     limit: $limit
   ) {
@@ -927,7 +932,7 @@ subscription UserPartnerOrders($user_id: uuid!, $partner_id: uuid!, $limit: Int!
 export const userPartnerOrdersPageQuery = `
 query UserPartnerOrdersPage($user_id: uuid!, $partner_id: uuid!, $limit: Int!, $offset: Int!) {
   orders(
-    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id }, status: { _neq: "expired" } }
+    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id }, deletion_status: { _eq: 0 }, status: { _neq: "expired" } }
     order_by: { created_at: desc }
     limit: $limit
     offset: $offset
@@ -980,6 +985,7 @@ query UserPartnerLastOrder($user_id: uuid!, $partner_id: uuid!) {
     where: {
       user_id: { _eq: $user_id }
       partner_id: { _eq: $partner_id }
+      deletion_status: { _eq: 0 }
       status: { _nin: ["expired", "cancelled"] }
     }
     order_by: { created_at: desc }

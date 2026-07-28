@@ -1480,30 +1480,25 @@ const useOrderStore = create(
 
       deleteOrder: async (orderId: string) => {
         try {
-          // Add stock back BEFORE the hard delete destroys the order_items
-          // (restockOrderStock reads them). Idempotent: if the order was already
-          // cancelled/expired-and-restocked, the RELEASE gate makes this a no-op.
+          // Release the stock this order was holding. A deleted order leaves
+          // every operational view, so its claim has to go back or inventory
+          // stays held by something nobody can see. Idempotent: if the order was
+          // already cancelled/expired-and-restocked, the RELEASE gate no-ops.
           await restockOrderStock(orderId);
 
-          const deleteItemsResponse = await fetchFromHasura(
-            `mutation DeleteOrderItems($orderId: uuid!) {
-              delete_order_items(where: {order_id: {_eq: $orderId}}) {
-                affected_rows
-              }
-            }`,
-            { orderId }
-          );
-
-          if (deleteItemsResponse.errors) {
-            throw new Error(
-              deleteItemsResponse.errors[0]?.message ||
-              "Failed to delete order items"
-            );
-          }
-
+          // SOFT delete. The row and its order_items are kept so the order stays
+          // auditable, restorable and re-printable — reads exclude
+          // deletion_status = 1 instead.
+          //
+          // Set ONLY deletion_status here. The `orders` Hasura event trigger
+          // fires on UPDATE and keys off `status`, so touching status in this
+          // same _set would message the customer on every delete.
           const deleteOrderResponse = await fetchFromHasura(
-            `mutation DeleteOrder($orderId: uuid!) {
-              delete_orders_by_pk(id: $orderId) {
+            `mutation SoftDeleteOrder($orderId: uuid!) {
+              update_orders_by_pk(
+                pk_columns: { id: $orderId },
+                _set: { deletion_status: 1 }
+              ) {
                 id
               }
             }`,
@@ -2246,7 +2241,7 @@ const useOrderStore = create(
           const ordersResponse = await fetchFromHasura(
             `query GetPartnerOrders($partnerId: uuid!) {
               orders(
-                where: { partner_id: { _eq: $partnerId }, status: { _nin: ["pending_payment", "expired"] } }
+                where: { partner_id: { _eq: $partnerId }, deletion_status: { _eq: 0 }, status: { _nin: ["pending_payment", "expired"] } }
                 order_by: { created_at: desc }
               ) {
                 id
@@ -2559,6 +2554,9 @@ export const getNextOrderNumber = async (partnerId: string) => {
   const { orders } = await fetchFromHasura(
     `
     query GetLastOrderOfToday($partnerId: uuid!) {
+      # Deliberately NOT filtered by deletion_status: this drives the next
+      # display_id. Skipping soft-deleted orders would hand out a number that
+      # is already printed on a bill/KOT.
       orders(
         where: {
           partner_id: { _eq: $partnerId },
