@@ -1,3 +1,5 @@
+import { fetchImageAsDataUrl } from "@/app/actions/aws-s3";
+
 // Helper function to detect Safari browser
 const isSafari = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -22,8 +24,21 @@ export const processImage = async (localBlobUrl: string, imageSource: string): P
     return localBlobUrl;
   }
 
+  // Remote images (e.g. a Google Images gallery pick) can't be drawn to a canvas
+  // from the browser unless the host sends CORS headers — with crossOrigin the
+  // load fails, processing throws, and the pick was silently lost on save. Local
+  // `blob:` / `data:` URLs are same-origin and process fine, so only reach out
+  // for true remote http(s) URLs. Fetch them server-side into a same-origin data
+  // URL first; if that fails, fall through and let the client attempt still run
+  // (works for CORS-enabled hosts) and otherwise throw so the caller can react.
+  let sourceUrl = localBlobUrl;
+  if (/^https?:\/\//i.test(localBlobUrl)) {
+    const dataUrl = await fetchImageAsDataUrl(localBlobUrl);
+    if (dataUrl) sourceUrl = dataUrl;
+  }
+
   try {
-    return await processImageClientSide(localBlobUrl, imageSource, imageFormat, imageQuality);
+    return await processImageClientSide(sourceUrl, imageSource, imageFormat, imageQuality);
   } catch (error) {
     console.error('Client-side processing failed:', error);
     throw error;

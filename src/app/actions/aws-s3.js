@@ -61,6 +61,35 @@ export async function uploadFileToS3(file, filename) {
   }
 }
 
+// Fetch a REMOTE image (e.g. a Google Images gallery pick) server-side and
+// return it as a base64 data URL. The browser cannot draw such an image to a
+// canvas for processing unless the remote host sends CORS headers — with
+// crossOrigin="anonymous" the load simply fails — so remote picks were silently
+// lost on save. Fetching server-side has no CORS restriction; the returned data
+// URL is same-origin, so the existing client-side resize/webp step can process
+// it and it uploads to our own bucket like any local file. Returns null on
+// failure so the caller can decide how to surface it (never a fake success).
+export async function fetchImageAsDataUrl(url) {
+  try {
+    if (!url || typeof url !== "string") return null;
+    if (!/^https?:\/\//i.test(url)) return null; // only remote http(s) needs this
+    const res = await fetch(url, {
+      headers: { "user-agent": "Mozilla/5.0 (compatible; CravingsBot/1.0)" },
+    });
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    if (!contentType.startsWith("image/")) {
+      throw new Error(`Not an image (content-type: ${contentType})`);
+    }
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length < 512) throw new Error("Fetched image too small");
+    return `data:${contentType};base64,${buffer.toString("base64")}`;
+  } catch (error) {
+    console.error("Error in fetchImageAsDataUrl:", error, "url:", url);
+    return null;
+  }
+}
+
 export async function deleteFileFromS3(fileUrl) {
   try {
     if (!fileUrl) throw new Error("File URL is required");

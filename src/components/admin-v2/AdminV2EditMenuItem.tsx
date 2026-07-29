@@ -101,7 +101,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
 
         setIsSubmitting(true);
         try {
-            await updateItem(item.id!, {
+            const ok = await updateItem(item.id!, {
                 name: editingItem.name,
                 name_secondary: editingItem.name_secondary?.trim() || null,
                 name_secondary_rtl: editingItem.name_secondary_rtl,
@@ -121,8 +121,10 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                 show_on_dine_in: editingItem.show_on_dine_in,
                 tax_inclusive: editingItem.tax_inclusive,
             });
-            toast.success("Item updated successfully");
-            onBack(item.id!);
+            // Only leave the editor when the save actually succeeded. updateItem
+            // shows its own success/error toast; navigating away on failure is
+            // what made a lost image look "saved".
+            if (ok) onBack(item.id!);
         } catch (error) {
             console.error("Failed to update item:", error);
             toast.error("Failed to update item");

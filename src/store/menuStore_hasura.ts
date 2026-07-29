@@ -212,9 +212,13 @@ interface MenuState {
   items: MenuItem[];
   groupedItems: GroupedItems;
   categoryImages: CategoryImages[];
-  addItem: (item: Omit<MenuItem, "id">) => Promise<void>;
+  // Resolve to true on success, false on failure (the store surfaces its own
+  // toast either way). Lets a caller avoid reporting "saved" when it wasn't —
+  // e.g. a remote image that couldn't be persisted. Existing callers that ignore
+  // the boolean are unaffected.
+  addItem: (item: Omit<MenuItem, "id">) => Promise<boolean>;
   fetchMenu: (hotelId?: string, forceRefresh?: boolean) => Promise<MenuItem[] | []>;
-  updateItem: (id: string, updatedItem: Partial<MenuItem>) => Promise<void>;
+  updateItem: (id: string, updatedItem: Partial<MenuItem>) => Promise<boolean>;
   /** Set an item's recommendation list, keeping the relationship reciprocal:
    *  adding B to A also adds A to B; removing B from A also removes A from B. */
   setRecommendations: (itemId: string, recommendationIds: string[]) => Promise<void>;
@@ -430,10 +434,12 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       get().groupItems();
       toast.dismiss();
       toast.success("Item added successfully");
+      return true;
     } catch (error) {
       console.error(error);
       toast.dismiss();
       toast.error("Failed to add item");
+      return false;
     }
   },
 
@@ -518,10 +524,12 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       get().groupItems();
       toast.dismiss();
       toast.success("Item updated successfully");
+      return true;
     } catch (error) {
       console.error("Error ", error);
       toast.dismiss();
       toast.error("Failed to update item");
+      return false;
     }
   },
 

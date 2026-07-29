@@ -104,7 +104,7 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
 
         setIsSubmitting(true);
         try {
-            await addItem({
+            const ok = await addItem({
                 name: newItem.name,
                 name_secondary: newItem.name_secondary?.trim() || null,
                 name_secondary_rtl: newItem.name_secondary_rtl,
@@ -119,8 +119,10 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
                 is_available: true,
                 tax_inclusive: newItem.tax_inclusive,
             } as any); // Type assertion needed as addItem expects Omit<MenuItem, "id"> but category structure might differ slightly in store
-            toast.success("Item added successfully");
-            onBack();
+            // Only leave the editor when the save actually succeeded. addItem
+            // shows its own success/error toast; navigating away on failure is
+            // what made a lost image look "saved".
+            if (ok) onBack();
         } catch (error) {
             console.error("Failed to add item:", error);
             toast.error("Failed to add item");
