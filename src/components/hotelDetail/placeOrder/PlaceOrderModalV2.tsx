@@ -1,6 +1,7 @@
 "use client";
 
 import { MarketingOptIn } from "@/components/hotelDetail/placeOrder/MarketingOptIn";
+import { offerMaxPerOrder, isTwinLine } from "@/lib/offerLimit";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -3179,6 +3180,21 @@ const PlaceOrderModalV2 = ({
                 >
                   <div className="flex-1 min-w-0 pr-3">
                     <div className="text-sm font-bold text-gray-900 truncate">{item.name}</div>
+                    {/*
+                      Two lines of the same dish at two different prices is
+                      confusing without a reason. Say which line got the offer and
+                      which did not, right where the price is — a customer should
+                      never have to work out why their second one cost more.
+                    */}
+                    {isTwinLine(item.id) ? (
+                      <div className="text-[11px] text-gray-500 mt-0.5">
+                        Regular price — offer limit reached
+                      </div>
+                    ) : offerMaxPerOrder(item as any) != null ? (
+                      <div className="text-[11px] text-green-600 mt-0.5">
+                        Offer price · limit {offerMaxPerOrder(item as any)} per order
+                      </div>
+                    ) : null}
                   </div>
                   <div
                     className="flex items-center gap-2 rounded-lg border px-2 py-1 mr-3"
