@@ -11,9 +11,57 @@ import { AdminV2InteractiveOfferCreation } from "./AdminV2InteractiveOfferCreati
 import { formatDate } from "@/lib/formatDate";
 import Img from "../Img";
 
+
+/**
+ * Editable per-order cap for one offer.
+ *
+ * Shared by the desktop table and the mobile card: this screen renders the offer
+ * list twice (hidden md:block / md:hidden), and the first version of this control
+ * only went into the card, so on desktop the field simply was not there.
+ *
+ * Commits on blur and on Enter; blank clears the cap back to unlimited. The draft
+ * is local so a half-typed value never saves, and an untouched field never writes.
+ */
+function OfferLimitInput({
+    offer,
+    onSave,
+    className = "",
+}: {
+    offer: { id: string; max_per_order?: number | null };
+    onSave: (id: string, next: number | null) => Promise<void>;
+    className?: string;
+}) {
+    const stored = offer.max_per_order ?? null;
+    const [draft, setDraft] = useState<string | null>(null);
+
+    const commit = async () => {
+        if (draft === null) return; // untouched
+        const parsed = draft.trim() ? parseInt(draft, 10) : NaN;
+        const next = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        setDraft(null);
+        if (next === stored) return; // nothing changed
+        await onSave(offer.id, next);
+    };
+
+    return (
+        <input
+            type="number"
+            min={1}
+            placeholder="∞"
+            title="How many of this one customer can add to a single order. Blank = no limit."
+            value={draft ?? (stored == null ? "" : String(stored))}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            onBlur={commit}
+            className={`h-8 w-16 rounded border bg-background px-2 text-sm ${className}`}
+        />
+    );
+}
+
 export function AdminV2Offers() {
     const { items } = useMenuStore();
-    const [limitDraft, setLimitDraft] = useState<Record<string, string>>({});
     const { addOffer, fetchPartnerOffers, offers, deleteOffer, setOfferMaxPerOrder } = useOfferStore();
     const { userData } = useAuthStore();
     // Petpooja partners' discounts are managed in Petpooja, so creating offers
@@ -255,6 +303,7 @@ export function AdminV2Offers() {
                                             <th className="py-3 px-4 font-medium">Type</th>
                                             <th className="py-3 px-4 font-medium">Offer Price</th>
                                             <th className="py-3 px-4 font-medium">Validity</th>
+                                            <th className="py-3 px-4 font-medium">Max / order</th>
                                             <th className="py-3 px-4 font-medium text-right">Actions</th>
                                         </tr>
                                     </thead>
@@ -304,6 +353,9 @@ export function AdminV2Offers() {
                                                     <td className="py-3 px-4 text-xs text-muted-foreground">
                                                         <div>{formatDate(offer.start_time)}</div>
                                                         <div>to {formatDate(offer.end_time)}</div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <OfferLimitInput offer={offer} onSave={setOfferMaxPerOrder} />
                                                     </td>
                                                     <td className="py-3 px-4 text-right">
                                                         <Button
@@ -364,49 +416,12 @@ export function AdminV2Offers() {
                                                 <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
                                                     Ends: {formatDate(offer.end_time)}
                                                 </div>
-                                                {/*
-                                                  Editable after the fact on purpose: a restaurant
-                                                  usually discovers the right cap by watching how the
-                                                  offer gets used, not when creating it. Commits on
-                                                  blur and on Enter; blank clears it back to unlimited.
-                                                */}
-                                                <div className="mt-1 flex items-center gap-1.5">
-                                                    <span className="text-[10px] text-muted-foreground">Max per order</span>
-                                                    <input
-                                                        type="number"
-                                                        min={1}
-                                                        placeholder="∞"
-                                                        className="h-6 w-16 rounded border bg-background px-1.5 text-[11px]"
-                                                        value={
-                                                            limitDraft[offer.id] ??
-                                                            (offer.max_per_order == null ? "" : String(offer.max_per_order))
-                                                        }
-                                                        onChange={(e) =>
-                                                            setLimitDraft((d) => ({ ...d, [offer.id]: e.target.value }))
-                                                        }
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                                                        }}
-                                                        onBlur={async () => {
-                                                            const raw = limitDraft[offer.id];
-                                                            if (raw === undefined) return; // untouched
-                                                            const parsed = raw.trim() ? parseInt(raw, 10) : NaN;
-                                                            const next =
-                                                                Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-                                                            // Nothing to save if it matches what is already stored.
-                                                            if (next === (offer.max_per_order ?? null)) {
-                                                                setLimitDraft((d) => {
-                                                                    const { [offer.id]: _, ...rest } = d;
-                                                                    return rest;
-                                                                });
-                                                                return;
-                                                            }
-                                                            await setOfferMaxPerOrder(offer.id, next);
-                                                            setLimitDraft((d) => {
-                                                                const { [offer.id]: _, ...rest } = d;
-                                                                return rest;
-                                                            });
-                                                        }}
+                                                <div className="mt-1.5 flex items-center gap-1.5">
+                                                    <span className="text-[10px] text-muted-foreground">Max / order</span>
+                                                    <OfferLimitInput
+                                                        offer={offer}
+                                                        onSave={setOfferMaxPerOrder}
+                                                        className="h-6 w-14 text-[11px]"
                                                     />
                                                 </div>
                                             </div>
