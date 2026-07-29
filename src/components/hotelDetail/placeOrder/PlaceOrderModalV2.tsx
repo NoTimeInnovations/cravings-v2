@@ -3220,6 +3220,18 @@ const PlaceOrderModalV2 = ({
                   </div>
                   <div className="text-xs font-bold text-gray-900 min-w-[60px] text-right">
                     <MenuPrice currency={currency} amount={(Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)) * item.quantity).toFixed(0)} />
+                    {/*
+                      The figure above is the LINE total, so with the same dish on
+                      two lines at two prices there was nothing to compare: "100"
+                      next to "1350" looks arbitrary until you can see one is ₹100
+                      each and the other ₹150. Shown only when it is not already
+                      obvious — a single unit's line total IS its unit price.
+                    */}
+                    {item.quantity > 1 && (
+                      <div className="text-[10px] font-normal text-gray-500 mt-0.5">
+                        <MenuPrice currency={currency} amount={Math.max(0, item.price + takeawayUnitAdjustment(item, takeawayAdjPerItem)).toFixed(0)} /> each
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
