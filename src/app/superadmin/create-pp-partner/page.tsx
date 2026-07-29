@@ -40,11 +40,15 @@ import { quickSignupFromGoogle } from "@/app/actions/quickSignupFromGoogle";
 import { createPetpoojaPartnerNoWebsite } from "@/app/actions/createPetpoojaPartnerNoWebsite";
 import { sendPetpoojaOnboardingEmailAction } from "@/app/actions/sendPetpoojaOnboardingEmail";
 
+// Addressed to Petpooja's integration DESK rather than to a person: a shared
+// mailbox is what gets picked up when someone is on leave or moves team. The
+// named contacts stay on the thread as Cc so they still see it.
 const DEFAULT_TO_EMAILS = [
-  "akshay.acharya@petpooja.com",
+  "integration@petpooja.com",
 ];
 
 const DEFAULT_CC_EMAILS = [
+  "akshay.acharya@petpooja.com",
   "harsh.rathod@petpooja.com",
   "yashpal.parmar@petpooja.com",
 ];
