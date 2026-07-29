@@ -90,6 +90,7 @@ import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
 import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
 import { computeMaxRedeemable } from "@/lib/loyalty/config";
+import { discountableSubtotal } from "@/lib/discountUtils";
 import { clearSessionOrderType } from "@/lib/onboardingSession";
 
 type AppliedDiscount = {
@@ -601,6 +602,14 @@ const PlaceOrderModalV2 = ({
     [items],
   );
 
+  // Discounts never apply to an item that is already sold at an OFFER price —
+  // that line's price is the offer price, so discounting it again would mark it
+  // down twice. Everything else in the cart stays discountable.
+  const discountBase = useMemo(
+    () => discountableSubtotal(items || [], (hotelData as any)?.offers),
+    [items, (hotelData as any)?.offers],
+  );
+
   // Per-item takeaway surcharge, baked into prices only when the takeaway order
   // type is selected. `takeawayCharge` is the total added across the cart.
   const takeawayAdjPerItem = orderType === "takeaway" ? getTakeawayAdjustment(hotelData) : 0;
@@ -1014,16 +1023,17 @@ const PlaceOrderModalV2 = ({
       appliedDiscount.type === "freebie"
         ? getFreebieItemsTotal(appliedDiscount)
         : appliedDiscount.type === "percentage"
-          ? (subtotal * appliedDiscount.value) / 100
+          ? (discountBase * appliedDiscount.value) / 100
           : appliedDiscount.value;
     if (appliedDiscount.max_discount_amount) {
       savings = Math.min(savings, appliedDiscount.max_discount_amount);
     }
     // Clamp EVERY type (including freebie, which previously returned early and
-    // unclamped) to the cart, so a discount can never exceed the item total and
-    // drag GST/delivery/parcel into a near-free order.
-    return Math.min(savings, subtotal);
-  }, [appliedDiscount, subtotal, hotelData?.menus, discountIneligibleReason]);
+    // unclamped) to the DISCOUNTABLE part of the cart, so a discount can never
+    // exceed it, drag GST/delivery/parcel into a near-free order, or eat into
+    // offer-priced lines. An all-offer cart therefore discounts nothing.
+    return Math.min(savings, discountBase);
+  }, [appliedDiscount, subtotal, discountBase, hotelData?.menus, discountIneligibleReason]);
 
   // Round Off (display): mirror what orderStore persists — round the pre-round
   // grand total UP to the next whole number when the partner enables it. Baked

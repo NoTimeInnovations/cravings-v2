@@ -32,6 +32,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { taxLabel } from "@/lib/taxLabel";
 import { getFeatures } from "@/lib/getFeatures";
+import { discountableSubtotal } from "@/lib/discountUtils";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
 import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd, validateCustomPrebookTime } from "@/lib/prebooking";
 import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
@@ -760,17 +761,19 @@ const BillCard = ({
 
   let discountSavings = 0;
   if (discount) {
+    // Mirrors computeDiscountSavings: offer-priced lines are not discountable.
+    const discountBase = discountableSubtotal(items, (hotelData as any)?.offers);
     if (discount.type === "freebie") {
       discountSavings = freebieTotalPrice;
     } else if (discount.type === "percentage") {
-      discountSavings = (baseSubtotal * discount.value) / 100;
+      discountSavings = (discountBase * discount.value) / 100;
     } else {
       discountSavings = discount.value;
     }
     if (discount.max_discount_amount) {
       discountSavings = Math.min(discountSavings, discount.max_discount_amount);
     }
-    discountSavings = Math.min(discountSavings, baseSubtotal);
+    discountSavings = Math.min(discountSavings, discountBase);
   }
   // Round Off (display): round the pre-loyalty bill UP to a whole number when the
   // partner enables it, matching what orderStore persists. Loyalty is applied on
@@ -2026,7 +2029,9 @@ const PlaceOrderModal = ({
   const computeDiscountSavings = (disc: typeof appliedDiscount) => {
     if (!disc) return 0;
     if (disc.type === "freebie") return getFreebieItemsTotal(disc);
-    const sub = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+    // Offer-priced lines are excluded: their price IS the offer price, so
+    // discounting them again would mark the same item down twice.
+    const sub = discountableSubtotal(items || [], (hotelData as any)?.offers);
     let savings = disc.type === "percentage" ? (sub * disc.value) / 100 : disc.value;
     if (disc.max_discount_amount) savings = Math.min(savings, disc.max_discount_amount);
     return Math.min(savings, sub);

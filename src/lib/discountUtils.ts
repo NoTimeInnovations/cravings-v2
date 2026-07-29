@@ -71,3 +71,73 @@ export function limitDiscounts<T>(discounts: T[], deliveryRules: any): T[] {
   if (!Array.isArray(discounts) || discounts.length <= 1) return discounts || [];
   return isDiscountStackingEnabled(deliveryRules) ? discounts : discounts.slice(0, 1);
 }
+
+// ---------------------------------------------------------------------------
+// Offers vs discounts: an item already marked down by an OFFER must not also be
+// discounted. On the storefront the cart line's `price` IS the offer price
+// (hotelDataFetcher rewrites menus[].price), so such a line is EXCLUDED from the
+// discount base rather than discounted and subtracted again.
+//
+// Detection joins the partner-level offers array, NOT `line.offers`: the cart
+// line's copy carries only {offer_price, max_per_order} — no start_time, no
+// variant — and several add-to-cart paths blank it out, so it yields both false
+// positives (upcoming/expired offers) and false negatives.
+//
+// NOTE: the POS deliberately never prices a line at an offer price (it always
+// bills the raw menu price), so POS totals must NOT use this — excluding there
+// would under-discount a bill the customer paid in full.
+// ---------------------------------------------------------------------------
+
+export type OfferLike = {
+  menu?: { id?: string | null } | null;
+  variant?: { name?: string | null } | null;
+  start_time?: string | null;
+  end_time?: string | null;
+};
+
+export type DiscountCartLine = {
+  id?: string | null;
+  price?: number | null;
+  quantity?: number | null;
+  variantSelections?: { name?: string | null }[] | null;
+};
+
+/** Is this cart line currently sold at an offer price? */
+export function isLineOnOffer(
+  line: DiscountCartLine,
+  offers: OfferLike[] | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!offers?.length || !line) return false;
+  const baseId = String(line.id ?? "").split("|")[0];
+  if (!baseId) return false;
+  const variantName = line.variantSelections?.[0]?.name ?? null;
+  return offers.some((o) => {
+    if (o?.menu?.id !== baseId) return false;
+    // Ignore offers that haven't started or have ended — the item cards charge
+    // full price for those, so the line isn't actually discounted.
+    const start = o.start_time ? new Date(o.start_time).getTime() : 0;
+    const end = o.end_time ? new Date(o.end_time).getTime() : Infinity;
+    if (!(start <= now && end > now)) return false;
+    // A variant-targeted offer only prices its own variant line; a base offer
+    // only prices a line with no variant. Mirrors the item cards' pricing.
+    return o.variant?.name ? o.variant.name === variantName : !variantName;
+  });
+}
+
+/**
+ * The part of the cart a discount may be computed on: everything except lines
+ * already sold at an offer price. Returns the full subtotal when the partner
+ * has no live offers.
+ */
+export function discountableSubtotal(
+  lines: DiscountCartLine[] | null | undefined,
+  offers: OfferLike[] | null | undefined,
+  now: number = Date.now(),
+): number {
+  if (!lines?.length) return 0;
+  return lines.reduce((sum, line) => {
+    if (isLineOnOffer(line, offers, now)) return sum;
+    return sum + (Number(line.price) || 0) * (Number(line.quantity) || 0);
+  }, 0);
+}
