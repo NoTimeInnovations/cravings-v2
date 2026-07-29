@@ -218,6 +218,8 @@ export const useOfferStore = create<OfferState>((set, get) => {
         menu_id?: string;
         offer_price?: number;
         items_available?: number;
+        /** Units of this offer one order may contain. null/undefined = unlimited. */
+        max_per_order?: number | null;
         start_time: string;
         end_time: string;
         offer_type?: string;
@@ -317,6 +319,7 @@ export const useOfferStore = create<OfferState>((set, get) => {
           newOffer = {
             ...common,
             items_available: offer.items_available,
+            max_per_order: offer.max_per_order ?? null,
             menu_item_id: offer.menu_id,
             offer_price: offer.offer_price ?? undefined,
             offer_type: offer.offer_type || 'all',
