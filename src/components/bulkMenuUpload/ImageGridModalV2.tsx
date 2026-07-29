@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Check, Upload, Database, Search, X, Sparkles } from "lucide-react";
+import { searchGoogleImagesForPicker } from "@/app/actions/googleImageFallback";
+import { Loader2, Check, Upload, Search, X, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Img from "../Img";
-import axios from "axios";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ interface ImageGridModalV2Props {
     onSelectImage: (url: string) => void;
 }
 
-type TabKey = "menuthere" | "google" | "upload";
+type TabKey = "upload" | "google";
 
 export function ImageGridModalV2({
     isOpen,
@@ -30,10 +30,9 @@ export function ImageGridModalV2({
     onSelectImage,
 }: ImageGridModalV2Props) {
     const [searchQuery, setSearchQuery] = useState("");
-    const [menuthereImages, setMenuthereImages] = useState<string[]>([]);
     const [googleImages, setGoogleImages] = useState<string[]>([]);
-    const [loadingTab, setLoadingTab] = useState<null | "menuthere" | "google">(null);
-    const [activeTab, setActiveTab] = useState<TabKey>("menuthere");
+    const [loadingTab, setLoadingTab] = useState<null | "google">(null);
+    const [activeTab, setActiveTab] = useState<TabKey>("upload");
     const [canPaste, setCanPaste] = useState(false);
 
     useEffect(() => {
@@ -41,37 +40,18 @@ export function ImageGridModalV2({
         setCanPaste(!!(navigator.clipboard && navigator.clipboard.read));
     }, []);
 
-    // Fetch curated images from the Menuthere Image DB (imagedb.menuthere.com via proxy).
-    const fetchMenuthereImages = useCallback(async (query: string) => {
-        setLoadingTab("menuthere");
-        try {
-            const bank = await axios.get("/api/image-bank", {
-                params: { item: query, limit: 30 },
-            });
-            const urls = (bank.data?.images || [])
-                .map((i: { image_url?: string }) => i.image_url)
-                .filter(Boolean) as string[];
-            setMenuthereImages(Array.from(new Set(urls)));
-        } catch (err) {
-            console.error("Menuthere DB fetch failed", err);
-            toast.error("Failed to fetch from Menuthere DB.");
-            setMenuthereImages([]);
-        } finally {
-            setLoadingTab(null);
-        }
-    }, []);
-
-    // Fetch from the Google image search API (same source used by "Get all images").
+    // Apify, the same provider the rest of the app searches images with. The old
+    // images.cravings.live endpoint returned exactly one URL, which made this a
+    // gallery with nothing to choose between; this returns a ranked list.
     const fetchGoogleImages = useCallback(async (query: string) => {
         setLoadingTab("google");
         try {
-            const res = await axios.post(
-                "https://images.cravings.live/api/images/search-google",
-                { itemName: query },
-                { headers: { "Content-Type": "application/json" } }
-            );
-            const url = res.data?.data?.imageUrl;
-            setGoogleImages(url ? [url] : []);
+            const results = await searchGoogleImagesForPicker(query, 12);
+            const urls = results
+                .map((r) => r.imageUrl)
+                .filter((u): u is string => !!u);
+            setGoogleImages(urls);
+            if (!urls.length) toast.error("No Google images found for that search.");
         } catch (err) {
             console.error("Google Images fetch failed", err);
             toast.error("Failed to fetch Google images.");
@@ -81,21 +61,21 @@ export function ImageGridModalV2({
         }
     }, []);
 
-    // On open: reset to the Menuthere DB tab and load it.
+    // On open: start on Upload with the search term primed for the Google tab.
     useEffect(() => {
         if (isOpen) {
             const defaultTerm = itemName ? itemName.trim() : category.trim();
             setSearchQuery(defaultTerm);
-            setActiveTab("menuthere");
+            // Upload leads: the partner usually has the real photo of their own
+            // dish, and it beats anything a search can find.
+            setActiveTab("upload");
             setGoogleImages([]);
-            fetchMenuthereImages(defaultTerm);
         }
-    }, [isOpen, itemName, category, fetchMenuthereImages]);
+    }, [isOpen, itemName, category]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         if (activeTab === "google") fetchGoogleImages(searchQuery);
-        else fetchMenuthereImages(searchQuery);
     };
 
     const switchTab = (tab: TabKey) => {
@@ -103,9 +83,6 @@ export function ImageGridModalV2({
         // Lazy-load a source the first time its tab is opened.
         if (tab === "google" && googleImages.length === 0 && loadingTab !== "google") {
             fetchGoogleImages(searchQuery);
-        }
-        if (tab === "menuthere" && menuthereImages.length === 0 && loadingTab !== "menuthere") {
-            fetchMenuthereImages(searchQuery);
         }
     };
 
@@ -137,18 +114,14 @@ export function ImageGridModalV2({
         }
     };
 
-    const isSearchTab = activeTab === "menuthere" || activeTab === "google";
-    const activeImages = activeTab === "google" ? googleImages : menuthereImages;
+    const isSearchTab = activeTab === "google";
+    const activeImages = googleImages;
     const isLoading = loadingTab === activeTab;
-    const emptyHint =
-        activeTab === "google"
-            ? "No Google results. Try a different search."
-            : "Not in the Menuthere DB yet. Try a different search or the Google Images tab.";
+    const emptyHint = "No Google results. Try a different search.";
 
     const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-        { key: "menuthere", label: "Menuthere DB", icon: <Database className="w-4 h-4 mr-2" /> },
-        { key: "google", label: "Google Images", icon: <Sparkles className="w-4 h-4 mr-2" /> },
         { key: "upload", label: "Upload", icon: <Upload className="w-4 h-4 mr-2" /> },
+        { key: "google", label: "Google Images", icon: <Sparkles className="w-4 h-4 mr-2" /> },
     ];
 
     return (
@@ -203,11 +176,7 @@ export function ImageGridModalV2({
                                             <div className="relative flex-1">
                                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                                 <Input
-                                                    placeholder={
-                                                        activeTab === "google"
-                                                            ? "Search Google images..."
-                                                            : "Search Menuthere DB..."
-                                                    }
+                                                    placeholder="Search Google images..."
                                                     className="pl-8"
                                                     value={searchQuery}
                                                     onChange={(e) => setSearchQuery(e.target.value)}

@@ -167,3 +167,30 @@ export async function fillOneItemFromGoogle(
   const [result] = await fillItemsFromGoogle(partnerId, partnerName, [item], opts);
   return result ?? null;
 }
+
+/**
+ * Google image results for ONE query, for the image picker.
+ *
+ * The picker previously called images.cravings.live/api/images/search-google,
+ * which returns a single URL — so the "Google images" tab could only ever offer
+ * one option, and if it was wrong there was nothing to pick instead. Apify is the
+ * provider the rest of the app already uses for image search, and it returns a
+ * ranked list, which is the whole point of a gallery.
+ *
+ * Returns [] rather than throwing: an empty gallery is a recoverable state the
+ * UI already renders, and the picker has two other tabs that must keep working.
+ */
+export async function searchGoogleImagesForPicker(
+  query: string,
+  max = 12,
+): Promise<GoogleImageResult[]> {
+  const q = (query || "").trim();
+  if (!q) return [];
+  try {
+    const map = await searchGoogleImagesBatch([q], { maxPerQuery: max });
+    return (map.get(q) || []).filter((r) => r.imageUrl);
+  } catch (e) {
+    console.error("[googleImages] picker search failed:", e);
+    return [];
+  }
+}
