@@ -35,7 +35,6 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import {
   FileText,
   Trash2,
-  Eye,
   Printer,
   MoreVertical,
   ReceiptText,

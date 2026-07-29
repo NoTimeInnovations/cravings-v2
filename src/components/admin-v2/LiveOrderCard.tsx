@@ -2,7 +2,6 @@
 
 import React from "react";
 import { format } from "date-fns";
-import { Eye } from "lucide-react";
 import type { Order } from "@/store/orderStore";
 
 /**
@@ -86,14 +85,6 @@ export function LiveOrderCard({
         <span className="ml-auto rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium">
           {typeLabel(order)}
         </span>
-        <button
-          type="button"
-          onClick={onView}
-          aria-label="View order details"
-          className="-mr-1 flex h-7 w-7 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <Eye className="h-4 w-4" />
-        </button>
       </div>
 
       {/* Meta row — location · time · total */}
@@ -126,6 +117,20 @@ export function LiveOrderCard({
 
       {/* Actions */}
       <div className="flex items-center gap-2 px-3 pb-3 pt-1">
+        {/*
+          This was an eye icon in the coloured header, and staff did not read it
+          as "open this order" — the details screen went unused. A labelled
+          button says what it does. It is also unconditional, unlike Cancel and
+          the advance action: a completed order used to render an empty actions
+          row with no way into it at all.
+        */}
+        <button
+          type="button"
+          onClick={onView}
+          className="shrink-0 rounded-lg border px-3 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted"
+        >
+          View details
+        </button>
         {cancellable && (
           <button
             type="button"
