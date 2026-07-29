@@ -13,7 +13,8 @@ import Img from "../Img";
 
 export function AdminV2Offers() {
     const { items } = useMenuStore();
-    const { addOffer, fetchPartnerOffers, offers, deleteOffer } = useOfferStore();
+    const [limitDraft, setLimitDraft] = useState<Record<string, string>>({});
+    const { addOffer, fetchPartnerOffers, offers, deleteOffer, setOfferMaxPerOrder } = useOfferStore();
     const { userData } = useAuthStore();
     // Petpooja partners' discounts are managed in Petpooja, so creating offers
     // here is disabled.
@@ -362,6 +363,51 @@ export function AdminV2Offers() {
                                                 </div>
                                                 <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
                                                     Ends: {formatDate(offer.end_time)}
+                                                </div>
+                                                {/*
+                                                  Editable after the fact on purpose: a restaurant
+                                                  usually discovers the right cap by watching how the
+                                                  offer gets used, not when creating it. Commits on
+                                                  blur and on Enter; blank clears it back to unlimited.
+                                                */}
+                                                <div className="mt-1 flex items-center gap-1.5">
+                                                    <span className="text-[10px] text-muted-foreground">Max per order</span>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        placeholder="∞"
+                                                        className="h-6 w-16 rounded border bg-background px-1.5 text-[11px]"
+                                                        value={
+                                                            limitDraft[offer.id] ??
+                                                            (offer.max_per_order == null ? "" : String(offer.max_per_order))
+                                                        }
+                                                        onChange={(e) =>
+                                                            setLimitDraft((d) => ({ ...d, [offer.id]: e.target.value }))
+                                                        }
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                                        }}
+                                                        onBlur={async () => {
+                                                            const raw = limitDraft[offer.id];
+                                                            if (raw === undefined) return; // untouched
+                                                            const parsed = raw.trim() ? parseInt(raw, 10) : NaN;
+                                                            const next =
+                                                                Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+                                                            // Nothing to save if it matches what is already stored.
+                                                            if (next === (offer.max_per_order ?? null)) {
+                                                                setLimitDraft((d) => {
+                                                                    const { [offer.id]: _, ...rest } = d;
+                                                                    return rest;
+                                                                });
+                                                                return;
+                                                            }
+                                                            await setOfferMaxPerOrder(offer.id, next);
+                                                            setLimitDraft((d) => {
+                                                                const { [offer.id]: _, ...rest } = d;
+                                                                return rest;
+                                                            });
+                                                        }}
+                                                    />
                                                 </div>
                                             </div>
                                             <Button

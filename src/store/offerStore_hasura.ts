@@ -6,6 +6,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   addOffer,
   deleteOffer,
+  updateOfferMaxPerOrder,
   getOffers,
   getPartnerOffers,
   incrementOfferEnquiry,
@@ -60,6 +61,8 @@ export interface Offer {
   start_time: string;
   end_time: string;
   items_available?: number;
+  /** Units of this offer one order may contain. null/absent = unlimited. */
+  max_per_order?: number | null;
   offer_price?: number;
   offer_type?: string;
   image_urls?: string[];
@@ -98,6 +101,7 @@ interface OfferState {
   ) => Promise<void>;
   fetchOffer: () => Promise<Offer[]>;
   deleteOffer: (id: string) => Promise<void>;
+  setOfferMaxPerOrder: (id: string, maxPerOrder: number | null) => Promise<void>;
   incrementOfferEnquiry: (offerId: string) => Promise<void>;
 }
 
@@ -392,6 +396,45 @@ export const useOfferStore = create<OfferState>((set, get) => {
         console.error(error);
         toast.dismiss();
         toast.error("Error adding offer");
+      }
+    },
+
+    /**
+     * Change an existing offer's per-order limit. null clears it (unlimited).
+     *
+     * Local state is updated from the value the server accepted rather than the
+     * one typed, so the card can never show a cap the database does not have.
+     * revalidateTag is required: the storefront reads offers through ISR, and
+     * without it the cart would keep enforcing the OLD limit until the cache aged
+     * out — which is the one failure mode that would look like the edit silently
+     * did nothing.
+     */
+    setOfferMaxPerOrder: async (id: string, maxPerOrder: number | null) => {
+      const previous = get().offers;
+      try {
+        const res = await fetchFromHasura(updateOfferMaxPerOrder, {
+          id,
+          max_per_order: maxPerOrder,
+        });
+        const saved = res?.update_offers_by_pk?.max_per_order ?? null;
+
+        set({
+          offers: get().offers.map((o) =>
+            o.id === id ? { ...o, max_per_order: saved } : o,
+          ),
+        });
+
+        revalidateTag("offers");
+        const user = useAuthStore.getState().userData;
+        if (user?.id) revalidateTag(user.id);
+
+        toast.success(
+          saved == null ? "Limit removed" : `Limited to ${saved} per order`,
+        );
+      } catch (e) {
+        console.error("setOfferMaxPerOrder failed:", e);
+        set({ offers: previous });
+        toast.error("Couldn't update the limit");
       }
     },
 

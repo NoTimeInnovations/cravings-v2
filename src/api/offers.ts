@@ -9,6 +9,7 @@ export const getOfferById = `
       end_time
       enquiries
       items_available
+      max_per_order
       image_urls
       start_time
       deletion_status
@@ -46,6 +47,7 @@ export const getOffers = `
       end_time
       enquiries
       items_available
+      max_per_order
       image_urls
       start_time
       offer_type
@@ -81,6 +83,7 @@ export const getPartnerOffers = `
     end_time
     enquiries
     items_available
+    max_per_order
     start_time
     offer_type
     image_urls
@@ -111,6 +114,7 @@ mutation AddOffer($offer: offers_insert_input!) {
       enquiries
       id
       items_available
+      max_per_order
       offer_price
       start_time
       offer_type
@@ -171,6 +175,22 @@ export const cleanupExpiredCustomItems = `
         id
         name
       }
+    }
+  }
+`;
+
+
+/**
+ * Change an existing offer's per-order limit. Its own mutation rather than a
+ * general offer update: this is the one field a restaurant tunes AFTER seeing
+ * how an offer is being used, and a narrow mutation cannot accidentally rewrite
+ * a price or a window.
+ */
+export const updateOfferMaxPerOrder = `
+  mutation UpdateOfferMaxPerOrder($id: uuid!, $max_per_order: Int) {
+    update_offers_by_pk(pk_columns: { id: $id }, _set: { max_per_order: $max_per_order }) {
+      id
+      max_per_order
     }
   }
 `;
