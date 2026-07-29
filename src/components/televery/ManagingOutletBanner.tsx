@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { LogOut, ShieldAlert, Loader2 } from "lucide-react";
 import { returnToTeleverySession } from "@/app/actions/televerySession";
+import { returnToSuperadminSession } from "@/app/actions/superadminSession";
 import { TELEVERY_DASHBOARD_PATH } from "@/lib/televery";
 
 /** Bar height. Kept in sync with the shell-shrink rule below. */
@@ -22,25 +23,37 @@ const BAR_HEIGHT_PX = 44;
  * cookie's 30-day lifetime and is cleared with it, so it cannot expire early and
  * leave the swap running with neither a warning nor this Exit button.
  */
-export function ManagingOutletBanner({ outletName }: { outletName?: string }) {
+export function ManagingOutletBanner({
+  outletName,
+  /** Which session Exit hands back. Superadmin swaps restore a far more powerful
+   *  session than Televery ones, so they must not share a return path. */
+  mode = "televery",
+}: {
+  outletName?: string;
+  mode?: "televery" | "superadmin";
+}) {
   const [exiting, setExiting] = useState(false);
 
   const handleExit = async () => {
     setExiting(true);
     try {
-      const res = await returnToTeleverySession();
+      const res =
+        mode === "superadmin"
+          ? await returnToSuperadminSession()
+          : await returnToTeleverySession();
       if (!res.ok) {
-        toast.error(res.error || "Could not return to the marketplace.");
+        toast.error(res.error || "Could not return.");
         setExiting(false);
         return;
       }
       // Hard reload, never router.push: only a full load re-runs AuthInitializer
       // → fetchUser, which is what rehydrates userData for the restored televery
       // session. A client nav would keep the outlet's userData in memory.
-      window.location.href = TELEVERY_DASHBOARD_PATH;
+      window.location.href =
+        mode === "superadmin" ? "/superadmin" : TELEVERY_DASHBOARD_PATH;
     } catch (err) {
-      console.error("Exit to marketplace failed:", err);
-      toast.error("Could not return to the marketplace.");
+      console.error("Exit impersonation failed:", err);
+      toast.error("Could not return.");
       setExiting(false);
     }
   };

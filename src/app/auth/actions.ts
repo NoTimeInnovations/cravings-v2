@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { encryptText, decryptText } from "@/lib/encrtption";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { INCREMENT_QR_CODE_SCAN_COUNT, INSERT_QR_SCAN } from "@/api/qrcodes";
-import { AUTH_COOKIE, TELEVERY_PARENT_COOKIE } from "@/lib/sessionCookies";
+import { AUTH_COOKIE, PARENT_SESSION_COOKIES } from "@/lib/sessionCookies";
 
 export const getAuthCookie = async () => {
   const cookie = (await cookies()).get(AUTH_COOKIE)?.value;
@@ -33,7 +33,8 @@ export const setAuthCookie = async (
      * enterOutletSession may pass this — it re-mints the marker immediately
      * after, bound to the session minted here.
      */
-    keepTeleveryParent?: boolean;
+    /** Set ONLY by a swap that is about to mint its own marker for this session. */
+    keepParentSession?: boolean;
   }
 ) => {
   const cookieStore = await cookies();
@@ -55,7 +56,12 @@ export const setAuthCookie = async (
   // device would still be redeemable by whoever signs in next — including the
   // managed outlet's real owner, who would be handed Televery's account.
   // No-op for every non-Televery session (the cookie simply isn't there).
-  if (!options?.keepTeleveryParent) cookieStore.delete(TELEVERY_PARENT_COOKIE);
+  // Any change of session invalidates every impersonation marker: a marker
+  // outliving the session it was minted for is how one partner would inherit
+  // another account's way back in.
+  if (!options?.keepParentSession) {
+    for (const c of PARENT_SESSION_COOKIES) cookieStore.delete(c);
+  }
 
   await removeTempUserIdCookie();
 };
@@ -68,7 +74,7 @@ export const removeAuthCookie = async () => {
   // Sign-out ends the impersonation too: the marker outliving the session that
   // owns it is exactly what makes it redeemable by the next person on this
   // device. Same reasoning as setAuthCookie.
-  cookieStore.delete(TELEVERY_PARENT_COOKIE);
+  for (const c of PARENT_SESSION_COOKIES) cookieStore.delete(c);
 };
 
 export const updateAuthCookie = async (

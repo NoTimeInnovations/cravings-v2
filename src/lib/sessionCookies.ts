@@ -21,3 +21,18 @@ export const AUTH_COOKIE = "new_auth_token";
  * swapped session and must be destroyed with it.
  */
 export const TELEVERY_PARENT_COOKIE = "televery_parent_session";
+
+/**
+ * Superadmin → partner swap marker, the way back out of an impersonated
+ * dashboard. Same capability semantics as TELEVERY_PARENT_COOKIE — redeeming it
+ * grants the SUPERADMIN session, which is strictly more dangerous than the
+ * Televery one, so it is bound to the swapped session at both ends and destroyed
+ * by any later auth write.
+ */
+export const SUPERADMIN_PARENT_COOKIE = "superadmin_parent_session";
+
+/** Every impersonation marker. Any auth write must invalidate all of them. */
+export const PARENT_SESSION_COOKIES = [
+  TELEVERY_PARENT_COOKIE,
+  SUPERADMIN_PARENT_COOKIE,
+] as const;

@@ -316,7 +316,7 @@ export async function enterOutletSession(
         status: outlet.status || "inactive",
         hasSubscription: !!outlet.subscription_details,
       },
-      { keepTeleveryParent: true },
+      { keepParentSession: true },
     );
 
     await setParentCookie(parentId, outlet.id);

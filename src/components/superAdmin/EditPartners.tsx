@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { enterPartnerSession } from "@/app/actions/superadminSession";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -96,6 +97,8 @@ const EditPartners = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Which partner's dashboard is being opened, so only that row shows a spinner.
+  const [enteringId, setEnteringId] = useState<string | null>(null);
   const [partners, setPartners] = useState<PartnerWithDetails[]>([]);
   // Seed the search box from the URL so a typed-and-reloaded list keeps its filter.
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") || "");
@@ -214,6 +217,33 @@ const EditPartners = () => {
     setFeatureFlags(getFeatures(partner.feature_flags || ""));
     setUsernameStatus("idle");
     originalUsernameRef.current = partner.username || "";
+  };
+
+  /**
+   * Sign in AS this partner and open their dashboard.
+   *
+   * Real impersonation with full write access, not a read-only view — the
+   * dashboard shows a persistent banner naming the partner, with an Exit that
+   * restores the superadmin session. The navigation must be a HARD load, never
+   * router.push: only a full reload re-runs AuthInitializer -> fetchUser, and
+   * without it userData stays the superadmin's while the cookie says otherwise.
+   */
+  const handleManage = async (partner: Partner) => {
+    if (!partner?.id) return;
+    setEnteringId(partner.id);
+    try {
+      const res = await enterPartnerSession(partner.id);
+      if (!res.ok) {
+        toast.error(res.error || "Could not open that dashboard.");
+        setEnteringId(null);
+        return;
+      }
+      window.location.href = "/admin-v2";
+    } catch (err) {
+      console.error("Manage partner failed:", err);
+      toast.error("Could not open that dashboard.");
+      setEnteringId(null);
+    }
   };
 
   const handleEdit = (partner: PartnerWithDetails) => {
@@ -985,6 +1015,14 @@ For any support or clarification, please contact us anytime.`;
                         onClick={() => handleEdit(partner)}
                       >
                         Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={enteringId === partner.id}
+                        onClick={() => handleManage(partner)}
+                        title="Open this partner's dashboard as them"
+                      >
+                        {enteringId === partner.id ? "Opening…" : "Manage"}
                       </Button>
                       <Button
                         variant="outline"
