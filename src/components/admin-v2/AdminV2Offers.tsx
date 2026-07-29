@@ -303,7 +303,6 @@ export function AdminV2Offers() {
                                             <th className="py-3 px-4 font-medium">Type</th>
                                             <th className="py-3 px-4 font-medium">Offer Price</th>
                                             <th className="py-3 px-4 font-medium">Validity</th>
-                                            <th className="py-3 px-4 font-medium">Max / order</th>
                                             <th className="py-3 px-4 font-medium text-right">Actions</th>
                                         </tr>
                                     </thead>
@@ -353,9 +352,6 @@ export function AdminV2Offers() {
                                                     <td className="py-3 px-4 text-xs text-muted-foreground">
                                                         <div>{formatDate(offer.start_time)}</div>
                                                         <div>to {formatDate(offer.end_time)}</div>
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <OfferLimitInput offer={offer} onSave={setOfferMaxPerOrder} />
                                                     </td>
                                                     <td className="py-3 px-4 text-right">
                                                         <Button
