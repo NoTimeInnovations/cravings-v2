@@ -35,6 +35,8 @@ interface Rider {
 
 const PROVIDER_LABEL: Record<string, string> = {
   porter: "Porter",
+  // Kept for display only: Uber is no longer dispatched to, but past orders
+  // carry delivery_provider = "uber" and must still render a name.
   uber: "Uber",
   rapido: "Rapido",
 };

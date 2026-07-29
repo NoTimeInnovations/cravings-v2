@@ -559,7 +559,7 @@ export async function quotePorterFare(input: {
 // Multi-provider DISPATCH (delivery-bridge sequence)
 //
 // For partners on the `porter_bridge` flag we now run the bridge's sequential
-// dispatch (Porter → Uber → Rapido, in the partner's configured priority)
+// dispatch (Porter → Rapido, in the partner's configured priority)
 // using NORMAL BIKE instead of a Porter-only parcel book. The bridge resolves
 // each provider's account from the partner's mobile and books one at a time,
 // cancelling-and-escalating on timeout. The customer is charged the MAX of the
@@ -640,7 +640,7 @@ interface PartnerDispatchCfg {
    *  different number. Each falls back to `mobile` when its own column is unset.
    *  Only ENABLED providers (those in the partner's priority queue) are present;
    *  disabled providers are omitted so the bridge never quotes/dispatches them. */
-  mobiles: Partial<Record<"porter" | "uber" | "rapido", string>>;
+  mobiles: Partial<Record<"porter" | "rapido", string>>;
   pickup: { lat: number; lng: number };
   storeName: string;
   /** The enabled providers in dispatch order — always an explicit list (the
@@ -651,11 +651,11 @@ interface PartnerDispatchCfg {
   vehicleMode: "bike" | "parcel" | "scooty";
   /** Per-provider payment mode override (e.g. Porter:wallet). Sent to the bridge
    *  as `paymentModes`; unset providers default to cash. */
-  paymentModes: Partial<Record<"porter" | "uber" | "rapido", "cash" | "wallet">>;
+  paymentModes: Partial<Record<"porter" | "rapido", "cash" | "wallet">>;
   /** Per-provider delivery-bridge group number. Sent as `groups`; the bridge
    *  resolves a group to a free account in its pool. Takes precedence over the
    *  per-provider mobile for any provider that has a group set. */
-  groups: Partial<Record<"porter" | "uber" | "rapido", string>>;
+  groups: Partial<Record<"porter" | "rapido", string>>;
   /** Seconds the bridge waits per provider before escalating. Sent as `timeoutSec`. */
   waitSeconds: number;
   enabled: boolean;
@@ -669,22 +669,21 @@ async function loadPartnerDispatchCfg(
     geo_location: { coordinates: [number, number] } | null;
     phone: string | null;
     porter_mobile: string | null;
-    uber_mobile: string | null;
     rapido_mobile: string | null;
     feature_flags: string | null;
     delivery_rules: {
       delivery_provider_priority?: unknown;
       delivery_vehicle_mode?: unknown;
-      delivery_payment_modes?: { porter?: unknown; uber?: unknown; rapido?: unknown } | null;
+      delivery_payment_modes?: { porter?: unknown; rapido?: unknown } | null;
       delivery_wait_seconds?: unknown;
-      delivery_provider_groups?: { porter?: unknown; uber?: unknown; rapido?: unknown } | null;
+      delivery_provider_groups?: { porter?: unknown; rapido?: unknown } | null;
     } | null;
   } | null;
   try {
     const data = await fetchFromHasura(
       `query PartnerForDispatch($id: uuid!) {
         partners_by_pk(id: $id) {
-          store_name geo_location phone porter_mobile uber_mobile rapido_mobile feature_flags delivery_rules
+          store_name geo_location phone porter_mobile rapido_mobile feature_flags delivery_rules
         }
       }`,
       { id: partnerId },
@@ -697,7 +696,7 @@ async function loadPartnerDispatchCfg(
   const enabled = Boolean(p.feature_flags?.includes("porter_bridge-true"));
   const pickup = extractLatLng(p.geo_location);
   // Base mobile = porter_mobile ?? phone. Each provider may override with its
-  // own number (the partner can have separate Porter/Uber/Rapido logins); an
+  // own number (the partner can have separate Porter/Rapido logins); an
   // unset provider mobile falls back to this base.
   const mobile = normaliseMobile(p.porter_mobile) ?? normaliseMobile(p.phone);
   if (!pickup) return { ok: false, message: "partner pickup coords missing" };
@@ -708,7 +707,7 @@ async function loadPartnerDispatchCfg(
   // bridge resolves and quotes an account for every mobile it's handed, so
   // sending a disabled provider's (fallback) number would still quote/dispatch
   // it. Filtering here is what keeps the quote to only the enabled providers.
-  const ALL_PROVIDERS = ["porter", "uber", "rapido"] as const;
+  const ALL_PROVIDERS = ["porter", "rapido"] as const;
   type Provider = (typeof ALL_PROVIDERS)[number];
   const pri = p.delivery_rules?.delivery_provider_priority;
   const requested =
@@ -726,7 +725,6 @@ async function loadPartnerDispatchCfg(
     : [...ALL_PROVIDERS];
   const perProviderMobile: Record<Provider, string> = {
     porter: normaliseMobile(p.porter_mobile) ?? mobile,
-    uber: normaliseMobile(p.uber_mobile) ?? mobile,
     rapido: normaliseMobile(p.rapido_mobile) ?? mobile,
   };
   const mobiles: Partial<Record<Provider, string>> = {};
@@ -736,8 +734,8 @@ async function loadPartnerDispatchCfg(
     rawMode === "parcel" ? "parcel" : rawMode === "scooty" ? "scooty" : "bike";
   // Per-provider payment modes — keep only valid "cash"/"wallet" values.
   const pm = p.delivery_rules?.delivery_payment_modes ?? null;
-  const paymentModes: Partial<Record<"porter" | "uber" | "rapido", "cash" | "wallet">> = {};
-  for (const prov of ["porter", "uber", "rapido"] as const) {
+  const paymentModes: Partial<Record<"porter" | "rapido", "cash" | "wallet">> = {};
+  for (const prov of ["porter", "rapido"] as const) {
     const v = pm?.[prov];
     if (v === "wallet" || v === "cash") paymentModes[prov] = v;
   }
@@ -747,8 +745,8 @@ async function loadPartnerDispatchCfg(
   const waitSeconds = Number.isFinite(ws) ? Math.max(30, Math.min(600, ws)) : 90;
   // Per-provider group numbers — only keep non-blank ones.
   const grp = p.delivery_rules?.delivery_provider_groups ?? null;
-  const groups: Partial<Record<"porter" | "uber" | "rapido", string>> = {};
-  for (const prov of ["porter", "uber", "rapido"] as const) {
+  const groups: Partial<Record<"porter" | "rapido", string>> = {};
+  for (const prov of ["porter", "rapido"] as const) {
     const g = String(grp?.[prov] ?? "").trim();
     if (g) groups[prov] = g;
   }

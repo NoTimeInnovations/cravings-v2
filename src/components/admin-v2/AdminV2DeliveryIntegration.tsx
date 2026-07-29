@@ -17,7 +17,6 @@ const SUPPORT_WA_NUMBER = "917012944024";
 const PRESET_SERVICES = [
   "Porter",
   "Rapido",
-  "Uber",
   "Shadowfax",
 ] as const;
 

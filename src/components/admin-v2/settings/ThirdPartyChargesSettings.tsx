@@ -26,18 +26,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const PROVIDERS: ChargeProvider[] = ["porter", "rapido", "uber"];
+const PROVIDERS: ChargeProvider[] = ["porter", "rapido"];
 
 const PROVIDER_LABEL: Record<ChargeProvider, string> = {
     porter: "Porter",
     rapido: "Rapido",
-    uber: "Uber",
 };
 
 const PROVIDER_ACCENT: Record<ChargeProvider, string> = {
     porter: "border-orange-200 bg-orange-50/40",
     rapido: "border-yellow-200 bg-yellow-50/40",
-    uber: "border-neutral-300 bg-neutral-50",
 };
 
 // Below this the Porter card flags the wallet as running low (mirrors the bridge).
@@ -54,7 +52,7 @@ function fmtDate(iso: string): string {
  *
  * Porter is PREPAID and the delivery bridge exposes its real wallet, so the
  * Porter balance + transaction history are pulled LIVE from Porter's API — no
- * manual recharge logging. Rapido / Uber have no wallet API, so they show
+ * manual recharge logging. Rapido has no wallet API, so it shows
  * delivery spend (from real orders) only.
  */
 export function ThirdPartyChargesSettings() {
@@ -169,7 +167,7 @@ export function ThirdPartyChargesSettings() {
                 </Button>
             </div>
 
-            {/* Per-provider cards. Porter = LIVE wallet balance; Rapido/Uber = spend. */}
+            {/* Per-provider cards. Porter = LIVE wallet balance; Rapido = spend. */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {PROVIDERS.map((provider) => {
                     const s = data?.summaries[provider];
@@ -458,7 +456,7 @@ export function ThirdPartyChargesSettings() {
                                                 {fmtDate(o.createdAt)}
                                             </td>
                                             <td className="py-2 pr-3">
-                                                {["porter", "rapido", "uber"].includes(o.provider) ? (
+                                                {["porter", "rapido"].includes(o.provider) ? (
                                                     <span
                                                         className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium capitalize ${
                                                             PROVIDER_ACCENT[o.provider as ChargeProvider]

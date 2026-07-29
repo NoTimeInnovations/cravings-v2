@@ -11,7 +11,7 @@
 export type ConnectProvider = "porter" | "rapido";
 
 /** All bridge providers that can accrue recharges / delivery charges. */
-export type ChargeProvider = "porter" | "rapido" | "uber";
+export type ChargeProvider = "porter" | "rapido";
 
 // ── connect ────────────────────────────────────────────────────────────────
 

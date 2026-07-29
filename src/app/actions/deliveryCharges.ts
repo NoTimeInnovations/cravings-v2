@@ -3,7 +3,7 @@
 /**
  * Data + persistence for Settings → Ordering → "3rd Party Delivery Charges".
  *
- * Gives the partner one place to see, per provider (Porter / Rapido / Uber):
+ * Gives the partner one place to see, per provider (Porter / Rapido):
  *   - how much they've recharged into the portal (manually logged — the bridge
  *     can't see recharge amounts)
  *   - how much has been spent on delivery fares (Σ delivered-order fareAmount)
@@ -30,7 +30,7 @@ import type {
   ThirdPartyChargeData,
 } from "@/lib/deliveryBridgeTypes";
 
-const PROVIDERS: readonly ChargeProvider[] = ["porter", "rapido", "uber"];
+const PROVIDERS: readonly ChargeProvider[] = ["porter", "rapido"];
 
 /** The caller must be the logged-in partner whose row they're reading/writing. */
 async function assertPartner(
@@ -123,14 +123,13 @@ export async function getThirdPartyChargeData(input: {
   let basics: {
     porter_mobile: string | null;
     rapido_mobile: string | null;
-    uber_mobile: string | null;
     currency: string | null;
     delivery_rules: Record<string, any> | string | null;
   };
   try {
     const d = await fetchFromHasuraServer(
       `query ChargePartner($id: uuid!) {
-        partners_by_pk(id: $id) { porter_mobile rapido_mobile uber_mobile currency delivery_rules }
+        partners_by_pk(id: $id) { porter_mobile rapido_mobile currency delivery_rules }
       }`,
       { id: partnerId },
     );
@@ -199,7 +198,7 @@ export async function getThirdPartyChargeData(input: {
   //        dispatch ran — a single-provider dispatch's winner is certain; for a
   //        multi-provider one it's the primary / first-choice provider).
   const realProvider = (x: unknown): string | null =>
-    x === "porter" || x === "rapido" || x === "uber" ? x : null;
+    x === "porter" || x === "rapido" ? x : null;
 
   // Pull the delivery-fee amount out of the order's extra_charges jsonb. Only
   // the "Delivery Charge" line counts — parcel / packing charges are the
@@ -227,6 +226,8 @@ export async function getThirdPartyChargeData(input: {
         orders(
           where: {
             partner_id: { _eq: $id },
+            // "uber" stays in the filter so historical Uber dispatches remain
+            // visible; it is no longer offered as a provider going forward.
             delivery_provider: { _in: ["porter", "rapido", "uber", "dispatch"] }
           },
           order_by: { created_at: desc },
@@ -272,7 +273,6 @@ export async function getThirdPartyChargeData(input: {
   const mobileOf: Record<ChargeProvider, string | null> = {
     porter: normaliseMobile(basics.porter_mobile),
     rapido: normaliseMobile(basics.rapido_mobile),
-    uber: normaliseMobile(basics.uber_mobile),
   };
   // A third party only actually charged when it delivered — failed / cancelled /
   // self-delivered orders don't count toward spend or the balance draw-down.

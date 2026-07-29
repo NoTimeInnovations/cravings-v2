@@ -8,7 +8,7 @@ import { dispatchViaDeliveryBridge } from "@/app/actions/porterBridge";
 
 /**
  * Manual "Book rider now" for porter_bridge partners. Books the order through
- * the delivery bridge (Porter → Uber → Rapido) on demand — the primary control
+ * the delivery bridge (Porter → Rapido) on demand — the primary control
  * when a partner turns off auto-dispatch, and a force/re-trigger otherwise.
  * The parent hides it once a dispatch exists (delivery_provider_meta.dispatchId),
  * after which the DispatchProgressPanel tracks the ride.
@@ -34,7 +34,7 @@ export default function ManualPorterBookButton({ orderId }: { orderId: string })
       <div className="text-sm">
         <p className="font-medium">Book a rider</p>
         <p className="text-xs text-muted-foreground">
-          Dispatch through the delivery bridge (Porter → Uber → Rapido).
+          Dispatch through the delivery bridge (Porter → Rapido).
         </p>
       </div>
       <Button onClick={book} disabled={busy} size="sm" className="shrink-0">

@@ -305,10 +305,12 @@ export function DeliverySettings() {
     const [contactDialogOpen, setContactDialogOpen] = useState(false);
     const [countryCode, setCountryCode] = useState("+91");
 
-    // Delivery Bridge per-provider mobiles (partners.{porter,uber,rapido}_mobile).
+    // Delivery Bridge per-provider mobiles (partners.{porter,rapido}_mobile).
+    // uber_mobile stays in the database but is no longer read or written: Uber is
+    // not offered as a provider any more, and dropping the column would destroy
+    // the one partner's stored number for no gain.
     // Editable below; the bridge resolves each provider's account from these.
     const [porterMobile, setPorterMobile] = useState("");
-    const [uberMobile, setUberMobile] = useState("");
     const [rapidoMobile, setRapidoMobile] = useState("");
 
     // Adloggs per-merchant state. The id stored on partners.adloggs_merchant_id
@@ -364,7 +366,7 @@ export function DeliverySettings() {
                 pool_pickup_otp: userData.delivery_rules?.pool_pickup_otp ?? false,
                 pool_drop_otp: userData.delivery_rules?.pool_drop_otp ?? false,
                 delivery_provider_priority:
-                    userData.delivery_rules?.delivery_provider_priority || ["porter", "uber", "rapido"],
+                    userData.delivery_rules?.delivery_provider_priority || ["porter", "rapido"],
                 delivery_vehicle_mode: userData.delivery_rules?.delivery_vehicle_mode || "bike",
                 delivery_payment_modes: userData.delivery_rules?.delivery_payment_modes || {},
                 delivery_wait_seconds: userData.delivery_rules?.delivery_wait_seconds ?? 90,
@@ -390,7 +392,6 @@ export function DeliverySettings() {
             // Initialize country code
             setCountryCode(userData.country_code || "+91");
             setPorterMobile(userData.porter_mobile ?? "");
-            setUberMobile(userData.uber_mobile ?? "");
             setRapidoMobile(userData.rapido_mobile ?? "");
 
             // Initialize Adloggs merchant id input from persisted partner row.
@@ -568,7 +569,6 @@ export function DeliverySettings() {
                       number: sanitizeLocalPhone(item.number, countryCode),
                   }));
             const cleanPorter = sanitizeLocalPhone(porterMobile, countryCode);
-            const cleanUber = sanitizeLocalPhone(uberMobile, countryCode);
             const cleanRapido = sanitizeLocalPhone(rapidoMobile, countryCode);
 
             setIsSaving(true);
@@ -586,7 +586,6 @@ export function DeliverySettings() {
                     price_adjustment: priceAdjustment,
                     takeaway_price_adjustment: takeawayPriceAdjustment,
                     porter_mobile: cleanPorter || null,
-                    uber_mobile: cleanUber || null,
                     rapido_mobile: cleanRapido || null,
                 };
                 if (contact) updates.phone = sanitizeLocalPhone(contact.phone, countryCode);
@@ -598,7 +597,6 @@ export function DeliverySettings() {
                 // Reflect the cleaned values back into the inputs.
                 setWhatsappNumbers(cleanedWhatsapp);
                 setPorterMobile(cleanPorter);
-                setUberMobile(cleanUber);
                 setRapidoMobile(cleanRapido);
                 setContactDialogOpen(false);
 
@@ -624,7 +622,7 @@ export function DeliverySettings() {
                 setIsSaving(false);
             }
         },
-        [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, takeawayPriceAdjustment, porterMobile, uberMobile, rapidoMobile, setState, features?.porter_bridge?.access, features?.porter_bridge?.enabled, loadConnections],
+        [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, takeawayPriceAdjustment, porterMobile, rapidoMobile, setState, features?.porter_bridge?.access, features?.porter_bridge?.enabled, loadConnections],
     );
 
     const handleSaveDelivery = useCallback(async () => {
@@ -646,11 +644,9 @@ export function DeliverySettings() {
         // 10-digit Indian number. (These ARE edited on this screen, so a plain
         // error is appropriate.)
         const cleanPorter = sanitizeLocalPhone(porterMobile, countryCode);
-        const cleanUber = sanitizeLocalPhone(uberMobile, countryCode);
         const cleanRapido = sanitizeLocalPhone(rapidoMobile, countryCode);
         for (const [label, m] of [
             ["Porter", cleanPorter],
-            ["Uber", cleanUber],
             ["Rapido", cleanRapido],
         ] as const) {
             const bridgeValid = isIndiaCc ? /^[6-9][0-9]{9}$/.test(m) : /^\d{6,15}$/.test(m);
@@ -701,7 +697,6 @@ export function DeliverySettings() {
         whatsappNumbers,
         countryCode,
         porterMobile,
-        uberMobile,
         rapidoMobile,
         features?.multiwhatsapp?.access,
         features?.multiwhatsapp?.enabled,
@@ -761,7 +756,6 @@ export function DeliverySettings() {
         const initialPriceAdjustment = data.price_adjustment ?? null;
         const initialTakeawayPriceAdjustment = data.takeaway_price_adjustment ?? null;
         const initialPorterMobile = data.porter_mobile ?? "";
-        const initialUberMobile = data.uber_mobile ?? "";
         const initialRapidoMobile = data.rapido_mobile ?? "";
 
         const hasChanges =
@@ -772,7 +766,6 @@ export function DeliverySettings() {
             priceAdjustment !== initialPriceAdjustment ||
             takeawayPriceAdjustment !== initialTakeawayPriceAdjustment ||
             porterMobile !== initialPorterMobile ||
-            uberMobile !== initialUberMobile ||
             rapidoMobile !== initialRapidoMobile;
 
         setHasChanges(hasChanges);
@@ -786,7 +779,6 @@ export function DeliverySettings() {
         priceAdjustment,
         takeawayPriceAdjustment,
         porterMobile,
-        uberMobile,
         rapidoMobile,
         setHasChanges
     ]);
@@ -1061,42 +1053,6 @@ export function DeliverySettings() {
                                     );
                                 })}
 
-                                {/* Uber — manual group entry (in-app OTP connect not supported yet). */}
-                                <div className="rounded-md border bg-white p-3 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium">Uber</span>
-                                        <span className="text-[11px] text-muted-foreground">manual group</span>
-                                    </div>
-                                    <Input
-                                        value={deliveryRules.delivery_provider_groups?.uber ?? ""}
-                                        placeholder="group #"
-                                        onChange={(e) =>
-                                            setDeliveryRules((prev) => ({
-                                                ...prev,
-                                                delivery_provider_groups: {
-                                                    ...(prev.delivery_provider_groups || {}),
-                                                    uber: e.target.value.replace(/^\s+/, "").slice(0, 40),
-                                                },
-                                            }))
-                                        }
-                                    />
-                                    <select
-                                        value={deliveryRules.delivery_payment_modes?.uber || "cash"}
-                                        onChange={(e) =>
-                                            setDeliveryRules((prev) => ({
-                                                ...prev,
-                                                delivery_payment_modes: {
-                                                    ...(prev.delivery_payment_modes || {}),
-                                                    uber: e.target.value as "cash" | "wallet",
-                                                },
-                                            }))
-                                        }
-                                        className="w-full rounded-md border bg-white px-2 py-1.5 text-sm"
-                                    >
-                                        <option value="cash">Cash payment</option>
-                                        <option value="wallet">Wallet payment</option>
-                                    </select>
-                                </div>
                             </div>
 
                             {connectDialog && (
@@ -1118,13 +1074,13 @@ export function DeliverySettings() {
                             <p className="text-xs text-muted-foreground">
                                 <strong>Payment</strong>: how each provider collects the fare. <strong>Wallet</strong> draws
                                 from that provider&apos;s prepaid balance (Porter credits / Rapido wallet) so the rider
-                                collects less (or no) cash. Uber is effectively cash-only upstream.
+                                collects less (or no) cash.
                             </p>
 
                             <div className="border-t border-orange-100 pt-3">
                                 <Label className="text-base">Booking method</Label>
                                 <p className="text-xs text-muted-foreground mb-2">
-                                    Book a normal <strong>bike</strong> (2-wheeler ride — usually cheaper &amp; faster for food) or a <strong>parcel</strong> (courier class). Applies to every provider. <strong>Scooty</strong> books Porter&apos;s Scooty (a 2-wheeler variant); Rapido/Uber have no scooty, so they fall back to a normal bike.
+                                    Book a normal <strong>bike</strong> (2-wheeler ride — usually cheaper &amp; faster for food) or a <strong>parcel</strong> (courier class). Applies to every provider. <strong>Scooty</strong> books Porter&apos;s Scooty (a 2-wheeler variant); Rapido has no scooty, so it falls back to a normal bike.
                                 </p>
                                 <div className="inline-flex rounded-md border bg-white p-0.5">
                                     {(["bike", "parcel", "scooty"] as const).map((mode) => (
@@ -1240,7 +1196,7 @@ export function DeliverySettings() {
                             <div className="border-t border-orange-100 pt-3">
                                 <Label className="text-base">Delivery fee charged to customer</Label>
                                 <p className="text-xs text-muted-foreground mb-2">
-                                    <strong>Custom</strong> uses your own delivery pricing (the distance / fixed rate below). <strong>Third-party price</strong> charges the customer the live bridge quote (Porter / Uber / Rapido) for the trip.
+                                    <strong>Custom</strong> uses your own delivery pricing (the distance / fixed rate below). <strong>Third-party price</strong> charges the customer the live bridge quote (Porter / Rapido) for the trip.
                                 </p>
                                 <div className="inline-flex rounded-md border bg-white p-0.5">
                                     {([
@@ -1272,7 +1228,7 @@ export function DeliverySettings() {
                                     Dispatch tries these in order, one at a time, escalating if no rider is found in time. The customer is charged the highest of the available quotes. Use ✕ to remove a provider from the queue; add it back below.
                                 </p>
                                 <div className="space-y-1.5">
-                                    {(deliveryRules.delivery_provider_priority || ["porter", "uber", "rapido"]).map((prov, i, arr) => (
+                                    {(deliveryRules.delivery_provider_priority || ["porter", "rapido"]).map((prov, i, arr) => (
                                         <div key={prov} className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
                                             <span className="w-5 text-center font-semibold text-muted-foreground tabular-nums">{i + 1}</span>
                                             <span className="flex-1 capitalize">{prov}</span>
@@ -1281,7 +1237,7 @@ export function DeliverySettings() {
                                                 disabled={i === 0}
                                                 aria-label={`Move ${prov} up`}
                                                 onClick={() => setDeliveryRules(prev => {
-                                                    const a = [...(prev.delivery_provider_priority || ["porter", "uber", "rapido"])];
+                                                    const a = [...(prev.delivery_provider_priority || ["porter", "rapido"])];
                                                     [a[i - 1], a[i]] = [a[i], a[i - 1]];
                                                     return { ...prev, delivery_provider_priority: a };
                                                 })}
@@ -1292,7 +1248,7 @@ export function DeliverySettings() {
                                                 disabled={i === arr.length - 1}
                                                 aria-label={`Move ${prov} down`}
                                                 onClick={() => setDeliveryRules(prev => {
-                                                    const a = [...(prev.delivery_provider_priority || ["porter", "uber", "rapido"])];
+                                                    const a = [...(prev.delivery_provider_priority || ["porter", "rapido"])];
                                                     [a[i + 1], a[i]] = [a[i], a[i + 1]];
                                                     return { ...prev, delivery_provider_priority: a };
                                                 })}
@@ -1304,7 +1260,7 @@ export function DeliverySettings() {
                                                 aria-label={`Remove ${prov} from queue`}
                                                 title={arr.length <= 1 ? "Keep at least one provider" : `Remove ${prov}`}
                                                 onClick={() => setDeliveryRules(prev => {
-                                                    const a = (prev.delivery_provider_priority || ["porter", "uber", "rapido"]).filter(x => x !== prov);
+                                                    const a = (prev.delivery_provider_priority || ["porter", "rapido"]).filter(x => x !== prov);
                                                     return { ...prev, delivery_provider_priority: a };
                                                 })}
                                                 className="rounded px-2 py-0.5 text-red-500 hover:bg-red-50 disabled:opacity-30"
@@ -1313,8 +1269,8 @@ export function DeliverySettings() {
                                     ))}
                                 </div>
                                 {(() => {
-                                    const active = deliveryRules.delivery_provider_priority || ["porter", "uber", "rapido"];
-                                    const removed = (["porter", "uber", "rapido"] as const).filter(p => !active.includes(p));
+                                    const active = deliveryRules.delivery_provider_priority || ["porter", "rapido"];
+                                    const removed = (["porter", "rapido"] as const).filter(p => !active.includes(p));
                                     if (removed.length === 0) return null;
                                     return (
                                         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1324,7 +1280,7 @@ export function DeliverySettings() {
                                                     key={prov}
                                                     type="button"
                                                     onClick={() => setDeliveryRules(prev => {
-                                                        const a = [...(prev.delivery_provider_priority || ["porter", "uber", "rapido"]), prov];
+                                                        const a = [...(prev.delivery_provider_priority || ["porter", "rapido"]), prov];
                                                         return { ...prev, delivery_provider_priority: a };
                                                     })}
                                                     className="rounded-full border border-orange-300 bg-orange-50 px-3 py-1 text-xs capitalize text-orange-700 hover:bg-orange-100"
