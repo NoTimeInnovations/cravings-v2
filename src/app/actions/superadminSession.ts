@@ -58,6 +58,17 @@ query SuperadminPartnerSession($id: uuid!) {
   }
 }`;
 
+/**
+ * Superadmins are NOT partners — they live in their own `super_admin` table, so
+ * the way back has to look there. Querying partners_by_pk for a superadmin id
+ * always returns null, which surfaced as "Superadmin account not found" on every
+ * Exit and stranded the session inside the partner dashboard.
+ */
+const SUPERADMIN_QUERY = `
+query SuperadminById($id: uuid!) {
+  super_admin_by_pk(id: $id) { id email }
+}`;
+
 const MANAGED_PARTNER_QUERY = `
 query SuperadminManagedPartner($id: uuid!) {
   partners_by_pk(id: $id) { id username store_name }
@@ -271,21 +282,23 @@ export async function returnToSuperadminSession(): Promise<{
       return { ok: false, error: "No superadmin session to return to." };
     }
 
-    const res = await fetchFromHasuraServer(PARTNER_SESSION_QUERY, {
+    const res = await fetchFromHasuraServer(SUPERADMIN_QUERY, {
       id: swap.superadminId,
     });
-    const sa = res?.partners_by_pk;
+    const sa = res?.super_admin_by_pk;
     if (!sa?.id) {
       await clearParentCookie();
       return { ok: false, error: "Superadmin account not found." };
     }
 
+    // Mirrors what signInSuperAdmin writes: a superadmin has no feature flags and
+    // no subscription, and is always "active". Carrying the partner's values over
+    // would leave the restored session gated by the shop it just exited.
     await setAuthCookie({
       id: sa.id,
       role: "superadmin",
-      feature_flags: sa.feature_flags || "",
-      status: sa.status || "inactive",
-      hasSubscription: !!sa.subscription_details,
+      feature_flags: "",
+      status: "active",
     });
     await clearParentCookie();
 

@@ -11,9 +11,9 @@ import { TELEVERY_DASHBOARD_PATH } from "@/lib/televery";
 const BAR_HEIGHT_PX = 44;
 
 /**
- * "You are managing X as Televery" — shown across the WHOLE partner dashboard
- * whenever Televery has swapped into an outlet's session (see
- * src/app/actions/televerySession.ts).
+ * "You are managing X as <Televery | superadmin>" — shown across the WHOLE
+ * partner dashboard whenever someone has swapped into a partner's session, from
+ * either src/app/actions/televerySession.ts or superadminSession.ts.
  *
  * It is deliberately loud and always on screen: this is real impersonation with
  * full write access to someone else's business, and nothing audit-logs it today.
@@ -33,6 +33,12 @@ export function ManagingOutletBanner({
   mode?: "televery" | "superadmin";
 }) {
   const [exiting, setExiting] = useState(false);
+
+  // Who the viewer is acting AS. The banner exists so nobody forgets whose shop
+  // they are editing, which only works if it names the right identity — saying
+  // "as Televery" to a superadmin is worse than saying nothing.
+  const actingAs = mode === "superadmin" ? "superadmin" : "Televery";
+  const exitLabel = mode === "superadmin" ? "Exit to superadmin" : "Exit to marketplace";
 
   const handleExit = async () => {
     setExiting(true);
@@ -83,7 +89,9 @@ export function ManagingOutletBanner({
           <span className="font-extrabold">
             {outletName || "this business"}
           </span>
-          <span className="hidden sm:inline"> as Televery — changes affect their live store.</span>
+          <span className="hidden sm:inline">
+            {" "}as {actingAs} — changes affect their live store.
+          </span>
         </p>
 
         <button
@@ -97,7 +105,7 @@ export function ManagingOutletBanner({
           ) : (
             <LogOut className="h-3.5 w-3.5" />
           )}
-          <span className="hidden sm:inline">Exit to marketplace</span>
+          <span className="hidden sm:inline">{exitLabel}</span>
           <span className="sm:hidden">Exit</span>
         </button>
       </div>
