@@ -3554,6 +3554,7 @@ const PlaceOrderModalV2 = ({
           cartTotal={subtotal}
           currency={currency}
           available={availableDiscounts}
+          appliedCode={appliedDiscount?.code ?? null}
           discountInput={discountInput}
           setDiscountInput={setDiscountInput}
           discountError={discountError}
@@ -3805,6 +3806,7 @@ const DiscountsView = ({
   validatingCode,
   onApplyCode,
   onApplyOffer,
+  appliedCode,
   accent,
 }: {
   onBack: () => void;
@@ -3817,12 +3819,17 @@ const DiscountsView = ({
   validatingCode: boolean;
   onApplyCode: (code: string) => void;
   onApplyOffer: (d: AvailableDiscount) => void;
+  /** Code already on the order, so the list can say "Applied" instead of
+   *  offering to apply it a second time. */
+  appliedCode?: string | null;
   accent: string;
 }) => {
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="bg-white px-4 py-4 flex items-center gap-3">
-        <button type="button" onClick={onBack} aria-label="Back" className="p-1">
+      {/* Sticky: the panel scrolls, and the header used to scroll away with it —
+          leaving no visible way back out of the discount screen. */}
+      <div className="sticky top-0 z-10 bg-white px-4 py-4 flex items-center gap-3 border-b border-gray-100">
+        <button type="button" onClick={onBack} aria-label="Back" className="-ml-1 p-1">
           <ArrowLeft className="h-6 w-6 text-gray-900" />
         </button>
         <div className="flex-1">
@@ -3902,14 +3909,25 @@ const DiscountsView = ({
                         <div className="font-bold text-gray-900 uppercase tracking-wide">
                           {d.code}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => onApplyOffer(d)}
-                          className="text-sm font-bold uppercase tracking-wide"
-                          style={{ color: accent }}
-                        >
-                          Apply
-                        </button>
+                        {/* Offering "Apply" on the code already on the order reads
+                            as though it had not worked, and a second tap looks
+                            like a no-op. Say what the state is instead. */}
+                        {appliedCode &&
+                        d.code?.toUpperCase() === appliedCode.toUpperCase() ? (
+                          <span className="flex items-center gap-1 text-sm font-bold uppercase tracking-wide text-green-600">
+                            <Check className="h-4 w-4" />
+                            Applied
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onApplyOffer(d)}
+                            className="text-sm font-bold uppercase tracking-wide"
+                            style={{ color: accent }}
+                          >
+                            Apply
+                          </button>
+                        )}
                       </div>
                       <div className="border-b border-dashed border-gray-200 my-2" />
                       <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
