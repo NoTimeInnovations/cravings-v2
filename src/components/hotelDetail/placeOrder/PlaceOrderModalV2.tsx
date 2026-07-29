@@ -987,11 +987,15 @@ const PlaceOrderModalV2 = ({
   // over-discounting the persisted order (orderStore trusts our `savings`).
   // Returns the failing reason, or null when eligible.
   const discountIneligibleReason = useMemo<
-    null | "min" | "ordertype" | "day" | "empty"
+    null | "min" | "ordertype" | "day" | "empty" | "alloffer"
   >(() => {
     const d = appliedDiscount;
     if (!d) return null;
     if (!items || items.length === 0 || subtotal <= 0) return "empty";
+    // Everything in the cart is already on an offer, so there is nothing left to
+    // discount. Must come AFTER the empty check: discountableSubtotal also
+    // returns 0 for an empty cart, and "empty" is the more accurate reason.
+    if (discountBase <= 0) return "alloffer";
     if (d.min_order_value && subtotal < Number(d.min_order_value)) return "min";
     if (d.discount_order_types) {
       const code = isQrScan ? "3" : orderType === "takeaway" ? "2" : "1";
@@ -1003,7 +1007,16 @@ const PlaceOrderModalV2 = ({
       if (!d.valid_days.split(",").map((x) => x.trim()).includes(today)) return "day";
     }
     return null;
-  }, [appliedDiscount, items, subtotal, orderType, isQrScan]);
+    // discountBase was missing from the deps, so the reason went stale whenever
+    // the discountable share changed without the subtotal changing.
+  }, [appliedDiscount, items, subtotal, discountBase, orderType, isQrScan]);
+
+  /**
+   * Nothing in the cart can carry a discount — every line is already on an offer.
+   * Independent of appliedDiscount (which the reason above requires), because the
+   * entry point has to be disabled BEFORE anyone applies anything.
+   */
+  const nothingDiscountable = (items?.length ?? 0) > 0 && discountBase <= 0;
 
   // Auto-applied (non-coupon) discounts have no Remove control, so self-clear
   // them once they stop qualifying — the auto-apply effect then re-evaluates and
@@ -3277,8 +3290,9 @@ const PlaceOrderModalV2 = ({
               </div>
               <button
                 type="button"
+                disabled={nothingDiscountable}
                 onClick={() => setView("discounts")}
-                className="w-full px-4 py-3 flex items-center gap-3"
+                className="w-full px-4 py-3 flex items-center gap-3 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <div
                   className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-orange-500"
@@ -3291,6 +3305,13 @@ const PlaceOrderModalV2 = ({
                       ? `Applied: ${appliedDiscount.code}`
                       : "Apply Discounts"}
                   </div>
+                  {/* Say why it is off. A greyed control with no reason reads as
+                      broken, and the customer cannot tell it is deliberate. */}
+                  {nothingDiscountable && !appliedDiscount && (
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      Your items are already on offer
+                    </div>
+                  )}
                   {appliedDiscount && discountSavings > 0 && (
                     <div className="text-xs font-medium mt-0.5" style={{ color: accent }}>
                       You save <MenuPrice currency={currency} amount={discountSavings.toFixed(0)} />
