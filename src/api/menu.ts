@@ -24,6 +24,7 @@ export const getMenu = `
             price
             offers {
               offer_price
+              max_per_order
             }
             description
             is_top

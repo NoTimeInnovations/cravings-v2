@@ -45,12 +45,17 @@ export function AdminV2Offers() {
         })();
     }, [userData]);
 
-    const handleSubmitDetails = async (details: { percentage?: number; amount?: number; offer_type?: string; start_time?: string; end_time?: string }) => {
+    const handleSubmitDetails = async (details: { percentage?: number; amount?: number; offer_type?: string; start_time?: string; end_time?: string; max_per_order?: number | null }) => {
         try {
             console.log("[Offer Submit] Details:", details);
             const start_time = details.start_time || new Date().toISOString();
             const end_time = details.end_time || new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
             const offer_type = details.offer_type || 'all';
+            // Blank stays unlimited — every existing offer has no cap and keeps none.
+            const max_per_order =
+                typeof details.max_per_order === 'number' && details.max_per_order > 0
+                    ? Math.floor(details.max_per_order)
+                    : null;
 
             const notificationMessage = {
                 title: "New Offer",
@@ -86,6 +91,7 @@ export function AdminV2Offers() {
                                 menu_id: sel.item.id,
                                 offer_price,
                                 items_available,
+                                max_per_order,
                                 start_time,
                                 end_time,
                                 offer_type,
@@ -98,6 +104,7 @@ export function AdminV2Offers() {
                             menu_id: sel.item.id,
                             offer_price,
                             items_available,
+                            max_per_order,
                             start_time,
                             end_time,
                             offer_type,
@@ -119,6 +126,7 @@ export function AdminV2Offers() {
                             menu_id: sel.item.id,
                             offer_price,
                             items_available,
+                            max_per_order,
                             start_time,
                             end_time,
                             offer_type,
@@ -135,6 +143,7 @@ export function AdminV2Offers() {
                         menu_id: sel.item.id,
                         offer_price: details.amount,
                         items_available,
+                        max_per_order,
                         start_time,
                         end_time,
                         offer_type,

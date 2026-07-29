@@ -327,6 +327,7 @@ interface OfferDetailsProps {
     offer_type?: string;
     start_time?: string;
     end_time?: string;
+    max_per_order?: number | null;
   }) => void;
 }
 
@@ -337,6 +338,11 @@ export function OfferDetails({ selected, onBack, onSubmit }: OfferDetailsProps) 
   const [dineInSelected, setDineInSelected] = useState<boolean>(true);
   const [startAt, setStartAt] = useState<string>("");
   const [endAt, setEndAt] = useState<string>("");
+  // Blank = unlimited, which is what every offer did before this existed.
+  const [maxPerOrder, setMaxPerOrder] = useState<string>("");
+  // How the limit is chosen. "custom" reveals the number box; the other two
+  // drive max_per_order directly so the common cases need no typing.
+  const [limitMode, setLimitMode] = useState<"unlimited" | "one" | "custom">("unlimited");
 
   // Resolve the real base price of a variant. Some items keep the actual price
   // in `delivery_price` with `price` left at 0, so fall back to the live menu
@@ -418,6 +424,12 @@ export function OfferDetails({ selected, onBack, onSubmit }: OfferDetailsProps) 
       offer_type: derivedType,
       start_time: startAt || undefined,
       end_time: endAt || undefined,
+      max_per_order:
+        limitMode === "one"
+          ? 1
+          : limitMode === "custom" && maxPerOrder.trim()
+            ? parseInt(maxPerOrder, 10)
+            : null,
     } as any;
     console.log("[OfferDetails] Submit payload:", payload);
     onSubmit(payload);
@@ -498,6 +510,51 @@ export function OfferDetails({ selected, onBack, onSubmit }: OfferDetailsProps) 
           <label className="text-sm font-medium">End</label>
           <Input type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
         </div>
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Limit per order</label>
+        <div className="mt-1 inline-flex rounded-md border bg-white p-0.5">
+          {([
+            { v: "unlimited", label: "No limit" },
+            { v: "one", label: "Only 1" },
+            { v: "custom", label: "Custom" },
+          ] as const).map(({ v, label }) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => {
+                setLimitMode(v);
+                if (v !== "custom") setMaxPerOrder("");
+              }}
+              className={`rounded px-4 py-1.5 text-sm transition ${
+                limitMode === v
+                  ? "bg-orange-500 text-white"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {limitMode === "custom" && (
+          <Input
+            type="number"
+            min={1}
+            className="mt-2"
+            placeholder="e.g. 2"
+            value={maxPerOrder}
+            onChange={(e) => setMaxPerOrder(e.target.value)}
+          />
+        )}
+        <p className="mt-1 text-xs text-muted-foreground">
+          How many of this a single customer can add to one order.{" "}
+          {limitMode === "one"
+            ? "One per order — the offer price applies to a single unit."
+            : limitMode === "custom"
+              ? "They can add up to this many at the offer price."
+              : "No cap — the offer price applies to every unit, so two of a ₹360 item at ₹250 cost ₹500 rather than ₹720."}
+        </p>
       </div>
 
       <div className="flex justify-end">

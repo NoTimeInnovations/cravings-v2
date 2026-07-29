@@ -265,6 +265,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       recommendations
       offers(where: {_and: [{ offer_type : { _in : $offer_types } } ,{end_time: {_gt: "now()"}}, {deletion_status: {_eq: 0}}]}) {
         offer_price
+        max_per_order
       }
       stocks{
         id
@@ -295,6 +296,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
         addon_groups
       }
       offer_price
+      max_per_order
       offer_type
       start_time
       variant

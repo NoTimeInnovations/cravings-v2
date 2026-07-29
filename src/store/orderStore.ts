@@ -35,6 +35,7 @@ import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { decrementStockForOrder, claimOrderStock } from "@/lib/stockDecrement";
+import { offerMaxPerOrder, offerLimitMessage } from "@/lib/offerLimit";
 import { restockOrderStock } from "@/app/actions/restockOrder";
 import { ymd } from "@/lib/prebooking";
 import { usePOSStore } from "./posStore";
@@ -1257,6 +1258,20 @@ const useOrderStore = create(
         const state = get();
         if (!state.hotelId) return;
 
+        // addItem BUMPS an existing line rather than only creating one, so the
+        // cap has to be checked here too — otherwise tapping Add repeatedly
+        // walks straight past the limit that increaseQuantity enforces.
+        const addMax = offerMaxPerOrder(item as any);
+        if (addMax != null) {
+          const already = (state.hotelOrders?.[state.hotelId!]?.items || [])
+            .filter((i) => i.id === item.id || String(i.id).startsWith(`${item.id}|`))
+            .reduce((n, i) => n + (i.quantity || 0), 0);
+          if (already >= addMax) {
+            toast.error(offerLimitMessage(addMax));
+            return;
+          }
+        }
+
         set((state) => {
           const hotelOrders = { ...state.hotelOrders };
           const hotelOrder = hotelOrders[state.hotelId!] || {
@@ -1536,6 +1551,20 @@ const useOrderStore = create(
         if (!state.hotelId) return;
 
         const increased = state.items?.find((i) => i.id === itemId);
+
+        // An offer price applies to every unit, so without a cap two of a ₹360
+        // item on a ₹250 offer cost ₹500 instead of ₹720. Refuse the extra unit
+        // rather than quietly multiplying the discount.
+        const offerMax = offerMaxPerOrder(increased as any);
+        if (offerMax != null) {
+          const inCart =
+            state.hotelOrders?.[state.hotelId!]?.items?.find((i) => i.id === itemId)
+              ?.quantity ?? 0;
+          if (inCart >= offerMax) {
+            toast.error(offerLimitMessage(offerMax));
+            return;
+          }
+        }
 
         set((state) => {
           const hotelOrders = { ...state.hotelOrders };
