@@ -35,7 +35,14 @@ import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { decrementStockForOrder, claimOrderStock } from "@/lib/stockDecrement";
-import { offerMaxPerOrder, offerLimitMessage } from "@/lib/offerLimit";
+import {
+  offerMaxPerOrder,
+  offerLimitMessage,
+  twinIdFor,
+  offerLineIdOf,
+  isTwinLine,
+  fullPriceOf,
+} from "@/lib/offerLimit";
 import { restockOrderStock } from "@/app/actions/restockOrder";
 import { ymd } from "@/lib/prebooking";
 import { usePOSStore } from "./posStore";
@@ -573,6 +580,9 @@ interface OrderState {
   addItem: (item: HotelDataMenus) => void;
   removeItem: (itemId: string) => void;
   increaseQuantity: (itemId: string) => void;
+  /** Add one unit of an item at FULL price, on its own line, once the item's
+   *  offer limit is used up. Called by increaseQuantity/addItem, not directly. */
+  addFullPriceUnit: (offerLineId: string, fullPrice: number) => void;
   decreaseQuantity: (itemId: string) => void;
   clearOrder: () => void;
   placeOrder: (
@@ -1258,17 +1268,32 @@ const useOrderStore = create(
         const state = get();
         if (!state.hotelId) return;
 
-        // addItem BUMPS an existing line rather than only creating one, so the
-        // cap has to be checked here too — otherwise tapping Add repeatedly
-        // walks straight past the limit that increaseQuantity enforces.
+        // addItem BUMPS an existing line rather than only creating one, and on most
+        // layouts the + stepper calls THIS, not increaseQuantity — so the overflow
+        // has to happen here too or the cap is bypassed by tapping Add.
+        //
+        // Counts only the units already at the OFFER price: twin lines are full
+        // price and must not consume the allowance a second time.
         const addMax = offerMaxPerOrder(item as any);
-        if (addMax != null) {
-          const already = (state.hotelOrders?.[state.hotelId!]?.items || [])
-            .filter((i) => i.id === item.id || String(i.id).startsWith(`${item.id}|`))
+        if (addMax != null && item.id && !isTwinLine(item.id)) {
+          const cartItems = state.hotelOrders?.[state.hotelId!]?.items || [];
+          const offerUnits = cartItems
+            .filter((i) => !isTwinLine(i.id) && offerLineIdOf(i.id) === item.id)
             .reduce((n, i) => n + (i.quantity || 0), 0);
-          if (already >= addMax) {
-            toast.error(offerLimitMessage(addMax));
-            return;
+          if (offerUnits >= addMax) {
+            const full = fullPriceOf(item as any);
+            if (full == null) {
+              toast.error(offerLimitMessage(addMax));
+              return;
+            }
+            // The offer line must already exist for the twin to be cloned from.
+            const anchor = cartItems.find(
+              (i) => !isTwinLine(i.id) && offerLineIdOf(i.id) === item.id,
+            );
+            if (anchor) {
+              get().addFullPriceUnit(anchor.id, full);
+              return;
+            }
           }
         }
 
@@ -1546,22 +1571,77 @@ const useOrderStore = create(
         }
       },
 
+      addFullPriceUnit: (offerLineId, fullPrice) => {
+        const state = get();
+        if (!state.hotelId) return;
+        const source = (state.hotelOrders?.[state.hotelId]?.items || []).find(
+          (i) => i.id === offerLineId,
+        );
+        if (!source) return;
+
+        const twinId = twinIdFor(offerLineId);
+        set((s2) => {
+          const hotelOrders = { ...s2.hotelOrders };
+          const hotelOrder = hotelOrders[s2.hotelId!];
+          if (!hotelOrder) return s2;
+
+          const existingTwin = hotelOrder.items.find((i) => i.id === twinId);
+          const items = existingTwin
+            ? hotelOrder.items.map((i) =>
+                i.id === twinId ? { ...i, quantity: i.quantity + 1 } : i,
+              )
+            : [
+                ...hotelOrder.items,
+                {
+                  ...source,
+                  id: twinId,
+                  quantity: 1,
+                  price: fullPrice,
+                  // Cleared so nothing downstream re-derives an offer price for
+                  // this line — OrderClient prices a placed line from
+                  // item.offers[0].offer_price when present.
+                  offers: [],
+                } as typeof source,
+              ];
+
+          hotelOrders[s2.hotelId!] = {
+            ...hotelOrder,
+            items,
+            totalPrice: hotelOrder.totalPrice + fullPrice,
+          };
+          return { hotelOrders, items: hotelOrders[s2.hotelId!].items };
+        });
+      },
+
       increaseQuantity: (itemId) => {
         const state = get();
         if (!state.hotelId) return;
 
         const increased = state.items?.find((i) => i.id === itemId);
 
-        // An offer price applies to every unit, so without a cap two of a ₹360
-        // item on a ₹250 offer cost ₹500 instead of ₹720. Refuse the extra unit
-        // rather than quietly multiplying the discount.
+        // An offer price applies to every unit, so without a cap two of a ₹199
+        // item on a ₹120 offer cost ₹240 instead of ₹120 + ₹199. Past the cap the
+        // extra units are charged at the FULL price on their own cart line rather
+        // than refused — the offer simply stops applying, which is what "limited
+        // to N per order" means to a customer.
+        //
+        // A separate line, not a mixed one: the cart's incremental totalPrice
+        // counter adds and subtracts one flat `price` per mutation, so a line
+        // whose units cost different amounts would desync it. Two lines each with
+        // a uniform price keep every existing sum correct untouched.
         const offerMax = offerMaxPerOrder(increased as any);
-        if (offerMax != null) {
-          const inCart =
-            state.hotelOrders?.[state.hotelId!]?.items?.find((i) => i.id === itemId)
-              ?.quantity ?? 0;
+        if (offerMax != null && !isTwinLine(itemId)) {
+          const cartItems = state.hotelOrders?.[state.hotelId!]?.items || [];
+          const inCart = cartItems.find((i) => i.id === itemId)?.quantity ?? 0;
           if (inCart >= offerMax) {
-            toast.error(offerLimitMessage(offerMax));
+            const full = fullPriceOf(increased as any);
+            if (full == null) {
+              // No trustworthy full price to fall back to. Refusing is the only
+              // honest option — inventing a number would mischarge.
+              toast.error(offerLimitMessage(offerMax));
+              return;
+            }
+            get().addFullPriceUnit(itemId, full);
             return;
           }
         }

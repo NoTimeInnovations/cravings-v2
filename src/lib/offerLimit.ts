@@ -53,3 +53,51 @@ export function offerLimitMessage(max: number): string {
     ? "This offer is limited to 1 per order."
     : `This offer is limited to ${max} per order.`;
 }
+
+/**
+ * Suffix marking the FULL-PRICE twin of an offer line.
+ *
+ * `|`-delimited on purpose: every consumer recovers the menu id with
+ * `id.split("|")[0]` (orderStore, posStore, discountUtils, PlaceOrderModalV2),
+ * and `base|__nooffer` and `base|Large|__nooffer` both still split to `base`.
+ * Option ids in the add-on encoding are uuids, so this can never collide.
+ */
+export const NO_OFFER_SUFFIX = "__nooffer";
+
+/** The full-price twin's id for a given offer line. */
+export function twinIdFor(offerLineId: string): string {
+  return `${offerLineId}|${NO_OFFER_SUFFIX}`;
+}
+
+/** True when this line is a full-price twin rather than an offer line. */
+export function isTwinLine(id: string): boolean {
+  return String(id).endsWith(`|${NO_OFFER_SUFFIX}`);
+}
+
+/** The offer line an id belongs to, stripping a twin suffix if present. */
+export function offerLineIdOf(id: string): string {
+  const s = String(id);
+  return isTwinLine(s) ? s.slice(0, -(NO_OFFER_SUFFIX.length + 1)) : s;
+}
+
+export interface FullPriceSource {
+  price?: number | null;
+  /** Stamped by hotelDataFetcher at the point the offer price overwrote `price`. */
+  original_price?: number | null;
+}
+
+/**
+ * What one unit costs WITHOUT the offer.
+ *
+ * Returns null when the original is unknown or not actually higher than what is
+ * being charged — in that case there is nothing to fall back to, and the caller
+ * must keep the old refuse-to-add behaviour rather than invent a price. Charging
+ * a number we cannot justify is worse than refusing the unit.
+ */
+export function fullPriceOf(item: FullPriceSource | null | undefined): number | null {
+  const full = Number(item?.original_price);
+  const charged = Number(item?.price);
+  if (!Number.isFinite(full) || full <= 0) return null;
+  if (Number.isFinite(charged) && full <= charged) return null;
+  return full;
+}

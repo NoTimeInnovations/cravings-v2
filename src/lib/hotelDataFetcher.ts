@@ -295,6 +295,12 @@ export async function processHotelPage(
       return {
         ...item,
         price: Math.max(0, finalPrice + partnerPriceAdjustment),
+        // What this line costs WITHOUT the offer, carrying the same delivery-base
+        // and price-adjustment corrections as `price` so the two are directly
+        // comparable. Stamped here because this is the last point at which the
+        // original price is still known — the line below overwrites item.price
+        // with the offer price, and nothing downstream can recover it.
+        original_price: Math.max(0, deliveryBase + partnerPriceAdjustment),
         variants: item.variants?.map((v: any) => ({
           ...v,
           price: Math.max(0, (v.delivery_price ?? v.price ?? 0) + partnerPriceAdjustment),
