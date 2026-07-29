@@ -238,25 +238,8 @@ export function AdminV2AllOrders() {
     }
   };
 
-  const checkAndCompleteOrder = async (order: Order) => {
-    if (order.status === "accepted") {
-      try {
-        // Always update Order Status to completed first
-        await updateOrderStatus(orders, order.id, "completed", setOrders);
-        let message = "Order marked as completed";
-
-        // Removed table unlocking logic
-
-        toast.success(message);
-      } catch (err) {
-        console.error("Auto-complete error:", err);
-        toast.error("Failed to auto-complete order");
-      }
-    }
-  };
-
   const handlePrintBill = async (order: Order) => {
-    await checkAndCompleteOrder(order);
+    // Printing NEVER changes the order's status.
     if (!order.payment_method) {
       setOrderToPrint(order.id);
       setPaymentModalOpen(true);
@@ -270,12 +253,8 @@ export function AdminV2AllOrders() {
       await updateOrderPaymentMethod(orderToPrint, method, orders, setOrders);
       setPaymentModalOpen(false);
 
-      // Re-fetch order or find it to update check logic?
-      const updatedOrder = orders.find((o) => o.id === orderToPrint);
-      if (updatedOrder) {
-        await checkAndCompleteOrder(updatedOrder);
-      }
-
+      // Recording the payment method does not complete the order — this chooser
+      // is opened by Print, so completing here would change status on print.
       window.open(`/bill/${orderToPrint}`, "_blank");
       setOrderToPrint(null);
     }

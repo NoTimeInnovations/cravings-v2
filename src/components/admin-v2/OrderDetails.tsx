@@ -389,21 +389,13 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
             window.open(`/kot/${order.id}`, '_blank');
             return;
         }
-        // Bill: completion is tied to choosing a payment method. If none is set,
-        // open the chooser only — cancelling leaves the order untouched and
-        // prints nothing (completion happens in handlePaymentMethodConfirm). If a
-        // method already exists, complete (when accepted) and open the bill.
+        // Printing NEVER changes the order's status — a bill can be printed at
+        // any point (mid-meal, for a customer to check) and the staff decide
+        // separately when the order is actually done. We still ask for a payment
+        // method if none is recorded, since that belongs on the bill.
         if (!order.payment_method) {
             setPaymentModalOpen(true);
             return;
-        }
-        if (order.status === 'accepted') {
-            try {
-                await updateOrderStatus(actionOrders, order.id, 'completed', commitOrders);
-                toast.success("Order marked as completed");
-            } catch (error) {
-                console.error("Error updating order status on print:", error);
-            }
         }
         window.open(`/bill/${order.id}`, '_blank');
     };
@@ -412,14 +404,9 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
         await updateOrderPaymentMethod(order.id, method, actionOrders, commitOrders);
         setPaymentModalOpen(false);
 
-        // Also perform completion logic if it wasn't already accepted/completed
-        if (order.status === 'accepted') {
-            try {
-                await updateOrderStatus(actionOrders, order.id, 'completed', commitOrders);
-
-            } catch (e) { console.error(e); }
-        }
-
+        // Recording the payment method must not complete the order either — this
+        // chooser is opened by Print, so completing here would change the status
+        // as a side effect of printing.
         window.open(`/bill/${order.id}`, '_blank');
     };
 

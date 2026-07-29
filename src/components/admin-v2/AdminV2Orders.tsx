@@ -514,33 +514,14 @@ export function AdminV2Orders() {
     }
   };
 
-  const checkAndCompleteOrder = async (order: Order) => {
-    if (order.status === "accepted") {
-      try {
-        // Always update Order Status to completed first
-        await updateOrderStatus(lookupOrders, order.id, "completed", setPagedOrdersOnly);
-        let message = "Order marked as completed";
-
-        // Removed table unlocking logic
-
-        toast.success(message);
-      } catch (err) {
-        console.error("Auto-complete error:", err);
-        toast.error("Failed to auto-complete order");
-      }
-    }
-  };
-
   const handlePrintBill = async (order: Order) => {
-    // Completion is now tied to choosing a payment method. If none is set yet,
-    // open the chooser and do NOT complete or print — cancelling leaves the
-    // order untouched. If a method already exists, complete + open the bill.
+    // Printing NEVER changes the order's status. We still ask for a payment
+    // method when none is recorded, since that belongs on the bill.
     if (!order.payment_method) {
       setOrderToPrint(order.id);
       setPaymentModalOpen(true);
       return;
     }
-    await checkAndCompleteOrder(order);
     window.open(`/bill/${order.id}`, "_blank");
   };
 
@@ -550,12 +531,8 @@ export function AdminV2Orders() {
     await updateOrderPaymentMethod(orderId, method, lookupOrders, setPagedOrdersOnly);
     setPaymentModalOpen(false);
 
-    // Now that a payment method is chosen, mark the order completed (only if it
-    // was accepted) and open the bill.
-    const order = lookupOrders.find((o) => o.id === orderId);
-    if (order) {
-      await checkAndCompleteOrder(order);
-    }
+    // Recording the payment method does not complete the order — this chooser is
+    // opened by Print, so completing here would change the status on print.
     window.open(`/bill/${orderId}`, "_blank");
     setOrderToPrint(null);
   };
