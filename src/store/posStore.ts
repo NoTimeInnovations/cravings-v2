@@ -23,7 +23,7 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { v4 as uuidv4 } from "uuid";
 
 
-import { computeDiscountAmount } from "@/lib/discountUtils";
+import { computeDiscountAmount, isDiscountStackingEnabled, limitDiscounts } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems } from "@/lib/takeawayPricing";
 import { findOrCreateUserByPhone } from "@/lib/whatsappFlow/silentUser";
@@ -585,13 +585,17 @@ export const usePOSStore = create<POSState>((set, get) => ({
       editingOrderId,
       cartItems,
       extraCharges,
-      discounts,
+      discounts: rawDiscounts,
       userPhone,
       tableNumber,
       orderNote,
       totalAmount,
       posOrderType
     } = get();
+    const discounts = limitDiscounts(
+      rawDiscounts,
+      (useAuthStore.getState().userData as Partner)?.delivery_rules,
+    );
 
     if (!editingOrderId) return;
 
@@ -714,8 +718,14 @@ export const usePOSStore = create<POSState>((set, get) => ({
       ...discount,
       id: uuidv4(),
     };
+    // One discount per bill unless the partner turned stacking on. Previously
+    // this always appended, so staff could add the same offer repeatedly and
+    // walk the total down.
+    const stacking = isDiscountStackingEnabled(
+      (useAuthStore.getState().userData as Partner)?.delivery_rules,
+    );
     set((state) => ({
-      discounts: [...state.discounts, newDiscount],
+      discounts: stacking ? [...state.discounts, newDiscount] : [newDiscount],
     }));
   },
 
@@ -729,7 +739,11 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   calculateTotalWithCharges: () => {
-    const { cartItems, extraCharges, discounts, posOrderType } = get();
+    const { cartItems, extraCharges, discounts: rawDiscounts, posOrderType } = get();
+    const discounts = limitDiscounts(
+      rawDiscounts,
+      (useAuthStore.getState().userData as Partner)?.delivery_rules,
+    );
     const hotelData = useAuthStore.getState().userData as Partner;
     const gstPercentage = hotelData?.gst_percentage || 0;
 
@@ -781,7 +795,11 @@ export const usePOSStore = create<POSState>((set, get) => ({
   checkout: async () => {
     try {
       set({ loading: true });
-      const { cartItems, extraCharges, discounts, isCaptainOrder, qrGroup, orderNote, paymentMethod, posOrderType } = get();
+      const { cartItems, extraCharges, discounts: rawDiscounts, isCaptainOrder, qrGroup, orderNote, paymentMethod, posOrderType } = get();
+      const discounts = limitDiscounts(
+        rawDiscounts,
+        (useAuthStore.getState().userData as Partner)?.delivery_rules,
+      );
       const userData = useAuthStore.getState().userData;
       console.log("User Data:", {
         id: userData?.id,

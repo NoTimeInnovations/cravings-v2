@@ -49,3 +49,25 @@ export function getDiscountAmount(
   if (Number.isFinite(saved) && saved > 0) return saved;
   return computeDiscountAmount(discount, subtotal);
 }
+
+/**
+ * Whether this partner may put MORE THAN ONE discount on a single bill.
+ *
+ * Defaults to false — one discount per order. The POS keeps discounts in an
+ * array and used to append without any limit, so staff could stack the same
+ * offer repeatedly and walk a bill down; the storefront has always allowed a
+ * single discount. Partners opt into stacking explicitly.
+ */
+export function isDiscountStackingEnabled(deliveryRules: any): boolean {
+  return !!deliveryRules?.discount_stacking;
+}
+
+/**
+ * Clamp a discount list to what the partner's setting allows. Applied wherever
+ * totals are computed or persisted, so a stale client (or an order edited
+ * before the setting was turned off) can't bypass the UI-level rule.
+ */
+export function limitDiscounts<T>(discounts: T[], deliveryRules: any): T[] {
+  if (!Array.isArray(discounts) || discounts.length <= 1) return discounts || [];
+  return isDiscountStackingEnabled(deliveryRules) ? discounts : discounts.slice(0, 1);
+}

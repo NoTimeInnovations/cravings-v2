@@ -21,6 +21,9 @@ import {
 } from "@/api/discounts";
 import { Loader2, Plus, Trash2, Tag, Copy, Check, Search, Pencil } from "lucide-react";
 import { getMenu } from "@/api/menu";
+import { updatePartner } from "@/api/partners";
+import { revalidateTag } from "@/app/actions/revalidate";
+import { isDiscountStackingEnabled } from "@/lib/discountUtils";
 
 type Discount = {
     id: string;
@@ -99,7 +102,10 @@ function toLocalDatetime(iso: string | null) {
 }
 
 export function DiscountCodeSettings() {
-    const { userData } = useAuthStore();
+    const { userData, setState } = useAuthStore();
+    // One discount per bill by default; partners opt into stacking.
+    const [stacking, setStacking] = useState(false);
+    const [savingStacking, setSavingStacking] = useState(false);
     const [discounts, setDiscounts] = useState<Discount[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -123,6 +129,32 @@ export function DiscountCodeSettings() {
             fetchMenuItems();
         }
     }, [userData?.id]);
+
+    useEffect(() => {
+        setStacking(isDiscountStackingEnabled((userData as any)?.delivery_rules));
+    }, [userData]);
+
+    // delivery_rules is a shared blob (delivery, round-off, parcel charges…), so
+    // read-modify-write — never replace it wholesale from here.
+    const saveStacking = async (value: boolean) => {
+        if (!userData?.id) return;
+        const previous = stacking;
+        setStacking(value);
+        setSavingStacking(true);
+        try {
+            const rules = { ...((userData as any)?.delivery_rules || {}), discount_stacking: value };
+            await updatePartner(userData.id, { delivery_rules: rules } as any);
+            revalidateTag(userData.id);
+            setState({ delivery_rules: rules } as any);
+            toast.success(value ? "Multiple discounts allowed" : "One discount per order");
+        } catch (e) {
+            console.error("Failed to save discount stacking:", e);
+            setStacking(previous);
+            toast.error("Could not save that setting");
+        } finally {
+            setSavingStacking(false);
+        }
+    };
 
     const fetchMenuItems = async () => {
         if (!userData?.id) return;
@@ -395,6 +427,23 @@ export function DiscountCodeSettings() {
                             <Plus className="h-4 w-4 mr-1" />
                             New Discount
                         </Button>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5 pr-3">
+                            <Label className="text-sm">Allow multiple discounts on one order</Label>
+                            <p className="text-xs text-muted-foreground">
+                                Off by default: only one discount applies per bill, and adding
+                                another replaces it. Turn on to let discounts stack and subtract
+                                together. Applies at the counter (POS); online checkout always
+                                takes a single discount.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={stacking}
+                            disabled={savingStacking}
+                            onCheckedChange={saveStacking}
+                        />
                     </div>
                 </CardHeader>
 
