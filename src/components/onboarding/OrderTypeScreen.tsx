@@ -28,6 +28,8 @@ interface OrderTypeScreenProps {
   accent?: string;
   /** Store identity shown at the top (logo/name passed via storeBanner/storeName). */
   locationText?: string;
+  /** Brand tagline. Shown under the store name in place of `locationText` when set. */
+  tagline?: string;
   socialLinks?: { phone?: string; whatsapp?: string; instagram?: string; googleReview?: string } | null;
   mapHref?: string | null;
   /** Render the store logo large (full-width) instead of the small badge. */
@@ -53,6 +55,7 @@ export default function OrderTypeScreen({
   storeBanner,
   storeName,
   locationText,
+  tagline,
   socialLinks,
   mapHref,
   logoFullScreen = false,
@@ -136,7 +139,11 @@ export default function OrderTypeScreen({
             </div>
           )}
           {storeName && <h2 className="mt-2.5 text-lg font-bold tracking-tight">{storeName}</h2>}
-          {locationText && <p className="mt-0.5 text-[13px] text-white/70">{locationText}</p>}
+          {/* The brand's tagline is the line that belongs under its name. Only
+              when no tagline is set does the address stand in for it. */}
+          {(tagline?.trim() || locationText) && (
+            <p className="mt-0.5 text-[13px] text-white/70">{tagline?.trim() || locationText}</p>
+          )}
 
           {hasContacts && (
             <div className="mt-3 flex items-center justify-center gap-2">

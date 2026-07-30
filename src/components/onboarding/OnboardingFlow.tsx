@@ -566,6 +566,7 @@ export default function OnboardingFlow({
             hotelTimezone={hotelTimezone}
             accent={accent}
             locationText={hotelData?.location_details || (hotelData as any)?.location || hotelData?.district || hotelData?.country || ""}
+            tagline={brandDisplayTagline}
             socialLinks={socialLinks}
             mapHref={getPartnerMapsUrl(hotelData)}
             logoFullScreen={onboardingLogoFullScreen}
