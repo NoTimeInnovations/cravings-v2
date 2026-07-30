@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { runLoyaltyTriggeredFlows } from "@/lib/whatsappFlow/engine";
 import { getFeatures } from "@/lib/getFeatures";
+import { toWhatsAppNumber } from "@/lib/countryPhoneMap";
 import { parseLoyaltySettings, pointsToValue } from "@/lib/loyalty/config";
 
 // Receives the Hasura event trigger on `loyalty_transactions` (INSERT only —
@@ -23,7 +24,7 @@ const TYPE_TO_EVENT: Record<string, string | undefined> = {
 
 const Q_CTX = `
   query LoyaltyCtx($pid: uuid!, $uid: uuid!, $aid: uuid!) {
-    partners_by_pk(id: $pid) { store_name currency feature_flags loyalty_settings }
+    partners_by_pk(id: $pid) { store_name currency feature_flags loyalty_settings country_code }
     users_by_pk(id: $uid) { full_name phone }
     loyalty_accounts_by_pk(id: $aid) { lifetime_earned }
     whatsapp_business_integrations(where: { partner_id: { _eq: $pid } }, order_by: {is_primary: desc, updated_at: asc}, limit: 1) { phone_number_id }
@@ -35,12 +36,8 @@ const Q_ORDER_DISPLAY = `
   }
 `;
 
-function normalizePhone(raw: string): string {
-  let p = String(raw || "").replace(/[^0-9]/g, "");
-  if (p.startsWith("0")) p = "91" + p.slice(1);
-  if (p.length === 10) p = "91" + p;
-  return p;
-}
+// Country-aware normalisation lives in toWhatsAppNumber — hardcoding India here
+// silently dropped every UAE (and other short-local-length) customer.
 
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
@@ -102,8 +99,8 @@ export async function POST(req: NextRequest) {
 
     const customerRaw = user.phone;
     if (!customerRaw) return NextResponse.json({ ok: true });
-    const customerPhone = normalizePhone(customerRaw);
-    if (customerPhone.length < 11) return NextResponse.json({ ok: true });
+    const customerPhone = toWhatsAppNumber(customerRaw, partner.country_code);
+    if (customerPhone.length < 10) return NextResponse.json({ ok: true });
 
     const settings = parseLoyaltySettings(partner.loyalty_settings);
     const currency = partner.currency ?? "₹";

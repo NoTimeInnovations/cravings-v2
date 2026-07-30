@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { toWhatsAppNumber } from "@/lib/countryPhoneMap";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
     // see the restaurant's brand. Falls back to Menuthere's number below.
     let partnerPhoneNumberId: string | null = null;
     let partnerToken: string | null = null;
+    let partnerCountryCode: string | null = null;
     if (partnerId) {
       try {
         const query = `
@@ -91,10 +93,14 @@ export async function POST(request: NextRequest) {
               phone_number_id
               access_token
             }
+            # Customer numbers are stored without a country code; the partner's is
+            # what turns one into a sendable E.164 number.
+            partners_by_pk(id: $partner_id) { country_code }
           }
         `;
         const data = await fetchFromHasura(query, { partner_id: partnerId });
         const integration = data?.whatsapp_business_integrations?.[0];
+        partnerCountryCode = data?.partners_by_pk?.country_code ?? null;
 
         if (integration?.phone_number_id) {
           partnerPhoneNumberId = integration.phone_number_id;
@@ -107,14 +113,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Format phone number — remove everything except digits
-    let formattedPhone = phone.replace(/[\s\-\+\(\)]/g, "");
-    if (formattedPhone.startsWith("0")) {
-      formattedPhone = "91" + formattedPhone.slice(1);
-    }
-    if (formattedPhone.length === 10) {
-      formattedPhone = "91" + formattedPhone;
-    }
+    // Country-aware: prefix the PARTNER's country code, not a hardcoded 91 (which
+    // sent a UAE customer's number to a non-existent Indian one, or left it too
+    // short to be accepted at all).
+    const formattedPhone = toWhatsAppNumber(phone, partnerCountryCode);
 
     // Build message payload
     let messagePayload: any = {

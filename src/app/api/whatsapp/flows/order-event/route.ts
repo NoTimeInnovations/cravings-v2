@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { toWhatsAppNumber } from "@/lib/countryPhoneMap";
 import { runOrderTriggeredFlows } from "@/lib/whatsappFlow/engine";
 import { isWhatsappEnabled } from "@/lib/whatsapp-features";
 import { displayChargeName } from "@/lib/chargeLabel";
@@ -17,7 +18,7 @@ const Q_ORDER = `
       gst_included extra_charges discounts loyalty_redeem_value loyalty_points_redeemed
       delivery_agent delivery_provider_meta
       delivery_boy { name phone }
-      partner { store_name currency }
+      partner { store_name currency country_code }
       user { full_name phone }
       order_items { quantity item menu { name price } }
     }
@@ -36,12 +37,10 @@ const Q_PHONE_NUMBER_ID = `
   }
 `;
 
-function normalizePhone(raw: string): string {
-  let p = String(raw || "").replace(/[^0-9]/g, "");
-  if (p.startsWith("0")) p = "91" + p.slice(1);
-  if (p.length === 10) p = "91" + p;
-  return p;
-}
+// Country-aware: customer numbers are stored WITHOUT a country code, so it comes
+// from the partner. Hardcoding India meant a 9-digit UAE number stayed 9 digits
+// and was then dropped by the length guard below — UAE customers silently got
+// nothing. See toWhatsAppNumber.
 
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
@@ -121,8 +120,11 @@ export async function POST(req: NextRequest) {
 
     const customerRaw = order.phone || order.user?.phone;
     if (!customerRaw) return NextResponse.json({ ok: true });
-    const customerPhone = normalizePhone(customerRaw);
-    if (customerPhone.length < 11) return NextResponse.json({ ok: true });
+    const customerPhone = toWhatsAppNumber(customerRaw, order.partner?.country_code);
+    // Sanity floor only — a real E.164 number is always longer than this. The old
+    // `< 11` check silently dropped every correctly-normalised shorter-country
+    // number (UAE is 971 + 9 = 12, but e.g. Qatar is 974 + 8 = 11).
+    if (customerPhone.length < 10) return NextResponse.json({ ok: true });
 
     const currency = order.partner?.currency ?? "₹";
 
