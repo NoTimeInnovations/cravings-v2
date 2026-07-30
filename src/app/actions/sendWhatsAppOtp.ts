@@ -2,6 +2,7 @@
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerWabaIntegration } from "@/lib/whatsapp-meta";
+import { toWhatsAppNumber } from "@/lib/countryPhoneMap";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
@@ -84,35 +85,57 @@ function cleanExpired() {
   }
 }
 
-function formatPhone(phone: string): string {
-  let formatted = phone.replace(/[\s\-\+\(\)]/g, "");
-  if (formatted.startsWith("0")) {
-    formatted = "91" + formatted.slice(1);
+/**
+ * Key for the in-memory OTP store. Deliberately country-INDEPENDENT: verify
+ * receives no partnerId, so it cannot resolve a country code, and if send keyed
+ * on "971…" while verify keyed on something else every OTP would fail to match.
+ * The caller passes the same string to both (useWhatsAppOtp remembers it), so
+ * the raw digits are a stable key.
+ */
+function otpKey(phone: string): string {
+  const digits = String(phone || "").replace(/\D/g, "");
+  // Tolerate a national trunk prefix ("0501234567" vs "501234567"), but never
+  // return empty — the all-zero App Store test number must stay a real key.
+  return digits.replace(/^0+/, "") || digits;
+}
+
+/** The partner's country code, used only to build the number we SEND to. */
+async function getPartnerCountryCode(partnerId: string): Promise<string | null> {
+  try {
+    const res = await fetchFromHasura(
+      `query GetPartnerCc($id: uuid!) { partners_by_pk(id: $id) { country_code } }`,
+      { id: partnerId },
+    );
+    return res?.partners_by_pk?.country_code ?? null;
+  } catch {
+    return null;
   }
-  if (formatted.length === 10) {
-    formatted = "91" + formatted;
-  }
-  return formatted;
 }
 
 export async function sendWhatsAppOtp(
   phone: string,
   partnerId?: string
 ): Promise<{ success: boolean; error?: string }> {
-  const formattedPhone = formatPhone(phone);
+  const key = otpKey(phone);
 
   // Test account: store hardcoded OTP, skip WhatsApp message
   if (isTestPhone(phone)) {
-    otpStore.set(formattedPhone, { code: "123456", expiresAt: Date.now() + 5 * 60 * 1000 });
+    otpStore.set(key, { code: "123456", expiresAt: Date.now() + 5 * 60 * 1000 });
     return { success: true };
   }
+
+  // Customer numbers are stored/typed WITHOUT a country code. Hardcoding India
+  // here meant a 9-digit UAE number was sent as-is and Meta rejected it, so UAE
+  // customers could never log in. Derive the prefix from the partner instead.
+  const partnerCountryCode = partnerId ? await getPartnerCountryCode(partnerId) : null;
+  const formattedPhone = toWhatsAppNumber(phone, partnerCountryCode);
 
   try {
     cleanExpired();
     const code = generateOtp();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
-    otpStore.set(formattedPhone, { code, expiresAt });
+    otpStore.set(key, { code, expiresAt });
 
     // Default sender: Menuthere's shared WhatsApp number, with our token.
     const menutherePhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
@@ -221,7 +244,7 @@ export async function verifyWhatsAppOtp(
 ): Promise<{ success: boolean; error?: string }> {
   cleanExpired();
 
-  const formattedPhone = formatPhone(phone);
+  const formattedPhone = otpKey(phone);
   const stored = otpStore.get(formattedPhone);
 
   if (!stored) {
