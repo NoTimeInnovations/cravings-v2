@@ -1035,7 +1035,11 @@ export const usePOSStore = create<POSState>((set, get) => ({
                   pp_id: item.pp_id,
                   ...(item.is_custom && { is_custom: true }),
                   ...(isFreebie && { is_freebie: true }),
-                  ...(item.tax_inclusive && { tax_inclusive: true }),
+                  // Unconditional, NOT a conditional spread: an ABSENT key is
+                // indistinguishable from false downstream, so omitting it when the
+                // flag is falsy silently turns a tax-inclusive item into a taxed
+                // one on the bill. Recorded as an explicit answer either way.
+                tax_inclusive: !!item.tax_inclusive,
                 },
                 created_at: createdAt,
               };

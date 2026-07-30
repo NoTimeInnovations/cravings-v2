@@ -2585,6 +2585,12 @@ function transformOrderFromHasura(order: any): Order {
       is_top: item.menu?.is_top || false,
       is_available: item.menu?.is_available || true,
       is_freebie: item.item?.is_freebie || false,
+      // Snapshot first (it records what was true at order time), menu row as the
+      // fallback. POS orders wrote this key only when truthy, so an absent key
+      // means "unknown" rather than "taxable" — without the fallback the bill
+      // adds GST to an item whose price already includes it.
+      tax_inclusive:
+        item.item?.tax_inclusive ?? item.menu?.tax_inclusive ?? false,
     })),
     totalPrice: order.total_price || 0,
     createdAt: order.created_at,

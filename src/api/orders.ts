@@ -573,6 +573,7 @@ subscription GetPaginatedPartnerOrders(
         id
         name
         price
+        tax_inclusive
         category {
           id
           name
@@ -694,6 +695,7 @@ subscription GetUpcomingPrebookings(
         id
         name
         price
+        tax_inclusive
         category {
           id
           name
@@ -788,6 +790,7 @@ subscription GetDraftOrders($partner_id: uuid!) {
         id
         name
         price
+        tax_inclusive
         image_url
         description
         category { name }
@@ -844,6 +847,7 @@ subscription GetUserOrders($user_id: uuid!) {
     delivery_boy {
       id
       name
+      tax_inclusive
       phone
       current_lat
       current_lng
@@ -903,6 +907,7 @@ subscription UserPartnerOrders($user_id: uuid!, $partner_id: uuid!, $limit: Int!
       country
       store_name
       name
+      tax_inclusive
     }
     gst_included
     extra_charges
@@ -950,6 +955,7 @@ query UserPartnerOrdersPage($user_id: uuid!, $partner_id: uuid!, $limit: Int!, $
       country
       store_name
       name
+      tax_inclusive
     }
     gst_included
     extra_charges

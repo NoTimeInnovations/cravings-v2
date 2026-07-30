@@ -92,6 +92,7 @@ query GetOrder($id: uuid!) {
         id
         name
         price
+        tax_inclusive
         category {
           id
           name
@@ -186,6 +187,13 @@ const PrintOrderPage = () => {
             is_top: item.menu?.is_top || false,
             is_available: item.menu?.is_available || true,
             is_freebie: item.item?.is_freebie || false,
+            // The snapshot is authoritative WHEN PRESENT — it records what was
+            // true when the order was placed. But POS orders were writing the key
+            // only when truthy, so an absent key means "unknown", not "taxable".
+            // Falling back to the menu row repairs those bills instead of adding
+            // GST to an item whose price already includes it.
+            tax_inclusive:
+              item.item?.tax_inclusive ?? item.menu?.tax_inclusive ?? false,
           })),
           extra_charges: orders_by_pk.extra_charges || [],
           tableNumber: orders_by_pk.table_number, // Ensure this matches your usage
