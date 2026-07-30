@@ -434,6 +434,7 @@ export const updatePartnerMutation = `
       delivery_rules
       cashfree_merchant_id
       accept_payments_via_cashfree
+    own_razorpay_enabled
       accept_cod
       payment_modes
       delivery_qr_method

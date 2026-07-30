@@ -28,6 +28,9 @@ export function PaymentLegalSettings() {
 
     // Payment Methods State
     const [acceptCod, setAcceptCod] = useState(true);
+    // Read-only here: flipped from the Own-Razorpay card / superadmin, not this
+    // screen. Held in state only so the gates above can react to it.
+    const [ownRazorpayEnabled, setOwnRazorpayEnabled] = useState(false);
     const [cashfreeMerchantId, setCashfreeMerchantId] = useState("");
     const [acceptPaymentsViaCashfree, setAcceptPaymentsViaCashfree] = useState(false);
 
@@ -83,13 +86,17 @@ export function PaymentLegalSettings() {
             setAcceptCod((userData as any).accept_cod ?? true);
             setCashfreeMerchantId((userData as any).cashfree_merchant_id || "");
             setAcceptPaymentsViaCashfree((userData as any).accept_payments_via_cashfree || false);
+            setOwnRazorpayEnabled(!!(userData as any).own_razorpay_enabled);
             const dqm = (userData as any).delivery_qr_method;
             setDeliveryQrMethod(dqm === "upi" || dqm === "cashfree" ? dqm : "none");
 
             // Per-method matrix: use saved payment_modes; for any unset method/flag
             // fall back to the global online (cashfree) / cash (cod) values.
             const pm = (userData as any).payment_modes;
-            const baseOnline = (userData as any).accept_payments_via_cashfree || false;
+            const baseOnline =
+                (userData as any).accept_payments_via_cashfree ||
+                (userData as any).own_razorpay_enabled ||
+                false;
             const baseCash = (userData as any).accept_cod ?? true;
             setPaymentModes({
                 delivery: {
@@ -178,7 +185,8 @@ export function PaymentLegalSettings() {
         const initialTrn = data.delivery_rules?.trn || "";
         const initialPaymentModes = (() => {
             const pm = data.payment_modes;
-            const bo = data.accept_payments_via_cashfree || false;
+            const bo =
+                data.accept_payments_via_cashfree || data.own_razorpay_enabled || false;
             const bc = data.accept_cod ?? true;
             return {
                 delivery: { online: pm?.delivery?.online ?? bo, cash: pm?.delivery?.cash ?? bc },
@@ -329,7 +337,7 @@ export function PaymentLegalSettings() {
                 <CardHeader>
                     <CardTitle>Payment options by order type</CardTitle>
                     <CardDescription>
-                        Choose which payment options customers see for each order type. &ldquo;Online&rdquo; requires Cashfree to be configured above.
+                        Choose which payment options customers see for each order type. &ldquo;Online&rdquo; needs an online provider — Cashfree configured above, or your own Razorpay.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -339,7 +347,14 @@ export function PaymentLegalSettings() {
                         { key: "dine_in" as const, label: "Dine-in", cashLabel: "Pay at table" },
                     ]).map(({ key, label, cashLabel }) => {
                         const cfg = paymentModes[key];
-                        const onlineAvailable = acceptPaymentsViaCashfree && !!cashfreeMerchantId.trim();
+                        // Cashfree is ONE online provider, not the definition of
+                        // online. A partner on their own Razorpay can already take
+                        // card/UPI payments (V2 checkout routes to it off this same
+                        // flag), so requiring a Cashfree merchant id from them was
+                        // asking for credentials they will never use.
+                        const onlineAvailable =
+                            (acceptPaymentsViaCashfree && !!cashfreeMerchantId.trim()) ||
+                            ownRazorpayEnabled;
                         const bothOff = !(cfg.online && onlineAvailable) && !cfg.cash;
                         const set = (field: "online" | "cash", val: boolean) =>
                             setPaymentModes((prev) => ({ ...prev, [key]: { ...prev[key], [field]: val } }));
@@ -348,9 +363,13 @@ export function PaymentLegalSettings() {
                                 <div className="font-medium">{label}</div>
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <Label className="text-sm">Online (Cashfree)</Label>
+                                        <Label className="text-sm">
+                                            Online{ownRazorpayEnabled ? " (Razorpay)" : " (Cashfree)"}
+                                        </Label>
                                         {!onlineAvailable && (
-                                            <p className="text-xs text-muted-foreground">Enable Cashfree above to allow online.</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Enable Cashfree above — or your own Razorpay — to allow online.
+                                            </p>
                                         )}
                                     </div>
                                     <Switch
