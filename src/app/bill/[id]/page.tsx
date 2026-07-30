@@ -629,6 +629,19 @@ const PrintOrderPage = () => {
             <span className="font-medium">{L("Type:")}</span>
             <span> {getOrderTypeText(order)}</span>
           </div>
+          {/*
+            Customer name, on every bill type rather than only the delivery block
+            below. Rendered only when one exists: POS orders carry no user at all
+            (0 of 445 in the last fortnight) and `orderedby` is empty everywhere,
+            so a placeholder would be a permanent blank line on counter bills.
+            Spans both columns so a long name does not collide with Time.
+          */}
+          {(order?.user?.full_name || "").trim() && (
+            <div className="col-span-2">
+              <span className="font-medium">{L("Customer:")}</span>
+              <span> {order.user.full_name}</span>
+            </div>
+          )}
           <div className="text-right">
             <span className="font-medium">{L("Time:")}</span>
             <span>

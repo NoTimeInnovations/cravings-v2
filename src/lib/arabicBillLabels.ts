@@ -21,6 +21,7 @@ export const AR_BILL_LABELS: Record<string, string> = {
   "Tel:": "هاتف:",
   "Date:": "التاريخ:",
   "Type:": "النوع:",
+  "Customer:": "العميل:",
   "Time:": "الوقت:",
   "Subtotal:": "المجموع الفرعي:",
   "TOTAL:": "الإجمالي:",
