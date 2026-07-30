@@ -187,7 +187,7 @@ export default function ProfilePage() {
   const [fssaiLicenceNo, setFssaiLicenceNo] = useState("");
   const [description, setDescription] = useState("");
   const [deliveryRules, setDeliveryRules] = useState<DeliveryRules>({
-    delivery_radius: 5,
+    delivery_radius: 15,
     delivery_ranges: [],
     delivery_mode: "basic", // Default to basic mode
     is_fixed_rate: false,
@@ -295,7 +295,7 @@ export default function ProfilePage() {
         (hasAdvancedRules ? "advanced" : "basic");
 
       setDeliveryRules({
-        delivery_radius: userData.delivery_rules?.delivery_radius || 5,
+        delivery_radius: userData.delivery_rules?.delivery_radius || 15,
         delivery_ranges: userData.delivery_rules?.delivery_ranges || [],
         first_km_range:
           userData.delivery_rules?.first_km_range ||
@@ -1277,7 +1277,7 @@ export default function ProfilePage() {
 
       // Clean up the rules based on delivery mode to avoid storing conflicting data
       const cleanedRules: any = {
-        delivery_radius: deliveryRules?.delivery_radius || 5,
+        delivery_radius: deliveryRules?.delivery_radius || 15,
         delivery_mode: deliveryRules?.delivery_mode || "basic",
         is_fixed_rate: deliveryRules?.is_fixed_rate || false,
         minimum_order_amount: deliveryRules?.minimum_order_amount || 0,

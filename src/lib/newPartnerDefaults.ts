@@ -70,7 +70,7 @@ export const buildNewPartnerTrialSubscription = (country?: string) => {
 export const NEW_PARTNER_DELIVERY_RATE = 0;
 
 export const NEW_PARTNER_DELIVERY_RULES = {
-  delivery_radius: 5,
+  delivery_radius: 15,
   delivery_mode: "basic" as const,
   first_km_range: { km: 1, rate: 0 },
   delivery_ranges: [] as { from_km: number; to_km: number; rate: number }[],

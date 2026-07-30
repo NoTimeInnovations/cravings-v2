@@ -282,7 +282,7 @@ export function DeliverySettings() {
     const [priceAdjustment, setPriceAdjustment] = useState<number | null>(null);
     const [takeawayPriceAdjustment, setTakeawayPriceAdjustment] = useState<number | null>(null);
     const [deliveryRules, setDeliveryRules] = useState<DeliveryRules>({
-        delivery_radius: 5,
+        delivery_radius: 15,
         delivery_ranges: [],
         delivery_mode: "basic",
         is_fixed_rate: false,
@@ -347,7 +347,7 @@ export function DeliverySettings() {
             const deliveryMode = userData.delivery_rules?.delivery_mode || (hasAdvancedRules ? "advanced" : "basic");
 
             setDeliveryRules({
-                delivery_radius: userData.delivery_rules?.delivery_radius || 5,
+                delivery_radius: userData.delivery_rules?.delivery_radius || 15,
                 delivery_ranges: userData.delivery_rules?.delivery_ranges || [],
                 first_km_range: userData.delivery_rules?.first_km_range || (deliveryMode === "basic" && !hasLegacyRules ? { km: 1, rate: 0 } : undefined),
                 delivery_mode: deliveryMode,
@@ -729,7 +729,7 @@ export function DeliverySettings() {
         const deliveryMode = data.delivery_rules?.delivery_mode || (hasAdvancedRules ? "advanced" : "basic");
 
         const initialRules = {
-            delivery_radius: data.delivery_rules?.delivery_radius || 5,
+            delivery_radius: data.delivery_rules?.delivery_radius || 15,
             delivery_ranges: data.delivery_rules?.delivery_ranges || [],
             first_km_range: data.delivery_rules?.first_km_range || (deliveryMode === "basic" && !hasLegacyRules ? { km: 1, rate: 0 } : undefined),
             delivery_mode: deliveryMode,
