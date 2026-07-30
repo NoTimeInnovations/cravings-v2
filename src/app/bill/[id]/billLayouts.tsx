@@ -313,6 +313,19 @@ export function UaeInvoiceLayout({
             Date: <span className="mono">{dateTime}</span>
           </div>
         ) : null}
+        {/*
+          The UAE layout carried customer_name in its data but never printed it,
+          unlike InvoiceLayout. Omitted entirely when absent rather than falling
+          back to "CASH CUSTOMER" like the other layout does — a tax invoice
+          naming a customer who was never recorded is worse than one that stays
+          silent about it.
+        */}
+        {(data.customer_name || "").trim() ? (
+          <div>
+            {fullArabic ? "العميل / Customer" : "Customer"}:{" "}
+            <span>{data.customer_name}</span>
+          </div>
+        ) : null}
       </div>
       <table className="items">
         <tbody>
