@@ -6,7 +6,6 @@ import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { getFeatures } from "@/lib/getFeatures";
 import { useViewOnly } from "@/components/hotelDetail/viewOnlyContext";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { useCustomizerStore } from "@/store/customizerStore";
 import { Offer } from "@/store/offerStore_hasura";
@@ -19,6 +18,7 @@ import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import PairingRecommendations from "@/components/hotelDetail/shared/PairingRecommendations";
+import { orderingChannels } from "@/lib/orderingChannels";
 
 // Bottom sheet footer button with total calculation
 const BottomSheetAddButton = ({
@@ -105,35 +105,14 @@ const ItemCard = ({
   const router = useRouter();
   const liveStockQty = useLiveStock((s) => s.qty);
 
-  const isWithinDeliveryTime = () => {
-    if (!hoteldata?.delivery_rules?.delivery_time_allowed) return true;
-    const convertTimeToMinutes = (timeStr: string) => {
-      const [hours, minutes] = timeStr.split(":").map(Number);
-      return hours * 60 + minutes;
-    };
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-    const startTime = convertTimeToMinutes(
-      hoteldata.delivery_rules.delivery_time_allowed.from ?? "00:00"
-    );
-    const endTime = convertTimeToMinutes(
-      hoteldata.delivery_rules.delivery_time_allowed.to ?? "23:59"
-    );
-    if (startTime > endTime)
-      return currentTime >= startTime || currentTime <= endTime;
-    else return currentTime >= startTime && currentTime <= endTime;
-  };
 
-  const _features = getFeatures(feature_flags || "");
   const viewOnly = useViewOnly();
-  const _dr = hoteldata?.delivery_rules;
-  const _tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
-  const _isDeliveryTimeOpen = _dr?.isDeliveryActive !== false && isWithinTimeWindow(_dr?.delivery_time_allowed, _tz);
-  const _isTakeawayTimeOpen = isWithinTimeWindow(_dr?.takeaway_time_allowed, _tz);
-  const hasDeliveryFeature =
-    _features?.delivery.enabled && tableNumber === 0 && _isDeliveryTimeOpen;
-  const hasOrderingFeature =
-    _features?.ordering.enabled && (tableNumber !== 0 || _isTakeawayTimeOpen);
+  const { hasDeliveryFeature, hasOrderingFeature } = orderingChannels({
+    featureFlags: feature_flags,
+    deliveryRules: hoteldata?.delivery_rules,
+    timezone: (hoteldata as any)?.timezone,
+    tableNumber,
+  });
 
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement

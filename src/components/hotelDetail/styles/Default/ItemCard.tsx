@@ -11,13 +11,13 @@ import DescriptionWithTextBreak from "../../../DescriptionWithTextBreak";
 import useOrderStore from "@/store/orderStore";
 import { useCustomizerStore } from "@/store/customizerStore";
 import { getFeatures } from "@/lib/getFeatures";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 
 import { getTagColor } from "@/data/foodTags";
 import PairingRecommendations from "@/components/hotelDetail/shared/PairingRecommendations";
+import { orderingChannels } from "@/lib/orderingChannels";
 
 const ItemCard = ({
   item,
@@ -70,43 +70,14 @@ const ItemCard = ({
     Record<string, number>
   >({});
 
-  const isWithinDeliveryTime = () => {
-    if (!hotelData?.delivery_rules?.delivery_time_allowed) {
-      return true;
-    }
-
-    const convertTimeToMinutes = (timeStr: string) => {
-      const [hours, minutes] = timeStr.split(":").map(Number);
-      return hours * 60 + minutes;
-    };
-
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-
-    const startTime = convertTimeToMinutes(
-      hotelData.delivery_rules.delivery_time_allowed.from ?? "00:00"
-    );
-    const endTime = convertTimeToMinutes(
-      hotelData.delivery_rules.delivery_time_allowed.to ?? "23:59"
-    );
-
-    if (startTime > endTime) {
-      return currentTime >= startTime || currentTime <= endTime;
-    } else {
-      return currentTime >= startTime && currentTime <= endTime;
-    }
-  };
 
   // --- Feature Flags & Stock Logic ---
-  const _features = getFeatures(feature_flags || "");
-  const _deliveryRules = hotelData?.delivery_rules;
-  const _isDeliveryTimeOpen = _deliveryRules?.isDeliveryActive !== false &&
-    isWithinTimeWindow(_deliveryRules?.delivery_time_allowed);
-  const _isTakeawayTimeOpen = isWithinTimeWindow(_deliveryRules?.takeaway_time_allowed);
-  const hasOrderingFeature =
-    _features?.ordering.enabled && (tableNumber !== 0 || _isTakeawayTimeOpen);
-  const hasDeliveryFeature =
-    _features?.delivery.enabled && tableNumber === 0 && _isDeliveryTimeOpen;
+  const { hasOrderingFeature, hasDeliveryFeature } = orderingChannels({
+    featureFlags: feature_flags,
+    deliveryRules: hotelData?.delivery_rules,
+    timezone: (hotelData as any)?.timezone,
+    tableNumber,
+  });
 
   const hasStockFeature =
     getFeatures(feature_flags || "")?.stockmanagement?.enabled

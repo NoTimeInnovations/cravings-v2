@@ -8,13 +8,13 @@ import useOrderStore from "@/store/orderStore";
 import { useCustomizerStore } from "@/store/customizerStore";
 import { useRegisterItemSheet } from "@/store/itemSheetStore";
 import { getFeatures } from "@/lib/getFeatures";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice } from "@/lib/constants";
 import { Minus, Plus, Star, UtensilsCrossed } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
+import { orderingChannels } from "@/lib/orderingChannels";
 
 /** Blend a foreground hex onto a background hex at a given opacity (0-1). Returns a solid opaque hex. */
 function blendHex(fg: string, bg: string, opacity: number): string {
@@ -103,15 +103,12 @@ const SidebarItemCard = ({
     return currentTime >= startTime && currentTime <= endTime;
   };
 
-  const _features = getFeatures(feature_flags || "");
-  const _dr = hotelData?.delivery_rules;
-  const _tz = (hotelData as any)?.timezone || "Asia/Kolkata";
-  const _isDeliveryTimeOpen = _dr?.isDeliveryActive !== false && isWithinTimeWindow(_dr?.delivery_time_allowed, _tz);
-  const _isTakeawayTimeOpen = isWithinTimeWindow(_dr?.takeaway_time_allowed, _tz);
-  const hasOrderingFeature =
-    _features?.ordering.enabled && (tableNumber !== 0 || _isTakeawayTimeOpen);
-  const hasDeliveryFeature =
-    _features?.delivery.enabled && tableNumber === 0 && _isDeliveryTimeOpen;
+  const { hasOrderingFeature, hasDeliveryFeature } = orderingChannels({
+    featureFlags: feature_flags,
+    deliveryRules: hotelData?.delivery_rules,
+    timezone: (hotelData as any)?.timezone,
+    tableNumber,
+  });
 
   const hasStockFeature =
     getFeatures(feature_flags || "")?.stockmanagement?.enabled;

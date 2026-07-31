@@ -5,7 +5,6 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { getFeatures } from "@/lib/getFeatures";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { useCustomizerStore } from "@/store/customizerStore";
 import { useRegisterItemSheet } from "@/store/itemSheetStore";
@@ -20,6 +19,7 @@ import { flyToCart } from "./v6FlyToCart";
 import { MenuPrice } from "../../MenuPrice";
 import { useMenuLanguageStore } from "@/store/menuLanguageStore";
 import { X, Plus, Minus } from "lucide-react";
+import { orderingChannels } from "@/lib/orderingChannels";
 
 /**
  * V6 ("Grocery") product card — a vertical card for the 2-column grid: a large
@@ -223,16 +223,13 @@ const V6ItemCard = ({
   const nameTranslate = showArabicName ? ("no" as const) : undefined;
   const nameNo = showArabicName ? " notranslate" : "";
 
-  const features = getFeatures(feature_flags || "");
   const deliveryRules = hoteldata?.delivery_rules;
-  const _tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
-  const isDeliveryTimeOpen = deliveryRules?.isDeliveryActive !== false &&
-    isWithinTimeWindow(deliveryRules?.delivery_time_allowed, _tz);
-  const isTakeawayTimeOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed, _tz);
-  const hasDeliveryFeature =
-    features?.delivery.enabled && tableNumber === 0 && isDeliveryTimeOpen;
-  const hasOrderingFeature =
-    features?.ordering.enabled && (tableNumber !== 0 || isTakeawayTimeOpen);
+  const { hasDeliveryFeature, hasOrderingFeature } = orderingChannels({
+    featureFlags: feature_flags,
+    deliveryRules,
+    timezone: (hoteldata as any)?.timezone,
+    tableNumber,
+  });
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement?.enabled;
   const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);

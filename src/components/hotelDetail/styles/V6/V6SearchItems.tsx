@@ -3,7 +3,7 @@ import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { Search, ArrowLeft, ShoppingCart, Plus, Minus } from "lucide-react";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { getFeatures } from "@/lib/getFeatures";
+import { orderingChannels } from "@/lib/orderingChannels";
 import useOrderStore from "@/store/orderStore";
 import { formatPrice } from "@/lib/constants";
 import { readableTextColor } from "@/lib/brandColor";
@@ -65,9 +65,15 @@ const V6SearchRow = ({
   const nameTranslate = showArabicName ? ("no" as const) : undefined;
   const nameNo = showArabicName ? " notranslate" : "";
 
-  const features = getFeatures(hoteldata?.feature_flags || "");
-  const hasOrderingFeature = features?.ordering.enabled && tableNumber !== 0;
-  const hasDeliveryFeature = features?.delivery.enabled && tableNumber === 0;
+  // Shared with V6ItemCard so search can never be looser than the menu behind
+  // it — this overlay used to skip the opening windows entirely and offered ADD
+  // on a closed restaurant.
+  const { hasOrderingFeature, hasDeliveryFeature } = orderingChannels({
+    featureFlags: hoteldata?.feature_flags,
+    deliveryRules: hoteldata?.delivery_rules,
+    timezone: (hoteldata as any)?.timezone,
+    tableNumber,
+  });
 
   const shouldShowPrice = hoteldata?.currency !== "🚫";
   const price =
@@ -380,10 +386,12 @@ const V6SearchItems = ({
 
   // Only show the cart FAB when the store actually supports ordering (same gate
   // the per-row Add button uses). View-only menus have no cart to show.
-  const features = getFeatures(hoteldata?.feature_flags || "");
-  const canOrder =
-    !!((features?.ordering.enabled && tableNumber !== 0) ||
-      (features?.delivery.enabled && tableNumber === 0));
+  const { canOrder } = orderingChannels({
+    featureFlags: hoteldata?.feature_flags,
+    deliveryRules: hoteldata?.delivery_rules,
+    timezone: (hoteldata as any)?.timezone,
+    tableNumber,
+  });
 
   useEffect(() => {
     document.body.style.overflow = "hidden";

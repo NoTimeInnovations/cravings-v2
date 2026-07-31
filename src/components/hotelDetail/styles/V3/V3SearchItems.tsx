@@ -4,7 +4,7 @@ import { Search, X, Plus, Minus, ArrowLeft, ShoppingBag } from "lucide-react";
 import { readableTextColor } from "@/lib/brandColor";
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { getFeatures } from "@/lib/getFeatures";
+import { orderingChannels } from "@/lib/orderingChannels";
 import useOrderStore from "@/store/orderStore";
 import { formatPrice } from "@/lib/constants";
 import { Input } from "@/components/ui/input";
@@ -48,9 +48,15 @@ const V3SearchResultItem = ({
 }) => {
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
 
-  const hasOrderingFeature = getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled && tableNumber !== 0;
-  const hasDeliveryFeature = getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled && tableNumber === 0;
-  const showAddButton = hasOrderingFeature || hasDeliveryFeature;
+  // Shared with V3ItemCard so search can never be looser than the menu behind
+  // it — this overlay used to skip the opening windows entirely and offered ADD
+  // on a closed restaurant.
+  const { canOrder: showAddButton } = orderingChannels({
+    featureFlags: hoteldata?.feature_flags,
+    deliveryRules: hoteldata?.delivery_rules,
+    timezone: (hoteldata as any)?.timezone,
+    tableNumber,
+  });
 
   const hasVariants = item.variants && item.variants.length > 0;
   const itemInCart = items?.find((i) => i.id === item.id);

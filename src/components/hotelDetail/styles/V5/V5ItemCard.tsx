@@ -6,7 +6,6 @@ import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { getFeatures } from "@/lib/getFeatures";
 import { useViewOnly } from "@/components/hotelDetail/viewOnlyContext";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { useCustomizerStore } from "@/store/customizerStore";
 import { Offer } from "@/store/offerStore_hasura";
@@ -18,6 +17,7 @@ import { useLiveStock } from "@/store/liveStockStore";
 import { X, Plus, Minus } from "lucide-react";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import PairingRecommendations from "@/components/hotelDetail/shared/PairingRecommendations";
+import { orderingChannels } from "@/lib/orderingChannels";
 
 // V5 ("Zomato") list row — a large food image on the right with the ADD button
 // floating over its bottom edge, and the textual content (veg mark, name,
@@ -210,17 +210,14 @@ const V5ItemCard = ({
   const liveStockQty = useLiveStock((s) => s.qty);
   const router = useRouter();
 
-  const features = getFeatures(feature_flags || "");
   const viewOnly = useViewOnly();
   const deliveryRules = hoteldata?.delivery_rules;
-  const _tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
-  const isDeliveryTimeOpen = deliveryRules?.isDeliveryActive !== false &&
-    isWithinTimeWindow(deliveryRules?.delivery_time_allowed, _tz);
-  const isTakeawayTimeOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed, _tz);
-  const hasDeliveryFeature =
-    features?.delivery.enabled && tableNumber === 0 && isDeliveryTimeOpen;
-  const hasOrderingFeature =
-    features?.ordering.enabled && (tableNumber !== 0 || isTakeawayTimeOpen);
+  const { hasDeliveryFeature, hasOrderingFeature } = orderingChannels({
+    featureFlags: feature_flags,
+    deliveryRules,
+    timezone: (hoteldata as any)?.timezone,
+    tableNumber,
+  });
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement?.enabled;
   const isOutOfStock = computeOutOfStock(item, hasStockFeature, liveStockQty);

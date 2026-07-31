@@ -8,14 +8,13 @@ import ItemCard from "./ItemCard";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import { DefaultHotelPageProps } from "../Default/Default";
 import useOrderStore from "@/store/orderStore";
-import { getFeatures } from "@/lib/getFeatures";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 
 // Import shadcn/ui components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { filterMenuByQuery } from "@/lib/menuSearch";
+import { orderingChannels } from "@/lib/orderingChannels";
 
 // Search result item with add button
 const SearchResultItem = ({
@@ -31,12 +30,12 @@ const SearchResultItem = ({
 }) => {
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
 
-  const _dr = hoteldata?.delivery_rules;
-  const _isDelOpen = _dr?.isDeliveryActive !== false && isWithinTimeWindow(_dr?.delivery_time_allowed);
-  const _isTakOpen = isWithinTimeWindow(_dr?.takeaway_time_allowed);
-  const hasOrderingFeature = getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled && (tableNumber !== 0 || _isTakOpen);
-  const hasDeliveryFeature = getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled && tableNumber === 0 && _isDelOpen;
-  const showAddButton = hasOrderingFeature || hasDeliveryFeature;
+  const { canOrder: showAddButton } = orderingChannels({
+    featureFlags: hoteldata?.feature_flags,
+    deliveryRules: hoteldata?.delivery_rules,
+    timezone: (hoteldata as any)?.timezone,
+    tableNumber,
+  });
 
   const hasVariants = item.variants && item.variants.length > 0;
   const itemInCart = items?.find((i) => i.id === item.id);

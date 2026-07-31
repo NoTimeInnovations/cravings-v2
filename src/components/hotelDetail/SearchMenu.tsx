@@ -9,12 +9,12 @@ import { toast } from "sonner";
 import ItemDetailsModal from "./styles/Default/ItemDetailsModal";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import { getFeatures } from "@/lib/getFeatures";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice } from "@/lib/constants";
 import { computeOutOfStock } from "@/lib/stockStatus";
 import { useLiveStock } from "@/store/liveStockStore";
 import { filterMenuByQuery } from "@/lib/menuSearch";
 import { useRegisterItemSheet } from "@/store/itemSheetStore";
+import { orderingChannels } from "@/lib/orderingChannels";
 
 const SearchMenu = ({
   hotelData,
@@ -278,19 +278,12 @@ const SearchMenu = ({
                   // Same conditions as SidebarItemCard's showAddButton
                   const features = getFeatures(hotelData.feature_flags || "");
                   // Store hours in the RESTAURANT's timezone, not the customer's browser.
-                  const _hotelTz = (hotelData as any)?.timezone || "Asia/Kolkata";
-                  const isWithinDeliveryTime = () =>
-                    isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed, _hotelTz);
-                  const isWithinTakeawayTime = () =>
-                    isWithinTimeWindow(hotelData?.delivery_rules?.takeaway_time_allowed, _hotelTz);
-                  const hasOrderingFeature =
-                    features?.ordering?.enabled &&
-                    (tableNumber !== 0 || isWithinTakeawayTime());
-                  const hasDeliveryFeature =
-                    features?.delivery?.enabled &&
-                    tableNumber === 0 &&
-                    (hotelData?.delivery_rules?.isDeliveryActive ?? true) &&
-                    isWithinDeliveryTime();
+                  const { hasOrderingFeature, hasDeliveryFeature } = orderingChannels({
+                    featureFlags: hotelData.feature_flags,
+                    deliveryRules: hotelData?.delivery_rules,
+                    timezone: (hotelData as any)?.timezone,
+                    tableNumber,
+                  });
                   const hasStockFeature = features?.stockmanagement?.enabled;
                   const isOutOfStock = computeOutOfStock(
                     item,
