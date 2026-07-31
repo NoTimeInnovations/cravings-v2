@@ -27,6 +27,7 @@ import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { taxLabel } from "@/lib/taxLabel";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
+import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
 
 export interface MenuItem {
   id?: string;
@@ -96,6 +97,7 @@ export const EditOrderModal = () => {
   >([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [tableNumber, setTableNumber] = useState<number | null>(null);
+  const [discounts, setDiscounts] = useState<any[]>([]);
   const [phone, setPhone] = useState<string | null>(null);
   const [newItemId, setNewItemId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -117,6 +119,9 @@ export const EditOrderModal = () => {
     setItems([]);
     setTotalPrice(0);
     setTableNumber(null);
+    // Reset with the rest: this modal is reused for every order, and a
+    // leftover discount would price the NEXT order until its fetch lands.
+    setDiscounts([]);
     setPhone(null);
     setNewItemId("");
     setSearchQuery("");
@@ -168,6 +173,7 @@ export const EditOrderModal = () => {
           }))
         );
         setTotalPrice(orderData.total_price);
+        setDiscounts(orderData.discounts ?? []);
         setTableNumber(orderData.table_number);
         setPhone(orderData.phone);
 
@@ -214,24 +220,44 @@ export const EditOrderModal = () => {
         )
       : 0;
 
+    const preDiscount = subtotal + extraChargesTotal + qrGroupCharges;
+
+    // Honour the order's existing discount. This editor used to ignore discounts
+    // entirely and write an UNDISCOUNTED total — which went unnoticed only
+    // because the same save also blanked the discounts column, so the bill was
+    // consistently wrong rather than visibly wrong. Now that the column is
+    // preserved, the total has to agree with it. Mirrors AdminV2EditOrder.
+    const discountAmount = discounts.reduce((total, discount) => {
+      const disc = discount as any;
+      return total + (disc.type === "freebie"
+        ? getDiscountAmount(disc, preDiscount)
+        : computeDiscountAmount(disc, preDiscount));
+    }, 0);
+
+    const discountedTotal = Math.max(0, preDiscount - discountAmount);
+    const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+
+    // GST only on tax-EXCLUSIVE lines, scaled by the discount ratio so a
+    // discounted bill is not taxed on the pre-discount amount.
+    const ratio = subtotal > 0 ? discountedSubtotal / subtotal : 0;
     const { additionalGst: gstAmount } = calculateGstForItems(
       // These live under `menu` — reading them off the top level yielded
       // undefined, so amount = undefined * qty = NaN and the saved total_price
       // was written as NaN/null.
       currentItems.map((i) => ({
-        price: i.menu.price,
+        price: i.menu.price * ratio,
         quantity: i.quantity,
         tax_inclusive: i.menu.tax_inclusive,
       })),
       gstPercentage,
     );
-    return subtotal + extraChargesTotal + qrGroupCharges + gstAmount;
+    return { total: discountedTotal + gstAmount, gstAmount };
   };
 
   useEffect(() => {
-    const newTotal = calculateTotal(items, extraCharges);
-    setTotalPrice(newTotal);
-  }, [items, extraCharges, qrGroup, gstPercentage]);
+    const { total } = calculateTotal(items, extraCharges);
+    setTotalPrice(total);
+  }, [items, extraCharges, qrGroup, gstPercentage, discounts]);
 
   const fetchQrGroupForTable = async (tableNum: number | null) => {
     if (tableNum === null) {
@@ -363,14 +389,24 @@ export const EditOrderModal = () => {
 
     try {
       setUpdating(true);
-      const finalTotal = calculateTotal(items, extraCharges);
+      const { total: finalTotal, gstAmount } = calculateTotal(items, extraCharges);
 
+      // Only the columns this editor owns. Keys left out are genuinely left
+      // alone — previously every omitted variable was written as NULL by
+      // Hasura, so each save here blanked discounts, table_number and
+      // delivery_address. delivery_address stays out on purpose: this editor
+      // never loads or edits it.
       await fetchFromHasura(updateOrderMutation, {
         id: order?.id,
-        totalPrice: finalTotal,
-        phone: phone || "",
-        extraCharges: extraCharges.length > 0 ? extraCharges : null,
-        notes: orderNote || null,
+        set: {
+          total_price: finalTotal,
+          gst_included: gstAmount,
+          phone: phone || "",
+          table_number: tableNumber,
+          extra_charges: extraCharges.length > 0 ? extraCharges : null,
+          discounts: discounts.length > 0 ? discounts : null,
+          notes: orderNote || null,
+        },
       });
 
       await fetchFromHasura(updateOrderItemsMutation, {

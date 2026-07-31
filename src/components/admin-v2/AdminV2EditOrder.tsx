@@ -110,6 +110,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         amount: 0,
     });
     const [discounts, setDiscounts] = useState<any[]>([]);
+    const [deliveryAddress, setDeliveryAddress] = useState<string | null>(null);
     const [qrGroup, setQrGroup] = useState<any>(null);
     const [orderNote, setOrderNote] = useState<string>("");
     const [status, setStatus] = useState<string>(order?.status || "pending");
@@ -154,14 +155,20 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                 setTotalPrice(orderData.total_price);
                 setTableNumber(orderData.table_number);
                 setPhone(orderData.phone);
+                // Loaded purely so the save can write it back unchanged. The
+                // query already selected it; nothing read it, so every save sent
+                // the column as null and erased the address off delivery orders.
+                setDeliveryAddress(orderData.delivery_address ?? null);
 
                 if (orderData.extra_charges) {
                     setExtraCharges(orderData.extra_charges);
                 }
 
-                if (orderData.discounts) {
-                    setDiscounts(orderData.discounts);
-                }
+                // `?? []` rather than a truthiness guard: the guard left stale
+                // state behind when an order genuinely had no discounts, and the
+                // save now writes this array back, so it must always mirror the
+                // row it was loaded from.
+                setDiscounts(orderData.discounts ?? []);
 
                 if (orderData.notes) {
                     setOrderNote(orderData.notes);
@@ -232,12 +239,15 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
             gstPercentage,
         );
 
-        return discountedSubtotal + gstAmount;
+        // gstAmount is returned, not just folded into the total: the order row
+        // stores gst_included separately and the bill reads it back, so a save
+        // that updates the total without it leaves the tax line stale.
+        return { total: discountedSubtotal + gstAmount, gstAmount };
     };
 
     useEffect(() => {
-        const newTotal = calculateTotal(items, extraCharges);
-        setTotalPrice(newTotal);
+        const { total } = calculateTotal(items, extraCharges);
+        setTotalPrice(total);
     }, [items, extraCharges, qrGroup, gstPercentage, discounts]);
 
     const fetchQrGroupForTable = async (tableNum: number | null) => {
@@ -376,14 +386,26 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
 
         try {
             setUpdating(true);
-            const finalTotal = calculateTotal(items, extraCharges);
+            const { total: finalTotal, gstAmount } = calculateTotal(items, extraCharges);
 
+            // Every column this editor is responsible for, named explicitly.
+            // It used to send a 5-key subset of an 8-variable mutation, and
+            // because Hasura turns an unprovided variable into an explicit NULL
+            // rather than dropping it, each save silently blanked discounts,
+            // table_number and delivery_address. Anything NOT meant to change
+            // must now be left out of this object entirely, never passed as null.
             await fetchFromHasura(updateOrderMutation, {
                 id: order?.id,
-                totalPrice: finalTotal,
-                phone: phone || "",
-                extraCharges: extraCharges.length > 0 ? extraCharges : null,
-                notes: orderNote || null,
+                set: {
+                    total_price: finalTotal,
+                    gst_included: gstAmount,
+                    phone: phone || "",
+                    table_number: tableNumber,
+                    extra_charges: extraCharges.length > 0 ? extraCharges : null,
+                    discounts: discounts.length > 0 ? discounts : null,
+                    notes: orderNote || null,
+                    delivery_address: deliveryAddress,
+                },
             });
 
             await fetchFromHasura(updateOrderItemsMutation, {

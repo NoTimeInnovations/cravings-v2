@@ -280,29 +280,29 @@ export const createPendingOrderWithItemsMutation = `
   }
 `;
 
+/**
+ * Partial update of an order. Pass ONLY the columns you mean to change.
+ *
+ * `_set` takes ONE object variable rather than a field-per-variable list, and
+ * that is the whole point. In the old shape every column was wired to its own
+ * nullable variable, and Hasura does NOT implement the GraphQL rule that an
+ * unprovided variable drops its field from the input object — it materialises
+ * the field as an explicit NULL. So any caller that passed a subset silently
+ * BLANKED every column it left out.
+ *
+ * That is not hypothetical: it wiped discounts, table_number and
+ * delivery_address on every save from the admin-v2 and legacy order editors,
+ * which passed 5 of the 8 declared variables. In production it had already
+ * nulled the discount on 40 of 40 orders edited through that path.
+ *
+ * With one object variable, a key that is absent from the JS object is absent
+ * on the wire and the column is genuinely left alone — which is what every
+ * call site already assumed. Adding a new column here is now safe for existing
+ * callers; under the old shape it silently armed the same trap for all of them.
+ */
 export const updateOrderMutation = `
-  mutation UpdateOrder(
-    $id: uuid!,
-    $totalPrice: float8,
-    $phone: String,
-    $tableNumber: Int,
-    $extraCharges: jsonb,
-    $discounts: jsonb,
-    $notes: String,
-    $deliveryAddress: String
-  ) {
-    update_orders_by_pk(
-      pk_columns: { id: $id }
-      _set: {
-        total_price: $totalPrice,
-        phone: $phone,
-        table_number: $tableNumber,
-        extra_charges: $extraCharges,
-        discounts: $discounts,
-        notes: $notes,
-        delivery_address: $deliveryAddress
-      }
-    ) {
+  mutation UpdateOrder($id: uuid!, $set: orders_set_input!) {
+    update_orders_by_pk(pk_columns: { id: $id }, _set: $set) {
       id
       total_price
       table_number
@@ -310,6 +310,7 @@ export const updateOrderMutation = `
       discounts
       notes
       delivery_address
+      gst_included
     }
   }
 `;

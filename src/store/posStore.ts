@@ -653,13 +653,16 @@ export const usePOSStore = create<POSState>((set, get) => ({
       // Update order basic info
       await fetchFromHasura(updateOrderMutation, {
         id: editingOrderId,
-        totalPrice: grandTotal,
-        phone: userPhone || "",
-        tableNumber: tableNumber || null,
-        extraCharges: extraCharges.length > 0 ? extraCharges : null,
-        discounts: discounts.length > 0 ? discounts : null,
-        notes: orderNote || null,
-        deliveryAddress: editDeliveryAddress,
+        set: {
+          total_price: grandTotal,
+          phone: userPhone || "",
+          table_number: tableNumber || null,
+          extra_charges: extraCharges.length > 0 ? extraCharges : null,
+          discounts: discounts.length > 0 ? discounts : null,
+          notes: orderNote || null,
+          delivery_address: editDeliveryAddress,
+          gst_included: gstAmount,
+        },
       });
 
       // Update order items by deleting and re-inserting
