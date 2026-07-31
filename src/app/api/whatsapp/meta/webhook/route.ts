@@ -135,6 +135,41 @@ const INSERT_INBOX = `
   }
 `;
 
+// A WhatsApp Flow submission arrives as interactive.nfm_reply, with the answers
+// JSON-encoded inside `response_json` (plus the flow_token we set when sending,
+// which is how a campaign maps an answer back to the recipient). Returns the
+// decoded answers, or null when this isn't a Flow reply / the JSON is malformed.
+export function readFlowReply(
+  msg: any,
+): { answers: Record<string, any>; raw: string } | null {
+  const raw = msg?.interactive?.nfm_reply?.response_json;
+  if (typeof raw !== "string" || !raw) return null;
+  try {
+    const answers = JSON.parse(raw);
+    if (!answers || typeof answers !== "object") return null;
+    return { answers, raw };
+  } catch {
+    return null;
+  }
+}
+
+// Render a Flow submission as one readable inbox line ("Business type: Cafe").
+// Meta gives no field ordering guarantee, so keys are sorted for a stable
+// string. `flow_token` is plumbing, not an answer, and is never shown.
+function describeFlowAnswers(answers: Record<string, any>): string {
+  const parts = Object.keys(answers)
+    .filter((k) => k !== "flow_token")
+    .sort()
+    .map((k) => {
+      const v = answers[k];
+      if (v === null || v === undefined || v === "") return null;
+      const label = k.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+      return `${label}: ${String(v)}`;
+    })
+    .filter(Boolean);
+  return parts.join(" · ");
+}
+
 function extractIncomingBody(msg: any): { type: string; body: string | null; mediaUrl: string | null } {
   const t = msg.type as string;
   switch (t) {
@@ -142,7 +177,19 @@ function extractIncomingBody(msg: any): { type: string; body: string | null; med
       return { type: "text", body: msg.text?.body ?? null, mediaUrl: null };
     case "button":
       return { type: "button", body: msg.button?.text ?? null, mediaUrl: null };
-    case "interactive":
+    case "interactive": {
+      // Flow submissions carry no title — without this branch the whole answer
+      // was dropped and the row landed in the inbox with a null body.
+      const flow = readFlowReply(msg);
+      if (flow) {
+        // Keep the raw JSON when it renders to nothing, so a shape we didn't
+        // anticipate is still recoverable from the inbox rather than lost.
+        return {
+          type: "interactive",
+          body: describeFlowAnswers(flow.answers) || flow.raw,
+          mediaUrl: null,
+        };
+      }
       return {
         type: "interactive",
         body:
@@ -151,6 +198,7 @@ function extractIncomingBody(msg: any): { type: string; body: string | null; med
           null,
         mediaUrl: null,
       };
+    }
     case "image":
     case "video":
     case "audio":
