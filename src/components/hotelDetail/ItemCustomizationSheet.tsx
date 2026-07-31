@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, Minus, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -10,6 +11,10 @@ import { MenuPrice } from "./MenuPrice";
 import useOrderStore from "@/store/orderStore";
 import { useCustomizerStore } from "@/store/customizerStore";
 import type { ModifierGroup } from "@/store/menuStore_hasura";
+
+/** Exit animation duration. Must match the CSS duration on the panel/backdrop
+ *  below, or the sheet unmounts mid-slide (or lingers blank after finishing). */
+const SHEET_EXIT_MS = 300;
 
 /** Selection-rule summary shown in a group's pill. */
 function ruleHint(g: ModifierGroup): string {
@@ -137,13 +142,66 @@ export default function ItemCustomizationSheet() {
     const [selections, setSelections] = useState<Record<string, string[]>>({});
     const [qty, setQty] = useState(1);
 
+    // Slide-in/out lifecycle, matched to the storefront's item detail sheet so
+    // the two are indistinguishable in motion as well as in layout.
+    //
+    // `isOpen` stays the single source of truth — every close path (button,
+    // backdrop, Esc, another card opening) just flips the store, and this effect
+    // plays the exit. Nothing here calls close() itself, so there is no way for
+    // the animation state and the store to disagree.
+    //
+    // Staying mounted through the exit works because customizerStore.close()
+    // deliberately leaves `payload` populated; `item` is therefore still readable
+    // for the 280ms the sheet takes to slide away.
+    const [mounted, setMounted] = useState(false);
+    const [shown, setShown] = useState(false);
+    const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        if (exitTimer.current) {
+            clearTimeout(exitTimer.current);
+            exitTimer.current = null;
+        }
+        if (isOpen) {
+            setMounted(true);
+            // Two frames: one to commit the mounted-but-offscreen state, one to
+            // flip the transform. A single frame occasionally paints the sheet
+            // already in place on a slow first render, skipping the animation.
+            const outer = requestAnimationFrame(() =>
+                requestAnimationFrame(() => setShown(true)),
+            );
+            return () => cancelAnimationFrame(outer);
+        }
+        setShown(false);
+        exitTimer.current = setTimeout(() => setMounted(false), SHEET_EXIT_MS);
+        return () => {
+            if (exitTimer.current) clearTimeout(exitTimer.current);
+        };
+    }, [isOpen]);
+
     // (Re)initialise whenever the sheet opens (or opens for a different item):
     // preselect defaults + the first variant, reset quantity.
     useEffect(() => {
         if (!isOpen || !item) return;
         const initSel: Record<string, string[]> = {};
         (item.addon_groups ?? []).forEach((g) => {
-            initSel[g.id] = g.options.filter((o) => o.is_default).map((o) => o.id);
+            const defaults = g.options.filter((o) => o.is_default);
+            // NEVER auto-tick a PAID option in a group the customer could simply
+            // skip. Menus imported in bulk routinely arrive with is_default set on
+            // every option, and the old code honoured all of them — so an
+            // "Optional · up to 2" group of two +6 add-ons opened with both ticked
+            // and silently charged +12 to someone who never touched it. Money the
+            // customer did not ask to spend is the one thing a default must not do.
+            //
+            // Where a choice is MANDATORY (min >= 1) the default is a genuine
+            // recommendation and is kept, price or not: they have to pick
+            // something, so preselecting saves a tap rather than costing money.
+            const seed =
+                g.min >= 1 ? defaults : defaults.filter((o) => (o.price || 0) === 0);
+            // Clamp to max: more defaults than the group allows is invalid on
+            // arrival, and `groupsOk` would disable the CTA with nothing on screen
+            // explaining why.
+            initSel[g.id] = seed.slice(0, Math.max(0, g.max)).map((o) => o.id);
         });
         setSelections(initSel);
         setVariantName(
@@ -243,57 +301,72 @@ export default function ItemCustomizationSheet() {
         toast.success(`${item.name} added to cart`);
     };
 
-    if (!isOpen || !item) return null;
+    if (!mounted || !item) return null;
 
-    return (
-        <>
+    const sheet = (
+        // Portaled to document.body, the same escape the search overlay's own
+        // variant sheet already uses. Rendered in place, this sheet's z-9999 is
+        // only ever as good as its ancestors: the V3 search overlay animates with
+        // `forwards` and settles on `transform: translateY(0)` which — unlike
+        // `none` — creates a stacking context that would seal the sheet beneath
+        // it no matter how high the number goes.
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-end">
             {/* Backdrop */}
             <div
-                className="fixed inset-0 z-[9998] bg-black/50 animate-in fade-in"
                 onClick={close}
+                className="absolute inset-0 bg-black/50 transition-opacity duration-300"
+                style={{ opacity: shown ? 1 : 0 }}
             />
-            {/* Bottom sheet */}
-            <div className="fixed inset-x-0 bottom-0 z-[9999] mx-auto w-full max-w-2xl bg-white rounded-t-3xl shadow-2xl max-h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-300">
+            {/* Panel. overflow-hidden is load-bearing: without it the hero image
+                and long option rows spill past the rounded top corners and open a
+                horizontal scrollbar down the side of the sheet. */}
+            <div
+                className="relative z-10 mx-auto flex w-full max-w-2xl max-h-[88vh] flex-col overflow-hidden rounded-t-[22px] bg-white transition-transform duration-300 ease-out"
+                style={{ transform: shown ? "translateY(0)" : "translateY(100%)" }}
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Close */}
                 <button
                     type="button"
                     onClick={close}
-                    className="absolute top-3 right-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm text-gray-600 hover:text-gray-900"
+                    className="absolute top-3 right-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/50"
                     aria-label="Close"
                 >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 text-white" strokeWidth={2.6} />
                 </button>
 
-                {/* Scrollable content */}
-                <div className="overflow-y-auto flex-1">
-                    {/* Drag handle */}
-                    <div className="sticky top-0 z-10 flex justify-center bg-white pt-2.5 pb-1">
-                        <div className="h-1 w-8 rounded-full bg-gray-200" />
-                    </div>
-
-                    {/* Hero image */}
+                {/* Scrollable content. overflow-x-hidden as well as -y-auto: an
+                    unbroken option name is otherwise enough to widen the row and
+                    scroll the whole sheet sideways. */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                    {/* Hero image — full-bleed to the sheet edges */}
                     {item.image_url && (
-                        <div className="mx-3 mt-1 flex h-44 items-center justify-center overflow-hidden rounded-2xl bg-gray-100">
+                        <div className="w-full overflow-hidden bg-gray-100">
                             <img
                                 src={item.image_url.replace("+", "%2B")}
                                 alt={item.name}
-                                className="h-full w-full object-cover"
+                                className="block h-56 w-full object-cover"
                             />
                         </div>
                     )}
 
-                    {/* Header: veg mark + name + description */}
+                    {/* Header: veg mark + name + price + description */}
                     <div className="p-4 pb-2">
-                        <div className="flex items-center gap-2">
-                            {item.is_veg !== null && item.is_veg !== undefined && (
-                                <VegMark isVeg={item.is_veg} />
-                            )}
-                            <h3 className="text-left font-bold text-lg text-gray-900 capitalize">
-                                {item.name}
-                            </h3>
+                        {item.is_veg !== null && item.is_veg !== undefined && (
+                            <VegMark isVeg={item.is_veg} />
+                        )}
+                        <h3 className="mt-2 break-words text-left text-[22px] font-bold leading-tight text-gray-900 capitalize">
+                            {item.name}
+                        </h3>
+                        <div className="mt-1 text-[17px] font-bold text-gray-900">
+                            <MenuPrice
+                                forceSymbolLtr
+                                currency={currency}
+                                amount={formatPrice(unitPrice, hotelData?.id)}
+                            />
                         </div>
                         {item.description && (
-                            <p className="text-sm text-gray-400 mt-1 leading-relaxed whitespace-pre-line">
+                            <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-gray-400">
                                 {item.description}
                             </p>
                         )}
@@ -429,24 +502,30 @@ export default function ItemCustomizationSheet() {
                         type="button"
                         disabled={!canAdd}
                         onClick={handleAdd}
-                        className="flex-1 flex items-center justify-between rounded-2xl px-5 py-3.5 text-sm font-extrabold uppercase tracking-wider shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed"
+                        className="flex flex-1 items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-[15px] font-extrabold shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed"
                         style={
                             canAdd
                                 ? { backgroundColor: accent, color: onAccent }
                                 : { backgroundColor: "#d1d5db", color: "#6b7280" }
                         }
                     >
-                        <span>{canAdd ? "Add to cart" : "Select options"}</span>
+                        <span>{canAdd ? "Add item" : "Select options"}</span>
                         {canAdd && (
-                            <MenuPrice
-                                forceSymbolLtr
-                                currency={currency}
-                                amount={formatPrice(total, hotelData?.id)}
-                            />
+                            <>
+                                <span aria-hidden>·</span>
+                                <MenuPrice
+                                    forceSymbolLtr
+                                    currency={currency}
+                                    amount={formatPrice(total, hotelData?.id)}
+                                />
+                            </>
                         )}
                     </button>
                 </div>
             </div>
-        </>
+        </div>
     );
+
+    // SSR guard: document does not exist during the server render.
+    return typeof window === "undefined" ? null : createPortal(sheet, document.body);
 }

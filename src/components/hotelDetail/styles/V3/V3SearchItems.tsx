@@ -6,6 +6,7 @@ import React, { useMemo, useState, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { orderingChannels } from "@/lib/orderingChannels";
 import useOrderStore from "@/store/orderStore";
+import { useCustomizerStore } from "@/store/customizerStore";
 import { formatPrice } from "@/lib/constants";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,12 +42,16 @@ const V3SearchResultItem = ({
   item,
   hoteldata,
   tableNumber,
+  accent,
 }: {
   item: HotelDataMenus;
   hoteldata: HotelData;
   tableNumber: number;
+  accent?: string;
 }) => {
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+  const openCustomizer = useCustomizerStore((s) => s.open);
+  const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
 
   // Shared with V3ItemCard so search can never be looser than the menu behind
   // it — this overlay used to skip the opening windows entirely and offered ADD
@@ -102,6 +107,25 @@ const V3SearchResultItem = ({
   };
 
   const handleAdd = () => {
+    // Customisation items go to the shared configurator, which also renders the
+    // variant picker -- so this must be checked BEFORE hasVariants, matching the
+    // menu cards. Search previously had no addon branch at all: addSimple() put
+    // the item in the cart at base price with no modifiers (not even REQUIRED
+    // ones) under a bare `item.id`, which does not even merge with the
+    // `id|variant|options` line the configurator produces.
+    //
+    // `item` is passed whole on purpose. addSimple() builds a hand-picked object
+    // that drops addon_groups, variants and offers -- passing that would hand the
+    // configurator an item with nothing to configure.
+    if (hasCustomizations) {
+      openCustomizer({
+        item,
+        hotelData: hoteldata,
+        currency: hoteldata?.currency || "₹",
+        accent,
+      });
+      return;
+    }
     if (hasVariants) setShowVariants(true);
     else addSimple();
   };
@@ -406,6 +430,7 @@ const V3SearchItems = ({ menu, hoteldata, tableNumber, onClose, onCartClick, car
                 item={item}
                 hoteldata={hoteldata}
                 tableNumber={tableNumber}
+                accent={accent}
               />
             ))
           ) : (

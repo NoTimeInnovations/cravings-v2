@@ -901,6 +901,7 @@ const V4 = ({
             hoteldata={hoteldata}
             tableNumber={tableNumber}
             onClose={() => setSearchOpen(false)}
+            accent={styles.accent}
           />
         )}
 

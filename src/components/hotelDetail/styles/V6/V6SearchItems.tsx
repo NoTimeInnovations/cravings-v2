@@ -4,6 +4,7 @@ import { Search, ArrowLeft, ShoppingCart, Plus, Minus } from "lucide-react";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { orderingChannels } from "@/lib/orderingChannels";
+import { useCustomizerStore } from "@/store/customizerStore";
 import useOrderStore from "@/store/orderStore";
 import { formatPrice } from "@/lib/constants";
 import { readableTextColor } from "@/lib/brandColor";
@@ -65,6 +66,9 @@ const V6SearchRow = ({
   const nameTranslate = showArabicName ? ("no" as const) : undefined;
   const nameNo = showArabicName ? " notranslate" : "";
 
+  const openCustomizer = useCustomizerStore((s) => s.open);
+  const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
+
   // Shared with V6ItemCard so search can never be looser than the menu behind
   // it — this overlay used to skip the opening windows entirely and offered ADD
   // on a closed restaurant.
@@ -111,6 +115,19 @@ const V6SearchRow = ({
   };
 
   const handleAddClick = () => {
+    // Customisation items go to the shared configurator, which renders the
+    // variant picker too -- so this precedes hasVariants, matching V6ItemCard.
+    // Without it, search added the item with no modifiers at all, not even
+    // required ones.
+    if (hasCustomizations) {
+      openCustomizer({
+        item,
+        hotelData: hoteldata,
+        currency: hoteldata?.currency || "₹",
+        accent,
+      });
+      return;
+    }
     if (hasVariants) setShowVariants(true);
     else addSimple();
   };

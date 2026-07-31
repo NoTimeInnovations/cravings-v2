@@ -8,6 +8,7 @@ import ItemCard from "./ItemCard";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
 import { DefaultHotelPageProps } from "../Default/Default";
 import useOrderStore from "@/store/orderStore";
+import { useCustomizerStore } from "@/store/customizerStore";
 
 // Import shadcn/ui components
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,8 @@ const SearchResultItem = ({
   tableNumber: number;
 }) => {
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+  const openCustomizer = useCustomizerStore((s) => s.open);
+  const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
 
   const { canOrder: showAddButton } = orderingChannels({
     featureFlags: hoteldata?.feature_flags,
@@ -43,6 +46,20 @@ const SearchResultItem = ({
   const quantity = (itemInCart?.quantity || 0) + variantItems.reduce((sum, i) => sum + i.quantity, 0);
 
   const handleAdd = () => {
+    // Customisation items go to the shared configurator, with the WHOLE item --
+    // the object built below drops addon_groups, variants and offers, so passing
+    // it would give the configurator nothing to configure. Checked before the
+    // category guard: that guard is about the hand-built line, not about whether
+    // the item can be configured.
+    if (hasCustomizations) {
+      openCustomizer({
+        item,
+        hotelData: hoteldata,
+        currency: hoteldata?.currency || "₹",
+        accent: styles?.accent,
+      });
+      return;
+    }
     if (!item.category?.id) return;
     addItem({
       id: item.id,

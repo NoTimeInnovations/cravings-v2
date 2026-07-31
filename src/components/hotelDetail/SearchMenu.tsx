@@ -15,6 +15,7 @@ import { useLiveStock } from "@/store/liveStockStore";
 import { filterMenuByQuery } from "@/lib/menuSearch";
 import { useRegisterItemSheet } from "@/store/itemSheetStore";
 import { orderingChannels } from "@/lib/orderingChannels";
+import { useCustomizerStore } from "@/store/customizerStore";
 
 const SearchMenu = ({
   hotelData,
@@ -76,6 +77,7 @@ const SearchMenu = ({
     open_place_order_modal,
   } = useOrderStore();
   const { setOpenPlaceOrderModal } = useOrderStore();
+  const openCustomizer = useCustomizerStore((s) => s.open);
   const liveStockQty = useLiveStock((s) => s.qty);
 
   // Close search when place order modal opens (e.g. from OrderDrawer's "View Order")
@@ -139,6 +141,19 @@ const SearchMenu = ({
   };
 
   const handleAddItem = (item: HotelDataMenus) => {
+    // Customisation items go to the shared configurator, which renders the
+    // variant picker too — so this precedes the variant branch, matching the
+    // menu cards. Search had no addon branch at all, so it added the item with
+    // no modifiers, not even required ones.
+    if ((item.addon_groups?.length ?? 0) > 0) {
+      openCustomizer({
+        item,
+        hotelData,
+        currency: hotelData?.currency || "₹",
+        accent: (styles as any)?.accent,
+      });
+      return;
+    }
     if (item.variants && item.variants.length > 0) {
       setExpandedVariantItemId(
         expandedVariantItemId === item.id ? null : item.id || null,

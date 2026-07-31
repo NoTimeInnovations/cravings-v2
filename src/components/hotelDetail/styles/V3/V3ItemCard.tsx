@@ -372,7 +372,15 @@ const V3ItemCard = ({
             value: item.price,
             items: [{ item_id: baseItemId(item.id), item_name: item.name, item_category: categoryName(item.category), price: item.price }],
           });
-          if (hasVariants) setShowVariants(true);
+          // A customisable item goes STRAIGHT to the configurator. It used to open
+          // the plain detail sheet, whose "Add item" button then opened the
+          // configurator WITHOUT closing it -- two sheets stacked at the same
+          // z-9999, the detail sheet portaled and the configurator not, so the
+          // configurator rendered underneath and looked like nothing happened.
+          // Gated on showAddButton so a menu-only storefront still gets the
+          // read-only detail sheet rather than an add-to-cart configurator.
+          if (hasCustomizations && showAddButton) handleAddItem();
+          else if (hasVariants) setShowVariants(true);
           else setShowItemSheet(true);
         }}
       >
