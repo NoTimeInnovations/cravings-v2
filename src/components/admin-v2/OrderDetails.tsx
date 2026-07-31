@@ -693,24 +693,23 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
                         <PorterDispatchCountdown dueAt={order.porter_dispatch_due_at} />
                     )}
 
-                {/* Manual porter-bridge booking — for partners who turned off
-                    auto-book (or want to force/re-trigger). Hidden while a
-                    dispatch is in-flight; the tracking panel below takes over.
-                    A dispatchId lingers in meta even after a booking is
-                    cancelled/failed (cancel merges cancelledAt in via jsonb
-                    _append but never clears dispatchId), so gating on dispatchId
-                    alone kept the button hidden forever once anything was booked.
-                    Treat cancelled/failed as re-bookable; any other state with a
-                    dispatchId is a live ride. */}
+                {/* Manual porter-bridge booking. No longer hidden once a
+                    dispatch exists: delivery_provider_state describes the
+                    DISPATCH, which sits at "running" while it escalates down the
+                    provider list, NOT the ride. So an order whose Porter rider
+                    cancelled showed a cancelled rider row, "Delivery cancelled.",
+                    a dispatch still marked running — and no button, because the
+                    old gate read running+dispatchId as a live ride. The label
+                    carries the state instead. */}
                 {isRealDeliveryOrder(order) &&
                     getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled &&
-                    !!(order as any).delivery_location?.coordinates &&
-                    !(
-                        !!(order as any).delivery_provider_meta?.dispatchId &&
-                        (order as any).delivery_provider_state !== "cancelled" &&
-                        (order as any).delivery_provider_state !== "failed"
-                    ) && (
-                        <ManualPorterBookButton orderId={order.id} />
+                    !!(order as any).delivery_location?.coordinates && (
+                        <ManualPorterBookButton
+                            orderId={order.id}
+                            alreadyDispatched={
+                                !!(order as any).delivery_provider_meta?.dispatchId
+                            }
+                        />
                     )}
 
                 {/* Manual pool booking. Unlike the porter button above this is
