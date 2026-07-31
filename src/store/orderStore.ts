@@ -188,6 +188,19 @@ export interface DeliveryRules {
    *  porter_bridge partners) or "custom" (the partner's own delivery_rules
    *  pricing). Absent = "porter". */
   porter_pricing_mode?: "custom" | "porter";
+  /** HYBRID BOOKING — third party near, the restaurant's own rider far.
+   *
+   *  When on, only orders within `third_party_max_km` are quoted and booked
+   *  through the delivery bridge. Beyond it the bridge is skipped entirely: the
+   *  order is priced with the partner's own delivery pricing and they deliver it
+   *  themselves. Off/absent = today's behaviour, every order goes to the bridge.
+   *
+   *  `third_party_max_km` must be LESS than delivery_radius or the own-delivery
+   *  band is empty and the setting can never fire. 0/absent is treated as "not
+   *  configured" and leaves the split disabled, so switching the toggle on
+   *  without entering a number can never silently strand every order. */
+  hybrid_booking?: boolean;
+  third_party_max_km?: number;
   /** Menuthere Delivery Pool per-restaurant OTP toggles — rider must enter a
    *  code to confirm pickup (shown to the restaurant) / delivery (sent to the
    *  customer). Read by deliveryPoolDispatch at hand-off. */

@@ -20,6 +20,8 @@
  */
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { isBeyondThirdPartyRadius } from "@/lib/hybridDelivery";
+import { roadDistanceKm, haversineKm } from "@/lib/roadDistance";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Config + transport
@@ -107,6 +109,7 @@ interface OrderForDispatch {
     porter_mobile: string | null;
     geo_location: { coordinates: [number, number] } | null;
     feature_flags: string | null;
+    delivery_rules: Record<string, unknown> | null;
   } | null;
 }
 
@@ -135,6 +138,7 @@ const ORDER_FOR_DISPATCH_QUERY = `
         porter_mobile
         geo_location
         feature_flags
+        delivery_rules
       }
     }
   }
@@ -318,6 +322,47 @@ export async function dispatchPorterBridge(orderId: string): Promise<Result> {
     });
     return { ok: false, message: "order delivery_location missing" };
   }
+  // HYBRID BOOKING — the restaurant delivers anything past their third-party
+  // radius themselves, so do not book a rider for it.
+  //
+  // Gated HERE rather than at the call site because both the immediate dispatch
+  // and the delayed one (orders.porter_dispatch_due_at, swept by the
+  // dispatch-due-porter cron) funnel through this function. A check in
+  // orderStore would leave the delayed path still booking.
+  //
+  // Measured with roadDistanceKm and the same haversine fallback checkout uses.
+  // Straight-line runs 20–40% short of road distance, so measuring differently
+  // here would book a rider for an order the customer was already charged the
+  // partner's own price for — the restaurant would pay Porter out of its own
+  // margin. An unmeasurable distance books as before.
+  const hybridRules = (order.partner.delivery_rules ?? null) as any;
+  if (hybridRules?.hybrid_booking) {
+    const km =
+      (await roadDistanceKm(pickupLatLng, dropLatLng)) ??
+      haversineKm(pickupLatLng, dropLatLng);
+    if (isBeyondThirdPartyRadius(hybridRules, km)) {
+      await persistProvider(orderId, "own_delivery", null, {
+        reason: "beyond third-party radius (hybrid booking)",
+        distanceKm: km,
+        thirdPartyMaxKm: hybridRules.third_party_max_km,
+      });
+      console.log(
+        `[porter-bridge] order=${orderId} ${km.toFixed(1)}km > ${hybridRules.third_party_max_km}km — own delivery, no rider booked`,
+      );
+      // ok:true, not a failure — the booking was skipped on purpose. Returning
+      // ok:false would make the caller treat this as a transient error and
+      // retry it forever against an order that must never reach a provider.
+      return {
+        ok: true,
+        data: {
+          skipped: "own_delivery",
+          reason: "beyond third-party radius",
+          distanceKm: km,
+        },
+      };
+    }
+  }
+
   const customerMobile = normaliseMobile(order.user?.phone ?? order.phone);
   if (!customerMobile) {
     await persistProvider(orderId, "failed", null, {

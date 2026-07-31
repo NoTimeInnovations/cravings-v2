@@ -13,6 +13,7 @@ import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save, Plus, Trash2, Clock, Keyboard, Wallet, RefreshCw, AlertCircle, Link2, LogOut, CheckCircle2, XCircle } from "lucide-react";
 import { DeliveryRules, DeliveryRange } from "@/store/orderStore";
+import { isHybridBookingActive } from "@/lib/hybridDelivery";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { countryCodes } from "@/utils/countryCodes";
@@ -864,7 +865,19 @@ export function DeliverySettings() {
     const porterUsesLiveQuote =
         porterChargeEnabled &&
         (deliveryRules.porter_pricing_mode || "porter") !== "custom";
-    const liveQuoteCharge = agentChargeEnabled || porterUsesLiveQuote;
+
+    // Hybrid booking guarantees a band the bridge never prices, so the partner's
+    // own pricing MUST stay reachable however porter_pricing_mode is set —
+    // otherwise the beyond-radius orders they now deliver themselves are charged
+    // from a rate card they have no way to open. (The amber note above already
+    // tells them to "keep that pricing set" for the no-rider fallback; until now
+    // that control was hidden in exactly the mode the note is about.)
+    const hybridSplitActive = isHybridBookingActive(
+        deliveryRules,
+        deliveryRules.delivery_radius,
+    );
+    const liveQuoteCharge =
+        (agentChargeEnabled || porterUsesLiveQuote) && !hybridSplitActive;
 
     return (
         <div className="space-y-6">
@@ -1220,6 +1233,82 @@ export function DeliverySettings() {
                                 <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                                     If no third-party rider is available when a customer orders, the order is <strong>still placed</strong> using your Custom delivery pricing (the distance / fixed rate below), and you&apos;ll be asked to deliver it yourself. Keep that pricing set so the fallback charge is correct.
                                 </p>
+                            </div>
+
+                            {/* Hybrid booking: third party near, own riders far.
+                                Sits with the bridge settings because it only means
+                                anything when the bridge is connected. */}
+                            <div className="border-t border-orange-100 pt-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5 pr-3">
+                                        <Label className="text-base">Use hybrid booking</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Book a third-party rider only up to a set distance. Beyond it,
+                                            the order is priced with your own delivery pricing and you
+                                            deliver it yourself.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={!!deliveryRules.hybrid_booking}
+                                        onCheckedChange={(val) =>
+                                            setDeliveryRules((prev) => ({
+                                                ...prev,
+                                                hybrid_booking: val,
+                                                // Seed a sensible first value so turning it on is never
+                                                // a no-op: 0/blank would mean "no band at all".
+                                                third_party_max_km:
+                                                    val && !prev.third_party_max_km
+                                                        ? Math.max(1, Math.floor((prev.delivery_radius ?? 15) / 2))
+                                                        : prev.third_party_max_km,
+                                            }))
+                                        }
+                                    />
+                                </div>
+
+                                {deliveryRules.hybrid_booking && (() => {
+                                    const radius = Number(deliveryRules.delivery_radius ?? 15);
+                                    const limit = Number(deliveryRules.third_party_max_km ?? 0);
+                                    // A limit at or past the orderable radius leaves NO band for own
+                                    // delivery — the partner has configured something that can never
+                                    // fire, and would report the feature as broken.
+                                    const tooWide = limit > 0 && radius > 0 && limit >= radius;
+                                    const unset = !(limit > 0);
+                                    return (
+                                        <div className="mt-3 space-y-2">
+                                            <Label className="text-sm">Third-party delivery radius (km)</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                step="0.5"
+                                                className="max-w-[160px]"
+                                                value={deliveryRules.third_party_max_km ?? ""}
+                                                onChange={(e) =>
+                                                    setDeliveryRules((prev) => ({
+                                                        ...prev,
+                                                        third_party_max_km:
+                                                            e.target.value === "" ? undefined : Number(e.target.value),
+                                                    }))
+                                                }
+                                            />
+                                            {unset ? (
+                                                <p className="text-xs text-amber-700">
+                                                    Set a distance — until you do, every order still goes to the
+                                                    third party.
+                                                </p>
+                                            ) : tooWide ? (
+                                                <p className="text-xs text-red-600">
+                                                    This must be less than your delivery radius ({radius} km), or
+                                                    there is no distance left for your own riders to cover.
+                                                </p>
+                                            ) : (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Third party up to {limit} km. From {limit} km to {radius} km you
+                                                    deliver, charged with your own delivery pricing below.
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             <div className="border-t border-orange-100 pt-3">

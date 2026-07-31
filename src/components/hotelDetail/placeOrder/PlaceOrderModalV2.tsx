@@ -52,6 +52,7 @@ import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
 import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd, validateCustomPrebookTime } from "@/lib/prebooking";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
+import { isBeyondThirdPartyRadius } from "@/lib/hybridDelivery";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
@@ -820,10 +821,26 @@ const PlaceOrderModalV2 = ({
   // delivery charge. If they chose "custom", we skip the quote and fall through
   // to their own delivery_rules pricing (deliveryInfo.cost). Mirrors the
   // delivery_agent flow; Porter takes precedence over delivery_agent if both on.
+  // HYBRID BOOKING: past the partner's third-party radius the bridge is skipped
+  // outright — no quote is requested and no fare is shown, so the price falls
+  // through to deliveryInfo.cost (their own pricing) exactly as it already does
+  // when no rider is available. Quoting a Porter fare for a trip Porter will not
+  // make is the one outcome to avoid: the customer would be billed a
+  // third-party price for the restaurant's own rider.
+  //
+  // deliveryInfo.distance is the SAME road distance the fee was computed from
+  // (OrderDrawer), so the price and the routing decision can never be taken from
+  // two different measurements.
+  const beyondThirdPartyRadius = isBeyondThirdPartyRadius(
+    hotelData?.delivery_rules as any,
+    deliveryInfo?.distance,
+  );
+
   const usePorterForCharge =
     partnerFeatures.porter_bridge.access &&
     partnerFeatures.porter_bridge.enabled &&
-    (hotelData?.delivery_rules as any)?.porter_pricing_mode !== "custom";
+    (hotelData?.delivery_rules as any)?.porter_pricing_mode !== "custom" &&
+    !beyondThirdPartyRadius;
 
   const [porterQuote, setPorterQuote] = useState<{
     available: boolean;
