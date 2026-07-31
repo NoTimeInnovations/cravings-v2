@@ -66,33 +66,63 @@ export function TeleveryDashboardView({
         />
         {/* Orders Televery brought in, kept separate from the ones the shops got
             themselves. The combined figure is still shown, because a shop's own
-            trade is not Televery's to claim — but it is not the headline. */}
-        <TeleveryKpiCard
-          label="Orders via Televery"
-          value={String(data?.totals.whatsappOrders ?? 0)}
-          icon={ShoppingBag}
-        />
-        <TeleveryKpiCard
-          label="Revenue via Televery"
-          value={inr(data?.totals.whatsappRevenue ?? 0)}
-          icon={IndianRupee}
-        />
-        <TeleveryKpiCard
-          label="Direct orders"
-          value={String(data?.totals.directOrders ?? 0)}
-          icon={Store}
-        />
-        <TeleveryKpiCard
-          label="Direct revenue"
-          value={inr(data?.totals.directRevenue ?? 0)}
-          icon={IndianRupee}
-        />
-        <TeleveryKpiCard
-          label="All orders"
-          value={String(data?.totals.orders ?? 0)}
-          icon={ShoppingBag}
-        />
+            trade is not Televery's to claim — but it is not the headline.
+
+            The split rests on every outlet answering on the brand's own WhatsApp
+            number. If that stops being true the API says so and we show the plain
+            totals instead of labelling orders "via us" on a rule that no longer
+            holds — a number nobody can stand behind is worse than no number. */}
+        {data?.channelSplitAttributable === false ? (
+          <>
+            <TeleveryKpiCard
+              label="Total orders"
+              value={String(data?.totals.orders ?? 0)}
+              icon={ShoppingBag}
+            />
+            <TeleveryKpiCard
+              label="Revenue"
+              value={inr(data?.totals.revenue ?? 0)}
+              icon={IndianRupee}
+            />
+          </>
+        ) : (
+          <>
+            <TeleveryKpiCard
+              label="Orders via Televery"
+              value={String(data?.totals.whatsappOrders ?? 0)}
+              icon={ShoppingBag}
+            />
+            <TeleveryKpiCard
+              label="Revenue via Televery"
+              value={inr(data?.totals.whatsappRevenue ?? 0)}
+              icon={IndianRupee}
+            />
+            <TeleveryKpiCard
+              label="Direct orders"
+              value={String(data?.totals.directOrders ?? 0)}
+              icon={Store}
+            />
+            <TeleveryKpiCard
+              label="Direct revenue"
+              value={inr(data?.totals.directRevenue ?? 0)}
+              icon={IndianRupee}
+            />
+            <TeleveryKpiCard
+              label="All orders"
+              value={String(data?.totals.orders ?? 0)}
+              icon={ShoppingBag}
+            />
+          </>
+        )}
       </div>
+
+      {data?.channelSplitAttributable === false && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+          Order attribution is unavailable: your outlets no longer all share the
+          Televery WhatsApp number, so we can&apos;t tell which orders came through
+          you. Totals below are every order at each business.
+        </p>
+      )}
 
       <Card className="overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">

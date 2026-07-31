@@ -26,6 +26,12 @@ const LIVE_STATUS = `{ _nin: ["pending_payment", "expired"] }`;
  * an `?olt=` order link (src/lib/orderChannel.ts), which is exactly what the
  * WhatsApp flow hands out.
  *
+ * That invariant is now READ from branches.whatsapp_source rather than assumed.
+ * A superadmin can flip it back to "direct" in one click, at which point outlets
+ * would answer on their OWN numbers and "arrived via WhatsApp" would stop meaning
+ * "Televery sent them" — every "Via us" label would quietly become a lie. When it
+ * is not "main" the split is reported as unattributable instead of guessed at.
+ *
  * `_neq` alone would silently drop NULLs — SQL null comparisons are never true —
  * and null is what every order predating the column carries. Televery's own
  * orders are all stamped, but an untagged order must still be counted somewhere,
@@ -45,6 +51,7 @@ query TeleveryOverview($parent_partner_id: uuid!) {
   branches(where: { parent_partner_id: { _eq: $parent_partner_id } }, limit: 1) {
     id
     name
+    whatsapp_source
     outlets(
       where: { status: { _eq: "active" } }
       order_by: { store_name: asc }
@@ -125,6 +132,9 @@ export async function GET(request: NextRequest) {
     });
 
     const branch = data?.branches?.[0] ?? null;
+    // The split is only meaningful while every outlet answers on the brand's own
+    // number. Anything else and we must not label orders "Via us".
+    const attributable = branch?.whatsapp_source === "main";
     const rawOutlets: Outlet[] = branch?.outlets ?? [];
 
     // The parent partner is itself a member row of its own branch — exclude it
@@ -198,6 +208,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       brand: branch ? { id: branch.id, name: branch.name } : null,
+      // The UI hides the split (and says why) rather than showing numbers it
+      // cannot stand behind.
+      channelSplitAttributable: attributable,
       totals,
       businesses,
       outletOrders,
