@@ -170,6 +170,51 @@ function describeFlowAnswers(answers: Record<string, any>): string {
   return parts.join(" · ");
 }
 
+// ── campaign tagging bridge → whatsapp-clone inbox ─────────────────────────
+// When someone answers the "Your business" Flow, tag their chat in the team's
+// WhatsApp inbox so it can be filtered by business type. Strictly
+// fire-and-forget: the inbox being down must never delay or fail our 200 back
+// to Meta, which would make Meta retry the whole webhook.
+const CAMPAIGN_TAG_URL = process.env.CAMPAIGN_TAG_URL || "";
+const CAMPAIGN_TAG_SECRET = process.env.CAMPAIGN_TAG_SECRET || "";
+
+async function tagCampaignAnswer(msg: any): Promise<void> {
+  if (!CAMPAIGN_TAG_URL || !CAMPAIGN_TAG_SECRET) return;
+  const flow = readFlowReply(msg);
+  const answer = flow?.answers?.business_type;
+  if (!answer) return;
+
+  // flow_token is the number we sent to, so it survives a forwarded form;
+  // msg.from is the fallback when an older send carried no token.
+  const body = JSON.stringify({
+    phone: String(flow!.answers.flow_token || msg.from || ""),
+    answer: String(answer),
+    otherText: flow!.answers.other_business ?? "",
+  });
+  const sig = crypto
+    .createHmac("sha256", CAMPAIGN_TAG_SECRET)
+    .update(body, "utf8")
+    .digest("hex");
+
+  try {
+    const res = await fetch(CAMPAIGN_TAG_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-campaign-signature": sig,
+        // Cloudflare's bot check rejects a default script user-agent with a
+        // 1010 before the request ever reaches the Worker.
+        "user-agent": "menuthere-campaign/1.0",
+      },
+      body,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) console.error("[campaign-tag] HTTP", res.status, await res.text());
+  } catch (e) {
+    console.error("[campaign-tag] failed", e);
+  }
+}
+
 function extractIncomingBody(msg: any): { type: string; body: string | null; mediaUrl: string | null } {
   const t = msg.type as string;
   switch (t) {
@@ -908,6 +953,8 @@ export async function POST(req: NextRequest) {
             // overlap it with the flow run. Still awaited before we return so a
             // serverless freeze can't drop the write.
             const persistP = persistIncoming(partner.partner_id, msg, contactName, phoneNumberId);
+            // Tag the sender's chat in the inbox when this is a Flow answer.
+            const tagP = tagCampaignAnswer(msg);
 
             const flowInput = normalizeFlowInput(msg);
 
@@ -976,7 +1023,7 @@ export async function POST(req: NextRequest) {
               }
             }
 
-            await persistP.catch(() => {});
+            await Promise.all([persistP.catch(() => {}), tagP.catch(() => {})]);
           }
 
           // Handle "Track Order Status" quick reply button click (auto-reply) —
