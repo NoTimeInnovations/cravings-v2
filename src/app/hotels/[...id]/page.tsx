@@ -30,6 +30,7 @@ import {
 import { headers } from "next/headers";
 import { getDomainConfig } from "@/lib/domain-utils";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
+import { deliveryBasePrice } from "@/lib/deliveryPricing";
 
 export async function generateMetadata({
   params,
@@ -364,7 +365,7 @@ const HotelPage = async ({
 
   const menuItemWithOfferPrice = hoteldata?.menus
     ?.map((item: any) => {
-      const deliveryBase = item.delivery_price ?? item.price;
+      const deliveryBase = deliveryBasePrice(item);
       const offerPrice = item.offers?.[0]?.offer_price;
       // If offer exists, apply the same discount amount to delivery base price
       const finalPrice = offerPrice != null && item.price > 0
@@ -375,7 +376,7 @@ const HotelPage = async ({
         price: Math.max(0, finalPrice + partnerPriceAdjustment),
         variants: item.variants?.map((v: any) => ({
           ...v,
-          price: Math.max(0, (v.delivery_price ?? v.price ?? 0) + partnerPriceAdjustment),
+          price: Math.max(0, deliveryBasePrice(v) + partnerPriceAdjustment),
         })),
       };
     });
@@ -391,14 +392,17 @@ const HotelPage = async ({
       const menuId = offer.menu?.id;
       const originalPrice = offer.menu?.price || 0;
       const deliveryPrice = menuId ? deliveryPriceMap.get(menuId) : undefined;
-      const deliveryDelta = deliveryPrice != null ? deliveryPrice - originalPrice : 0;
+      const deliveryDelta = Number(deliveryPrice) > 0 ? Number(deliveryPrice) - originalPrice : 0;
 
       const variantDeliveryDelta = offer.variant
         ? (() => {
             const menuItem = hoteldata?.menus?.find((m: any) => m.id === menuId);
             const matchingVariant = menuItem?.variants?.find((v: any) => v.name === (offer.variant as any)?.name);
-            if (matchingVariant?.delivery_price != null) {
-              return matchingVariant.delivery_price - ((offer.variant as any)?.price || 0);
+            // A delivery_price of 0 means "not set", so it must not produce a
+            // delta of -price and hand the customer the item for nothing.
+            const variantDelivery = Number(matchingVariant?.delivery_price);
+            if (variantDelivery > 0) {
+              return variantDelivery - ((offer.variant as any)?.price || 0);
             }
             return deliveryDelta;
           })()
