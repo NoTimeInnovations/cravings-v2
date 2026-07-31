@@ -72,6 +72,7 @@ import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import { clearSessionOrderType } from "@/lib/onboardingSession";
+import { isBeyondThirdPartyRadius } from "@/lib/hybridDelivery";
 
 const DELIVERY_AGENT_PRICE_MARKUP = 10;
 
@@ -2084,10 +2085,21 @@ const PlaceOrderModal = ({
    * Default-on: when the partner has the `delivery_agent` feature enabled and
    * has NOT explicitly set `use_delivery_agent_charge = false`, treat it as
    * on. Lets new 3PL stores get auto-calc out of the box. */
+  // HYBRID BOOKING: past the partner's third-party radius the restaurant
+  // delivers it themselves, so EVERY third party is off — Adloggs as well as the
+  // bridge. They are independent feature flags, so gating only one hands the
+  // order to the other. Same rule and same helper as the v2 checkout; this modal
+  // is still what every partner not on checkoutStyle "v2" sees.
+  const beyondThirdPartyRadius = isBeyondThirdPartyRadius(
+    hotelData?.delivery_rules as any,
+    deliveryInfo?.distance,
+  );
+
   const useAgentForCharge =
     !!hotelFeatures?.delivery_agent?.access &&
     !!hotelFeatures?.delivery_agent?.enabled &&
-    hotelData?.delivery_rules?.use_delivery_agent_charge !== false;
+    hotelData?.delivery_rules?.use_delivery_agent_charge !== false &&
+    !beyondThirdPartyRadius;
 
   const partnerCoords = useMemo(() => {
     const geo: any = hotelData?.geo_location;
@@ -2180,7 +2192,8 @@ const PlaceOrderModal = ({
   // Porter takes precedence over delivery_agent when both flags are on.
   const usePorterForCharge =
     !!hotelFeatures?.porter_bridge?.access &&
-    !!hotelFeatures?.porter_bridge?.enabled;
+    !!hotelFeatures?.porter_bridge?.enabled &&
+    !beyondThirdPartyRadius;
 
   const [porterQuote, setPorterQuote] = useState<{
     available: boolean;

@@ -1301,10 +1301,22 @@ export function DeliverySettings() {
                                                     there is no distance left for your own riders to cover.
                                                 </p>
                                             ) : (
-                                                <p className="text-xs text-muted-foreground">
-                                                    Third party up to {limit} km. From {limit} km to {radius} km you
-                                                    deliver, charged with your own delivery pricing below.
-                                                </p>
+                                                <>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Third party up to {limit} km. From {limit} km to {radius} km you
+                                                        deliver, charged with your own delivery pricing below.
+                                                    </p>
+                                                    {/* Third-party partners currently bypass the delivery-radius
+                                                        block entirely — the provider decides what it will take. Once
+                                                        the split is on, orders past the radius are the restaurant's
+                                                        own, so the radius starts turning them away. Worth saying
+                                                        out loud: a partner used to serving well past their configured
+                                                        radius via the provider would otherwise just see orders stop. */}
+                                                    <p className="text-xs text-amber-700">
+                                                        Orders beyond {radius} km will now be refused at checkout. Raise
+                                                        your delivery radius if you still want to take them.
+                                                    </p>
+                                                </>
                                             )}
                                         </div>
                                     );

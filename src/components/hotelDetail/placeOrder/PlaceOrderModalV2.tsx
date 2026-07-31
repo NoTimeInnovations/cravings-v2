@@ -731,10 +731,27 @@ const PlaceOrderModalV2 = ({
   };
   // Default-on: when delivery_agent is enabled and the partner has NOT
   // explicitly set `use_delivery_agent_charge = false`, treat as on.
+  // HYBRID BOOKING: past the partner's third-party radius the restaurant
+  // delivers it themselves, so EVERY third party is off — not just Porter.
+  // Adloggs (delivery_agent) is an independent feature flag, so gating only the
+  // bridge would hand the order to the other third party; worse, agentBlocksOrder
+  // then makes placement impossible outright when Adloggs answers
+  // DISTANCE_TOO_LONG on exactly the long trips this feature exists to take
+  // in-house.
+  //
+  // deliveryInfo.distance is the SAME road distance the fee was computed from
+  // (OrderDrawer), so the price and the routing decision can never be taken from
+  // two different measurements.
+  const beyondThirdPartyRadius = isBeyondThirdPartyRadius(
+    hotelData?.delivery_rules as any,
+    deliveryInfo?.distance,
+  );
+
   const useAgentForCharge =
     partnerFeatures.delivery_agent.access &&
     partnerFeatures.delivery_agent.enabled &&
-    hotelData?.delivery_rules?.use_delivery_agent_charge !== false;
+    hotelData?.delivery_rules?.use_delivery_agent_charge !== false &&
+    !beyondThirdPartyRadius;
 
   const partnerCoords = useMemo(() => {
     const geo: any = hotelData?.geo_location;
@@ -821,21 +838,16 @@ const PlaceOrderModalV2 = ({
   // delivery charge. If they chose "custom", we skip the quote and fall through
   // to their own delivery_rules pricing (deliveryInfo.cost). Mirrors the
   // delivery_agent flow; Porter takes precedence over delivery_agent if both on.
-  // HYBRID BOOKING: past the partner's third-party radius the bridge is skipped
-  // outright — no quote is requested and no fare is shown, so the price falls
-  // through to deliveryInfo.cost (their own pricing) exactly as it already does
+  // Beyond the third-party radius the bridge is skipped outright — no quote is
+  // requested and no fare is shown, so the price falls through to
+  // deliveryInfo.cost (the partner's own pricing) exactly as it already does
   // when no rider is available. Quoting a Porter fare for a trip Porter will not
   // make is the one outcome to avoid: the customer would be billed a
   // third-party price for the restaurant's own rider.
   //
-  // deliveryInfo.distance is the SAME road distance the fee was computed from
-  // (OrderDrawer), so the price and the routing decision can never be taken from
-  // two different measurements.
-  const beyondThirdPartyRadius = isBeyondThirdPartyRadius(
-    hotelData?.delivery_rules as any,
-    deliveryInfo?.distance,
-  );
-
+  // Gated on the FLAG, never by early-returning from the quote effect: the bill
+  // row's first branch renders "Calculating…" on `!porterQuote`, so suppressing
+  // the fetch while leaving this true would spin forever.
   const usePorterForCharge =
     partnerFeatures.porter_bridge.access &&
     partnerFeatures.porter_bridge.enabled &&
