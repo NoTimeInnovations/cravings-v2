@@ -370,7 +370,7 @@ export function DeliverySettings() {
                     userData.delivery_rules?.delivery_provider_priority || ["porter", "rapido"],
                 delivery_vehicle_mode: userData.delivery_rules?.delivery_vehicle_mode || "bike",
                 delivery_payment_modes: userData.delivery_rules?.delivery_payment_modes || {},
-                delivery_wait_seconds: userData.delivery_rules?.delivery_wait_seconds ?? 90,
+                delivery_wait_seconds: userData.delivery_rules?.delivery_wait_seconds ?? 600,
                 delivery_provider_groups: userData.delivery_rules?.delivery_provider_groups || {},
                 porter_auto_dispatch: userData.delivery_rules?.porter_auto_dispatch ?? true,
                 porter_dispatch_trigger: userData.delivery_rules?.porter_dispatch_trigger || "accepted",
@@ -1116,7 +1116,7 @@ export function DeliverySettings() {
                             <div className="border-t border-orange-100 pt-3">
                                 <Label className="text-base">Search wait limit</Label>
                                 <p className="text-xs text-muted-foreground mb-2">
-                                    How long to keep searching on each provider for a rider before escalating to the next one in the priority list. Default 90 seconds.
+                                    How long to keep searching on each provider for a rider before escalating to the next one in the priority list. Default 10 minutes (600 seconds).
                                 </p>
                                 <div className="flex items-center gap-2">
                                     <Input
@@ -1124,11 +1124,11 @@ export function DeliverySettings() {
                                         min={30}
                                         max={600}
                                         step={5}
-                                        value={deliveryRules.delivery_wait_seconds ?? 90}
+                                        value={deliveryRules.delivery_wait_seconds ?? 600}
                                         onChange={(e) =>
                                             setDeliveryRules((prev) => ({
                                                 ...prev,
-                                                delivery_wait_seconds: Math.max(30, Math.min(600, Number(e.target.value) || 90)),
+                                                delivery_wait_seconds: Math.max(30, Math.min(600, Number(e.target.value) || 600)),
                                             }))
                                         }
                                         className="w-28"

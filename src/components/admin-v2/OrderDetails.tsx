@@ -74,6 +74,7 @@ import { AssignDriverDialog } from "./AssignDriverDialog";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch, isRealDeliveryOrder } from "@/lib/ownDriverDispatch";
 import ManualPorterBookButton from "./ManualPorterBookButton";
+import ManualPoolBookButton from "./ManualPoolBookButton";
 import PorterDispatchCountdown from "./PorterDispatchCountdown";
 import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
 import PoolRiderPanel from "@/components/PoolRiderPanel";
@@ -710,6 +711,23 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
                         (order as any).delivery_provider_state !== "failed"
                     ) && (
                         <ManualPorterBookButton orderId={order.id} />
+                    )}
+
+                {/* Manual pool booking. Unlike the porter button above this is
+                    NOT hidden once a ride exists: the pool auto-dispatches on
+                    accept, and when that attempt finds no rider the partner
+                    previously had nothing to press. A ride having been requested
+                    is not the same as a rider being on the way, so the control
+                    stays and only its label changes. */}
+                {isRealDeliveryOrder(order) &&
+                    getFeatures((userData as Partner)?.feature_flags || null).delivery_pool.enabled &&
+                    !!(order as any).delivery_location?.coordinates && (
+                        <ManualPoolBookButton
+                            orderId={order.id}
+                            alreadyDispatched={
+                                (order as any).delivery_provider === "menuthere_pool"
+                            }
+                        />
                     )}
             </div>
 

@@ -785,9 +785,12 @@ async function loadPartnerDispatchCfg(
     if (v === "wallet" || v === "cash") paymentModes[prov] = v;
   }
   // Per-provider search wait (seconds before escalating); clamp to the bridge's
-  // accepted 30–600 window, default 90.
+  // accepted 30–600 window, default 600 (10 minutes) — a short wait was
+  // escalating to the next provider before the first had a realistic chance
+  // to find anyone, so orders bounced down the priority list and ended up
+  // unassigned rather than simply taking a little longer on provider one.
   const ws = Number(p.delivery_rules?.delivery_wait_seconds);
-  const waitSeconds = Number.isFinite(ws) ? Math.max(30, Math.min(600, ws)) : 90;
+  const waitSeconds = Number.isFinite(ws) ? Math.max(30, Math.min(600, ws)) : 600;
   // Per-provider group numbers — only keep non-blank ones.
   const grp = p.delivery_rules?.delivery_provider_groups ?? null;
   const groups: Partial<Record<"porter" | "rapido", string>> = {};
