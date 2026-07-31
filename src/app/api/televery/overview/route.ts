@@ -29,7 +29,7 @@ const LIVE_STATUS = `{ _nin: ["pending_payment", "expired"] }`;
  * That invariant is now READ from branches.whatsapp_source rather than assumed.
  * A superadmin can flip it back to "direct" in one click, at which point outlets
  * would answer on their OWN numbers and "arrived via WhatsApp" would stop meaning
- * "Televery sent them" — every "Via us" label would quietly become a lie. When it
+ * "Televery sent them" — every "Via Televery" label would quietly become a lie. When it
  * is not "main" the split is reported as unattributable instead of guessed at.
  *
  * `_neq` alone would silently drop NULLs — SQL null comparisons are never true —
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
 
     const branch = data?.branches?.[0] ?? null;
     // The split is only meaningful while every outlet answers on the brand's own
-    // number. Anything else and we must not label orders "Via us".
+    // number. Anything else and we must not label orders "Via Televery".
     const attributable = branch?.whatsapp_source === "main";
     const rawOutlets: Outlet[] = branch?.outlets ?? [];
 

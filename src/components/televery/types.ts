@@ -54,7 +54,7 @@ export type TeleveryOverview = {
   };
   businesses: TeleveryBusiness[];
   /** False when the brand is no longer on whatsapp_source "main", i.e. outlets
-   *  may have their own numbers and "via WhatsApp" no longer implies "via us". */
+   *  may have their own numbers and "via WhatsApp" no longer implies "via Televery". */
   channelSplitAttributable: boolean;
   outletOrders: TeleveryOutletOrders | null;
 };

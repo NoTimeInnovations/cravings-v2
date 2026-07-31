@@ -134,7 +134,7 @@ export function TeleveryBusinessesView({
               {selected.storeName || selected.username || "Unnamed business"}
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {selected.whatsappOrders} via us ({inr(selected.whatsappRevenue)}) ·{" "}
+              {selected.whatsappOrders} via Televery ({inr(selected.whatsappRevenue)}) ·{" "}
               {selected.directOrders} direct ({inr(selected.directRevenue)})
               {selected.location ? ` · ${selected.location}` : ""}
             </p>
@@ -170,7 +170,7 @@ export function TeleveryBusinessesView({
                             : "shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
                         }
                       >
-                        {o.orderChannel === "whatsapp" ? "Via us" : "Direct"}
+                        {o.orderChannel === "whatsapp" ? "Via Televery" : "Direct"}
                       </span>
                       #{o.displayId ?? o.id.slice(0, 8)}
                       {o.customerName ? (
@@ -301,7 +301,7 @@ export function TeleveryBusinessesView({
                       {b.whatsappOrders}
                     </span>
                     <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
-                      via us
+                      via Televery
                     </span>
                   </span>
                   <span className="shrink-0 text-right">

@@ -70,7 +70,7 @@ export function TeleveryDashboardView({
 
             The split rests on every outlet answering on the brand's own WhatsApp
             number. If that stops being true the API says so and we show the plain
-            totals instead of labelling orders "via us" on a rule that no longer
+            totals instead of labelling orders "via Televery" on a rule that no longer
             holds — a number nobody can stand behind is worse than no number. */}
         {data?.channelSplitAttributable === false ? (
           <>
