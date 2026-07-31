@@ -10,6 +10,14 @@ export type TeleveryBusiness = {
   status: string | null;
   orders: number;
   revenue: number;
+  /** Split by where the customer came from. Televery's branch is on
+   *  whatsapp_source "main", so every outlet answers on Televery's own number —
+   *  a WhatsApp order for any of them is one Televery originated. Everything
+   *  else is the customer arriving at the shop's own link. */
+  whatsappOrders: number;
+  whatsappRevenue: number;
+  directOrders: number;
+  directRevenue: number;
 };
 
 export type TeleveryOutletOrder = {
@@ -19,6 +27,7 @@ export type TeleveryOutletOrder = {
   status: string | null;
   type: string | null;
   totalPrice: number | null;
+  orderChannel: string | null;
   customerName: string | null;
   customerPhone: string | null;
 };
@@ -34,7 +43,15 @@ export type TeleveryOutletOrders = {
 
 export type TeleveryOverview = {
   brand: { id: string; name: string } | null;
-  totals: { businesses: number; orders: number; revenue: number };
+  totals: {
+    businesses: number;
+    orders: number;
+    revenue: number;
+    whatsappOrders: number;
+    whatsappRevenue: number;
+    directOrders: number;
+    directRevenue: number;
+  };
   businesses: TeleveryBusiness[];
   outletOrders: TeleveryOutletOrders | null;
 };

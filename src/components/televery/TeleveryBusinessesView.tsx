@@ -134,8 +134,8 @@ export function TeleveryBusinessesView({
               {selected.storeName || selected.username || "Unnamed business"}
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {outletOrders.total} order{outletOrders.total === 1 ? "" : "s"} ·{" "}
-              {inr(selected.revenue)}
+              {selected.whatsappOrders} via us ({inr(selected.whatsappRevenue)}) ·{" "}
+              {selected.directOrders} direct ({inr(selected.directRevenue)})
               {selected.location ? ` · ${selected.location}` : ""}
             </p>
           </div>
@@ -159,7 +159,19 @@ export function TeleveryBusinessesView({
               {outletOrders.orders.map((o) => (
                 <div key={o.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">
+                    <p className="flex items-center gap-2 truncate text-sm font-semibold">
+                      {/* Every row is labelled, including "Direct" — an unlabelled
+                          row would be ambiguous between "came direct" and "we do
+                          not know", and this is the number Televery bills on. */}
+                      <span
+                        className={
+                          o.orderChannel === "whatsapp"
+                            ? "shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                        }
+                      >
+                        {o.orderChannel === "whatsapp" ? "Via us" : "Direct"}
+                      </span>
                       #{o.displayId ?? o.id.slice(0, 8)}
                       {o.customerName ? (
                         <span className="ml-2 font-normal text-muted-foreground">
@@ -280,12 +292,24 @@ export function TeleveryBusinessesView({
                       {b.location || b.username || "—"}
                     </span>
                   </span>
+                  {/* Split, not just a total: what Televery brought this shop
+                      vs what the shop brought itself. Both are shown even when
+                      one is 0 — a column that disappears reads as missing data
+                      rather than as a real zero. */}
                   <span className="shrink-0 text-right">
-                    <span className="block text-sm font-semibold tabular-nums">
-                      {b.orders}
+                    <span className="block text-sm font-semibold tabular-nums text-green-600 dark:text-green-500">
+                      {b.whatsappOrders}
                     </span>
                     <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
-                      orders
+                      via us
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block text-sm font-semibold tabular-nums">
+                      {b.directOrders}
+                    </span>
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                      direct
                     </span>
                   </span>
                   <span className="hidden w-24 shrink-0 text-right text-sm font-semibold tabular-nums sm:block">

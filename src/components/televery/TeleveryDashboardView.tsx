@@ -64,15 +64,33 @@ export function TeleveryDashboardView({
           value={String(data?.totals.businesses ?? 0)}
           icon={Building2}
         />
+        {/* Orders Televery brought in, kept separate from the ones the shops got
+            themselves. The combined figure is still shown, because a shop's own
+            trade is not Televery's to claim — but it is not the headline. */}
         <TeleveryKpiCard
-          label="Total orders"
-          value={String(data?.totals.orders ?? 0)}
+          label="Orders via Televery"
+          value={String(data?.totals.whatsappOrders ?? 0)}
           icon={ShoppingBag}
         />
         <TeleveryKpiCard
-          label="Revenue"
-          value={inr(data?.totals.revenue ?? 0)}
+          label="Revenue via Televery"
+          value={inr(data?.totals.whatsappRevenue ?? 0)}
           icon={IndianRupee}
+        />
+        <TeleveryKpiCard
+          label="Direct orders"
+          value={String(data?.totals.directOrders ?? 0)}
+          icon={Store}
+        />
+        <TeleveryKpiCard
+          label="Direct revenue"
+          value={inr(data?.totals.directRevenue ?? 0)}
+          icon={IndianRupee}
+        />
+        <TeleveryKpiCard
+          label="All orders"
+          value={String(data?.totals.orders ?? 0)}
+          icon={ShoppingBag}
         />
       </div>
 
