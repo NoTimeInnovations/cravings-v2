@@ -138,6 +138,29 @@ export default function ItemCustomizationSheet() {
     const hasVariants = (item?.variants?.length ?? 0) > 0;
     const groups: ModifierGroup[] = item?.addon_groups ?? [];
 
+    // Heading over the variant picker. "Size" is only right when the variants
+    // ARE sizes; plenty of menus use that list for bases, portions or proteins,
+    // so the partner can rename it (Settings → Storefront → Variant heading).
+    //
+    // storefront_settings is sometimes persisted stringified, hence the
+    // parse-check — the same shape every other reader of this column uses. It
+    // must never throw: a malformed blob should cost the label, not the sheet.
+    //
+    // Partner-level rather than per-item on purpose. A menu column would have to
+    // be threaded through five explicit GraphQL field lists and two hand-built
+    // whitelists in menuStore, and Petpooja rewrites item rows on every sync —
+    // for a heading that renders on a handful of items.
+    const variantGroupLabel = (() => {
+        try {
+            const raw = (hotelData as any)?.storefront_settings;
+            const sf = typeof raw === "string" ? JSON.parse(raw) : raw;
+            const label = String(sf?.variantGroupLabel ?? "").trim();
+            return label || "Size";
+        } catch {
+            return "Size";
+        }
+    })();
+
     const [variantName, setVariantName] = useState<string | null>(null);
     const [selections, setSelections] = useState<Record<string, string[]>>({});
     const [qty, setQty] = useState(1);
@@ -376,11 +399,11 @@ export default function ItemCustomizationSheet() {
 
                     {/* Option groups */}
                     <div className="p-4 space-y-5">
-                        {/* Variant as a required single-select "Size" group */}
+                        {/* Variant as a required single-select group */}
                         {hasVariants && (
                             <div>
                                 <div className="flex items-center justify-between mb-2">
-                                    <h4 className="font-bold text-base text-gray-900">Size</h4>
+                                    <h4 className="font-bold text-base text-gray-900">{variantGroupLabel}</h4>
                                     <GroupPill
                                         text="Required · choose 1"
                                         error={!variant}

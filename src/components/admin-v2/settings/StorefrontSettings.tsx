@@ -64,6 +64,10 @@ interface StorefrontData {
     languageSwitcher?: boolean;
     /** Show the store logo full-screen on the onboarding screen (vs the small badge). */
     onboardingLogoFullScreen?: boolean;
+    /** Heading above the variant picker in the item customisation sheet. Empty
+     *  falls back to "Size", which is wrong for menus whose variants are bases,
+     *  portions or proteins rather than sizes. */
+    variantGroupLabel?: string;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -140,6 +144,7 @@ const DEFAULT_STOREFRONT: StorefrontData = {
     brandName: "",
     languageSwitcher: false,
     onboardingLogoFullScreen: false,
+    variantGroupLabel: "",
     sections: [
         { id: uid(), type: "hero", enabled: true, content: { ...DEFAULT_CONTENT.hero } },
         { id: uid(), type: "imageText", enabled: true, content: { ...DEFAULT_CONTENT.imageText } },
@@ -355,6 +360,20 @@ export function StorefrontSettings() {
                             value={storefront.brandName}
                             onChange={(e) => updateStorefront({ brandName: e.target.value })}
                             placeholder="Defaults to your restaurant name"
+                        />
+                    </div>
+
+                    <div>
+                        <Label>Variant heading</Label>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 mb-2">
+                            The title above the options list when a customer picks a variant —
+                            e.g. &quot;Base&quot;, &quot;Portion&quot;, &quot;Protein&quot;.
+                        </p>
+                        <Input
+                            value={storefront.variantGroupLabel ?? ""}
+                            onChange={(e) => updateStorefront({ variantGroupLabel: e.target.value })}
+                            placeholder="Size"
+                            maxLength={24}
                         />
                     </div>
 
