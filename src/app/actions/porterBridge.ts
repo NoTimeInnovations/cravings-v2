@@ -1086,7 +1086,19 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
   };
   const running = d.status === "running";
   const curIdx = d.currentProvider ? d.plan.indexOf(d.currentProvider) : -1;
-  const won = d.status === "assigned" ? (d.result?.provider ?? d.booking?.provider ?? null) : null;
+  // Derive the winner from the BOOKING, not just the dispatch status. A dispatch
+  // whose last provider timed out stays "searching" even after that same booking
+  // goes on to be assigned and delivered — reading only d.status then reported
+  // "no winner", which rendered every provider row as "Cancelled".
+  const bookingWon =
+    d.booking?.status === "not_started" ||
+    d.booking?.status === "started" ||
+    d.booking?.status === "ended" ||
+    Boolean(d.booking?.driver?.name);
+  const won =
+    d.status === "assigned" || bookingWon
+      ? (d.result?.provider ?? d.booking?.provider ?? null)
+      : null;
   // Per-provider state: won (live) | checking (now) | tried (cancelled/failed/escalated) | pending.
   const providers = d.plan.map((provider, i) => {
     let state: "won" | "checking" | "tried" | "pending";

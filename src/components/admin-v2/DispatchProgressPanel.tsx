@@ -246,9 +246,10 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
   // hunting. Both mean NO rider yet, so both must be cancellable — only
   // "running" was, which left a stuck search with no way out.
   const stillSearching = p.status === "running" || p.status === "searching";
-  const showHistory =
-    (p.history ?? []).length > 1 ||
-    (p.history ?? []).some((h) => h.status === "cancelled" || h.status === "failed");
+  // Show the real bookings whenever there are any. The old rule (2+ rows, or one
+  // cancelled/failed) hid a single successful rider entirely, leaving only the
+  // provider-plan row — which is a guess, not a record of what happened.
+  const showHistory = (p.history ?? []).length > 0;
   // Once a rider is assigned, the live DeliveryRiderPanel takes over the escalation
   // card — but if an earlier rider was cancelled/escalated, still surface the rider
   // history so the operator can see who was booked before.
