@@ -103,6 +103,21 @@ export type FeatureFlags = {
     enabled: boolean;
   };
   /**
+   * Publishes the partner's menu as a WhatsApp Business Catalogue, so customers
+   * browse dishes and build a cart inside WhatsApp instead of only receiving a
+   * link. Opt-in per partner: it needs a catalogue connected to that partner's
+   * OWN WABA, so it is unavailable to the outlets that share a number, and it
+   * needs every listed item to carry an image.
+   *
+   * Checkout still happens on the storefront — the WhatsApp cart is handed over
+   * via the existing `?ro=` reorder payload, so pricing, offers, delivery rules
+   * and stock stay computed in exactly one place.
+   */
+  whatsappcatalog: {
+    access: boolean;
+    enabled: boolean;
+  };
+  /**
    * Allows customers to place scheduled (prebooked) orders for a future date
    * and time. Partners configure allowed windows, lead time, and max days
    * ahead in the admin-v2 Prebooking settings tab (`prebooking_settings`).
@@ -192,6 +207,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
     parts.push(`delivery_pool-${features.delivery_pool.enabled}`);
   }
 
+  if (features.whatsappcatalog.access) {
+    parts.push(`whatsappcatalog-${features.whatsappcatalog.enabled}`);
+  }
+
   if (features.prebooking.access) {
     parts.push(`prebooking-${features.prebooking.enabled}`);
   }
@@ -269,6 +288,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    whatsappcatalog: {
+      access: false,
+      enabled: false,
+    },
     prebooking: {
       access: false,
       enabled: false,
@@ -337,6 +360,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "delivery_pool") {
         permissions.delivery_pool.access = true;
         permissions.delivery_pool.enabled = value === "true";
+      } else if (key === "whatsappcatalog") {
+        permissions.whatsappcatalog.access = true;
+        permissions.whatsappcatalog.enabled = value === "true";
       } else if (key === "prebooking") {
         permissions.prebooking.access = true;
         permissions.prebooking.enabled = value === "true";
