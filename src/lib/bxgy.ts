@@ -68,6 +68,24 @@ export function isBxgy(d: { discount_type?: string | null; type?: string | null 
   return d?.discount_type === "bxgy" || d?.type === "bxgy";
 }
 
+/**
+ * Does this discount hand over a SEPARATE free item, rather than marking the
+ * lines that earned it down?
+ *
+ * This is the distinction that decides whether an offer-priced cart can earn
+ * it. "Item already on offer" excludes a line from the discount base because
+ * discounting it again would mark the same item down twice — but a free item is
+ * a different item, so buying two momos at their offer price still earns it.
+ * A percentage or flat reward IS money off the same bill and stays bounded by
+ * the discountable base.
+ */
+export function bxgyGivesFreeItem(
+  d: (BxgyLike & { type?: string | null; discount_type?: string | null }) | null | undefined,
+): boolean {
+  if (!d || !isBxgy(d)) return false;
+  return bxgyRewardType(d) === "freebie" && parseIdList(d.freebie_item_ids).length > 0;
+}
+
 export function bxgyBuyType(cfg: BxgyLike | null | undefined): BxgyBuyType {
   const t = cfg?.bxgy_buy_type;
   return BXGY_BUY_TYPES.includes(t as BxgyBuyType) ? (t as BxgyBuyType) : "items";

@@ -93,8 +93,8 @@ import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
 import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
 import { computeMaxRedeemable } from "@/lib/loyalty/config";
-import { discountableSubtotal, discountableLines } from "@/lib/discountUtils";
-import { bxgyFreebieUnits, bxgyRepeatCount, bxgyRewardAmount, describeBxgy } from "@/lib/bxgy";
+import { discountableSubtotal } from "@/lib/discountUtils";
+import { bxgyFreebieUnits, bxgyGivesFreeItem, bxgyRepeatCount, bxgyRewardAmount, describeBxgy } from "@/lib/bxgy";
 import { fireGiftConfetti, originOf } from "@/lib/giftConfetti";
 import { GiftEarnedModal } from "@/components/hotelDetail/GiftEarnedModal";
 import { clearSessionOrderType } from "@/lib/onboardingSession";
@@ -669,14 +669,6 @@ const PlaceOrderModalV2 = ({
   // Discounts never apply to an item that is already sold at an OFFER price —
   // that line's price is the offer price, so discounting it again would mark it
   // down twice. Everything else in the cart stays discountable.
-  // The lines a discount may be earned on. A BXGY buy condition counts UNITS,
-  // so it has to be judged on these and not the raw cart: an item already sold
-  // at an offer price must not also earn a free one.
-  const discountItems = useMemo(
-    () => discountableLines(items || [], (hotelData as any)?.offers),
-    [items, (hotelData as any)?.offers],
-  );
-
   const discountBase = useMemo(
     () => discountableSubtotal(items || [], (hotelData as any)?.offers),
     [items, (hotelData as any)?.offers],
@@ -1082,15 +1074,21 @@ const PlaceOrderModalV2 = ({
       .reduce((total, id) => total + menuPriceOf(id) * count, 0);
   };
 
+  // A BXGY that hands over a free ITEM is not a markdown of the lines that
+  // earned it, so an all-offer cart can still earn one (Visu Kitchen's rule
+  // names 13 parathas that are themselves all on offer). Percentage and flat
+  // rewards are money off the same bill and stay bounded by discountBase.
+  const givesFreeItem = bxgyGivesFreeItem(appliedDiscount);
+
   // How many times the cart earns a BXGY reward right now (0 = it doesn't).
   // Measured against the DISCOUNTABLE subtotal so a cart made entirely of
   // offer-priced lines cannot earn one.
   const bxgyRepeat = useMemo(
     () =>
       appliedDiscount?.type === "bxgy"
-        ? bxgyRepeatCount(appliedDiscount, discountItems, discountBase)
+        ? bxgyRepeatCount(appliedDiscount, items, discountBase)
         : 0,
-    [appliedDiscount, discountItems, discountBase],
+    [appliedDiscount, items, discountBase],
   );
 
   // Is the currently-applied discount STILL valid for the current cart? The
@@ -1108,7 +1106,7 @@ const PlaceOrderModalV2 = ({
     // Everything in the cart is already on an offer, so there is nothing left to
     // discount. Must come AFTER the empty check: discountableSubtotal also
     // returns 0 for an empty cart, and "empty" is the more accurate reason.
-    if (discountBase <= 0) return "alloffer";
+    if (discountBase <= 0 && !givesFreeItem) return "alloffer";
     if (d.min_order_value && subtotal < Number(d.min_order_value)) return "min";
     // The buy condition is a live cart check, not a one-off gate: removing the
     // second pizza has to take the free coke away again.
@@ -1125,14 +1123,15 @@ const PlaceOrderModalV2 = ({
     return null;
     // discountBase was missing from the deps, so the reason went stale whenever
     // the discountable share changed without the subtotal changing.
-  }, [appliedDiscount, items, subtotal, discountBase, orderType, isQrScan, bxgyRepeat]);
+  }, [appliedDiscount, items, subtotal, discountBase, orderType, isQrScan, bxgyRepeat, givesFreeItem]);
 
   /**
    * Nothing in the cart can carry a discount — every line is already on an offer.
    * Independent of appliedDiscount (which the reason above requires), because the
    * entry point has to be disabled BEFORE anyone applies anything.
    */
-  const nothingDiscountable = (items?.length ?? 0) > 0 && discountBase <= 0;
+  const nothingDiscountable =
+    (items?.length ?? 0) > 0 && discountBase <= 0 && !givesFreeItem;
 
   // Auto-applied (non-coupon) discounts have no Remove control, so self-clear
   // them once they stop qualifying — the auto-apply effect then re-evaluates and
@@ -1163,19 +1162,31 @@ const PlaceOrderModalV2 = ({
     if (appliedDiscount.max_discount_amount) {
       savings = Math.min(savings, appliedDiscount.max_discount_amount);
     }
-    // Clamp EVERY type (including freebie, which previously returned early and
-    // unclamped) to the DISCOUNTABLE part of the cart, so a discount can never
-    // exceed it, drag GST/delivery/parcel into a near-free order, or eat into
+    // Clamp to the DISCOUNTABLE part of the cart, so a discount can never exceed
+    // it, drag GST/delivery/parcel into a near-free order, or eat into
     // offer-priced lines. An all-offer cart therefore discounts nothing.
-    return Math.min(savings, discountBase);
-  }, [appliedDiscount, subtotal, discountBase, hotelData?.menus, discountIneligibleReason, bxgyRepeat]);
+    //
+    // A BXGY free item is exempt: its value is added to the item total just
+    // below and taken straight back off here, so the two cancel and the customer
+    // pays for their own items only. Clamping it to the customer's lines would
+    // either zero it (all-offer cart) or, worse, leave the free item's price
+    // subtracted from items they actually have to pay for.
+    return givesFreeItem ? savings : Math.min(savings, discountBase);
+  }, [appliedDiscount, subtotal, discountBase, hotelData?.menus, discountIneligibleReason, bxgyRepeat, givesFreeItem]);
+
+  // The free item is a real line on the order, so it belongs in the item total —
+  // and discountSavings removes exactly the same amount, so the two cancel and
+  // the customer pays for their own items only. Without this the "discount" came
+  // off the items they DID pay for, handing over the gift AND its price.
+  const freeItemValue = givesFreeItem && !discountIneligibleReason ? discountSavings : 0;
+  const itemTotal = displaySubtotal + freeItemValue;
 
   // Round Off (display): mirror what orderStore persists — round the pre-round
   // grand total UP to the next whole number when the partner enables it. Baked
   // into grandTotal so payableTotal, analytics values and the footer all agree
   // with the charged amount. The store adds the "Round Off" extra_charge itself,
   // so we must NOT add it to the extra_charges we pass to placeOrder (no double).
-  const preRoundGrandTotal = Math.max(0, displaySubtotal + deliveryCharge + parcelCharge + qrExtraCharge + additionalGst - discountSavings);
+  const preRoundGrandTotal = Math.max(0, itemTotal + deliveryCharge + parcelCharge + qrExtraCharge + additionalGst - discountSavings);
   const roundOff = isRoundOffEnabled(hotelData?.delivery_rules) ? computeRoundOff(preRoundGrandTotal) : 0;
   const extraChargesTotal = deliveryCharge + parcelCharge + qrExtraCharge;
   const grandTotal = Math.round((preRoundGrandTotal + roundOff) * 100) / 100;
@@ -1291,13 +1302,18 @@ const PlaceOrderModalV2 = ({
           // an offer. Auto-applying here would be cleared on the very next
           // render by the ineligibility effect, which would re-run this filter
           // and re-apply: the checkout visibly flickers. Applies to every type.
-          if (discountBase <= 0) return false;
+          // A discount that can't touch anything would be applied here and cleared
+          // on the next render by the ineligibility effect, which re-runs this
+          // filter and re-applies it — the checkout visibly flickers. The two
+          // MUST agree, so this mirrors discountIneligibleReason's "alloffer"
+          // check exactly, free-item exemption included.
+          if (discountBase <= 0 && !bxgyGivesFreeItem(disc)) return false;
           // Auto-apply must only ever pick an ELIGIBLE discount, or the effect
           // that self-clears ineligible auto-applied ones would fight it and
           // oscillate. A BXGY whose buy condition the cart doesn't meet is
           // exactly that, so it is filtered out here rather than applied and
           // immediately dropped.
-          if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, discountItems, discountBase)) return false;
+          if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, items, discountBase)) return false;
           if (disc.discount_order_types) {
             const allowed = disc.discount_order_types.split(",").map((t: string) => t.trim());
             if (!allowed.includes(currentTypeCode)) return false;
@@ -1336,7 +1352,7 @@ const PlaceOrderModalV2 = ({
     return () => {
       ignore = true;
     };
-  }, [hotelData?.id, open_place_order_modal, items, subtotal, discountBase, discountItems, orderType, isQrScan, appliedDiscount]);
+  }, [hotelData?.id, open_place_order_modal, items, subtotal, discountBase, orderType, isQrScan, appliedDiscount]);
 
   const validateAndApplyCode = async (code: string) => {
     const trimmed = code.trim().toUpperCase();
@@ -1373,7 +1389,7 @@ const PlaceOrderModalV2 = ({
       }
       // Say WHY a BXGY code bounced — "Buy 2 of Pizza, get a free Coke" is far
       // more useful than applying it for ₹0 and leaving the customer guessing.
-      if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, discountItems, discountBase)) {
+      if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, items, discountBase)) {
         setDiscountError(
           "Not eligible yet — " + describeBxgy(disc, {
             currency,
@@ -1440,7 +1456,7 @@ const PlaceOrderModalV2 = ({
       toast.error(`Minimum order of ${currency}${d.min_order_value} required.`);
       return;
     }
-    if (d.discount_type === "bxgy" && !bxgyRepeatCount(d, discountItems, discountBase)) {
+    if (d.discount_type === "bxgy" && !bxgyRepeatCount(d, items, discountBase)) {
       toast.error(
         "Not eligible yet — " + describeBxgy(d, {
           currency,
@@ -3645,13 +3661,13 @@ const PlaceOrderModalV2 = ({
                       Discount -12" — a figure the customer's own line items never
                       added up to. To Pay was always right; this was display-only.
 
-                      Uses displaySubtotal (= subtotal + takeawayCharge) because the
+                      Uses itemTotal (subtotal + takeaway + any free item) because the
                       takeaway per-item adjustment has no row of its own, so it has
                       to land here for the breakdown to sum to To Pay. It equals
                       subtotal whenever no takeaway adjustment is configured. */}
                   <Row
                     label="Item Total"
-                    value={<MenuPrice currency={currency} amount={displaySubtotal.toFixed(0)} />}
+                    value={<MenuPrice currency={currency} amount={itemTotal.toFixed(0)} />}
                   />
                   {discountSavings > 0 && (
                     <Row
