@@ -872,7 +872,7 @@ const BillCard = ({
             </div>
             {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
               <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
-                ETA {porterQuote.etaMins} min · via Porter
+                ETA {porterQuote.etaMins} min
               </div>
             )}
           </div>

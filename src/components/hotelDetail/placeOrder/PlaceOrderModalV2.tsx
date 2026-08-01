@@ -3573,7 +3573,7 @@ const PlaceOrderModalV2 = ({
                       </div>
                       {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
                         <div className="text-xs text-gray-400 mt-0.5">
-                          ETA {porterQuote.etaMins} min · via Porter
+                          ETA {porterQuote.etaMins} min
                         </div>
                       )}
                     </div>
