@@ -675,6 +675,93 @@ async function appendDispatchMeta(
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// Dispatch history across re-dispatches
+//
+// `delivery_provider_meta.dispatchId` is a POINTER to the current dispatch, and
+// _append is a shallow jsonb merge (`||`) — writing the same key REPLACES it.
+// So every re-dispatch silently orphaned the previous dispatch and every rider
+// booked under it: a Porter cancel followed by "Cancel & rebook" left the order
+// showing one rider and no trace of the cancelled one. That is precisely what
+// the rider-history block was written to prevent.
+//
+// `dispatchIds` keeps the full list alongside the pointer, so everything that
+// already reads `dispatchId` keeps working untouched.
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Plenty for any real order; a bound so a pathological retry loop cannot grow
+ *  the jsonb blob without limit. */
+const MAX_TRACKED_DISPATCHES = 20;
+
+/** How many earlier dispatches to actually fetch when rendering. Each one is a
+ *  bridge round trip on a 5s poll, so the tail is capped — the newest are the
+ *  ones anybody is looking for. */
+const MAX_PRIOR_DISPATCH_FETCH = 5;
+
+export interface DispatchHistoryRow {
+  bookingId: string;
+  provider: string;
+  status: string;
+  crn: string | null;
+  driver: {
+    name?: string;
+    phone?: string;
+    vehicleNumber?: string;
+    vehicleModel?: string;
+    photoUrl?: string;
+  } | null;
+  fareAmount: number | null;
+  /** Set only for a deliberate partner/customer/operator cancel, so the row can
+   *  say WHO cancelled rather than a bare "Cancelled". */
+  cancelledBy?: string | null;
+  cancelReason?: string | null;
+  /** null = a rider was never assigned (the search timed out) as opposed to a
+   *  rider taking the job and then dropping it. */
+  assignedAt?: number | null;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+/**
+ * Every dispatch id this order has had, oldest first, with `newId` last.
+ *
+ * Call this with the meta as it exists BEFORE the new pointer is written — the
+ * current `dispatchId` is what back-fills orders that were dispatched before
+ * the list existed, so it must still be the old value when this runs.
+ */
+export function mergeDispatchIds(
+  meta: { dispatchId?: unknown; dispatchIds?: unknown } | null | undefined,
+  newId: string,
+): string[] {
+  const prior = Array.isArray(meta?.dispatchIds) ? meta.dispatchIds : [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const id of [...prior, meta?.dispatchId, newId]) {
+    if (typeof id !== "string" || !id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  // Drop from the OLDEST end — the recent dispatches are the interesting ones.
+  return out.slice(-MAX_TRACKED_DISPATCHES);
+}
+
+/** Newest first, one row per booking. Bookings are unique per dispatch, but a
+ *  re-fetch overlap must never render the same rider twice. */
+export function mergeDispatchHistory(
+  ...groups: Array<DispatchHistoryRow[] | undefined>
+): DispatchHistoryRow[] {
+  const seen = new Set<string>();
+  const rows: DispatchHistoryRow[] = [];
+  for (const group of groups) {
+    for (const h of group ?? []) {
+      if (!h?.bookingId || seen.has(h.bookingId)) continue;
+      seen.add(h.bookingId);
+      rows.push(h);
+    }
+  }
+  return rows.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+}
+
 interface PartnerDispatchCfg {
   /** Base/default mobile (porter_mobile ?? phone): per-provider fallback. */
   mobile: string;
@@ -932,8 +1019,26 @@ export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result
     return res;
   }
   const dispatchId = String((res.data as { dispatchId?: string }).dispatchId ?? "");
+
+  // Read the pointer we are about to overwrite, so the dispatch it refers to —
+  // and every rider booked under it — stays reachable from the order. This has
+  // to happen BEFORE persistDispatch writes the new dispatchId.
+  let dispatchIds: string[] = [dispatchId];
+  try {
+    const prev = await fetchFromHasura(
+      `query PriorDispatchIds($id: uuid!) { orders_by_pk(id: $id) { delivery_provider_meta } }`,
+      { id: orderId },
+    );
+    dispatchIds = mergeDispatchIds(prev.orders_by_pk?.delivery_provider_meta, dispatchId);
+  } catch (err) {
+    // Losing the list is not worth failing a dispatch over — the order still
+    // gets its rider, we just cannot show the earlier ones.
+    console.warn("[delivery-bridge] could not read prior dispatch ids:", err);
+  }
+
   await persistDispatch(orderId, "dispatch", "running", dispatchId, {
     dispatchId,
+    dispatchIds,
     vehicleMode: c.cfg.vehicleMode,
     priority: c.cfg.priority ?? null,
   });
@@ -1048,6 +1153,7 @@ export async function getDispatchTracking(orderId: string): Promise<Result> {
 export async function getDispatchProgress(orderId: string): Promise<Result> {
   if (!orderId) return { ok: false, message: "orderId required" };
   let dispatchId: string | null = null;
+  let dispatchIds: string[] = [];
   let storedState: string | null = null;
   let storedPickupPin: string | null = null;
   let storedDropPin: string | null = null;
@@ -1056,10 +1162,14 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       `query GetDispatchProg($id: uuid!) { orders_by_pk(id: $id) { delivery_provider_state delivery_provider_meta } }`,
       { id: orderId },
     );
-    dispatchId = data.orders_by_pk?.delivery_provider_meta?.dispatchId ?? null;
+    const meta = data.orders_by_pk?.delivery_provider_meta;
+    dispatchId = meta?.dispatchId ?? null;
+    dispatchIds = Array.isArray(meta?.dispatchIds)
+      ? meta.dispatchIds.filter((x: unknown): x is string => typeof x === "string" && !!x)
+      : [];
     storedState = data.orders_by_pk?.delivery_provider_state ?? null;
-    storedPickupPin = data.orders_by_pk?.delivery_provider_meta?.pickupPin ?? null;
-    storedDropPin = data.orders_by_pk?.delivery_provider_meta?.dropPin ?? null;
+    storedPickupPin = meta?.pickupPin ?? null;
+    storedDropPin = meta?.dropPin ?? null;
   } catch (err) {
     return { ok: false, message: `hasura: ${(err as Error).message}` };
   }
@@ -1081,9 +1191,36 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       pickupPin?: string | null;
       dropPin?: string | null;
     } | null;
-    history?: Array<{ bookingId: string; provider: string; status: string; crn: string | null; driver: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string; photoUrl?: string } | null; fareAmount: number | null; cancelledBy: string | null; cancelReason: string | null; assignedAt: number | null; createdAt: number; updatedAt: number }>;
+    history?: DispatchHistoryRow[];
     log: Array<{ t: number; text: string; tone: string }>;
   };
+
+  // Riders booked under EARLIER dispatches for this order. A dispatch only knows
+  // its own bookings, so without this a cancel-then-rebook shows the new rider
+  // alone and the cancelled one disappears from the order entirely.
+  //
+  // Best-effort by design: a prior dispatch that 404s (aged out upstream) or
+  // errors contributes nothing rather than failing the whole panel, which still
+  // has live state to show.
+  const priorIds = dispatchIds
+    .filter((id) => id !== dispatchId)
+    .slice(-MAX_PRIOR_DISPATCH_FETCH);
+  const priorHistory = priorIds.length
+    ? (
+        await Promise.all(
+          priorIds.map(async (id) => {
+            try {
+              const r = await bridgeFetch(`/api/v1/dispatch/${id}`, { method: "GET" });
+              if (!r.ok) return [];
+              const h = (r.data as { history?: DispatchHistoryRow[] })?.history;
+              return Array.isArray(h) ? h : [];
+            } catch {
+              return [];
+            }
+          }),
+        )
+      ).flat()
+    : [];
   const running = d.status === "running";
   const curIdx = d.currentProvider ? d.plan.indexOf(d.currentProvider) : -1;
   // Derive the winner from the BOOKING, not just the dispatch status. A dispatch
@@ -1180,7 +1317,9 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       trackUrl: d.booking?.trackUrl ?? null,
       pickupPin,
       dropPin,
-      history: Array.isArray(d.history) ? d.history : [],
+      // Current dispatch first so its riders win on any bookingId overlap, then
+      // sorted newest-first across the lot.
+      history: mergeDispatchHistory(d.history, priorHistory),
       log: Array.isArray(d.log) ? d.log.slice(-8) : [],
     },
   };
