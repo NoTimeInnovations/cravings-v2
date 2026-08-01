@@ -1044,7 +1044,8 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
             {/* Delivery-bridge multi-provider dispatch progress — which provider
                 is being checked now + each provider's outcome (cancelled/live).
                 Shows for any order dispatched through the bridge (has a dispatchId). */}
-            {(order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId && (
+            {(order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId &&
+                getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled && (
                 <DispatchProgressPanel orderId={order.id} />
             )}
 

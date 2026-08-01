@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import { getDispatchProgress, cancelDispatch } from "@/app/actions/porterBridge";
+import {
+  getDispatchProgress,
+  cancelDispatch,
+  dispatchViaDeliveryBridge,
+} from "@/app/actions/porterBridge";
 
 type ProviderState = "won" | "checking" | "tried" | "pending";
 interface HistItem {
@@ -96,6 +100,11 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
   const [cancelling, setCancelling] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [rebooking, setRebooking] = useState(false);
+  // Bumped after a re-dispatch so the poll effect re-runs and picks up the
+  // NEW dispatch; without it the loop has already stopped and the panel
+  // would stay blank until a page refresh.
+  const [reloadKey, setReloadKey] = useState(0);
   // Stop the poll loop immediately once we've cancelled, without waiting for the
   // bridge status to flip on the next tick.
   const cancelledRef = useRef(false);
@@ -109,7 +118,8 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
       if (r.ok) {
         const data = r.data as unknown as Progress;
         setP(data);
-        if (data.status === "running" && !cancelledRef.current) timer = setTimeout(tick, 5000);
+        if ((data.status === "running" || data.status === "searching") && !cancelledRef.current)
+          timer = setTimeout(tick, 5000);
       }
       // 404 (no dispatch) or error → stop polling; panel just won't render.
     };
@@ -118,7 +128,7 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
       active = false;
       if (timer) clearTimeout(timer);
     };
-  }, [orderId]);
+  }, [orderId, reloadKey]);
 
   // Cancel the in-flight delivery-bridge dispatch (only offered while it's still
   // checking providers and hasn't already been cancelled).
@@ -138,7 +148,54 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
     }
   };
 
+  /**
+   * Cancel the current hunt and immediately start a fresh dispatch.
+   *
+   * This is a NEW dispatch, not a rebook of the cancelled booking: the bridge
+   * deliberately refuses to rebook a partner-cancelled delivery (that would
+   * override the person who cancelled), but explicitly asking for another
+   * attempt is a different intent.
+   */
+  const handleCancelAndRebook = async () => {
+    if (cancelling || rebooking) return;
+    if (
+      !window.confirm(
+        "Cancel the current search and book again?\n\nThe current provider search stops and a fresh rider hunt starts. This books a real delivery.",
+      )
+    )
+      return;
+    setRebooking(true);
+    setCancelError(null);
+    const c = await cancelDispatch(orderId, undefined, "partner");
+    if (!c.ok && c.status !== 404) {
+      setRebooking(false);
+      setCancelError(c.message || "Failed to cancel the current dispatch");
+      return;
+    }
+    cancelledRef.current = true;
+    // The bridge enforces one live delivery per order. The cancel we just did
+    // has to land upstream before a new dispatch is allowed, so retry once
+    // after a short pause rather than surfacing a confusing "already active".
+    let r = await dispatchViaDeliveryBridge(orderId);
+    if (!r.ok && /active delivery/i.test(r.message ?? "")) {
+      await new Promise((res) => setTimeout(res, 2000));
+      r = await dispatchViaDeliveryBridge(orderId);
+    }
+    setRebooking(false);
+    if (r.ok) {
+      cancelledRef.current = false;
+      setCancelled(false);
+      setReloadKey((k) => k + 1); // restart polling against the new dispatch
+    } else {
+      setCancelError(r.message || "Cancelled, but booking again failed");
+    }
+  };
+
   if (!p) return null;
+  // running = escalating through providers; searching = last provider left
+  // hunting. Both mean NO rider yet, so both must be cancellable — only
+  // "running" was, which left a stuck search with no way out.
+  const stillSearching = p.status === "running" || p.status === "searching";
   const showHistory =
     (p.history ?? []).length > 1 ||
     (p.history ?? []).some((h) => h.status === "cancelled" || h.status === "failed");
@@ -203,15 +260,25 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
         </div>
       )}
 
-      {p.status === "running" && !cancelled && (
-        <button
-          type="button"
-          onClick={handleCancel}
-          disabled={cancelling}
-          className="mt-3 w-full rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {cancelling ? "Cancelling…" : "Cancel dispatch"}
-        </button>
+      {stillSearching && !cancelled && (
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={cancelling || rebooking}
+            className="flex-1 rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {cancelling ? "Cancelling…" : "Cancel dispatch"}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancelAndRebook}
+            disabled={cancelling || rebooking}
+            className="flex-1 rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {rebooking ? "Rebooking…" : "Cancel & book again"}
+          </button>
+        </div>
       )}
 
       {cancelled && (
