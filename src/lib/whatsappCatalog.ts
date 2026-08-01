@@ -216,6 +216,8 @@ export interface PushResult {
   pushed: number;
   failed: number;
   errors: Array<{ retailer_id?: string; message: string }>;
+  /** Async job ids Meta returns. EMPTY means nothing was queued. */
+  handles: string[];
 }
 
 /**
@@ -223,13 +225,26 @@ export interface PushResult {
  *
  * `allow_upsert` so a first sync creates products rather than 404-ing on every
  * row — without it a new catalogue can only ever be updated, never populated.
+ *
+ * ⚠ /batch is ASYNCHRONOUS. A 200 means "queued", not "applied" — the body is
+ * `{handles: [...]}` and the work lands seconds later. Measured on oreodemo: an
+ * availability flip was still not visible 3s after a successful push, and only
+ * appeared on the following read.
+ *
+ * So this function CANNOT tell you whether anything succeeded. Its `pushed` count
+ * is "accepted for processing". Feed `handles` to awaitBatchHandles() for the
+ * real answer, and do not record anything as synced until you have it.
+ *
+ * (An earlier version read `body.validation_status`, which this endpoint does not
+ * return, so every push looked like a clean sweep — including one that rejected
+ * every row.)
  */
 export async function pushCatalogBatch(
   catalogId: string,
   accessToken: string,
   requests: BatchRequest[],
 ): Promise<PushResult> {
-  if (!requests.length) return { ok: true, pushed: 0, failed: 0, errors: [] };
+  if (!requests.length) return { ok: true, pushed: 0, failed: 0, errors: [], handles: [] };
 
   try {
     const res = await fetch(
@@ -258,27 +273,42 @@ export async function pushCatalogBatch(
         pushed: 0,
         failed: requests.length,
         errors: [{ message: msg }],
+        handles: [],
       };
     }
 
-    // Meta reports per-handle validation separately from HTTP status, so a 200
-    // does NOT mean every row landed. Treat anything it flags as failed rather
-    // than stamping synced_at on rows the catalogue rejected.
-    const handles: any[] = Array.isArray(body?.validation_status)
-      ? body.validation_status
-      : [];
-    const errors = handles
-      .filter((h) => Array.isArray(h?.errors) && h.errors.length)
-      .map((h) => ({
+    // Some rows can be rejected synchronously on shape alone. Those are real
+    // failures and are reported here; everything else is merely QUEUED.
+    const rejected: Array<{ retailer_id?: string; message: string }> = (
+      Array.isArray(body?.validation_status) ? body.validation_status : []
+    )
+      .filter((h: any) => Array.isArray(h?.errors) && h.errors.length)
+      .map((h: any) => ({
         retailer_id: h.retailer_id,
         message: h.errors[0]?.message || "rejected by Meta",
       }));
 
+    const handles: string[] = Array.isArray(body?.handles) ? body.handles : [];
+
+    // A 200 with neither handles nor rejections means Meta accepted nothing and
+    // told us nothing. Do not report that as success — it would stamp a whole
+    // batch as synced on the strength of an empty body.
+    if (!handles.length && !rejected.length) {
+      return {
+        ok: false,
+        pushed: 0,
+        failed: requests.length,
+        errors: [{ message: "Meta returned no batch handles — nothing was queued" }],
+        handles: [],
+      };
+    }
+
     return {
-      ok: errors.length === 0,
-      pushed: requests.length - errors.length,
-      failed: errors.length,
-      errors,
+      ok: rejected.length === 0,
+      pushed: requests.length - rejected.length,
+      failed: rejected.length,
+      errors: rejected,
+      handles,
     };
   } catch (err) {
     return {
@@ -286,6 +316,104 @@ export async function pushCatalogBatch(
       pushed: 0,
       failed: requests.length,
       errors: [{ message: `network: ${(err as Error).message}` }],
+      handles: [],
     };
   }
+}
+
+/**
+ * States that mean Meta has stopped working on a batch.
+ *
+ * Observed live: "started" (running) then "finished" (done). The rest are
+ * defensive — Meta does not publish the full set, and being wrong in the
+ * unlisted direction only costs a retry.
+ */
+const TERMINAL_BATCH_STATUSES = new Set([
+  "finished",
+  "complete",
+  "completed",
+  "error",
+  "errored",
+  "failed",
+  "fatal",
+]);
+
+export interface BatchOutcome {
+  /** Every handle reached a terminal state within the budget. */
+  settled: boolean;
+  errorCount: number;
+  errors: Array<{ retailer_id?: string; message: string }>;
+}
+
+/**
+ * Wait for queued batches to actually land. This is the only thing that can say
+ * a sync worked.
+ *
+ * Meta's shape, measured:
+ *   GET {catalog}/check_batch_request_status?handle=<h>&fields=status,errors,errors_total_count
+ *   -> { data: [ { status: "finished", errors_total_count: 0, errors: [] } ] }
+ *
+ * Note `handle` is SINGULAR. Passing the plural `handles` fails with
+ * "(#100) The parameter handle is required", which reads like the opposite of
+ * what it means.
+ *
+ * Returns settled:false on timeout rather than guessing. A caller that cannot
+ * confirm must leave those rows unstamped so the next run retries them —
+ * claiming a sync that never landed is the failure this function exists to
+ * prevent.
+ */
+export async function awaitBatchHandles(
+  catalogId: string,
+  accessToken: string,
+  handles: string[],
+  opts: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<BatchOutcome> {
+  if (!handles.length) return { settled: true, errorCount: 0, errors: [] };
+
+  const timeoutMs = opts.timeoutMs ?? 120_000;
+  const intervalMs = opts.intervalMs ?? 3_000;
+  const deadline = Date.now() + timeoutMs;
+
+  const pending = new Set(handles);
+  const errors: Array<{ retailer_id?: string; message: string }> = [];
+  let errorCount = 0;
+
+  while (pending.size && Date.now() < deadline) {
+    for (const handle of [...pending]) {
+      try {
+        const url =
+          `https://graph.facebook.com/${GRAPH_VERSION}/${catalogId}/check_batch_request_status` +
+          `?handle=${encodeURIComponent(handle)}&fields=status,errors,errors_total_count`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: AbortSignal.timeout(30_000),
+        });
+        const body = await res.json().catch(() => ({} as any));
+        const row = body?.data?.[0];
+        if (!row) continue;
+
+        // Only KNOWN-terminal states end the wait. Listing the running states
+        // instead is how this went wrong the first time: the check was "not
+        // in_progress and not not_started", and Meta answered "started" — a
+        // running job that scored as finished and would have been stamped as
+        // synced. An unmodelled status must cost us a retry, never a false
+        // success, so anything unrecognised keeps polling until the deadline.
+        if (!TERMINAL_BATCH_STATUSES.has(String(row.status || "").toLowerCase())) continue;
+
+        pending.delete(handle);
+        errorCount += Number(row.errors_total_count || 0);
+        for (const e of Array.isArray(row.errors) ? row.errors : []) {
+          errors.push({
+            retailer_id: e?.retailer_id || e?.id,
+            message: e?.message || e?.description || "rejected by Meta",
+          });
+        }
+      } catch {
+        // Transient — leave it pending and retry on the next tick.
+      }
+    }
+    if (pending.size) await new Promise((r) => setTimeout(r, intervalMs));
+  }
+
+  return { settled: pending.size === 0, errorCount, errors };
 }

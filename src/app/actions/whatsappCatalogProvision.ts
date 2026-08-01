@@ -5,6 +5,7 @@ import {
   planCatalogSync,
   chunk,
   pushCatalogBatch,
+  awaitBatchHandles,
   type CatalogMenuItem,
   type CatalogPartner,
   type SkipReason,
@@ -197,7 +198,12 @@ export async function provisionPartnerCatalog(partnerId: string): Promise<Result
 export interface SyncSummary {
   catalogId: string;
   total: number;
+  /** Confirmed applied by Meta. Zero when a run did not settle — not a failure
+   *  count, an "unknown" count; the rows stay pending for the next run. */
   pushed: number;
+  /** False when Meta was still processing at the deadline, so nothing was
+   *  marked synced. Callers must not present an unsettled run as complete. */
+  settled: boolean;
   failed: number;
   skipped: Array<{ id: string; reason: SkipReason }>;
   errors: Array<{ retailer_id?: string; message: string }>;
@@ -240,6 +246,7 @@ export async function syncPartnerCatalog(
     catalogId: partner.wa_catalog_id,
     total: items.length,
     pushed: 0,
+    settled: false,
     failed: 0,
     skipped,
     errors: [],
@@ -247,26 +254,51 @@ export async function syncPartnerCatalog(
 
   const now = new Date().toISOString();
   const rejected = new Set<string>();
+  const handles: string[] = [];
 
   for (const batch of chunk(requests)) {
     const res = await pushCatalogBatch(partner.wa_catalog_id, cfg.token, batch);
-    summary.pushed += res.pushed;
     summary.failed += res.failed;
     summary.errors.push(...res.errors);
     res.errors.forEach((e) => e.retailer_id && rejected.add(e.retailer_id));
+    handles.push(...res.handles);
 
-    // A whole-batch failure (auth, network) has no per-item detail, so nothing
-    // in it may be stamped as synced — otherwise the next run skips rows that
-    // never reached Meta.
+    // A whole-batch failure (auth, network, nothing queued) has no per-item
+    // detail, so nothing in it may be stamped as synced — otherwise the next
+    // run skips rows that never reached Meta.
     if (!res.ok && !res.errors.some((e) => e.retailer_id)) {
       batch.forEach((r) => rejected.add(r.retailer_id));
     }
   }
 
-  // Stamp only what actually landed.
-  const landed = requests
-    .filter((r) => r.method === "UPDATE" && !rejected.has(r.retailer_id))
-    .map((r) => r.retailer_id);
+  // /batch is asynchronous: everything above is QUEUED, not applied. Nothing may
+  // be called synced until Meta says the job finished. If it does not settle in
+  // time we deliberately stamp nothing — the rows stay pending and the next run
+  // retries them, which is recoverable. Claiming a sync that silently dropped a
+  // menu is not.
+  const outcome = await awaitBatchHandles(partner.wa_catalog_id, cfg.token, handles);
+  summary.settled = outcome.settled;
+  summary.errors.push(...outcome.errors);
+  outcome.errors.forEach((e) => e.retailer_id && rejected.add(e.retailer_id));
+
+  if (!outcome.settled) {
+    summary.errors.push({
+      message:
+        "Meta did not finish processing in time — nothing marked synced; re-run to confirm.",
+    });
+  }
+
+  // Errors Meta counted but did not itemise still have to reduce the success
+  // count, or a partly-rejected batch reads as a clean sweep.
+  summary.failed += Math.max(0, outcome.errorCount - outcome.errors.length);
+
+  // Stamp only what actually landed — and only if Meta confirmed the job.
+  const landed = outcome.settled
+    ? requests
+        .filter((r) => r.method === "UPDATE" && !rejected.has(r.retailer_id))
+        .map((r) => r.retailer_id)
+    : [];
+  summary.pushed = landed.length;
   if (landed.length) {
     try {
       await fetchFromHasura(MARK_SYNCED, { ids: landed, at: now });
