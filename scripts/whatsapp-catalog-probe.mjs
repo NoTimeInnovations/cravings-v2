@@ -96,18 +96,21 @@ const main = async () => {
       : "      ! unexpectedly HAS catalogue scopes — worth re-checking the assumption above",
   );
 
-  // 2. Coexistence. THE gate — measured, not guessed: the same
-  //    {waba}/product_catalogs call returns (#10) for oreodemo (is_on_biz_app
-  //    true) and {"data":[]} for flaminhotchicken (false), same app, same day.
+  // 2. Coexistence — decides whether the WABA<->catalogue link can be made by
+  //    API or must be made by hand. It does NOT decide whether the feature is
+  //    available; oreodemo is coexistence and is connected and working.
   //
-  //    is_on_biz_app means the number is ALSO live in the WhatsApp Business app
-  //    on a handset. WhatsApp then owns the catalogue surface itself — it is the
-  //    on-device catalogue, edited on the phone — so Meta closes the Cloud API
-  //    edge outright. A GET being refused is the proof that no scope fixes it.
+  //    is_on_biz_app means the number is also live in the WhatsApp Business app
+  //    on a handset. For those, {waba}/product_catalogs returns (#10) to reads
+  //    AND writes — even while a catalogue is connected. WhatsApp Manager writes
+  //    the association by another path, so the UI works where the API cannot.
   //
-  //    Note this is a property of the PHONE NUMBER, not the portfolio. An earlier
-  //    version of this probe blamed the business type and sent us hunting for
-  //    permissions that were never the problem.
+  //    Measured, same app, same day:
+  //      oreodemo          is_on_biz_app=true  -> (#10), connected via UI anyway
+  //      flaminhotchicken  is_on_biz_app=false -> {"data":[]}
+  //
+  //    Consequence: for coexistence the connection is UNREADABLE. Never infer
+  //    "not connected" from gate 4 — store it yourself when a human does it.
   const phone = await graph(
     `${integ.phone_number_id}?fields=display_phone_number,is_on_biz_app,platform_type&access_token=${token}`,
   );
@@ -118,8 +121,8 @@ const main = async () => {
     console.log(`      platform=${phone.platform_type || "?"}  is_on_biz_app=${coex}`);
     console.log(
       coex
-        ? "      ✗ COEXISTENCE — catalogue is the phone app's; Cloud API edge is closed"
-        : "      ✓ not on the Business app — catalogue edge should be open",
+        ? "      ! COEXISTENCE — link must be made BY HAND in WhatsApp Manager, and is\n        unreadable afterwards. Not a blocker: oreodemo is connected this way."
+        : "      ✓ not on the Business app — API link path should be available",
     );
   }
 
@@ -151,10 +154,10 @@ const main = async () => {
       (cats.data || []).map((c) => `${c.name}(${c.id})`).join(", ") || "(none yet)");
   }
 
-  // 4. Can the WABA hold a connected catalogue at all? Returns "(#10) cannot be
-  //    performed on SMB business type" for coexistence numbers. Read-only here —
-  //    even the GET is refused, which is what rules out a permissions fix.
-  console.log("\n4. WABA ↔ catalogue connection");
+  // 4. What the API can see of the connection. For coexistence this is (#10)
+  //    whether or not a catalogue is actually connected, so an error here means
+  //    "cannot tell", NOT "not connected". Check WhatsApp Manager to know.
+  console.log("\n4. WABA ↔ catalogue connection (as seen by the API)");
   const conn = await graph(`${integ.waba_id}/product_catalogs?access_token=${token}`);
   if (conn.error) fail("waba product_catalogs", conn.error);
   else console.log("      ✓ connected:", JSON.stringify(conn.data || []).slice(0, 200));
@@ -162,15 +165,29 @@ const main = async () => {
   const ownerId = waba?.owner_business_info?.id;
   const crossBusiness = ownerId && process.env.META_BUSINESS_ID && ownerId !== process.env.META_BUSINESS_ID;
 
+  const manualLink =
+    "MANUAL LINK — coexistence. Create + fill the catalogue by API, then finish by hand:\n" +
+    "         1. Business Settings > Data sources > Catalogs > <catalogue> > People >\n" +
+    "            Add People > yourself > Full control   (skip this and step 2 fails with\n" +
+    "            \"Manage catalogue permission required\")\n" +
+    "         2. WhatsApp Manager > Account tools > Catalogue > Connect a catalogue\n" +
+    "         Gate 4 stays (#10) afterwards — that is expected, not a failure.";
+
+  // Coexistence decides HOW the link is made; cross-business is a separate
+  // warning that applies either way. Keep them independent — an earlier revision
+  // chained them and reported a non-coexistence partner as coexistent.
+  const verdict = phone?.is_on_biz_app
+    ? manualLink
+    : conn.error
+      ? "BLOCKED — catalogue edge refused for a reason other than coexistence; read\n         the error at (4), it is new."
+      : "READY — API link path available. Provisioning can proceed.";
+
   console.log(
     "\nVERDICT:",
-    phone?.is_on_biz_app
-      ? "BLOCKED — coexistence. The number is on the WhatsApp Business app, so its\n         catalogue is the on-device one and the Cloud API edge is shut. No scope,\n         token or App Review changes this; the number must be re-onboarded off\n         the Business app."
-      : conn.error
-        ? "BLOCKED — catalogue edge refused for a reason other than coexistence; read\n         the error at (4), it is new."
-        : crossBusiness
-          ? "PARTLY READY — the catalogue edge is open, but this WABA is on the partner's\n         own portfolio while our catalogue is on ours. The cross-business link is\n         UNPROVEN; test it before promising this partner a catalogue."
-          : "READY — same portfolio and the edge is open. Provisioning can proceed.",
+    verdict +
+      (crossBusiness
+        ? "\n\n         ⚠ This WABA is on the partner's own portfolio, not ours, so their Manager\n         may not even list our catalogue. That topology is UNPROVEN — test before\n         promising this partner anything."
+        : ""),
     "\n",
   );
 };

@@ -174,17 +174,75 @@ different businesses, so provisioning needs a cross-business answer — share th
 catalogue to the partner's business, or hold `catalog_management` on theirs.
 Embedded Signup grants neither. **Untested.**
 
+### …and then it connected anyway. (#10) is an API limit, not a capability limit
+
+Second correction, same day. I read `(#10)` as "coexistence numbers cannot hold a
+Cloud API catalogue" and sized up a non-coexistence rebuild on the strength of it.
+Wrong. WhatsApp Manager → Account tools → Catalogue → **Connect a catalogue**
+linked `1425080372783453` to oreodemo's coexistence WABA without complaint, with
+both "Show catalogue icon in chat header" and "Add to basket" On.
+
+`(#10)` gates the **`{waba}/product_catalogs` edge**, not the underlying feature.
+The UI writes the association through a different path.
+
+The tell I misread: the first UI attempt failed with *"Manage catalogue permission
+required"* — an asset-permission error, not a business-type refusal. A closed door
+does not ask you for credentials. The catalogue is created by our system user, so
+the human admin is not assigned to it and it reads as someone else's asset.
+Assigning the human (Business Settings → Data sources → Catalogs → *catalogue* →
+People → Add People → Full control) cleared it and the connect went through.
+
+Measured after connecting:
+
+| | |
+|---|---|
+| UI shows catalogue connected, icon + basket On | ✅ |
+| `{waba}/product_catalogs` | ❌ still `(#10)` — **the link is invisible to the API** |
+| `{phone}/whatsapp_commerce_settings` | ✅ `is_cart_enabled`, `is_catalog_visible` |
+| catalogue contents | ✅ 123 products |
+
+**So the link state cannot be read back for a coexistence partner.** Anything that
+wants to show "catalogue connected" must track it in our own DB at the moment a
+human does it — the API will never confirm it. Do not build a UI that implies
+otherwise.
+
+### What is actually automatable
+
+| step | how |
+|---|---|
+| create catalogue | ✅ API, system token |
+| push menu → products | ✅ API, system token |
+| enable cart / visibility | ✅ API, partner token |
+| assign human to catalogue | ❌ manual — `assigned_users` refuses a system-user token on every catalogue, including UI-created ones |
+| connect catalogue ↔ WABA | ❌ manual — `(#10)` on the API edge; UI only |
+| read back the connection | ❌ never, for coexistence |
+
+Two manual clicks per partner. That is the price, and it is a fraction of
+re-onboarding 89 numbers off the WhatsApp Business app.
+
+### Still unproven: the cross-business topology
+
+oreodemo connected because its WABA and our catalogue are **both** on Menuthere
+Test 2. A real partner's WABA is on their own portfolio
+(flaminhotchicken → Brentwood Culinary Concepts LLP), so their WhatsApp Manager
+would have to offer a catalogue owned by *us*. Untested, and it is now the last
+real unknown.
+
+Candidate: `POST /{catalog_id}/agencies` with the partner's business id, sharing
+our catalogue into their business so it appears in their picker. Our system token
+holds `business_management` + `catalog_management`, so it may work — but it writes
+a business relationship on a live partner and has not been tried.
+
 ### Consequences
 
-- Catalogue cannot be offered to any current partner without re-onboarding that
-  number off the WhatsApp Business app.
-- Dropping coexistence is not a config toggle — it takes the number off the
-  partner's phone, which is a product decision, not a technical one.
-- Even for a non-coexistence partner, the cross-business link above is unproven.
-- Cart is enabled on oreodemo's number and its catalogue is the **phone app's**,
-  whose `product_retailer_id`s are not our menu uuids — so an inbound `order`
-  webhook from it would not map. The receive handler must tolerate unmappable ids
-  rather than assume ours.
+- Coexistence is **not** disqualifying. No partner has to give up the WhatsApp
+  Business app on their counter phone.
+- Provisioning ends in a documented two-click handoff, not a dead end.
+- Connection state must be stored by us, never inferred from Meta.
+- Cart was enabled on oreodemo's number *before* our catalogue was connected, when
+  the live catalogue was still the phone app's — whose `product_retailer_id`s are
+  not our menu uuids. The `order` webhook handler must tolerate ids that do not
+  map rather than assume ours.
 
 ## Verify before writing code
 
