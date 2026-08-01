@@ -63,7 +63,29 @@ const FeatureFlagManagement = () => {
     whatsappnotifications: "Sends WhatsApp order notifications to customers when an order is placed and status updates.",
     newonboarding: "Enables the new onboarding flow with login, order type selection, and delivery address screens.",
     growjet_delivery: "Routes delivery dispatch through Growjet (third-party). Requires partner geo_location and growjet_user_id.",
-    prebooking: "Allows customers to place orders for future dates and times, with configurable lead times and cutoff periods."
+    prebooking: "Allows customers to place orders for future dates and times, with configurable lead times and cutoff periods.",
+    // The sheet iterates every parsed flag, so all of these were already
+    // grantable here — they just showed an empty description, which made them
+    // look like placeholders nobody should touch. Wording below is taken from
+    // the docblocks in src/lib/getFeatures.ts and the partner-facing copy in
+    // admin-v2 FeatureSettings, NOT written fresh — a superadmin acts on these,
+    // so a plausible-sounding guess is worse than no description at all.
+    purchasemanagement: "Shows the Purchase Management surface in the dashboard.",
+    storefront: "Publishes the partner's storefront page. Off = the storefront page is hidden.",
+    delivery_agent:
+      "3PL dispatch: routes orders through the provider-agnostic delivery hub (Adloggs) on the `accepted` transition. NOT the partner's own riders — in-house delivery boys are gated by `delivery`.",
+    whatsappOrdering:
+      "Master switch for WhatsApp. Off = no flows run and no auto-replies are sent for this partner (webhook checks it on every inbound). Also gates the Manage WhatsApp Templates screen.",
+    whatsappFlowTyping:
+      "Read receipt + typing indicator for the WELCOME flow only, and only while whatsappOrdering is on. Every other inbound deliberately stays UNREAD so the partner can see real queries.",
+    porter_bridge:
+      "Dispatches a Porter 2-wheeler through porter-bridge on `accepted`. Requires the partner to have completed OTP login at deliverybridge.menuthere.com; binds on their `phone` column.",
+    delivery_pool:
+      "Shows the Delivery Pool panel and dispatches to the Menuthere rider network on `accepted`.",
+    whatsappcatalog:
+      "Publishes the menu as a WhatsApp Business Catalogue so customers browse and build a basket in chat; checkout still happens on the storefront. Needs every listed item to have a photo. NOT available to partners sharing a WhatsApp number with other merchants — the catalogue binds to a WABA, so it cannot be scoped to one of them. After granting, the partner clicks Sync in WhatsApp → Catalogue, then the catalogue must be connected to the number BY HAND in WhatsApp Manager.",
+    loyalty_points:
+      "Customers earn and redeem points; the earn rate is configured in Loyalty settings.",
   };
 
   const getAllPartners = async () => {

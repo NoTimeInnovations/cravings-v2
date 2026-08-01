@@ -410,16 +410,196 @@ export async function getCatalogSyncStatus(
   };
 }
 
-/** Provision if needed, then sync. The one call a superadmin action needs. */
+const PARTNER_NUMBERS = `
+  query CatalogPartnerNumbers($id: uuid!) {
+    whatsapp_business_integrations(where: { partner_id: { _eq: $id } }) {
+      phone_number_id
+      display_phone
+      access_token
+    }
+  }
+`;
+
+/** Everyone else on the same numbers. Commerce settings belong to the PHONE
+ *  NUMBER, so this is the only way to know whether writing them is a
+ *  single-tenant action. */
+const NUMBER_TENANTS = `
+  query CatalogNumberTenants($ids: [String!]!) {
+    whatsapp_business_integrations(where: { phone_number_id: { _in: $ids } }) {
+      phone_number_id
+      partner_id
+    }
+  }
+`;
+
+export interface CommerceResult {
+  phoneNumberId: string;
+  displayPhone: string | null;
+  ok: boolean;
+  message?: string;
+}
+
+/**
+ * Turn on the basket + catalogue button for a partner's WhatsApp number(s).
+ *
+ * Measured: this does NOT default on. Sampling numbers nobody had touched
+ * returned `is_cart_enabled: false` on one and unset (null) on the rest — so
+ * without this call a connected catalogue is invisible or un-cartable, and the
+ * whole feature silently does nothing.
+ *
+ * Uses the PARTNER's own token, not our system user: the system user has no
+ * role on a partner's WABA (100/subcode 33 on every call). Verified working
+ * with the partner token on oreodemo.
+ *
+ * Applied to EVERY connected number, not just the primary. Commerce settings
+ * are per phone number while the catalogue is linked per WABA, so a partner
+ * with two numbers would otherwise get a basket on one and nothing on the
+ * other, depending on which number the customer happened to message.
+ *
+ * Best-effort by design: a partner whose token has gone stale must not fail the
+ * whole sync — the products are already in the catalogue and the next run
+ * retries. Per-number outcomes come back so the admin can show what happened.
+ */
+export async function enableCatalogCommerce(
+  partnerId: string,
+): Promise<{ ok: boolean; message?: string; results: CommerceResult[] }> {
+  if (!partnerId) return { ok: false, message: "partnerId required", results: [] };
+
+  let rows: Array<{ phone_number_id: string; display_phone: string | null; access_token: string }>;
+  try {
+    const d = await fetchFromHasura(PARTNER_NUMBERS, { id: partnerId });
+    rows = d?.whatsapp_business_integrations ?? [];
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}`, results: [] };
+  }
+
+  // Dedupe: a partner can hold several rows for one number.
+  const byNumber = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    if (r.phone_number_id && r.access_token) byNumber.set(r.phone_number_id, r);
+  }
+  if (!byNumber.size) {
+    return { ok: false, message: "no connected WhatsApp number for this partner", results: [] };
+  }
+
+  // ── Cross-tenant guard ──────────────────────────────────────────────────
+  //
+  // whatsapp_commerce_settings belongs to the PHONE NUMBER, not to the partner.
+  // Production has one number (870675129470312) shared by 32 DISTINCT partners
+  // — and not outlets of one brand: a paint shop, a steel merchant, a gas-spares
+  // shop, a minimart, several unrelated restaurants. Writing here on behalf of
+  // one of them would switch the catalogue button and basket on in the chats of
+  // 31 businesses that never asked for it, cannot see it in their dashboard and
+  // cannot turn it off.
+  //
+  // getFeatures.ts already documents this as a design constraint —
+  // "unavailable to the outlets that share a number" — but it was enforced
+  // nowhere in code, which is exactly how the Televery attribution bug happened
+  // earlier: an invariant that lives only in a comment is not an invariant.
+  let tenantsByNumber = new Map<string, Set<string>>();
+  try {
+    const t = await fetchFromHasura(NUMBER_TENANTS, { ids: [...byNumber.keys()] });
+    for (const row of t?.whatsapp_business_integrations ?? []) {
+      const set = tenantsByNumber.get(row.phone_number_id) ?? new Set<string>();
+      set.add(row.partner_id);
+      tenantsByNumber.set(row.phone_number_id, set);
+    }
+  } catch (err) {
+    // Cannot prove single tenancy → do not write. Failing closed costs this
+    // partner a manual toggle; failing open changes other merchants' chats.
+    return {
+      ok: false,
+      message: `could not verify number ownership, refusing to change shared settings: ${(err as Error).message}`,
+      results: [],
+    };
+  }
+
+  const shared: CommerceResult[] = [];
+  for (const [pn, r] of [...byNumber]) {
+    const tenants = tenantsByNumber.get(pn);
+    // An empty/absent set means the read returned nothing for a number we know
+    // exists — treat as unproven and skip, same reasoning as the catch above.
+    if (!tenants || tenants.size !== 1) {
+      byNumber.delete(pn);
+      shared.push({
+        phoneNumberId: pn,
+        displayPhone: r.display_phone,
+        ok: false,
+        message: `shared with ${Math.max((tenants?.size ?? 1) - 1, 1)} other business(es) — the basket is a per-number setting, so it must be switched on manually in WhatsApp Manager`,
+      });
+    }
+  }
+
+  if (!byNumber.size) {
+    return {
+      ok: false,
+      message: "every connected number is shared with other businesses",
+      results: shared,
+    };
+  }
+
+  const results: CommerceResult[] = await Promise.all(
+    [...byNumber.values()].map(async (r) => {
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/${GRAPH_VERSION}/${r.phone_number_id}/whatsapp_commerce_settings` +
+            `?is_cart_enabled=true&is_catalog_visible=true`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${r.access_token}` },
+            signal: AbortSignal.timeout(30_000),
+          },
+        );
+        const body = await res.json().catch(() => ({} as any));
+        if (!res.ok || body?.success === false) {
+          return {
+            phoneNumberId: r.phone_number_id,
+            displayPhone: r.display_phone,
+            ok: false,
+            message:
+              body?.error?.error_user_msg || body?.error?.message || `HTTP ${res.status}`,
+          };
+        }
+        return { phoneNumberId: r.phone_number_id, displayPhone: r.display_phone, ok: true };
+      } catch (err) {
+        return {
+          phoneNumberId: r.phone_number_id,
+          displayPhone: r.display_phone,
+          ok: false,
+          message: `network: ${(err as Error).message}`,
+        };
+      }
+    }),
+  );
+
+  const all = [...results, ...shared];
+  return { ok: all.every((r) => r.ok), results: all };
+}
+
+/** Provision if needed, sync the menu, then switch the basket on. */
 export async function provisionAndSyncCatalog(partnerId: string) {
   const prov = await provisionPartnerCatalog(partnerId);
   if (!prov.ok) return { ok: false, message: prov.message };
   const sync = await syncPartnerCatalog(partnerId);
+
+  // Cart + catalogue visibility. Runs even when the sync did not settle: it is
+  // an independent per-number setting, the products are already queued, and a
+  // partner who has to click Sync twice should not also have to wait for the
+  // basket. Never allowed to fail the sync — the catalogue is the hard part and
+  // it is already done by here.
+  const commerce = await enableCatalogCommerce(partnerId).catch((err) => ({
+    ok: false,
+    message: `commerce settings: ${(err as Error).message}`,
+    results: [] as CommerceResult[],
+  }));
+
   return {
     ok: sync.ok,
     message: sync.message,
     catalogId: (prov.data as any)?.catalogId,
     created: (prov.data as any)?.created,
     summary: sync.summary,
+    /** Basket/visibility per number. ok:false here does NOT mean the sync failed. */
+    commerce,
   };
 }

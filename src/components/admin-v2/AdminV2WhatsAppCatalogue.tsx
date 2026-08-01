@@ -142,6 +142,27 @@ export function AdminV2WhatsAppCatalogue() {
           toast.success(`${n} item${n === 1 ? "" : "s"} sent to your WhatsApp catalogue`);
         }
       }
+
+      // The basket is a separate per-number setting and can fail on its own —
+      // most often a stale partner token. Surfaced as a warning rather than
+      // folded into the sync result, because the menu did reach the catalogue
+      // and telling the partner the sync failed would be wrong.
+      if (r.commerce && !r.commerce.ok) {
+        const failed = (r.commerce.results ?? []).filter((c) => !c.ok);
+        // Two different shapes of failure, and they must not be mixed: a list of
+        // NUMBERS reads as "for +91 …", while a whole-call failure carries a
+        // SENTENCE. Interpolating the latter into the former produced
+        // "…basket for no connected WhatsApp number for this partner."
+        const numbers = failed
+          .map((c) => c.displayPhone || c.phoneNumberId)
+          .filter(Boolean)
+          .join(", ");
+        toast.warning(
+          numbers
+            ? `Couldn't switch on the WhatsApp basket for ${numbers}. Customers will see the catalogue but can't add to a basket.`
+            : `Couldn't switch on the WhatsApp basket — ${r.commerce.message || "unknown error"}.`,
+        );
+      }
     } catch (e) {
       const msg = (e as Error).message || "sync failed";
       toast.error(msg);
