@@ -6,6 +6,8 @@ import {
   chunk,
   pushCatalogBatch,
   awaitBatchHandles,
+  buildCatalogProduct,
+  SKIP_REASON_TEXT,
   type CatalogMenuItem,
   type CatalogPartner,
   type SkipReason,
@@ -75,6 +77,7 @@ const PARTNER_QUERY = `
       image_url
       is_available
       deletion_status
+      wa_catalog_synced_at
       stocks { stock_quantity show_stock }
     }
   }
@@ -324,6 +327,87 @@ export async function syncPartnerCatalog(
   }
 
   return { ok: summary.failed === 0, summary };
+}
+
+export interface CatalogItemStatus {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  /** null = eligible. */
+  reason: SkipReason | null;
+  /** What the partner should DO about it. Empty for eligible rows. */
+  reasonText: string;
+  syncedAt: string | null;
+}
+
+export interface CatalogStatus {
+  enabled: boolean;
+  catalogId: string | null;
+  total: number;
+  eligibleCount: number;
+  ineligibleCount: number;
+  syncedCount: number;
+  items: CatalogItemStatus[];
+}
+
+/**
+ * Read-only eligibility breakdown for the admin card: which dishes can go to
+ * WhatsApp, which cannot, and why.
+ *
+ * Runs the SAME buildCatalogProduct the sync uses, so the reason shown is the
+ * reason the sync will act on — a second implementation here would drift and
+ * start lying about what is about to happen.
+ */
+export async function getCatalogSyncStatus(
+  partnerId: string,
+): Promise<{ ok: true; status: CatalogStatus } | { ok: false; message: string }> {
+  if (!partnerId) return { ok: false, message: "partnerId required" };
+
+  let data: any;
+  try {
+    data = await fetchFromHasura(PARTNER_QUERY, { id: partnerId });
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+
+  const partner = data?.partners_by_pk as (CatalogPartner & { feature_flags?: string }) | null;
+  if (!partner) return { ok: false, message: "partner not found" };
+
+  const items: Array<CatalogMenuItem & { wa_catalog_synced_at?: string | null }> = data?.menu ?? [];
+
+  const rows: CatalogItemStatus[] = items.map((item) => {
+    const built = buildCatalogProduct(item, partner);
+    const reason = built.ok ? null : built.reason;
+    return {
+      id: item.id,
+      name: item.name || "(unnamed)",
+      imageUrl: item.image_url || null,
+      reason,
+      reasonText: reason ? SKIP_REASON_TEXT[reason] : "",
+      syncedAt: item.wa_catalog_synced_at ?? null,
+    };
+  });
+
+  // Problems first — the list exists to be acted on, and a partner with 200
+  // dishes should not have to scroll for the 12 that need a photo.
+  rows.sort((a, b) => {
+    if (!!a.reason !== !!b.reason) return a.reason ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  const eligibleCount = rows.filter((r) => !r.reason).length;
+  return {
+    ok: true,
+    status: {
+      enabled: hasCatalogFlag(partner.feature_flags),
+      catalogId: partner.wa_catalog_id ?? null,
+      total: rows.length,
+      eligibleCount,
+      ineligibleCount: rows.length - eligibleCount,
+      syncedCount: rows.filter((r) => !r.reason && r.syncedAt).length,
+      items: rows,
+    },
+  };
 }
 
 /** Provision if needed, then sync. The one call a superadmin action needs. */

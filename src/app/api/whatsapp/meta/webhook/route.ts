@@ -10,6 +10,13 @@ import {
   whatsappEnabledFromFlags,
   flowTypingEnabledFromFlags,
 } from "@/lib/whatsapp-features";
+import {
+  parseCatalogOrder,
+  looksLikeMenuId,
+  buildCatalogReorderPayload,
+  composeCatalogOrderReply,
+} from "@/lib/whatsappCatalogOrder";
+import { buildOrderLink } from "@/lib/whatsappFlow/orderLink";
 
 // Marketing opt-out / opt-in: a customer who replies STOP is added to the
 // partner's blocklist (excluded from ALL of that partner's broadcasts — enforced
@@ -262,6 +269,23 @@ function extractIncomingBody(msg: any): { type: string; body: string | null; med
           : null,
         mediaUrl: null,
       };
+    case "order": {
+      // A catalogue cart. Without this it fell to "unknown" and landed in the
+      // inbox as a blank row, so the owner could see that SOMETHING arrived but
+      // not that a customer had built a basket.
+      const parsed = parseCatalogOrder(msg);
+      const n = parsed?.lines.length ?? 0;
+      const qty = parsed?.lines.reduce((s, l) => s + l.quantity, 0) ?? 0;
+      return {
+        type: "order",
+        body: n
+          ? `🛒 Cart: ${n} item${n === 1 ? "" : "s"} (${qty} unit${qty === 1 ? "" : "s"})${
+              parsed?.note ? ` — “${parsed.note}”` : ""
+            }`
+          : "🛒 Cart (empty)",
+        mediaUrl: null,
+      };
+    }
     default:
       return { type: "unknown", body: null, mediaUrl: null };
   }
@@ -411,6 +435,7 @@ async function persistIncoming(
     console.error("Failed to persist incoming message:", e);
   }
 }
+
 
 // ════════════════════════════════════════════════════════════════
 //  DELIVERY STATUS CAPTURE (Meta `value.statuses[]`)
@@ -1035,6 +1060,15 @@ export async function POST(req: NextRequest) {
           ) {
             await handleTrackOrderStatus(msg.from, phoneNumberId);
           }
+
+          // A catalogue cart. Answered whenever WhatsApp Ordering is on — NOT
+          // gated on the whatsappcatalog flag, because a coexistence number can
+          // deliver a cart from the WhatsApp Business app's own catalogue whether
+          // or not we ever provisioned one, and that customer still deserves an
+          // answer rather than silence.
+          if (waEnabled && msg.type === "order" && partner?.partner_id && phoneNumberId) {
+            await handleCatalogOrder(partner.partner_id, msg, phoneNumberId);
+          }
         }
 
         // Delivery receipts (sent/delivered/read/failed) for OUR outbound
@@ -1062,6 +1096,98 @@ export async function POST(req: NextRequest) {
 }
 
 // ─── Handle "Track Order Status" quick reply click ───────────────
+// ── WhatsApp catalogue carts ────────────────────────────────────────────────
+
+const CATALOG_CART_ITEMS = `
+  query CatalogCartItems($partnerId: uuid!, $ids: [uuid!]!) {
+    menu(
+      where: {
+        partner_id: { _eq: $partnerId }
+        id: { _in: $ids }
+        deletion_status: { _eq: 0 }
+      }
+    ) { id name }
+    partners_by_pk(id: $partnerId) { username store_name country_code }
+  }
+`;
+
+/**
+ * Answer an inbound catalogue cart with a checkout link.
+ *
+ * Shape A: WhatsApp is a browse-and-cart surface, the storefront is checkout.
+ * We resolve the cart to menu rows, hand it over via the existing `?ro=`
+ * payload, and let checkout re-price everything against the live menu — so a
+ * stale catalogue can never produce a wrong bill.
+ *
+ * A customer who builds a cart and gets silence is worse than never having been
+ * shown a catalogue, so EVERY branch replies:
+ *  - nothing matched (typically a coexistence number's on-device catalogue,
+ *    whose retailer ids are not our uuids) → point them at the ordering page
+ *  - some matched → link with those, and say how many were dropped
+ *
+ * Never throws: the webhook must keep processing and still return 200.
+ */
+async function handleCatalogOrder(
+  partnerId: string,
+  msg: any,
+  phoneNumberId: string,
+): Promise<void> {
+  try {
+    const parsed = parseCatalogOrder(msg);
+    if (!parsed || !parsed.lines.length) return;
+
+    // Shape-filter first: a cart from the phone app's catalogue carries ids that
+    // are not uuids, and Hasura would reject the whole `_in` on the first bad
+    // value rather than returning the rows we could have matched.
+    const candidateIds = parsed.lines.map((l) => l.retailerId).filter(looksLikeMenuId);
+
+    let rows: Array<{ id: string; name: string }> = [];
+    let partner: { username?: string; store_name?: string } | null = null;
+    if (candidateIds.length) {
+      const d = await fetchFromHasura(CATALOG_CART_ITEMS, { partnerId, ids: candidateIds });
+      rows = d?.menu ?? [];
+      partner = d?.partners_by_pk ?? null;
+    } else {
+      const d = await fetchFromHasura(
+        `query CatalogCartPartner($id: uuid!) { partners_by_pk(id: $id) { username store_name } }`,
+        { id: partnerId },
+      );
+      partner = d?.partners_by_pk ?? null;
+    }
+    if (!partner?.username) return;
+
+    const nameById = new Map(rows.map((r) => [r.id, r.name]));
+    const matched = parsed.lines
+      .filter((l) => nameById.has(l.retailerId))
+      .map((l) => ({
+        menuId: l.retailerId,
+        quantity: l.quantity,
+        name: nameById.get(l.retailerId) as string,
+      }));
+    const unmatchedCount = parsed.lines.length - matched.length;
+
+    const storeName = partner.store_name || "us";
+    const body = composeCatalogOrderReply({
+      storeName,
+      matched: matched.map((m) => ({ name: m.name, quantity: m.quantity })),
+      unmatchedCount,
+    });
+
+    // The sender's number authenticates the link, exactly as the flow engine's
+    // order links do — the cart is already proof of intent.
+    const localPhone = normalizePhone(msg.from) || undefined;
+    const reorderPayload = buildCatalogReorderPayload(matched);
+    const url = buildOrderLink(partner.username, partnerId, {
+      phone: localPhone ?? null,
+      reorderPayload,
+    });
+
+    await sendInteractiveReply(phoneNumberId, msg.from, body, url);
+  } catch (e) {
+    console.error("handleCatalogOrder failed:", e);
+  }
+}
+
 async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) {
   try {
     const phone10 = userPhone.startsWith("91") ? userPhone.slice(2) : userPhone;

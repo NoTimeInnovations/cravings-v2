@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Inbox, MessageSquare, Workflow, Megaphone, ChevronLeft, MousePointerClick, Activity, Sparkles } from "lucide-react";
+import { Inbox, MessageSquare, Workflow, Megaphone, ChevronLeft, MousePointerClick, Activity, Sparkles, ShoppingBag } from "lucide-react";
 import { AdminV2WhatsAppInbox } from "@/components/admin-v2/AdminV2WhatsAppInbox";
 import { AdminV2WhatsAppTemplates } from "@/components/admin-v2/AdminV2WhatsAppTemplates";
 import { AdminV2WhatsAppFlows } from "@/components/admin-v2/AdminV2WhatsAppFlows";
@@ -11,10 +11,12 @@ import { AdminV2WhatsAppBroadcast } from "@/components/admin-v2/AdminV2WhatsAppB
 import { AdminV2WhatsAppComeback } from "@/components/admin-v2/AdminV2WhatsAppComeback";
 import { AdminV2WhatsAppLinkClicks } from "@/components/admin-v2/AdminV2WhatsAppLinkClicks";
 import { AdminV2WhatsAppApiUsage } from "@/components/admin-v2/AdminV2WhatsAppApiUsage";
+import { AdminV2WhatsAppCatalogue } from "@/components/admin-v2/AdminV2WhatsAppCatalogue";
 import { useAuthStore } from "@/store/authStore";
 import { canSeeApiUsage } from "@/lib/demoPartner";
+import { getFeatures } from "@/lib/getFeatures";
 
-type Screen = "Inbox" | "Templates" | "Flows" | "Broadcast" | "Comeback" | "LinkClicks" | "ApiUsage";
+type Screen = "Inbox" | "Templates" | "Flows" | "Broadcast" | "Comeback" | "LinkClicks" | "ApiUsage" | "Catalogue";
 
 const SCREENS: {
   id: Screen;
@@ -30,9 +32,8 @@ const SCREENS: {
   { id: "Comeback", title: "Comeback Messages", desc: "Win back customers who stopped ordering.", icon: Sparkles, accent: "text-amber-600" },
   { id: "LinkClicks", title: "Order link taps", desc: "See who tapped an “order now” link from your flows.", icon: MousePointerClick, accent: "text-pink-600" },
   { id: "ApiUsage", title: "API usage", desc: "Calls & messages sent through your public API.", icon: Activity, accent: "text-emerald-600" },
+  { id: "Catalogue", title: "Catalogue", desc: "Publish your menu to WhatsApp so customers can browse and cart in chat.", icon: ShoppingBag, accent: "text-teal-600" },
 ];
-
-const SCREEN_IDS = SCREENS.map((s) => s.id);
 
 // The merged WhatsApp view: a hub of buttons that open Inbox / Templates / Flows.
 // Each panel lazy-mounts on first open and stays mounted (block/hidden) so its
@@ -40,8 +41,23 @@ const SCREEN_IDS = SCREENS.map((s) => s.id);
 export function AdminV2WhatsApp() {
   const { userData } = useAuthStore();
   const showApiUsage = canSeeApiUsage((userData as any)?.id);
+  // Catalogue is opt-in per partner — the flag also gates whether a catalogue
+  // was ever provisioned, so showing the card without it would offer a Sync
+  // button that can only fail.
+  const showCatalogue = !!getFeatures((userData as any)?.feature_flags || "")
+    ?.whatsappcatalog?.enabled;
   // API usage is only for partners on the public API (allow-listed).
-  const screens = showApiUsage ? SCREENS : SCREENS.filter((s) => s.id !== "ApiUsage");
+  // Memoised: it is an effect dependency below, and a fresh array every render
+  // would re-run that effect on every render.
+  const screens = useMemo(
+    () =>
+      SCREENS.filter(
+        (s) =>
+          (s.id !== "ApiUsage" || showApiUsage) &&
+          (s.id !== "Catalogue" || showCatalogue),
+      ),
+    [showApiUsage, showCatalogue],
+  );
 
   const [screen, setScreen] = useState<Screen | null>(null);
   const [mounted, setMounted] = useState<Screen[]>([]);
@@ -80,10 +96,13 @@ export function AdminV2WhatsApp() {
     const raw = searchParams.get("waScreen") || "";
     if (raw === lastWaRef.current) return;
     lastWaRef.current = raw;
-    if (!raw || !SCREEN_IDS.includes(raw as Screen)) return;
+    // Check against the screens THIS partner can see, not the full set — a
+    // deep-link to a gated screen would otherwise open a back button over an
+    // empty page, since the panel below is gated separately.
+    if (!raw || !screens.some((s) => s.id === raw)) return;
     setScreen(raw as Screen);
     setMounted((m) => (m.includes(raw as Screen) ? m : [...m, raw as Screen]));
-  }, [searchParams]);
+  }, [searchParams, screens]);
 
   return (
     <div className="space-y-4">
@@ -160,6 +179,11 @@ export function AdminV2WhatsApp() {
       {showApiUsage && mounted.includes("ApiUsage") && (
         <div className={screen === "ApiUsage" ? "block" : "hidden"}>
           <AdminV2WhatsAppApiUsage />
+        </div>
+      )}
+      {showCatalogue && mounted.includes("Catalogue") && (
+        <div className={screen === "Catalogue" ? "block" : "hidden"}>
+          <AdminV2WhatsAppCatalogue />
         </div>
       )}
     </div>
