@@ -105,9 +105,17 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
   // NEW dispatch; without it the loop has already stopped and the panel
   // would stay blank until a page refresh.
   const [reloadKey, setReloadKey] = useState(0);
-  // Stop the poll loop immediately once we've cancelled, without waiting for the
-  // bridge status to flip on the next tick.
-  const cancelledRef = useRef(false);
+  /**
+   * Keep polling until this timestamp even after the dispatch reaches a terminal
+   * status.
+   *
+   * Cancelling used to hard-stop the loop, so the panel froze on optimistic local
+   * state: the dispatch showed "stopped" but the booking row and rider history
+   * still showed the pre-cancel state until a manual reload. The upstream cancel
+   * and the reconcile that flips the booking to "cancelled" both land AFTER our
+   * request returns, so the UI has to keep looking for a short while to converge.
+   */
+  const settleUntilRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -118,8 +126,12 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
       if (r.ok) {
         const data = r.data as unknown as Progress;
         setP(data);
-        if ((data.status === "running" || data.status === "searching") && !cancelledRef.current)
-          timer = setTimeout(tick, 5000);
+        const active = data.status === "running" || data.status === "searching";
+        // Poll fast while hunting; keep polling briefly after a local action so
+        // the cancelled booking + rider history land without a reload.
+        if (active || Date.now() < settleUntilRef.current) {
+          timer = setTimeout(tick, active ? 5000 : 2500);
+        }
       }
       // 404 (no dispatch) or error → stop polling; panel just won't render.
     };
@@ -140,9 +152,11 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
     const r = await cancelDispatch(orderId, undefined, "partner");
     setCancelling(false);
     if (r.ok) {
-      cancelledRef.current = true;
+      // Watch for ~45s so the upstream cancel + reconcile are reflected here.
+      settleUntilRef.current = Date.now() + 45_000;
       setCancelled(true);
       setP(prev => (prev ? { ...prev, status: "stopped", currentProvider: null } : prev));
+      setReloadKey((k) => k + 1); // restart the loop if it had already stopped
     } else {
       setCancelError(r.message || "Failed to cancel dispatch");
     }
@@ -172,7 +186,7 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
       setCancelError(c.message || "Failed to cancel the current dispatch");
       return;
     }
-    cancelledRef.current = true;
+    settleUntilRef.current = Date.now() + 45_000;
     // The bridge enforces one live delivery per order. The cancel we just did
     // has to land upstream before a new dispatch is allowed, so retry once
     // after a short pause rather than surfacing a confusing "already active".
@@ -183,7 +197,6 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
     }
     setRebooking(false);
     if (r.ok) {
-      cancelledRef.current = false;
       setCancelled(false);
       setReloadKey((k) => k + 1); // restart polling against the new dispatch
     } else {
