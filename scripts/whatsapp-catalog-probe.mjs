@@ -44,7 +44,7 @@ const fail = (label, err) =>
 const main = async () => {
   const gql = `{ whatsapp_business_integrations(
       where:{ partner:{ username:{ _eq:"${username}" } } }
-    ){ waba_id phone_number_id display_phone access_token } }`;
+    ){ waba_id phone_number_id display_phone access_token updated_at } }`;
 
   const hres = await fetch(`${EP}/v1/graphql`, {
     method: "POST",
@@ -60,7 +60,23 @@ const main = async () => {
 
   const token = integ.access_token;
   console.log(`\nWhatsApp Catalogue probe — ${username}`);
-  console.log(`  waba=${integ.waba_id}  phone=${integ.phone_number_id}  ${integ.display_phone || ""}\n`);
+  console.log(`  waba=${integ.waba_id}  phone=${integ.phone_number_id}  ${integ.display_phone || ""}`);
+
+  // How old the STORED token is. Changing the Embedded Signup configuration does
+  // nothing to a token that was already issued — the partner has to reconnect
+  // before any of the gates below can change. Without this line an unchanged
+  // result reads as "the scope fix failed" when it actually means "we are still
+  // reading the same token as last time".
+  const ageMs = integ.updated_at ? Date.now() - new Date(integ.updated_at).getTime() : null;
+  if (ageMs != null) {
+    const h = Math.floor(ageMs / 3_600_000);
+    const m = Math.floor((ageMs % 3_600_000) / 60_000);
+    const stale = ageMs > 30 * 60_000;
+    console.log(
+      `  token stored ${h}h ${m}m ago${stale ? "  ← predates any recent reconnect" : "  ← fresh"}`,
+    );
+  }
+  console.log();
 
   // 1. Scopes actually granted on the stored token.
   const perms = await graph(`me/permissions?access_token=${token}`);
