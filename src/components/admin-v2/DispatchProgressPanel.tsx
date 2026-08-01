@@ -16,6 +16,10 @@ interface HistItem {
   crn: string | null;
   driver: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string } | null;
   fareAmount: number | null;
+  /** Set only for a DELIBERATE cancel (partner / customer / operator). */
+  cancelledBy?: string | null;
+  /** Null means a rider was never assigned. */
+  assignedAt?: number | null;
   createdAt: number;
 }
 interface Progress {
@@ -52,6 +56,24 @@ const STATUS_LABEL: Record<string, string> = {
  * (cancelled / live / waiting). Polls every 5s while the dispatch is running.
  * Renders nothing if the order wasn't dispatched through the bridge.
  */
+/**
+ * A bare "Cancelled" hides three very different outcomes: the partner cancelled,
+ * the rider cancelled after being assigned, or no rider was ever found and the
+ * search timed out. They need different responses from whoever is reading this.
+ */
+function cancelLabel(h: HistItem): string {
+  if (h.cancelledBy) {
+    const who =
+      h.cancelledBy === "partner" ? "partner"
+      : h.cancelledBy === "customer" ? "customer"
+      : h.cancelledBy === "operator" ? "operator"
+      : h.cancelledBy;
+    return `Cancelled by ${who}`;
+  }
+  // No deliberate cancel recorded → it came from the provider side.
+  return h.assignedAt || h.driver?.name ? "Rider cancelled" : "No rider found";
+}
+
 function histStatus(status: string): { label: string; cls: string } {
   switch (status) {
     case "ended": return { label: "Delivered", cls: "border-emerald-300 bg-emerald-50 text-emerald-700" };
@@ -83,6 +105,7 @@ function RiderHistoryBlock({
       <div className="space-y-1.5">
         {history.map((h) => {
           const st = histStatus(h.status);
+          const label = h.status === "cancelled" ? cancelLabel(h) : st.label;
           return (
             <div key={h.bookingId} className="flex items-center gap-2 rounded-md border bg-white px-3 py-1.5 text-sm">
               <span className="min-w-0 flex-1 truncate">
@@ -92,7 +115,7 @@ function RiderHistoryBlock({
                 {h.crn ? <span className="text-muted-foreground"> · {h.crn}</span> : null}
               </span>
               <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium ${st.cls}`}>
-                {st.label}
+                {label}
               </span>
             </div>
           );

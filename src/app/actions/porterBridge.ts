@@ -1081,7 +1081,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       pickupPin?: string | null;
       dropPin?: string | null;
     } | null;
-    history?: Array<{ bookingId: string; provider: string; status: string; crn: string | null; driver: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string; photoUrl?: string } | null; fareAmount: number | null; createdAt: number; updatedAt: number }>;
+    history?: Array<{ bookingId: string; provider: string; status: string; crn: string | null; driver: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string; photoUrl?: string } | null; fareAmount: number | null; cancelledBy: string | null; assignedAt: number | null; createdAt: number; updatedAt: number }>;
     log: Array<{ t: number; text: string; tone: string }>;
   };
   const running = d.status === "running";
