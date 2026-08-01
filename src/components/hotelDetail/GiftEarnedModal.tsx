@@ -9,6 +9,12 @@ export type GiftItem = {
   name: string;
   price?: number | null;
   image_url?: string | null;
+  /**
+   * Units of THIS item. Carried per item because a stacked order can earn one
+   * free item from each of several offers — showing a single shared count made
+   * two 1-unit gifts both read "×2".
+   */
+  units?: number;
 };
 
 type GiftEarnedModalProps = {
@@ -16,7 +22,7 @@ type GiftEarnedModalProps = {
   onClose: () => void;
   /** The item(s) the customer just earned. */
   items: GiftItem[];
-  /** Units of EACH item — a BXGY claimed twice hands over two. */
+  /** Fallback units, used when an item doesn't carry its own count. */
   units: number;
   currency: string;
   /** Storefront brand colour, so the card matches the menu it opened over. */
@@ -71,7 +77,8 @@ export function GiftEarnedModal({
 
   if (!open || items.length === 0) return null;
 
-  const many = units > 1;
+  const unitsOf = (item: GiftItem) => item.units ?? units;
+  const many = items.some((i) => unitsOf(i) > 1);
 
   return (
     <div
@@ -166,8 +173,8 @@ export function GiftEarnedModal({
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5">
-                {many && (
-                  <span className="text-xs font-semibold text-gray-500">×{units}</span>
+                {unitsOf(item) > 1 && (
+                  <span className="text-xs font-semibold text-gray-500">×{unitsOf(item)}</span>
                 )}
                 <span
                   className="rounded-md px-2 py-0.5 text-[11px] font-extrabold"

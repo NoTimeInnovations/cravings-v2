@@ -3014,16 +3014,35 @@ const PlaceOrderModal = ({
     if (freebieUnits === 0) setGiftModalOpen(false);
   }, [freebieUnits]);
 
-  /** Free items across the whole stack, resolved against the menu. */
-  const earnedGiftItems = stackResult.perDiscount.flatMap((r) =>
-    r.giftValue > 0 && r.freebieUnits > 0
-      ? (r.discount.freebie_item_ids ?? "")
-          .split(",")
-          .map((id) => hotelData?.menus?.find((m) => m.id === id.trim()))
-          .filter(Boolean)
-          .map((m: any) => ({ id: m.id, name: m.name, price: m.price, image_url: m.image_url }))
-      : [],
-  );
+  /**
+   * Free items across the whole stack, each carrying its OWN unit count. Two
+   * offers granting one item each is 1 + 1, not "2 of everything"; two offers
+   * granting the same item do add up.
+   */
+  const earnedGiftItems = (() => {
+    const byId = new Map<
+      string,
+      { id: string; name: string; price: number; image_url?: string | null; units: number }
+    >();
+    for (const r of stackResult.perDiscount) {
+      if (r.giftValue <= 0 || r.freebieUnits <= 0) continue;
+      for (const id of (r.discount.freebie_item_ids ?? "").split(",")) {
+        const m: any = hotelData?.menus?.find((x) => x.id === id.trim());
+        if (!m) continue;
+        const seen = byId.get(m.id);
+        if (seen) seen.units += r.freebieUnits;
+        else
+          byId.set(m.id, {
+            id: m.id,
+            name: m.name,
+            price: m.price,
+            image_url: m.image_url,
+            units: r.freebieUnits,
+          });
+      }
+    }
+    return [...byId.values()];
+  })();
 
   // The discount exactly as it gets persisted onto the order. Both placement
   // paths (cash/WhatsApp and the pre-charge Cashfree stash) used to build this
@@ -4191,21 +4210,19 @@ const PlaceOrderModal = ({
                     setOpenDrawerBottom(true);
                   }}
                 />
-                {grantsFreebie && appliedDiscount?.freebie_item_ids && (
+                {earnedGiftItems.length > 0 && (
                   <div ref={freebieRowRef} className="mt-2 space-y-2">
-                    {appliedDiscount.freebie_item_ids.split(",").map((id) => {
-                      const item = hotelData?.menus?.find((m) => m.id === id.trim());
-                      if (!item) return null;
-                      return (
-                        <div key={id} className="flex items-center justify-between py-2 px-1 rounded-lg opacity-80" style={{ backgroundColor: "var(--pom-card-bg, #fff)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
-                          <div>
-                            <p className="text-sm font-semibold">{item.name}</p>
-                            <p className="text-xs opacity-60"><MenuPrice currency={hotelData?.currency || "₹"} amount={item.price.toFixed(2)} /> <span className="font-bold">FREE</span></p>
-                          </div>
-                          <span className="text-xs font-bold px-2 py-1 rounded-md opacity-70">x{freebieUnits}</span>
+                    {earnedGiftItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between py-2 px-1 rounded-lg opacity-80" style={{ backgroundColor: "var(--pom-card-bg, #fff)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                        <div>
+                          <p className="text-sm font-semibold">{item.name}</p>
+                          <p className="text-xs opacity-60"><MenuPrice currency={hotelData?.currency || "₹"} amount={Number(item.price).toFixed(2)} /> <span className="font-bold">FREE</span></p>
                         </div>
-                      );
-                    })}
+                        {item.units > 1 && (
+                          <span className="text-xs font-bold px-2 py-1 rounded-md opacity-70">x{item.units}</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
 

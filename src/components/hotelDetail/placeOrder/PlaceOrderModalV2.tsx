@@ -1870,19 +1870,35 @@ const PlaceOrderModalV2 = ({
   // current cart (a kept coupon below its minimum, wrong order type, etc.) so an
   // ineligible discount is never persisted (savings would be 0 anyway).
 
-  /** Free items across the WHOLE stack, resolved against the menu. */
+  /**
+   * Free items across the WHOLE stack, each carrying its OWN unit count.
+   * Two offers granting one item each is 1 + 1, not "2 of everything" — the
+   * per-row quantity has to come from the discount that granted that row.
+   * Two offers granting the SAME item do add up.
+   */
   const earnedGiftItems = useMemo(() => {
-    const out: { id: string; name: string; price: number; image_url?: string | null }[] = [];
+    const byId = new Map<
+      string,
+      { id: string; name: string; price: number; image_url?: string | null; units: number }
+    >();
     for (const r of stackResult.perDiscount) {
       if (r.giftValue <= 0 || r.freebieUnits <= 0) continue;
       for (const id of (r.discount.freebie_item_ids ?? "").split(",")) {
         const m: any = hotelData?.menus?.find((x) => x.id === id.trim());
-        if (m && !out.some((o) => o.id === m.id)) {
-          out.push({ id: m.id, name: m.name, price: m.price, image_url: m.image_url });
-        }
+        if (!m) continue;
+        const seen = byId.get(m.id);
+        if (seen) seen.units += r.freebieUnits;
+        else
+          byId.set(m.id, {
+            id: m.id,
+            name: m.name,
+            price: m.price,
+            image_url: m.image_url,
+            units: r.freebieUnits,
+          });
       }
     }
-    return out;
+    return [...byId.values()];
   }, [stackResult, hotelData?.menus]);
 
   // Units of gift earned in total — the celebration trigger. Rises when a
@@ -3470,7 +3486,7 @@ const PlaceOrderModalV2 = ({
                           FREE
                         </span>
                         <span className="text-xs font-medium text-gray-500">
-                          × {earnedFreebieUnits}
+                          × {(fi as any).units ?? 1}
                         </span>
                       </div>
                     </div>
