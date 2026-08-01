@@ -66,12 +66,19 @@ function histStatus(status: string): { label: string; cls: string } {
 
 // Previously-booked riders for this order (across dispatches) + their outcome.
 // Surfaces cancelled/escalated riders so a cancel doesn't just silently vanish.
-function RiderHistoryBlock({ history }: { history: HistItem[] }) {
+function RiderHistoryBlock({
+  history,
+  standalone = false,
+}: {
+  history: HistItem[];
+  /** Rendered in place of the provider plan rather than beneath it. */
+  standalone?: boolean;
+}) {
   if (!history.length) return null;
   return (
-    <div className="mt-3 border-t pt-3">
+    <div className={standalone ? "" : "mt-3 border-t pt-3"}>
       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Rider history
+        {history.length === 1 ? "Rider" : `Riders (${history.length})`}
       </p>
       <div className="space-y-1.5">
         {history.map((h) => {
@@ -219,7 +226,7 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
     return showHistory ? (
       <div className="border rounded-lg bg-card p-4">
         <h3 className="mb-2 font-semibold">Delivery Bridge dispatch</h3>
-        <RiderHistoryBlock history={p.history ?? []} />
+        <RiderHistoryBlock history={p.history ?? []} standalone />
       </div>
     ) : null;
   }
@@ -240,6 +247,10 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
         </p>
       )}
 
+      {/* The provider plan is which providers the dispatch WOULD try. Once real
+          bookings exist, the rider history below lists the same attempts with
+          their CRN and outcome — showing both made 2 bookings look like 3. */}
+      {!showHistory && (
       <div className="space-y-1.5">
         {p.providers.map((pr, i) => (
           <div key={pr.provider} className="flex items-center gap-2 rounded-md border bg-white px-3 py-1.5 text-sm">
@@ -251,8 +262,9 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
           </div>
         ))}
       </div>
+      )}
 
-      {showHistory && <RiderHistoryBlock history={p.history ?? []} />}
+      {showHistory && <RiderHistoryBlock history={p.history ?? []} standalone />}
 
       {/* Dispatch exhausted every provider (or errored) with no rider assigned —
           tell the partner clearly they must self-deliver. Restricted to these
