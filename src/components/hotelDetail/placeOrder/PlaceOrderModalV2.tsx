@@ -68,6 +68,7 @@ import {
   validateDiscountQuery,
   incrementDiscountUsageMutation,
   getUserDiscountUsageQuery,
+  discountFields,
 } from "@/api/discounts";
 import {
   createCashfreeOrderForPartner,
@@ -93,12 +94,15 @@ import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
 import { computeMaxRedeemable } from "@/lib/loyalty/config";
 import { discountableSubtotal } from "@/lib/discountUtils";
+import { bxgyFreebieUnits, bxgyRepeatCount, bxgyRewardAmount, describeBxgy } from "@/lib/bxgy";
+import { fireGiftConfetti, originOf } from "@/lib/giftConfetti";
+import { GiftEarnedModal } from "@/components/hotelDetail/GiftEarnedModal";
 import { clearSessionOrderType } from "@/lib/onboardingSession";
 
 type AppliedDiscount = {
   id: string;
   code: string;
-  type: "percentage" | "flat" | "freebie";
+  type: "percentage" | "flat" | "freebie" | "bxgy";
   value: number;
   max_discount_amount?: number;
   min_order_value?: number;
@@ -113,6 +117,14 @@ type AppliedDiscount = {
   freebie_item_count?: number;
   freebie_item_ids?: string;
   has_coupon?: boolean;
+  // BXGY: the condition the cart has to meet, and the reward it earns.
+  bxgy_buy_type?: string;
+  bxgy_buy_item_ids?: string;
+  bxgy_buy_quantity?: number;
+  bxgy_buy_value?: number;
+  bxgy_reward_type?: string;
+  bxgy_reward_value?: number;
+  bxgy_max_repeat?: number;
 };
 
 type AvailableDiscount = {
@@ -126,7 +138,57 @@ type AvailableDiscount = {
   terms_conditions?: string | null;
   discount_order_types?: string | null;
   valid_days?: string | null;
+  freebie_item_count?: number | null;
+  freebie_item_ids?: string | null;
+  bxgy_buy_type?: string | null;
+  bxgy_buy_item_ids?: string | null;
+  bxgy_buy_quantity?: number | null;
+  bxgy_buy_value?: number | null;
+  bxgy_reward_type?: string | null;
+  bxgy_reward_value?: number | null;
+  bxgy_max_repeat?: number | null;
 };
+
+// Three paths apply a discount here — auto-apply, a typed coupon, and the
+// coupon list — and each used to spell out its own selection set and its own
+// row→AppliedDiscount mapping, so a column added for one silently arrived as
+// undefined in the other two. BXGY needs seven columns to mean anything at all,
+// so the selection comes from `discountFields` and the mapping lives here.
+const optNum = (v: unknown): number | undefined =>
+  v === null || v === undefined || v === "" ? undefined : Number(v);
+
+function toAppliedDiscount(
+  row: any,
+  overrides: Partial<AppliedDiscount> = {},
+): AppliedDiscount {
+  return {
+    id: row.id,
+    code: row.code,
+    type: row.discount_type,
+    value: Number(row.discount_value) || 0,
+    max_discount_amount: optNum(row.max_discount_amount),
+    min_order_value: optNum(row.min_order_value),
+    description: row.description || undefined,
+    terms_conditions: row.terms_conditions || undefined,
+    discount_on_total: row.discount_on_total,
+    discount_order_types: row.discount_order_types || undefined,
+    valid_days: row.valid_days || undefined,
+    applicable_on: row.applicable_on || undefined,
+    has_coupon: row.has_coupon,
+    rank: optNum(row.rank),
+    pp_discount_id: row.pp_discount_id || undefined,
+    freebie_item_count: optNum(row.freebie_item_count),
+    freebie_item_ids: row.freebie_item_ids || undefined,
+    bxgy_buy_type: row.bxgy_buy_type || undefined,
+    bxgy_buy_item_ids: row.bxgy_buy_item_ids || undefined,
+    bxgy_buy_quantity: optNum(row.bxgy_buy_quantity),
+    bxgy_buy_value: optNum(row.bxgy_buy_value),
+    bxgy_reward_type: row.bxgy_reward_type || undefined,
+    bxgy_reward_value: optNum(row.bxgy_reward_value),
+    bxgy_max_repeat: optNum(row.bxgy_max_repeat),
+    ...overrides,
+  };
+}
 
 /**
  * The real account name for prefilling the receiver field. Phone-signup accounts
@@ -1001,14 +1063,27 @@ const PlaceOrderModalV2 = ({
     [items, hotelData?.gst_percentage, allMenus, takeawayAdjPerItem],
   );
 
+  const menuPriceOf = (id: string) =>
+    Number(hotelData?.menus?.find((m) => m.id === id.trim())?.price) || 0;
+
   const getFreebieItemsTotal = (disc: AppliedDiscount | null) => {
     if (!disc || disc.type !== "freebie" || !disc.freebie_item_ids) return 0;
     const count = disc.freebie_item_count || 1;
-    return disc.freebie_item_ids.split(",").reduce((total, id) => {
-      const item = hotelData?.menus?.find((m) => m.id === id.trim());
-      return total + (item?.price || 0) * count;
-    }, 0);
+    return disc.freebie_item_ids
+      .split(",")
+      .reduce((total, id) => total + menuPriceOf(id) * count, 0);
   };
+
+  // How many times the cart earns a BXGY reward right now (0 = it doesn't).
+  // Measured against the DISCOUNTABLE subtotal so a cart made entirely of
+  // offer-priced lines cannot earn one.
+  const bxgyRepeat = useMemo(
+    () =>
+      appliedDiscount?.type === "bxgy"
+        ? bxgyRepeatCount(appliedDiscount, items, discountBase)
+        : 0,
+    [appliedDiscount, items, discountBase],
+  );
 
   // Is the currently-applied discount STILL valid for the current cart? The
   // apply-time filters (min_order_value / order type / valid days) run only
@@ -1017,7 +1092,7 @@ const PlaceOrderModalV2 = ({
   // over-discounting the persisted order (orderStore trusts our `savings`).
   // Returns the failing reason, or null when eligible.
   const discountIneligibleReason = useMemo<
-    null | "min" | "ordertype" | "day" | "empty" | "alloffer"
+    null | "min" | "ordertype" | "day" | "empty" | "alloffer" | "bxgy"
   >(() => {
     const d = appliedDiscount;
     if (!d) return null;
@@ -1027,6 +1102,9 @@ const PlaceOrderModalV2 = ({
     // returns 0 for an empty cart, and "empty" is the more accurate reason.
     if (discountBase <= 0) return "alloffer";
     if (d.min_order_value && subtotal < Number(d.min_order_value)) return "min";
+    // The buy condition is a live cart check, not a one-off gate: removing the
+    // second pizza has to take the free coke away again.
+    if (d.type === "bxgy" && bxgyRepeat <= 0) return "bxgy";
     if (d.discount_order_types) {
       const code = isQrScan ? "3" : orderType === "takeaway" ? "2" : "1";
       const allowed = d.discount_order_types.split(",").map((t) => t.trim());
@@ -1039,7 +1117,7 @@ const PlaceOrderModalV2 = ({
     return null;
     // discountBase was missing from the deps, so the reason went stale whenever
     // the discountable share changed without the subtotal changing.
-  }, [appliedDiscount, items, subtotal, discountBase, orderType, isQrScan]);
+  }, [appliedDiscount, items, subtotal, discountBase, orderType, isQrScan, bxgyRepeat]);
 
   /**
    * Nothing in the cart can carry a discount — every line is already on an offer.
@@ -1063,7 +1141,13 @@ const PlaceOrderModalV2 = ({
   const discountSavings = useMemo(() => {
     if (!appliedDiscount || discountIneligibleReason) return 0;
     let savings =
-      appliedDiscount.type === "freebie"
+      appliedDiscount.type === "bxgy"
+        ? bxgyRewardAmount(appliedDiscount, {
+            repeat: bxgyRepeat,
+            base: discountBase,
+            priceOf: menuPriceOf,
+          })
+        : appliedDiscount.type === "freebie"
         ? getFreebieItemsTotal(appliedDiscount)
         : appliedDiscount.type === "percentage"
           ? (discountBase * appliedDiscount.value) / 100
@@ -1076,7 +1160,7 @@ const PlaceOrderModalV2 = ({
     // exceed it, drag GST/delivery/parcel into a near-free order, or eat into
     // offer-priced lines. An all-offer cart therefore discounts nothing.
     return Math.min(savings, discountBase);
-  }, [appliedDiscount, subtotal, discountBase, hotelData?.menus, discountIneligibleReason]);
+  }, [appliedDiscount, subtotal, discountBase, hotelData?.menus, discountIneligibleReason, bxgyRepeat]);
 
   // Round Off (display): mirror what orderStore persists — round the pre-round
   // grand total UP to the next whole number when the partner enables it. Baked
@@ -1148,7 +1232,7 @@ const PlaceOrderModalV2 = ({
     fetchFromHasura(
       `query GetActiveDiscountsV2($partner_id: uuid!) {
         discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, order_by: [{ rank: asc_nulls_last }], limit: 10) {
-          id code description discount_type discount_value min_order_value max_discount_amount terms_conditions discount_order_types valid_days
+          ${discountFields}
         }
       }`,
       { partner_id: hotelData.id },
@@ -1179,11 +1263,7 @@ const PlaceOrderModalV2 = ({
           }
           order_by: [{ rank: asc_nulls_last }]
         ) {
-          id code description discount_type discount_value min_order_value
-          max_discount_amount discount_order_types discount_on_total
-          has_coupon applicable_on category_item_ids rank pp_discount_id
-          freebie_item_count freebie_item_ids valid_days starts_at
-          expires_at terms_conditions usage_limit per_user_usage_limit used_count
+          ${discountFields}
         }
       }`,
       { partner_id: hotelData.id },
@@ -1199,6 +1279,12 @@ const PlaceOrderModalV2 = ({
           if (disc.starts_at && new Date(disc.starts_at) > now) return false;
           if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) return false;
           if (disc.min_order_value && subtotal < Number(disc.min_order_value)) return false;
+          // Auto-apply must only ever pick an ELIGIBLE discount, or the effect
+          // that self-clears ineligible auto-applied ones would fight it and
+          // oscillate. A BXGY whose buy condition the cart doesn't meet is
+          // exactly that, so it is filtered out here rather than applied and
+          // immediately dropped.
+          if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, items, discountBase)) return false;
           if (disc.discount_order_types) {
             const allowed = disc.discount_order_types.split(",").map((t: string) => t.trim());
             if (!allowed.includes(currentTypeCode)) return false;
@@ -1230,32 +1316,14 @@ const PlaceOrderModalV2 = ({
         }
 
         if (eligible && !ignore) {
-          setAppliedDiscount({
-            id: eligible.id,
-            code: eligible.code,
-            type: eligible.discount_type,
-            value: Number(eligible.discount_value),
-            max_discount_amount: eligible.max_discount_amount ? Number(eligible.max_discount_amount) : undefined,
-            min_order_value: eligible.min_order_value ? Number(eligible.min_order_value) : undefined,
-            description: eligible.description || undefined,
-            terms_conditions: eligible.terms_conditions || undefined,
-            discount_on_total: eligible.discount_on_total,
-            discount_order_types: eligible.discount_order_types || undefined,
-            valid_days: eligible.valid_days || undefined,
-            applicable_on: eligible.applicable_on || undefined,
-            has_coupon: eligible.has_coupon,
-            rank: eligible.rank ? Number(eligible.rank) : undefined,
-            pp_discount_id: eligible.pp_discount_id || undefined,
-            freebie_item_count: eligible.freebie_item_count ? Number(eligible.freebie_item_count) : undefined,
-            freebie_item_ids: eligible.freebie_item_ids || undefined,
-          });
+          setAppliedDiscount(toAppliedDiscount(eligible));
         }
       })
       .catch(() => {});
     return () => {
       ignore = true;
     };
-  }, [hotelData?.id, open_place_order_modal, items, subtotal, orderType, isQrScan, appliedDiscount]);
+  }, [hotelData?.id, open_place_order_modal, items, subtotal, discountBase, orderType, isQrScan, appliedDiscount]);
 
   const validateAndApplyCode = async (code: string) => {
     const trimmed = code.trim().toUpperCase();
@@ -1288,6 +1356,17 @@ const PlaceOrderModalV2 = ({
       }
       if (disc.min_order_value && subtotal < Number(disc.min_order_value)) {
         setDiscountError(`Minimum order of ${currency}${disc.min_order_value} required.`);
+        return;
+      }
+      // Say WHY a BXGY code bounced — "Buy 2 of Pizza, get a free Coke" is far
+      // more useful than applying it for ₹0 and leaving the customer guessing.
+      if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, items, discountBase)) {
+        setDiscountError(
+          "Not eligible yet — " + describeBxgy(disc, {
+            currency,
+            nameOf: (id) => hotelData?.menus?.find((m) => m.id === id)?.name,
+          }),
+        );
         return;
       }
       // Parity with the auto-apply filter: manual codes must also respect the
@@ -1328,25 +1407,7 @@ const PlaceOrderModalV2 = ({
           return;
         }
       }
-      setAppliedDiscount({
-        id: disc.id,
-        code: disc.code,
-        type: disc.discount_type,
-        value: Number(disc.discount_value),
-        max_discount_amount: disc.max_discount_amount ? Number(disc.max_discount_amount) : undefined,
-        min_order_value: disc.min_order_value ? Number(disc.min_order_value) : undefined,
-        description: disc.description || undefined,
-        terms_conditions: disc.terms_conditions || undefined,
-        discount_on_total: disc.discount_on_total,
-        discount_order_types: disc.discount_order_types || undefined,
-        valid_days: disc.valid_days || undefined,
-        applicable_on: disc.applicable_on || undefined,
-        has_coupon: disc.has_coupon,
-        rank: disc.rank ? Number(disc.rank) : undefined,
-        pp_discount_id: disc.pp_discount_id || undefined,
-        freebie_item_count: disc.freebie_item_count ? Number(disc.freebie_item_count) : undefined,
-        freebie_item_ids: disc.freebie_item_ids || undefined,
-      });
+      setAppliedDiscount(toAppliedDiscount(disc));
       setDiscountInput("");
       setView("main");
       toast.success(`Applied ${disc.code}`);
@@ -1366,6 +1427,15 @@ const PlaceOrderModalV2 = ({
       toast.error(`Minimum order of ${currency}${d.min_order_value} required.`);
       return;
     }
+    if (d.discount_type === "bxgy" && !bxgyRepeatCount(d, items, discountBase)) {
+      toast.error(
+        "Not eligible yet — " + describeBxgy(d, {
+          currency,
+          nameOf: (id) => hotelData?.menus?.find((m) => m.id === id)?.name,
+        }),
+      );
+      return;
+    }
     const code = isQrScan ? "3" : orderType === "takeaway" ? "2" : "1";
     if (d.discount_order_types) {
       const allowed = d.discount_order_types.split(",").map((t) => t.trim());
@@ -1381,19 +1451,7 @@ const PlaceOrderModalV2 = ({
         return;
       }
     }
-    setAppliedDiscount({
-      id: d.id,
-      code: d.code,
-      type: d.discount_type as AppliedDiscount["type"],
-      value: Number(d.discount_value),
-      max_discount_amount: d.max_discount_amount ? Number(d.max_discount_amount) : undefined,
-      min_order_value: d.min_order_value ? Number(d.min_order_value) : undefined,
-      description: d.description || undefined,
-      terms_conditions: d.terms_conditions || undefined,
-      discount_order_types: d.discount_order_types || undefined,
-      valid_days: d.valid_days || undefined,
-      has_coupon: true,
-    });
+    setAppliedDiscount(toAppliedDiscount(d, { has_coupon: true }));
     setView("main");
     toast.success(`Applied ${d.code}`);
   };
@@ -1733,12 +1791,75 @@ const PlaceOrderModalV2 = ({
   // Skip it entirely when the applied discount is no longer eligible for the
   // current cart (a kept coupon below its minimum, wrong order type, etc.) so an
   // ineligible discount is never persisted (savings would be 0 anyway).
+  // Does this discount hand over actual free items? True for the standalone
+  // freebie type and for a BXGY whose reward happens to be a freebie — both
+  // store their items in freebie_item_ids, and both need the free lines added
+  // to the order.
+  // The free-item row, so the burst can come out of the gift itself.
+  const freebieRowRef = useRef<HTMLDivElement | null>(null);
+
+  const grantsFreebie =
+    appliedDiscount?.type === "freebie" ||
+    (appliedDiscount?.type === "bxgy" && appliedDiscount.bxgy_reward_type === "freebie");
+
+  // How many of each free item the cart has actually earned. 0 when nothing is
+  // earned, which is what makes it usable as the celebration trigger below.
+  // A BXGY claimed twice hands over two, so the rule's per-reward count alone
+  // would under-report it.
+  const earnedFreebieUnits =
+    grantsFreebie && !discountIneligibleReason
+      ? appliedDiscount?.type === "bxgy"
+        ? bxgyFreebieUnits(appliedDiscount, bxgyRepeat)
+        : appliedDiscount?.freebie_item_count || 1
+      : 0;
+
+  // Confetti the moment a free item is EARNED — on the transition, never on
+  // every render, or it would fire again on each cart tweak while the gift is
+  // already sitting there. Earning MORE (a repeating BXGY going 1× → 2×) is a
+  // fresh win and fires again; losing one and re-earning it re-arms naturally
+  // because the count drops to 0 in between.
+  const celebratedUnitsRef = useRef(0);
+  const [giftModalOpen, setGiftModalOpen] = useState(false);
+  useEffect(() => {
+    if (!open_place_order_modal) return;
+    if (earnedFreebieUnits > celebratedUnitsRef.current) {
+      fireGiftConfetti(originOf(freebieRowRef.current));
+      setGiftModalOpen(true);
+    }
+    celebratedUnitsRef.current = earnedFreebieUnits;
+  }, [open_place_order_modal, earnedFreebieUnits]);
+
+  // Losing the gift (cart edited back below the threshold) must also take the
+  // card away — otherwise it sits there announcing an item they no longer get.
+  useEffect(() => {
+    if (earnedFreebieUnits === 0) setGiftModalOpen(false);
+  }, [earnedFreebieUnits]);
+
+  // The earned items, resolved against the menu for names/images/prices.
+  const earnedGiftItems =
+    earnedFreebieUnits > 0 && appliedDiscount?.freebie_item_ids
+      ? appliedDiscount.freebie_item_ids
+          .split(",")
+          .map((id) => hotelData?.menus?.find((m) => m.id === id.trim()))
+          .filter(Boolean)
+          .map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            price: m.price,
+            image_url: m.image_url,
+          }))
+      : [];
+
   const buildDiscountArg = () =>
     appliedDiscount && !discountIneligibleReason
       ? {
           code: appliedDiscount.code,
           type: appliedDiscount.type,
-          value: appliedDiscount.value,
+          // A BXGY row's own discount_value is 0 — the amount lives in the
+          // reward config. Persist the RESOLVED amount so every downstream
+          // reader (bill, order editor, analytics) that recomputes from `value`
+          // gets the figure the customer was actually charged.
+          value: appliedDiscount.type === "bxgy" ? discountSavings : appliedDiscount.value,
           savings: discountSavings,
           pp_discount_id: appliedDiscount.pp_discount_id,
           description: appliedDiscount.description,
@@ -1750,8 +1871,22 @@ const PlaceOrderModalV2 = ({
           valid_days: appliedDiscount.valid_days,
           applicable_on: appliedDiscount.applicable_on,
           rank: appliedDiscount.rank,
-          freebie_item_count: appliedDiscount.freebie_item_count,
+          // For BXGY this records the units actually EARNED (per-reward count ×
+          // how many times the cart qualified), not the rule's per-reward count
+          // — the order is a record of what was given, and orderStore reads this
+          // straight through as the free line's quantity.
+          freebie_item_count: grantsFreebie
+            ? bxgyFreebieUnits(appliedDiscount, bxgyRepeat) || appliedDiscount.freebie_item_count
+            : appliedDiscount.freebie_item_count,
           freebie_item_ids: appliedDiscount.freebie_item_ids,
+          bxgy_buy_type: appliedDiscount.bxgy_buy_type,
+          bxgy_buy_item_ids: appliedDiscount.bxgy_buy_item_ids,
+          bxgy_buy_quantity: appliedDiscount.bxgy_buy_quantity,
+          bxgy_buy_value: appliedDiscount.bxgy_buy_value,
+          bxgy_reward_type: appliedDiscount.bxgy_reward_type,
+          bxgy_reward_value: appliedDiscount.bxgy_reward_value,
+          bxgy_max_repeat: appliedDiscount.bxgy_max_repeat,
+          bxgy_applied_times: appliedDiscount.type === "bxgy" ? bxgyRepeat : undefined,
           freebie_item_names: appliedDiscount.freebie_item_ids
             ? appliedDiscount.freebie_item_ids
                 .split(",")
@@ -1760,7 +1895,7 @@ const PlaceOrderModalV2 = ({
                 .join(", ")
             : undefined,
           freebie_items:
-            appliedDiscount.type === "freebie" && appliedDiscount.freebie_item_ids
+            grantsFreebie && appliedDiscount.freebie_item_ids
               ? (appliedDiscount.freebie_item_ids
                   .split(",")
                   .map((id) => {
@@ -2834,15 +2969,17 @@ const PlaceOrderModalV2 = ({
     );
   }
 
+  // The free lines shown under the cart. Covers the standalone freebie type AND
+  // a BXGY whose reward is a freebie — without the latter the customer sees
+  // "you save ₹190" with no idea WHICH item they are getting free.
   const freebieItems =
-    appliedDiscount?.type === "freebie" &&
-    appliedDiscount.freebie_item_ids &&
-    !discountIneligibleReason
+    grantsFreebie && appliedDiscount?.freebie_item_ids && !discountIneligibleReason
       ? appliedDiscount.freebie_item_ids
           .split(",")
           .map((id) => hotelData?.menus?.find((m) => m.id === id.trim()))
           .filter(Boolean)
       : [];
+
 
   const restaurantName = hotelData?.store_name || (hotelData as any)?.name || "";
   const restaurantSubtitle = hotelData?.district || (hotelData as any)?.address || "";
@@ -3267,7 +3404,7 @@ const PlaceOrderModalV2 = ({
 
               {/* Freebie items (auto-applied discount) */}
               {freebieItems.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-dashed border-gray-200">
+                <div ref={freebieRowRef} className="mt-2 pt-2 border-t border-dashed border-gray-200">
                   {freebieItems.map((fi: any) => (
                     <div key={fi.id} className="flex items-center justify-between py-1.5">
                       <div className="text-sm text-gray-700">{fi.name}</div>
@@ -3279,7 +3416,7 @@ const PlaceOrderModalV2 = ({
                           FREE
                         </span>
                         <span className="text-xs font-medium text-gray-500">
-                          × {appliedDiscount?.freebie_item_count || 1}
+                          × {earnedFreebieUnits}
                         </span>
                       </div>
                     </div>
@@ -3417,7 +3554,12 @@ const PlaceOrderModalV2 = ({
                       ? `${appliedDiscount.code} isn't valid for this order type`
                       : discountIneligibleReason === "day"
                         ? `${appliedDiscount.code} isn't valid today`
-                        : `${appliedDiscount.code} no longer applies to this order`}
+                        : discountIneligibleReason === "bxgy"
+                          ? describeBxgy(appliedDiscount, {
+                              currency,
+                              nameOf: (id) => hotelData?.menus?.find((m) => m.id === id)?.name,
+                            })
+                          : `${appliedDiscount.code} no longer applies to this order`}
                 </div>
               )}
 
@@ -3851,6 +3993,18 @@ const PlaceOrderModalV2 = ({
       accent={accent}
       banner={(hotelData as any)?.store_banner}
       partnerName={hotelData?.store_name || "Restaurant"}
+    />
+
+    {/* Sibling of the checkout sheet, not a child — the sheet slides on a
+        transform, which would make a nested fixed overlay position against it
+        instead of the viewport. */}
+    <GiftEarnedModal
+      open={giftModalOpen}
+      onClose={() => setGiftModalOpen(false)}
+      items={earnedGiftItems}
+      units={earnedFreebieUnits}
+      currency={currency}
+      accent={accent}
     />
     </>
   );

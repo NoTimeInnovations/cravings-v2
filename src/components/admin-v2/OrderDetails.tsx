@@ -79,6 +79,7 @@ import PorterDispatchCountdown from "./PorterDispatchCountdown";
 import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
 import PoolRiderPanel from "@/components/PoolRiderPanel";
 import { checkAllProvidersAvailability } from "@/app/actions/deliveryAgent";
+import { bxgyOrderLabel } from "@/lib/bxgy";
 
 interface OrderDetailsProps {
     order: Order | null;
@@ -1159,7 +1160,9 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
                         {discounts.map((discount, index) => {
                             const disc = discount as any;
                             const discountValue = getDiscountAmount(disc, subtotal);
-                            const discountLabel = disc.type === "freebie"
+                            const discountLabel = disc.type === "bxgy"
+                                ? bxgyOrderLabel(disc)
+                                : disc.type === "freebie"
                                 ? `Freebie Discount${disc.freebie_item_names ? ` (${disc.freebie_item_names})` : ""}`
                                 : disc.type === "percentage"
                                 ? `${disc.value}% Off`

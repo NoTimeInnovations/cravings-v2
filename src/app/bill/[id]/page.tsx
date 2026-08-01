@@ -21,6 +21,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useReactToPrint } from "react-to-print";
 import QRCode from "qrcode";
 import "./print-css.css"; // Import the CSS for printing
+import { bxgyOrderLabel } from "@/lib/bxgy";
 
 // Array of partner IDs to exclude "Powered By Cravings" text
 const DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS: string[] = [];
@@ -787,7 +788,9 @@ const PrintOrderPage = () => {
                   <li key={index}>
                     <div className="flex justify-between">
                       <span>
-                        {discount.type === "freebie"
+                        {discount.type === "bxgy"
+                          ? bxgyOrderLabel(discount)
+                          : discount.type === "freebie"
                           ? `Freebie${discount.freebie_item_names ? ` - ${discount.freebie_item_names}` : ""}${discount.freebie_item_count > 1 ? ` x${discount.freebie_item_count}` : ""}`
                           : discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
                         {discount.reason && ` (${discount.reason})`}

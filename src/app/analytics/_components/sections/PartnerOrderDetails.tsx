@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, MapPin, MessageCircle, Phone, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { getDiscountAmount } from "@/lib/discountUtils";
+import { bxgyOrderLabel } from "@/lib/bxgy";
 import { taxLabel } from "@/lib/taxLabel";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import type { AnalyticsOrder, PartnerOrdersPartner } from "../types";
@@ -353,7 +354,9 @@ export default function PartnerOrderDetails({
               const disc = discount as any;
               const discountValue = getDiscountAmount(disc, subtotal);
               const discountLabel =
-                disc.type === "freebie"
+                disc.type === "bxgy"
+                  ? bxgyOrderLabel(disc)
+                  : disc.type === "freebie"
                   ? `Freebie Discount${disc.freebie_item_names ? ` (${disc.freebie_item_names})` : ""}`
                   : disc.type === "percentage"
                     ? `${disc.value}% Off`

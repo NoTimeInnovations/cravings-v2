@@ -1,4 +1,7 @@
-const discountFields = `
+// Exported because the checkout modals run their own inline discount queries
+// (auto-apply, coupon list) and used to spell out their own column lists — so a
+// column added here, like BXGY's condition/reward, arrived as undefined there.
+export const discountFields = `
   id
   code
   description
@@ -27,6 +30,13 @@ const discountFields = `
   freebie_item_count
   freebie_item_ids
   show_on_storefront
+  bxgy_buy_type
+  bxgy_buy_item_ids
+  bxgy_buy_quantity
+  bxgy_buy_value
+  bxgy_reward_type
+  bxgy_reward_value
+  bxgy_max_repeat
   created_at
 `;
 

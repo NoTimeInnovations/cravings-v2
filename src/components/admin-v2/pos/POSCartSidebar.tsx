@@ -11,6 +11,14 @@ import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import Img from "@/components/Img";
 import { formatCurrency } from "@/lib/utils";
 import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { discountFields } from "@/api/discounts";
+import {
+    bxgyFreebieUnits,
+    bxgyRepeatCount,
+    bxgyRewardAmount,
+    describeBxgy,
+} from "@/lib/bxgy";
 import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { toast } from "sonner";
 import { hasuraClient, subscribeToHasura } from "@/lib/hasuraSubscription";
@@ -94,7 +102,11 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const [newChargeName, setNewChargeName] = useState("");
     const [newChargeAmount, setNewChargeAmount] = useState("");
     const [isAddingDiscount, setIsAddingDiscount] = useState(false);
-    const [discountType, setDiscountType] = useState<"percentage" | "flat" | "freebie">("percentage");
+    const [discountType, setDiscountType] = useState<"percentage" | "flat" | "freebie" | "bxgy">("percentage");
+    // Saved BXGY offers the partner defined in Settings. Unlike the other three
+    // types, a BXGY isn't typed in at the counter — it's a rule, so staff pick
+    // one and it's evaluated against the cart.
+    const [bxgyOffers, setBxgyOffers] = useState<any[]>([]);
     const [discountValue, setDiscountValue] = useState("");
     const [discountReason, setDiscountReason] = useState("");
     const [showBillDetails, setShowBillDetails] = useState(false);
@@ -317,6 +329,85 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         removeDiscount
     } = usePOSStore();
 
+    // Load the partner's saved BXGY offers once the discount panel is opened.
+    // Only BXGY: the other three types are still typed in by hand here, so
+    // there's nothing to look up for them.
+    useEffect(() => {
+        const partnerId = (partnerData as any)?.id;
+        if (!isAddingDiscount || discountType !== "bxgy" || !partnerId || bxgyOffers.length) return;
+        fetchFromHasura(
+            `query GetPosBxgyOffers($partner_id: uuid!) {
+                discounts(
+                    where: {
+                        partner_id: { _eq: $partner_id }
+                        is_active: { _eq: true }
+                        discount_type: { _eq: "bxgy" }
+                        _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }]
+                    }
+                    order_by: [{ rank: asc_nulls_last }]
+                ) {
+                    ${discountFields}
+                }
+            }`,
+            { partner_id: partnerId },
+        )
+            .then((res) => setBxgyOffers(res?.discounts ?? []))
+            .catch(() => toast.error("Couldn't load your BXGY offers"));
+    }, [isAddingDiscount, discountType, (partnerData as any)?.id]);
+
+    const posMenuNameOf = (id: string) =>
+        usePOSStore.getState().cartItems.find((i) => i.id === id)?.name;
+    const posMenuPriceOf = (id: string) =>
+        Number(usePOSStore.getState().cartItems.find((i) => i.id === id)?.price) || 0;
+
+    // Evaluate a saved BXGY against what's in the cart right now. The POS bills
+    // every line at the raw menu price (never an offer price), so the whole food
+    // subtotal is the discountable base here — unlike the storefront.
+    const evaluateBxgy = (offer: any) => {
+        const cart = usePOSStore.getState().cartItems;
+        const base = cart.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0);
+        const repeat = bxgyRepeatCount(offer, cart, base);
+        const amount = Math.min(
+            bxgyRewardAmount(offer, { repeat, base, priceOf: posMenuPriceOf }),
+            base,
+        );
+        return { repeat, amount, base };
+    };
+
+    // A freebie-reward BXGY at the counter takes the free item's price off the
+    // bill and staff hand the item over — the POS never auto-adds cart lines.
+    const applyBxgyOffer = (offer: any) => {
+        const { repeat, amount } = evaluateBxgy(offer);
+        if (repeat <= 0) {
+            toast.error(`Cart doesn't qualify — ${describeBxgy(offer, { nameOf: posMenuNameOf })}`);
+            return;
+        }
+        if (amount <= 0) {
+            toast.error("This offer works out to nothing on this bill.");
+            return;
+        }
+        addDiscount({
+            type: "bxgy",
+            value: amount,
+            reason: discountReason.trim() || offer.code,
+            code: offer.code,
+            freebie_item_ids: offer.freebie_item_ids || undefined,
+            freebie_item_count: bxgyFreebieUnits(offer, repeat) || undefined,
+            bxgy_buy_type: offer.bxgy_buy_type || undefined,
+            bxgy_buy_item_ids: offer.bxgy_buy_item_ids || undefined,
+            bxgy_buy_quantity: offer.bxgy_buy_quantity ?? undefined,
+            bxgy_buy_value: offer.bxgy_buy_value ?? undefined,
+            bxgy_reward_type: offer.bxgy_reward_type || undefined,
+            bxgy_reward_value: offer.bxgy_reward_value ?? undefined,
+            bxgy_max_repeat: offer.bxgy_max_repeat ?? undefined,
+            bxgy_applied_times: repeat,
+        });
+        toast.success(`Applied ${offer.code}${repeat > 1 ? ` (${repeat}×)` : ""}`);
+        setDiscountValue("");
+        setDiscountReason("");
+        setIsAddingDiscount(false);
+    };
+
     const handleAddDiscount = () => {
         if (!discountValue) return;
         const val = parseFloat(discountValue);
@@ -369,8 +460,10 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
     // Calculate current order discounts
     const discountAmount = usePOSStore.getState().discounts.reduce((total, discount) => {
-        if (discount.type === "freebie") {
-            return total + (discount.value || 0); // Freebie discount = item price as flat discount
+        if (discount.type === "freebie" || discount.type === "bxgy") {
+            // Both are a fixed amount: the freebie's item price, or the BXGY
+            // reward as evaluated against the cart when it was applied.
+            return total + (discount.value || 0);
         }
         return total + computeDiscountAmount(discount as any, subtotal);
     }, 0);
@@ -852,21 +945,70 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         <select
                                             className="h-8 text-xs border rounded bg-background px-2"
                                             value={discountType}
-                                            onChange={(e) => setDiscountType(e.target.value as "percentage" | "flat" | "freebie")}
+                                            onChange={(e) => setDiscountType(e.target.value as "percentage" | "flat" | "freebie" | "bxgy")}
                                         >
                                             <option value="percentage">%</option>
                                             <option value="flat">Flat</option>
                                             <option value="freebie">Freebie</option>
+                                            <option value="bxgy">BXGY</option>
                                         </select>
-                                        <Input
-                                            type="number"
-                                            placeholder={discountType === "percentage" ? "Percentage" : "Amount"}
-                                            value={discountValue}
-                                            onChange={(e) => setDiscountValue(e.target.value)}
-                                            className="h-8 text-xs flex-1"
-                                            autoFocus
-                                        />
+                                        {discountType !== "bxgy" && (
+                                            <Input
+                                                type="number"
+                                                placeholder={discountType === "percentage" ? "Percentage" : "Amount"}
+                                                value={discountValue}
+                                                onChange={(e) => setDiscountValue(e.target.value)}
+                                                className="h-8 text-xs flex-1"
+                                                autoFocus
+                                            />
+                                        )}
                                     </div>
+
+                                    {/* BXGY is a saved rule, not a typed amount — pick one and it
+                                        gets evaluated against what's in the cart right now. */}
+                                    {discountType === "bxgy" && (
+                                        <div className="space-y-1 max-h-52 overflow-y-auto">
+                                            {bxgyOffers.length === 0 ? (
+                                                <p className="text-[11px] text-muted-foreground px-1 py-2">
+                                                    No BXGY offers yet. Create one under Settings → Discounts.
+                                                </p>
+                                            ) : (
+                                                bxgyOffers.map((offer) => {
+                                                    const { repeat, amount } = evaluateBxgy(offer);
+                                                    const qualifies = repeat > 0 && amount > 0;
+                                                    return (
+                                                        <button
+                                                            key={offer.id}
+                                                            type="button"
+                                                            onClick={() => applyBxgyOffer(offer)}
+                                                            disabled={!qualifies}
+                                                            className={`w-full text-left rounded border px-2 py-1.5 text-[11px] transition ${
+                                                                qualifies
+                                                                    ? "bg-background hover:bg-muted"
+                                                                    : "opacity-50 cursor-not-allowed bg-muted/40"
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="font-semibold font-mono">{offer.code}</span>
+                                                                {qualifies ? (
+                                                                    <span className="text-green-700 dark:text-green-400 font-medium">
+                                                                        −{formatCurrency(amount)}
+                                                                        {repeat > 1 ? ` (${repeat}×)` : ""}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-muted-foreground">Doesn&apos;t qualify</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-muted-foreground">
+                                                                {describeBxgy(offer, { nameOf: posMenuNameOf })}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    )}
+
                                     <Input
                                         placeholder="Reason (optional)"
                                         value={discountReason}
@@ -877,9 +1019,11 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         <Button size="sm" variant="ghost" onClick={() => setIsAddingDiscount(false)} className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50">
                                             Cancel
                                         </Button>
-                                        <Button size="sm" variant="ghost" onClick={handleAddDiscount} className="h-7 px-2 text-green-600 hover:text-green-700 hover:bg-green-50">
-                                            Apply Discount
-                                        </Button>
+                                        {discountType !== "bxgy" && (
+                                            <Button size="sm" variant="ghost" onClick={handleAddDiscount} className="h-7 px-2 text-green-600 hover:text-green-700 hover:bg-green-50">
+                                                Apply Discount
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             ) : null}
@@ -889,7 +1033,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     {discounts.map((discount) => (
                                         <div key={discount.id} className="flex justify-between items-center text-xs bg-red-50 p-1.5 rounded text-red-700 border border-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/50">
                                             <div className="flex flex-col">
-                                                <span>{discount.type === "freebie" ? "Freebie (Free Item)" : discount.type === "percentage" ? `${discount.value}% Off` : `Flat ${formatCurrency(discount.value)} Off`}</span>
+                                                <span>{discount.type === "bxgy" ? `BXGY ${discount.code ?? ""}`.trim() : discount.type === "freebie" ? "Freebie (Free Item)" : discount.type === "percentage" ? `${discount.value}% Off` : `Flat ${formatCurrency(discount.value)} Off`}</span>
                                                 {discount.reason && <span className="text-[10px] opacity-75">{discount.reason}</span>}
                                             </div>
                                             <button onClick={() => removeDiscount(discount.id)} className="text-red-500 hover:text-red-700">
@@ -928,13 +1072,14 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         </div>
                                     ))}
                                     {discounts.map((discount) => {
-                                        const discountValue = discount.type === "freebie"
-                                            ? discount.value
-                                            : computeDiscountAmount(discount as any, subtotal);
+                                        const discountValue =
+                                            discount.type === "freebie" || discount.type === "bxgy"
+                                                ? discount.value
+                                                : computeDiscountAmount(discount as any, subtotal);
                                         return (
                                             <div key={discount.id} className="flex justify-between text-green-600 text-xs pl-2 border-l-2 border-green-200">
                                                 <span>
-                                                    {discount.type === "freebie" ? `Freebie${discount.reason ? `: ${discount.reason}` : ""} (FREE)` : discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
+                                                    {discount.type === "bxgy" ? `BXGY${discount.bxgy_applied_times && discount.bxgy_applied_times > 1 ? ` ×${discount.bxgy_applied_times}` : ""}` : discount.type === "freebie" ? `Freebie${discount.reason ? `: ${discount.reason}` : ""} (FREE)` : discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
                                                     {discount.type !== "freebie" && discount.reason && ` (${discount.reason})`}
                                                 </span>
                                                 <span>- {formatCurrency(discountValue)}</span>
@@ -1086,7 +1231,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                                         )}
                                                         <div className="flex justify-between">
                                                             <span>
-                                                                {discount.type === "freebie" ? "Freebie Discount" : discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
+                                                                {discount.type === "bxgy" ? `BXGY${discount.bxgy_applied_times && discount.bxgy_applied_times > 1 ? ` ×${discount.bxgy_applied_times}` : ""}` : discount.type === "freebie" ? "Freebie Discount" : discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
                                                                 {discount.reason && ` (${discount.reason})`}
                                                             </span>
                                                             <span>- {formatCurrency(discountValue)}</span>

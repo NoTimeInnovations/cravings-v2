@@ -19,6 +19,12 @@ export type OrderDiscountLike = {
  * the max_discount_amount cap. Use when the order's items may have changed
  * since placement (e.g. the order editor), where the stored savings could
  * be stale. Flat and freebie discounts carry their amount in `value`.
+ *
+ * BXGY also lands in that branch by design: its reward is resolved against the
+ * cart at the moment it is applied and written to `value`, because re-deriving
+ * it here is impossible (this function sees a subtotal, not the cart lines) and
+ * because re-evaluating on a partner's later edit would revoke a reward the
+ * customer was already promised. See src/lib/bxgy.ts for the evaluation.
  */
 export function computeDiscountAmount(
   discount: OrderDiscountLike | null | undefined,

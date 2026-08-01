@@ -85,11 +85,24 @@ export interface ExtraCharge {
 
 export interface Discount {
   id: string;
-  type: "percentage" | "flat" | "freebie";
+  type: "percentage" | "flat" | "freebie" | "bxgy";
   value: number;
   reason?: string;
   freebie_item_count?: number;
   freebie_item_ids?: string;
+  // BXGY is the one discount type the counter does not type in by hand — it's a
+  // saved rule the partner wrote in Settings, picked from a list and evaluated
+  // against the cart at the moment it's applied. `value` holds that evaluated
+  // reward; the rest is carried so the bill can still say what the offer was.
+  code?: string;
+  bxgy_buy_type?: string;
+  bxgy_buy_item_ids?: string;
+  bxgy_buy_quantity?: number;
+  bxgy_buy_value?: number;
+  bxgy_reward_type?: string;
+  bxgy_reward_value?: number;
+  bxgy_max_repeat?: number;
+  bxgy_applied_times?: number;
 }
 
 interface POSState {
@@ -633,8 +646,10 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       // Calculate Discount
       const discountAmount = discounts.reduce((total, discount) => {
-        if (discount.type === "freebie") {
-          return total + discount.value; // Freebie discount = item price as flat discount
+        if (discount.type === "freebie" || discount.type === "bxgy") {
+          // Both are a fixed amount off: the freebie's item price, or the BXGY
+          // reward as evaluated against the cart when it was applied.
+          return total + discount.value;
         }
         return total + computeDiscountAmount(discount as any, subtotal);
       }, 0);
@@ -772,6 +787,11 @@ export const usePOSStore = create<POSState>((set, get) => ({
       if (discount.type === "freebie") {
         return total; // Freebie discounts don't reduce monetary total
       }
+      if (discount.type === "bxgy") {
+        // Unlike a bare freebie, a BXGY reward is money off the bill — its
+        // evaluated value was already resolved when it was applied.
+        return total + discount.value;
+      }
       return total + computeDiscountAmount(discount as any, subtotal);
     }, 0);
 
@@ -866,8 +886,10 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const subtotal = foodSubtotal + extraChargesTotal;
 
       const discountAmount = discounts.reduce((total, discount) => {
-        if (discount.type === "freebie") {
-          return total + discount.value; // Freebie discount = item price as flat discount
+        if (discount.type === "freebie" || discount.type === "bxgy") {
+          // Both are a fixed amount off: the freebie's item price, or the BXGY
+          // reward as evaluated against the cart when it was applied.
+          return total + discount.value;
         }
         return total + computeDiscountAmount(discount as any, subtotal);
       }, 0);

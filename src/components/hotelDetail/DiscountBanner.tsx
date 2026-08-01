@@ -8,11 +8,12 @@ import { useAuthStore } from "@/store/authStore";
 import useOrderStore from "@/store/orderStore";
 import { getUserDiscountUsageQuery } from "@/api/discounts";
 import { MenuPrice } from "@/components/hotelDetail/MenuPrice";
+import { describeBxgy, bxgyRewardLabel, bxgyConditionLabel, bxgyRepeatSuffix } from "@/lib/bxgy";
 
 type DiscountData = {
   id: string;
   code: string;
-  discount_type: "percentage" | "flat" | "freebie";
+  discount_type: "percentage" | "flat" | "freebie" | "bxgy";
   discount_value: number;
   min_order_value: number | null;
   max_discount_amount: number | null;
@@ -27,6 +28,13 @@ type DiscountData = {
   used_count: number;
   per_user_usage_limit: number | null;
   show_on_storefront: boolean;
+  bxgy_buy_type: string | null;
+  bxgy_buy_item_ids: string | null;
+  bxgy_buy_quantity: number | null;
+  bxgy_buy_value: number | null;
+  bxgy_reward_type: string | null;
+  bxgy_reward_value: number | null;
+  bxgy_max_repeat: number | null;
 };
 
 // V5-style slide-up bottom sheet (mirrors V5ItemCard's sheet): dimmed backdrop,
@@ -132,6 +140,8 @@ const DiscountBanner = ({
           max_discount_amount starts_at expires_at valid_time_from
           valid_time_to has_coupon freebie_item_count freebie_item_ids
           usage_limit used_count per_user_usage_limit show_on_storefront
+          bxgy_buy_type bxgy_buy_item_ids bxgy_buy_quantity bxgy_buy_value
+          bxgy_reward_type bxgy_reward_value bxgy_max_repeat
         }
       }`,
       { partner_id: partnerId }
@@ -174,10 +184,17 @@ const DiscountBanner = ({
         setUserUsageMap(usageMap);
         setDiscounts(visible);
 
-        // Resolve freebie item names
+        // Resolve item names for anything that names menu items — the freebie
+        // type, and a BXGY on both sides of the rule ("buy 2 Pizzas, get a Coke"
+        // needs the qualifying items named as well as the reward).
         const freebieIds = visible
-          .filter((d: DiscountData) => d.discount_type === "freebie" && d.freebie_item_ids)
-          .flatMap((d: DiscountData) => d.freebie_item_ids!.split(",").map((id: string) => id.trim()))
+          .flatMap((d: DiscountData) => [
+            ...(d.discount_type === "freebie" || d.discount_type === "bxgy"
+              ? (d.freebie_item_ids ?? "").split(",")
+              : []),
+            ...(d.discount_type === "bxgy" ? (d.bxgy_buy_item_ids ?? "").split(",") : []),
+          ])
+          .map((id: string) => id.trim())
           .filter(Boolean);
         if (freebieIds.length > 0) {
           fetchFromHasura(
@@ -244,6 +261,9 @@ const DiscountBanner = ({
   const offerSentence = (d: DiscountData): string => {
     const desc = (d as any)?.description;
     if (typeof desc === "string" && desc.trim()) return desc.trim();
+    if (d.discount_type === "bxgy") {
+      return describeBxgy(d, { currency, nameOf: (id) => freebieItemNames[id] });
+    }
     if (d.discount_type === "freebie") {
       const names = d.freebie_item_ids
         ?.split(",")
@@ -298,8 +318,10 @@ const DiscountBanner = ({
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold leading-none truncate" style={{ color: accent }}>
-                      {disc.discount_type === "freebie"
+                    <p className="text-sm font-bold leading-snug line-clamp-2" style={{ color: accent }}>
+                      {disc.discount_type === "bxgy"
+                        ? bxgyRewardLabel(disc, { currency, nameOf: (id) => freebieItemNames[id] }).toUpperCase()
+                        : disc.discount_type === "freebie"
                         ? (() => {
                             const names = disc.freebie_item_ids?.split(",").map((id) => freebieItemNames[id.trim()]).filter(Boolean);
                             return names?.length ? `FREE ${names.join(", ")}` : "FREE ITEM";
@@ -317,7 +339,13 @@ const DiscountBanner = ({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    {disc.discount_type === "bxgy" && (
+                      <span className="text-[10px] font-semibold opacity-75">
+                        {bxgyConditionLabel(disc, { currency, nameOf: (id) => freebieItemNames[id] })}
+                        {bxgyRepeatSuffix(disc)}
+                      </span>
+                    )}
                     {disc.min_order_value && (
                       <span className="text-[10px] opacity-60">
                         Purchase above <MenuPrice currency={currency} amount={disc.min_order_value} /> to apply

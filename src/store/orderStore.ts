@@ -69,6 +69,56 @@ export interface OrderItem extends HotelDataMenus {
   quantity: number;
 }
 
+/**
+ * The discount a checkout hands to placeOrder, as it gets persisted onto
+ * `orders.discounts`. It was written out inline in two places and had to be
+ * kept in sync by hand; naming it means a new field (BXGY's condition/reward)
+ * reaches both call signatures at once.
+ */
+export type OrderDiscountArg = {
+  code: string;
+  type: string;
+  value: number;
+  savings: number;
+  pp_discount_id?: string;
+  description?: string;
+  terms_conditions?: string;
+  max_discount_amount?: number;
+  min_order_value?: number;
+  discount_on_total?: boolean;
+  discount_order_types?: string;
+  valid_days?: string;
+  applicable_on?: string;
+  rank?: number;
+  freebie_item_count?: number;
+  freebie_item_ids?: string;
+  freebie_item_names?: string;
+  freebie_items?: { id: string; name: string; price: number; pp_id?: string; category?: any }[];
+  // BXGY — the rule as it stood, plus how many times this order actually earned
+  // it, so a bill can say "buy 2 get 1, claimed 3×" long after the rule changes.
+  bxgy_buy_type?: string;
+  bxgy_buy_item_ids?: string;
+  bxgy_buy_quantity?: number;
+  bxgy_buy_value?: number;
+  bxgy_reward_type?: string;
+  bxgy_reward_value?: number;
+  bxgy_max_repeat?: number;
+  bxgy_applied_times?: number;
+};
+
+/**
+ * Does this discount hand over actual free lines? True for the standalone
+ * freebie type and for a BXGY whose reward is a freebie — both carry the items
+ * in `freebie_items`, and both need them added to the order.
+ */
+const grantsFreebieItems = (
+  d: OrderDiscountArg | null | undefined,
+): d is OrderDiscountArg & {
+  freebie_items: NonNullable<OrderDiscountArg["freebie_items"]>;
+} =>
+  (d?.type === "freebie" || (d?.type === "bxgy" && d?.bxgy_reward_type === "freebie")) &&
+  !!d?.freebie_items?.length;
+
 export interface DeliveryRange {
   from_km: number;
   to_km: number;
@@ -613,7 +663,7 @@ interface OrderState {
     deliveryCharge?: number,
     notes?: string,
     tableName?: string,
-    discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string; freebie_items?: { id: string; name: string; price: number; pp_id?: string; category?: any }[] } | null,
+    discounts?: OrderDiscountArg | null,
     customerName?: string,
     customerPhone?: string,
     cashfreeOrderId?: string | null,
@@ -1718,7 +1768,7 @@ const useOrderStore = create(
         deliveryCharge?: number,
         notes?: string,
         tableName?: string,
-        discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string; freebie_items?: { id: string; name: string; price: number; pp_id?: string; category?: any }[] } | null,
+        discounts?: OrderDiscountArg | null,
         customerName?: string,
         /**
          * Phone to write to `orders.phone`. Lets the checkout modal pass a
@@ -1917,8 +1967,12 @@ const useOrderStore = create(
             if (discounts) {
               ppDiscounts.push({
                 code: discounts.code,
-                type: discounts.type,
-                value: discounts.value,
+                // Petpooja knows percentage / flat / freebie and nothing else,
+                // so a BXGY goes across as the flat amount it actually took off
+                // the bill. The money reconciles; the rule that produced it is
+                // ours and stays on our order record.
+                type: discounts.type === "bxgy" ? "flat" : discounts.type,
+                value: discounts.type === "bxgy" ? discounts.savings : discounts.value,
                 savings: discounts.savings,
                 pp_discount_id: discounts.pp_discount_id || null,
                 description: discounts.description || null,
@@ -2070,7 +2124,7 @@ const useOrderStore = create(
                     created_at: createdAt,
                   };
                 }),
-                ...(discounts?.type === "freebie" && discounts.freebie_items?.length
+                ...(grantsFreebieItems(discounts)
                   ? discounts.freebie_items.map((fi) => {
                       const ppIdFromMenu = hotelData?.menus?.find((m) => m.id === fi.id)?.pp_id;
                       return {
@@ -2218,7 +2272,7 @@ const useOrderStore = create(
                     ...(item.tax_inclusive && { tax_inclusive: true }),
                   },
                 })),
-                ...(discounts?.type === "freebie" && discounts.freebie_items?.length
+                ...(grantsFreebieItems(discounts)
                   ? discounts.freebie_items.map((fi) => ({
                       menu_id: fi.id,
                       quantity: discounts.freebie_item_count || 1,
