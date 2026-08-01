@@ -93,7 +93,7 @@ import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
 import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
 import { computeMaxRedeemable } from "@/lib/loyalty/config";
-import { discountableSubtotal } from "@/lib/discountUtils";
+import { discountableSubtotal, discountableLines } from "@/lib/discountUtils";
 import { bxgyFreebieUnits, bxgyRepeatCount, bxgyRewardAmount, describeBxgy } from "@/lib/bxgy";
 import { fireGiftConfetti, originOf } from "@/lib/giftConfetti";
 import { GiftEarnedModal } from "@/components/hotelDetail/GiftEarnedModal";
@@ -669,6 +669,14 @@ const PlaceOrderModalV2 = ({
   // Discounts never apply to an item that is already sold at an OFFER price —
   // that line's price is the offer price, so discounting it again would mark it
   // down twice. Everything else in the cart stays discountable.
+  // The lines a discount may be earned on. A BXGY buy condition counts UNITS,
+  // so it has to be judged on these and not the raw cart: an item already sold
+  // at an offer price must not also earn a free one.
+  const discountItems = useMemo(
+    () => discountableLines(items || [], (hotelData as any)?.offers),
+    [items, (hotelData as any)?.offers],
+  );
+
   const discountBase = useMemo(
     () => discountableSubtotal(items || [], (hotelData as any)?.offers),
     [items, (hotelData as any)?.offers],
@@ -1080,9 +1088,9 @@ const PlaceOrderModalV2 = ({
   const bxgyRepeat = useMemo(
     () =>
       appliedDiscount?.type === "bxgy"
-        ? bxgyRepeatCount(appliedDiscount, items, discountBase)
+        ? bxgyRepeatCount(appliedDiscount, discountItems, discountBase)
         : 0,
-    [appliedDiscount, items, discountBase],
+    [appliedDiscount, discountItems, discountBase],
   );
 
   // Is the currently-applied discount STILL valid for the current cart? The
@@ -1279,12 +1287,17 @@ const PlaceOrderModalV2 = ({
           if (disc.starts_at && new Date(disc.starts_at) > now) return false;
           if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) return false;
           if (disc.min_order_value && subtotal < Number(disc.min_order_value)) return false;
+          // Nothing in the cart can carry a discount — every line is already on
+          // an offer. Auto-applying here would be cleared on the very next
+          // render by the ineligibility effect, which would re-run this filter
+          // and re-apply: the checkout visibly flickers. Applies to every type.
+          if (discountBase <= 0) return false;
           // Auto-apply must only ever pick an ELIGIBLE discount, or the effect
           // that self-clears ineligible auto-applied ones would fight it and
           // oscillate. A BXGY whose buy condition the cart doesn't meet is
           // exactly that, so it is filtered out here rather than applied and
           // immediately dropped.
-          if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, items, discountBase)) return false;
+          if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, discountItems, discountBase)) return false;
           if (disc.discount_order_types) {
             const allowed = disc.discount_order_types.split(",").map((t: string) => t.trim());
             if (!allowed.includes(currentTypeCode)) return false;
@@ -1323,7 +1336,7 @@ const PlaceOrderModalV2 = ({
     return () => {
       ignore = true;
     };
-  }, [hotelData?.id, open_place_order_modal, items, subtotal, discountBase, orderType, isQrScan, appliedDiscount]);
+  }, [hotelData?.id, open_place_order_modal, items, subtotal, discountBase, discountItems, orderType, isQrScan, appliedDiscount]);
 
   const validateAndApplyCode = async (code: string) => {
     const trimmed = code.trim().toUpperCase();
@@ -1360,7 +1373,7 @@ const PlaceOrderModalV2 = ({
       }
       // Say WHY a BXGY code bounced — "Buy 2 of Pizza, get a free Coke" is far
       // more useful than applying it for ₹0 and leaving the customer guessing.
-      if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, items, discountBase)) {
+      if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, discountItems, discountBase)) {
         setDiscountError(
           "Not eligible yet — " + describeBxgy(disc, {
             currency,
@@ -1427,7 +1440,7 @@ const PlaceOrderModalV2 = ({
       toast.error(`Minimum order of ${currency}${d.min_order_value} required.`);
       return;
     }
-    if (d.discount_type === "bxgy" && !bxgyRepeatCount(d, items, discountBase)) {
+    if (d.discount_type === "bxgy" && !bxgyRepeatCount(d, discountItems, discountBase)) {
       toast.error(
         "Not eligible yet — " + describeBxgy(d, {
           currency,

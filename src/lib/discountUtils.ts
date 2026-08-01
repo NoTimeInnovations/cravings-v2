@@ -132,6 +132,27 @@ export function isLineOnOffer(
 }
 
 /**
+ * The cart lines a discount may be computed on: everything except lines already
+ * sold at an offer price.
+ *
+ * Needed as well as the subtotal below because a BXGY buy condition counts
+ * UNITS, not money — "buy 2 parathas" has to be judged on the parathas that are
+ * still full price. Judging it on every line let a cart made entirely of
+ * offer-priced items satisfy the condition while contributing 0 to the
+ * discountable base, which made the discount qualify and be ineligible at the
+ * same time, and the checkout oscillated between the two.
+ */
+export function discountableLines<T extends DiscountCartLine>(
+  lines: T[] | null | undefined,
+  offers: OfferLike[] | null | undefined,
+  now: number = Date.now(),
+): T[] {
+  if (!lines?.length) return [];
+  if (!offers?.length) return lines;
+  return lines.filter((line) => !isLineOnOffer(line, offers, now));
+}
+
+/**
  * The part of the cart a discount may be computed on: everything except lines
  * already sold at an offer price. Returns the full subtotal when the partner
  * has no live offers.

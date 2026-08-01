@@ -32,7 +32,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { taxLabel } from "@/lib/taxLabel";
 import { getFeatures } from "@/lib/getFeatures";
-import { discountableSubtotal } from "@/lib/discountUtils";
+import { discountableSubtotal, discountableLines } from "@/lib/discountUtils";
 import { bxgyFreebieUnits, bxgyRepeatCount, bxgyRewardAmount, describeBxgy } from "@/lib/bxgy";
 import { fireGiftConfetti, originOf } from "@/lib/giftConfetti";
 import { GiftEarnedModal } from "@/components/hotelDetail/GiftEarnedModal";
@@ -783,7 +783,13 @@ const BillCard = ({
   // how many times a BXGY was earned and what the reward is worth.
   const billDiscountBase = discountableSubtotal(items, (hotelData as any)?.offers);
   const billBxgyRepeat =
-    discount?.type === "bxgy" ? bxgyRepeatCount(discount, items, billDiscountBase) : 0;
+    discount?.type === "bxgy"
+      ? bxgyRepeatCount(
+          discount,
+          discountableLines(items, (hotelData as any)?.offers),
+          billDiscountBase,
+        )
+      : 0;
   // Earned units, not the rule's per-reward count: a BXGY claimed twice hands
   // over two of each free item.
   const freebieCount =
@@ -2065,6 +2071,11 @@ const PlaceOrderModal = ({
   const menuPriceOf = (id: string) =>
     Number(hotelData?.menus?.find((m) => m.id === id.trim())?.price) || 0;
 
+  // The lines a discount may be earned on. A BXGY buy condition counts UNITS,
+  // so it must be judged on these and not the raw cart: an item already sold at
+  // an offer price must not also earn a free one.
+  const discountItems = discountableLines(items || [], (hotelData as any)?.offers);
+
   const getFreebieItemsTotal = (disc: typeof appliedDiscount) => {
     if (!disc || disc.type !== "freebie" || !disc.freebie_item_ids) return 0;
     const count = disc.freebie_item_count || 1;
@@ -2080,7 +2091,7 @@ const PlaceOrderModal = ({
     appliedDiscount?.type === "bxgy"
       ? bxgyRepeatCount(
           appliedDiscount,
-          items || [],
+          discountItems,
           discountableSubtotal(items || [], (hotelData as any)?.offers),
         )
       : 0;
@@ -2094,7 +2105,7 @@ const PlaceOrderModal = ({
     if (disc.type === "bxgy") {
       return Math.min(
         bxgyRewardAmount(disc, {
-          repeat: bxgyRepeatCount(disc, items || [], sub),
+          repeat: bxgyRepeatCount(disc, discountItems, sub),
           base: sub,
           priceOf: menuPriceOf,
         }),
@@ -2376,12 +2387,17 @@ const PlaceOrderModal = ({
         if (disc.starts_at && new Date(disc.starts_at) > now) return false;
         if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) return false;
         if (disc.min_order_value && subtotal < Number(disc.min_order_value)) return false;
+        // Nothing in the cart can carry a discount — every line is already on an
+        // offer. Auto-applying here would be cleared on the next render by the
+        // revalidation effect, which would re-run this filter and re-apply it:
+        // the checkout visibly flickers. Applies to every discount type.
+        if (discountableSubtotal(items || [], (hotelData as any)?.offers) <= 0) return false;
         // Auto-apply must only ever pick an ELIGIBLE discount, or the effect
         // that drops ineligible ones would clear it and this would re-apply it
         // on the next pass. A BXGY the cart doesn't earn is exactly that.
         if (
           disc.discount_type === "bxgy" &&
-          !bxgyRepeatCount(disc, items || [], discountableSubtotal(items || [], (hotelData as any)?.offers))
+          !bxgyRepeatCount(disc, discountItems, discountableSubtotal(items || [], (hotelData as any)?.offers))
         )
           return false;
         if (disc.discount_order_types) {
@@ -2774,7 +2790,7 @@ const PlaceOrderModal = ({
       // applying it for ₹0 and leaving the customer to work it out.
       if (
         disc.discount_type === "bxgy" &&
-        !bxgyRepeatCount(disc, items || [], discountableSubtotal(items || [], (hotelData as any)?.offers))
+        !bxgyRepeatCount(disc, discountItems, discountableSubtotal(items || [], (hotelData as any)?.offers))
       ) {
         setDiscountError(
           "Not eligible yet — " + describeBxgy(disc, {
