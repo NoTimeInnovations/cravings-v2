@@ -1081,7 +1081,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       pickupPin?: string | null;
       dropPin?: string | null;
     } | null;
-    history?: Array<{ bookingId: string; provider: string; status: string; crn: string | null; driver: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string; photoUrl?: string } | null; fareAmount: number | null; cancelledBy: string | null; assignedAt: number | null; createdAt: number; updatedAt: number }>;
+    history?: Array<{ bookingId: string; provider: string; status: string; crn: string | null; driver: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string; photoUrl?: string } | null; fareAmount: number | null; cancelledBy: string | null; cancelReason: string | null; assignedAt: number | null; createdAt: number; updatedAt: number }>;
     log: Array<{ t: number; text: string; tone: string }>;
   };
   const running = d.status === "running";
@@ -1187,7 +1187,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
  */
 export async function cancelDispatch(
   orderId: string,
-  _reason?: string,
+  reason?: string,
   cancelledBy: "partner" | "customer" | "operator" = "partner",
 ): Promise<Result> {
   if (!orderId) return { ok: false, message: "orderId required" };
@@ -1208,12 +1208,12 @@ export async function cancelDispatch(
   }
   // Legacy Porter-only orders (booked before the dispatch switch) → old path.
   if (!dispatchId) {
-    if (provider === "porter") return cancelPorter(orderId, _reason ?? "Cancelled");
+    if (provider === "porter") return cancelPorter(orderId, reason ?? "Cancelled");
     return { ok: false, status: 404, message: "no dispatch on this order" };
   }
   const res = await bridgeFetch(`/api/v1/dispatch/${dispatchId}/cancel`, {
     method: "POST",
-    json: { cancelledBy },
+    json: { cancelledBy, reason },
   });
   if (res.ok) {
     await persistDispatch(orderId, provider ?? "dispatch", "cancelled", null, {

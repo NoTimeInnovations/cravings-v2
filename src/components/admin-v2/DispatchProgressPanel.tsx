@@ -18,6 +18,8 @@ interface HistItem {
   fareAmount: number | null;
   /** Set only for a DELIBERATE cancel (partner / customer / operator). */
   cancelledBy?: string | null;
+  /** Free-text reason recorded with a deliberate cancel. */
+  cancelReason?: string | null;
   /** Null means a rider was never assigned. */
   assignedAt?: number | null;
   createdAt: number;
@@ -113,6 +115,11 @@ function RiderHistoryBlock({
                 {h.driver?.name ? <span className="text-muted-foreground"> · {h.driver.name}</span> : null}
                 {h.driver?.vehicleNumber ? <span className="text-muted-foreground"> · {h.driver.vehicleNumber}</span> : null}
                 {h.crn ? <span className="text-muted-foreground"> · {h.crn}</span> : null}
+                {h.status === "cancelled" && h.cancelReason ? (
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {h.cancelReason}
+                  </span>
+                ) : null}
               </span>
               <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium ${st.cls}`}>
                 {label}
