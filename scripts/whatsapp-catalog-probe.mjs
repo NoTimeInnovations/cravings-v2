@@ -30,8 +30,13 @@ if (!EP || !SECRET) {
   process.exit(1);
 }
 
-// Permissions the catalogue work needs beyond what messaging already has.
-const REQUIRED = ["catalog_management", "business_management"];
+// Catalogue scopes a partner token would need to manage a catalogue ITSELF.
+// Measured: Embedded Signup never grants these — it issues a SYSTEM_USER token
+// carrying only WhatsApp scopes, and adding the Catalog API use case to the app
+// does not change it (the use case governs what the APP may request; ES governs
+// what THIS token carries). So their absence is reported as expected, not as a
+// blocker to go fix. Catalogue writes go through META_CATALOG_SYSTEM_TOKEN.
+const PARTNER_CATALOG_SCOPES = ["catalog_management", "business_management"];
 
 const graph = async (path) => {
   const res = await fetch(`https://graph.facebook.com/${V}/${path}`);
@@ -82,23 +87,56 @@ const main = async () => {
   const perms = await graph(`me/permissions?access_token=${token}`);
   if (perms.error) return fail("token scopes", perms.error);
   const granted = (perms.data || []).filter((p) => p.status === "granted").map((p) => p.permission);
-  console.log("1. token scopes");
+  console.log("1. token scopes (informational)");
   console.log("      granted:", granted.join(", ") || "(none)");
-  const missing = REQUIRED.filter((r) => !granted.includes(r));
-  console.log(missing.length ? `      ✗ MISSING: ${missing.join(", ")}` : "      ✓ all required scopes present");
+  const missing = PARTNER_CATALOG_SCOPES.filter((r) => !granted.includes(r));
+  console.log(
+    missing.length
+      ? `      – no ${missing.join(" / ")} — expected; ES cannot grant these. Catalogue\n        writes use META_CATALOG_SYSTEM_TOKEN instead, so this is not a blocker.`
+      : "      ! unexpectedly HAS catalogue scopes — worth re-checking the assumption above",
+  );
 
-  // 2. Which business owns the WABA, and of what type. An SMB portfolio (what
-  //    coexistence onboarding creates) is refused by the catalogue endpoints
-  //    regardless of scopes, so this is a separate gate from (1).
+  // 2. Coexistence. THE gate — measured, not guessed: the same
+  //    {waba}/product_catalogs call returns (#10) for oreodemo (is_on_biz_app
+  //    true) and {"data":[]} for flaminhotchicken (false), same app, same day.
+  //
+  //    is_on_biz_app means the number is ALSO live in the WhatsApp Business app
+  //    on a handset. WhatsApp then owns the catalogue surface itself — it is the
+  //    on-device catalogue, edited on the phone — so Meta closes the Cloud API
+  //    edge outright. A GET being refused is the proof that no scope fixes it.
+  //
+  //    Note this is a property of the PHONE NUMBER, not the portfolio. An earlier
+  //    version of this probe blamed the business type and sent us hunting for
+  //    permissions that were never the problem.
+  const phone = await graph(
+    `${integ.phone_number_id}?fields=display_phone_number,is_on_biz_app,platform_type&access_token=${token}`,
+  );
+  console.log("\n2. coexistence (the real gate)");
+  if (phone.error) fail("phone lookup", phone.error);
+  else {
+    const coex = phone.is_on_biz_app;
+    console.log(`      platform=${phone.platform_type || "?"}  is_on_biz_app=${coex}`);
+    console.log(
+      coex
+        ? "      ✗ COEXISTENCE — catalogue is the phone app's; Cloud API edge is closed"
+        : "      ✓ not on the Business app — catalogue edge should be open",
+    );
+  }
+
+  // Which business owns the WABA. Not the blocker, but it decides WHERE the
+  // catalogue has to live: a real partner's WABA sits on THEIR portfolio while
+  // our catalogue sits on ours, so the link is cross-business.
   const waba = await graph(
     `${integ.waba_id}?fields=id,name,owner_business_info,on_behalf_of_business_info&access_token=${token}`,
   );
-  console.log("\n2. owning business");
+  console.log("\n2b. owning business");
   if (waba.error) fail("waba lookup", waba.error);
   else {
     const owner = waba.owner_business_info || {};
     const obo = waba.on_behalf_of_business_info || {};
     console.log(`      owner: ${owner.name || "?"} (${owner.id || "?"})  type=${obo.type || "?"}`);
+    if (owner.id && process.env.META_BUSINESS_ID && owner.id !== process.env.META_BUSINESS_ID)
+      console.log(`      ⚠ differs from META_BUSINESS_ID (${process.env.META_BUSINESS_ID}) — cross-business link needed`);
   }
 
   const bizId = waba?.owner_business_info?.id;
@@ -113,21 +151,26 @@ const main = async () => {
       (cats.data || []).map((c) => `${c.name}(${c.id})`).join(", ") || "(none yet)");
   }
 
-  // 4. Can the WABA hold a connected catalogue at all? This is the call that
-  //    returns "(#10) cannot be performed on SMB business type" for coexistence
-  //    partners — the blocker that adding scopes does NOT fix.
+  // 4. Can the WABA hold a connected catalogue at all? Returns "(#10) cannot be
+  //    performed on SMB business type" for coexistence numbers. Read-only here —
+  //    even the GET is refused, which is what rules out a permissions fix.
   console.log("\n4. WABA ↔ catalogue connection");
   const conn = await graph(`${integ.waba_id}/product_catalogs?access_token=${token}`);
   if (conn.error) fail("waba product_catalogs", conn.error);
   else console.log("      ✓ connected:", JSON.stringify(conn.data || []).slice(0, 200));
 
+  const ownerId = waba?.owner_business_info?.id;
+  const crossBusiness = ownerId && process.env.META_BUSINESS_ID && ownerId !== process.env.META_BUSINESS_ID;
+
   console.log(
     "\nVERDICT:",
-    missing.length
-      ? "BLOCKED — token is missing scopes; fix the Embedded Signup config and reconnect."
+    phone?.is_on_biz_app
+      ? "BLOCKED — coexistence. The number is on the WhatsApp Business app, so its\n         catalogue is the on-device one and the Cloud API edge is shut. No scope,\n         token or App Review changes this; the number must be re-onboarded off\n         the Business app."
       : conn.error
-        ? "BLOCKED — scopes are fine but the WABA's business type refuses catalogues."
-        : "READY — provisioning can proceed.",
+        ? "BLOCKED — catalogue edge refused for a reason other than coexistence; read\n         the error at (4), it is new."
+        : crossBusiness
+          ? "PARTLY READY — the catalogue edge is open, but this WABA is on the partner's\n         own portfolio while our catalogue is on ours. The cross-business link is\n         UNPROVEN; test it before promising this partner a catalogue."
+          : "READY — same portfolio and the edge is open. Provisioning can proceed.",
     "\n",
   );
 };

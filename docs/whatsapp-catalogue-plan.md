@@ -115,21 +115,76 @@ Everything below was run against the real account, not reasoned about.
 | Menu → products | ✅ 123 of 123 pushed, 0 failed, 0 skipped |
 | Price encoding | ✅ **minor units confirmed.** Sent `18000`, Meta stored `₹180.00`. The assumption flagged in whatsappCatalog.ts was right. |
 | Cart + catalogue visible on the number | ✅ `POST {phone_number_id}/whatsapp_commerce_settings` → `{is_cart_enabled: true, is_catalog_visible: true}` |
-| Catalogue ↔ WABA link | ❌ `POST {waba_id}/product_catalogs` → **(#10) This operation can not be performed on SMB business type**, with BOTH the partner token and the system user token. |
+| Catalogue ↔ WABA link | ❌ `{waba_id}/product_catalogs` → **(#10) This operation can not be performed on SMB business type** — on **GET as well as POST**, with both tokens. |
 
 So the only remaining blocker is the association itself. Everything either side of
 it works.
 
-`(#10)` is a property of the portfolio, not of permissions — oreodemo's WABA was
-created by coexistence onboarding (`featureType:
-"whatsapp_business_app_onboarding"`), which produces an SMB portfolio, and Meta
-refuses this endpoint on that type no matter which token asks.
+### What `(#10)` actually is — measured, not inferred
 
-Two ways past it, both untested:
-- link the catalogue by hand in WhatsApp Manager / Commerce Manager, and see
-  whether the UI is subject to the same restriction. If it is not, the API
-  limitation is cosmetic and provisioning simply ends with a manual step;
-- onboard pilot partners WITHOUT coexistence, so their portfolio is not SMB.
+An earlier version of this doc blamed the portfolio type. That was wrong, and the
+correction matters because it points at a different fix.
+
+oreodemo's WABA and our catalogue are on the **same** portfolio, and it is
+verified:
+
+```
+WABA 937342682667160  owner=1349187156965445 "Menuthere Test 2"  on_behalf_of type=SELF
+catalog 1425080372783453  business=1349187156965445 "Menuthere Test 2"  verified
+```
+
+The real discriminator is the **phone number**, not the business:
+
+```
+phone 1203546912837921  platform_type=CLOUD_API  is_on_biz_app=TRUE
+```
+
+`is_on_biz_app: true` means the number is simultaneously live in the WhatsApp
+Business **app** on a handset — coexistence. For those numbers WhatsApp owns the
+catalogue surface itself (it is the app's on-device catalogue, edited on the
+phone), so Meta closes the Cloud API edge entirely. A *read* being refused is the
+proof: this is not a permission we can be granted.
+
+Confirmed against the one non-coexistence number in the fleet — same app, same
+call, same day:
+
+| partner | `is_on_biz_app` | `GET {waba}/product_catalogs` |
+|---|---|---|
+| oreodemo | `true` | `(#10) SMB business type` |
+| flaminhotchicken | `false` | `{"data": []}` — edge open |
+
+### Fleet exposure
+
+95 distinct connected numbers: **89 coexistence, 1 not, 5 unreadable.**
+`src/components/admin-v2/settings/IntegrationsSettings.tsx:468` pins
+`featureType: "whatsapp_business_app_onboarding"` for everyone, so this is by
+construction, not drift.
+
+### The second problem, found while proving the first
+
+A real partner's WABA is on **their own** portfolio:
+
+```
+flaminhotchicken WABA 1332375285660252 → owner "Brentwood Culinary Concepts LLP" (3342088979277692)
+```
+
+oreodemo only linked cleanly because it is our own test account and its WABA sits
+on our portfolio. In production the catalogue (ours) and the WABA (theirs) are on
+different businesses, so provisioning needs a cross-business answer — share the
+catalogue to the partner's business, or hold `catalog_management` on theirs.
+Embedded Signup grants neither. **Untested.**
+
+### Consequences
+
+- Catalogue cannot be offered to any current partner without re-onboarding that
+  number off the WhatsApp Business app.
+- Dropping coexistence is not a config toggle — it takes the number off the
+  partner's phone, which is a product decision, not a technical one.
+- Even for a non-coexistence partner, the cross-business link above is unproven.
+- Cart is enabled on oreodemo's number and its catalogue is the **phone app's**,
+  whose `product_retailer_id`s are not our menu uuids — so an inbound `order`
+  webhook from it would not map. The receive handler must tolerate unmappable ids
+  rather than assume ours.
 
 ## Verify before writing code
 
