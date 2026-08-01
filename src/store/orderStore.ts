@@ -914,7 +914,7 @@ const useOrderStore = create(
               } else if (newStatus === "cancelled") {
                 // Drop a still-pending delayed booking, then cancel any live dispatch.
                 clearDelayedDispatch(orderId).catch(() => {});
-                cancelDispatch(orderId, "Cancelled from admin dashboard").then((r) => {
+                cancelDispatch(orderId, "Cancelled from admin dashboard", "partner").then((r) => {
                   if (!r.ok && r.status !== 404) console.warn(`[delivery-bridge] cancel failed: ${r.message}`);
                 }).catch((e) => console.warn("[delivery-bridge] cancel threw:", e));
               }

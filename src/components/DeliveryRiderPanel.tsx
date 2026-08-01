@@ -208,7 +208,7 @@ export default function DeliveryRiderPanel({
   const doCancel = async () => {
     if (!confirm("Cancel this delivery? The rider may already be on the way.")) return;
     setCancelling(true);
-    const res = await cancelDispatch(orderId);
+    const res = await cancelDispatch(orderId, undefined, "partner");
     setCancelling(false);
     if (res.ok || res.status === 404) {
       setCancelled(true);

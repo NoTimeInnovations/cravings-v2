@@ -127,7 +127,7 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
     if (!window.confirm("Cancel this delivery dispatch? The provider search will stop.")) return;
     setCancelling(true);
     setCancelError(null);
-    const r = await cancelDispatch(orderId);
+    const r = await cancelDispatch(orderId, undefined, "partner");
     setCancelling(false);
     if (r.ok) {
       cancelledRef.current = true;

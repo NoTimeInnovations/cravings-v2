@@ -1177,7 +1177,19 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
 /** Cancel a dispatched order's delivery (stops the sequence and/or cancels the
  *  won provider's booking via the bridge). Falls back to the legacy Porter
  *  cancel for orders booked before the dispatch switch. */
-export async function cancelDispatch(orderId: string, _reason?: string): Promise<Result> {
+/**
+ * Cancel an order's live delivery.
+ *
+ * `cancelledBy` records WHO decided to cancel ("partner" | "customer" |
+ * "operator"). Porter reports nothing about who cancelled an order, so this is
+ * the only signal the bridge has to tell a deliberate cancel apart from a rider
+ * cancel — and it is what stops a deliberate cancel from ever being rebooked.
+ */
+export async function cancelDispatch(
+  orderId: string,
+  _reason?: string,
+  cancelledBy: "partner" | "customer" | "operator" = "partner",
+): Promise<Result> {
   if (!orderId) return { ok: false, message: "orderId required" };
   let dispatchId: string | null = null;
   let provider: string | null = null;
@@ -1201,7 +1213,7 @@ export async function cancelDispatch(orderId: string, _reason?: string): Promise
   }
   const res = await bridgeFetch(`/api/v1/dispatch/${dispatchId}/cancel`, {
     method: "POST",
-    json: {},
+    json: { cancelledBy },
   });
   if (res.ok) {
     await persistDispatch(orderId, provider ?? "dispatch", "cancelled", null, {
