@@ -113,18 +113,34 @@ export function AdminV2WhatsAppCatalogue() {
     setError(null);
     try {
       const r = await provisionAndSyncCatalog(partnerId);
-      if (!r.ok) {
-        // An unsettled run is NOT a failure — Meta was still processing, and the
-        // items stay pending for the next run. Saying "failed" would send the
-        // partner chasing a problem that does not exist.
-        const unsettled = r.summary && r.summary.settled === false;
-        const msg = r.message || (unsettled ? "still processing" : "sync failed");
-        if (unsettled) toast.info(`WhatsApp is still processing — ${msg}`);
-        else toast.error(msg);
+
+      // Unsettled is checked FIRST and independently of `ok`. syncPartnerCatalog
+      // returns ok = (failed === 0), and an unsettled run has failed === 0 with
+      // pushed === 0 — so it arrives here as ok:true and the old code cheerfully
+      // reported "0 items sent to your WhatsApp catalogue" in green. The honesty
+      // branch was sitting under `if (!r.ok)`, which that case never takes.
+      //
+      // Nothing was marked synced, so the correct message is "still working",
+      // not success and not failure.
+      const unsettled = r.summary?.settled === false;
+      if (unsettled) {
+        const msg =
+          "WhatsApp is still processing your menu — nothing was marked as sent yet. Check back shortly or sync again.";
+        toast.info(msg);
+        setError(msg);
+      } else if (!r.ok) {
+        const msg = r.message || "sync failed";
+        toast.error(msg);
         setError(msg);
       } else {
         const n = r.summary?.pushed ?? 0;
-        toast.success(`${n} item${n === 1 ? "" : "s"} sent to your WhatsApp catalogue`);
+        if (n === 0) {
+          // Settled, nothing failed, nothing pushed: there was nothing eligible
+          // to send. Saying "0 items sent" as a success reads like a bug.
+          toast.info("Nothing to send — no items are ready for WhatsApp yet.");
+        } else {
+          toast.success(`${n} item${n === 1 ? "" : "s"} sent to your WhatsApp catalogue`);
+        }
       }
     } catch (e) {
       const msg = (e as Error).message || "sync failed";

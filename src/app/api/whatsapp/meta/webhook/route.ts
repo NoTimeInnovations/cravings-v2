@@ -17,6 +17,7 @@ import {
   composeCatalogOrderReply,
 } from "@/lib/whatsappCatalogOrder";
 import { buildOrderLink } from "@/lib/whatsappFlow/orderLink";
+import { toLocalPhone } from "@/lib/whatsappFlow/silentUser";
 
 // Marketing opt-out / opt-in: a customer who replies STOP is added to the
 // partner's blocklist (excluded from ALL of that partner's broadcasts — enforced
@@ -1058,7 +1059,11 @@ export async function POST(req: NextRequest) {
             msg.type === "button" &&
             msg.button?.text === "Track Order Status"
           ) {
-            await handleTrackOrderStatus(msg.from, phoneNumberId);
+            await handleTrackOrderStatus(
+              msg.from,
+              phoneNumberId,
+              partner?.access_token || undefined,
+            );
           }
 
           // A catalogue cart. Answered whenever WhatsApp Ordering is on — NOT
@@ -1067,7 +1072,12 @@ export async function POST(req: NextRequest) {
           // or not we ever provisioned one, and that customer still deserves an
           // answer rather than silence.
           if (waEnabled && msg.type === "order" && partner?.partner_id && phoneNumberId) {
-            await handleCatalogOrder(partner.partner_id, msg, phoneNumberId);
+            await handleCatalogOrder(
+              partner.partner_id,
+              msg,
+              phoneNumberId,
+              partner.access_token || undefined,
+            );
           }
         }
 
@@ -1106,7 +1116,7 @@ const CATALOG_CART_ITEMS = `
         id: { _in: $ids }
         deletion_status: { _eq: 0 }
       }
-    ) { id name }
+    ) { id name is_available }
     partners_by_pk(id: $partnerId) { username store_name country_code }
   }
 `;
@@ -1131,6 +1141,9 @@ async function handleCatalogOrder(
   partnerId: string,
   msg: any,
   phoneNumberId: string,
+  /** The partner's own WABA token. Without it every reply 100/33s and the
+   *  customer gets exactly the silence this handler exists to prevent. */
+  sendToken?: string,
 ): Promise<void> {
   try {
     const parsed = parseCatalogOrder(msg);
@@ -1141,54 +1154,77 @@ async function handleCatalogOrder(
     // value rather than returning the rows we could have matched.
     const candidateIds = parsed.lines.map((l) => l.retailerId).filter(looksLikeMenuId);
 
-    let rows: Array<{ id: string; name: string }> = [];
-    let partner: { username?: string; store_name?: string } | null = null;
+    let rows: Array<{ id: string; name: string; is_available?: boolean | null }> = [];
+    let partner: { username?: string; store_name?: string; country_code?: string | null } | null = null;
     if (candidateIds.length) {
       const d = await fetchFromHasura(CATALOG_CART_ITEMS, { partnerId, ids: candidateIds });
       rows = d?.menu ?? [];
       partner = d?.partners_by_pk ?? null;
     } else {
       const d = await fetchFromHasura(
-        `query CatalogCartPartner($id: uuid!) { partners_by_pk(id: $id) { username store_name } }`,
+        `query CatalogCartPartner($id: uuid!) { partners_by_pk(id: $id) { username store_name country_code } }`,
         { id: partnerId },
       );
       partner = d?.partners_by_pk ?? null;
     }
     if (!partner?.username) return;
 
-    const nameById = new Map(rows.map((r) => [r.id, r.name]));
-    const matched = parsed.lines
-      .filter((l) => nameById.has(l.retailerId))
-      .map((l) => ({
-        menuId: l.retailerId,
-        quantity: l.quantity,
-        name: nameById.get(l.retailerId) as string,
-      }));
-    const unmatchedCount = parsed.lines.length - matched.length;
+    const rowById = new Map(rows.map((r) => [r.id, r]));
+
+    // A catalogue keeps sold-out dishes LISTED (marked out of stock), so a
+    // customer can cart one. Confirming it by name and putting it in the
+    // checkout cart would promise food the kitchen does not have.
+    const matched: Array<{ menuId: string; quantity: number; name: string }> = [];
+    const soldOut: string[] = [];
+    let unmatchedCount = 0;
+    for (const l of parsed.lines) {
+      const row = rowById.get(l.retailerId);
+      if (!row) { unmatchedCount++; continue; }
+      if (row.is_available === false) { soldOut.push(row.name); continue; }
+      matched.push({ menuId: l.retailerId, quantity: l.quantity, name: row.name });
+    }
 
     const storeName = partner.store_name || "us";
     const body = composeCatalogOrderReply({
       storeName,
       matched: matched.map((m) => ({ name: m.name, quantity: m.quantity })),
+      soldOut,
       unmatchedCount,
     });
 
     // The sender's number authenticates the link, exactly as the flow engine's
     // order links do — the cart is already proof of intent.
-    const localPhone = normalizePhone(msg.from) || undefined;
+    //
+    // toLocalPhone, NOT normalizePhone: buildOrderLink's `phone` must be the
+    // LOCAL number because auto-login keys the account on `${local}@user.com`.
+    // normalizePhone ADDS a country code, so handing it over mints a token for a
+    // phone that matches nobody and signs the customer into a brand-new empty
+    // account — losing their saved address, history and loyalty balance.
+    const localPhone = toLocalPhone(msg.from, partner.country_code) || undefined;
     const reorderPayload = buildCatalogReorderPayload(matched);
     const url = buildOrderLink(partner.username, partnerId, {
       phone: localPhone ?? null,
       reorderPayload,
     });
 
-    await sendInteractiveReply(phoneNumberId, msg.from, body, url);
+    await sendInteractiveReply(phoneNumberId, msg.from, body, url, {
+      accessToken: sendToken,
+      ctaText: "Checkout",
+      fallbackText: body,
+    });
   } catch (e) {
     console.error("handleCatalogOrder failed:", e);
   }
 }
 
-async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) {
+async function handleTrackOrderStatus(
+  userPhone: string,
+  phoneNumberId: string,
+  /** Partner's own WABA token — the global one 100/33s on a partner number, so
+   *  without this the customer who tapped "Track Order Status" gets nothing.
+   *  Pre-existing; fixed alongside the catalogue path that shares these helpers. */
+  sendToken?: string,
+) {
   try {
     const phone10 = userPhone.startsWith("91") ? userPhone.slice(2) : userPhone;
 
@@ -1225,7 +1261,8 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
       await sendTextReply(
         phoneNumberId,
         userPhone,
-        "😕 Sorry, we couldn't find a recent order for your number.\n\nPlease make sure you're using the same number you placed the order with."
+        "😕 Sorry, we couldn't find a recent order for your number.\n\nPlease make sure you're using the same number you placed the order with.",
+        sendToken,
       );
       return;
     }
@@ -1235,7 +1272,8 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
       phoneNumberId,
       userPhone,
       "Click the button below to see realtime order updates 👇",
-      orderUrl
+      orderUrl,
+      { accessToken: sendToken },
     );
   } catch (error) {
     console.error("Track order status error:", error);
@@ -1249,8 +1287,19 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
 // send no read receipt and therefore no typing indicator.
 
 // ─── Send a free-form text reply ─────────────────────────────────
-async function sendTextReply(phoneNumberId: string, to: string, text: string) {
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
+async function sendTextReply(
+  phoneNumberId: string,
+  to: string,
+  text: string,
+  /**
+   * The PARTNER's Embedded-Signup token. Our global WHATSAPP_ACCESS_TOKEN has no
+   * role on a partner's WABA and returns 100/subcode 33 on every call (see
+   * src/lib/whatsapp-meta.ts:16-33) — it only works for WABAs inside our own Meta
+   * business. Omitting this makes the send fail silently.
+   */
+  accessTokenOverride?: string,
+) {
+  const accessToken = accessTokenOverride || process.env.WHATSAPP_ACCESS_TOKEN!;
 
   const res = await fetch(
     `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
@@ -1276,8 +1325,23 @@ async function sendTextReply(phoneNumberId: string, to: string, text: string) {
 }
 
 // ─── Send interactive message with CTA URL button ────────────────
-async function sendInteractiveReply(phoneNumberId: string, to: string, bodyText: string, url: string) {
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
+async function sendInteractiveReply(
+  phoneNumberId: string,
+  to: string,
+  bodyText: string,
+  url: string,
+  opts?: {
+    /** See sendTextReply — the global token cannot send on a partner WABA. */
+    accessToken?: string;
+    /** Button label. Defaults to the order-tracking wording this helper was
+     *  written for; a catalogue cart must NOT say "Track Your Order". */
+    ctaText?: string;
+    /** Plain-text fallback body when the interactive send is rejected. Defaults
+     *  to the order-tracking sentence, which is wrong for any other caller. */
+    fallbackText?: string;
+  },
+) {
+  const accessToken = opts?.accessToken || process.env.WHATSAPP_ACCESS_TOKEN!;
 
   const res = await fetch(
     `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
@@ -1297,7 +1361,7 @@ async function sendInteractiveReply(phoneNumberId: string, to: string, bodyText:
           action: {
             name: "cta_url",
             parameters: {
-              display_text: "Track Your Order",
+              display_text: opts?.ctaText ?? "Track Your Order",
               url,
             },
           },
@@ -1309,7 +1373,17 @@ async function sendInteractiveReply(phoneNumberId: string, to: string, bodyText:
   if (!res.ok) {
     const err = await res.text();
     console.error("Interactive reply failed:", err);
-    await sendTextReply(phoneNumberId, to, `Click the link below to see realtime order updates:\n\n${url}`);
+    // Carry the caller's own body into the fallback. Dropping it used to lose
+    // the cart confirmation AND tell the customer a checkout link was order
+    // tracking.
+    await sendTextReply(
+      phoneNumberId,
+      to,
+      opts?.fallbackText
+        ? `${opts.fallbackText}\n\n${url}`
+        : `Click the link below to see realtime order updates:\n\n${url}`,
+      accessToken,
+    );
   }
 }
 

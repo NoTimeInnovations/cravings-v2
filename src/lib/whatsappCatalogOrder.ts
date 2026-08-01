@@ -113,24 +113,26 @@ export function buildCatalogReorderPayload(
 export function composeCatalogOrderReply(opts: {
   storeName: string;
   matched: Array<{ name: string; quantity: number }>;
+  /**
+   * Dishes we recognised but that are currently unavailable. Kept SEPARATE from
+   * unmatched: a catalogue lists sold-out items (whatsappCatalog.ts marks them
+   * "out of stock" rather than deleting them), so a customer can absolutely cart
+   * one. Confirming it by name and putting it in the checkout cart would promise
+   * food the kitchen does not have — and calling it "not on our menu" would be a
+   * lie about a dish they can plainly see.
+   */
+  soldOut?: string[];
   unmatchedCount: number;
 }): string {
   const { storeName, matched, unmatchedCount } = opts;
+  const soldOut = opts.soldOut ?? [];
 
-  if (!matched.length) {
-    return (
-      `Thanks for your cart! 🛒\n\n` +
-      `We couldn't match those items to our current menu, so please pick them again on our ordering page — ` +
-      `everything there is live and in stock.`
-    );
-  }
+  const soldOutLine = soldOut.length
+    ? `\n\n${soldOut.join(", ")} ${soldOut.length === 1 ? "is" : "are"} sold out right now, so ${
+        soldOut.length === 1 ? "it isn't" : "they aren't"
+      } in this order.`
+    : "";
 
-  const list = matched
-    .map((m, i) => `${i + 1}. ${m.name}${m.quantity > 1 ? ` × ${m.quantity}` : ""}`)
-    .join("\n");
-
-  // Never claim a total. Checkout prices the order; anything quoted here could
-  // disagree with the bill.
   const missing =
     unmatchedCount > 0
       ? `\n\n${unmatchedCount} item${unmatchedCount === 1 ? "" : "s"} from your cart ${
@@ -140,5 +142,20 @@ export function composeCatalogOrderReply(opts: {
         }.`
       : "";
 
-  return `Thanks for your cart at ${storeName}! 🛒\n\n${list}${missing}\n\nTap below to confirm and check out 👇`;
+  if (!matched.length) {
+    // Still never silence. Say what happened to what they picked, then point
+    // them somewhere that works.
+    return (
+      `Thanks for your cart! 🛒${soldOutLine}${missing}\n\n` +
+      `Please pick your items on our ordering page — everything there is live and in stock.`
+    );
+  }
+
+  const list = matched
+    .map((m, i) => `${i + 1}. ${m.name}${m.quantity > 1 ? ` × ${m.quantity}` : ""}`)
+    .join("\n");
+
+  // Never claim a total. Checkout prices the order; anything quoted here could
+  // disagree with the bill.
+  return `Thanks for your cart at ${storeName}! 🛒\n\n${list}${soldOutLine}${missing}\n\nTap below to confirm and check out 👇`;
 }
