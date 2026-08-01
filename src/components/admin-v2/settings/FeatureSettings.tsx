@@ -371,6 +371,23 @@ export function FeatureSettings() {
                                 </div>
                             )}
 
+                            {features.whatsappcatalog?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">WhatsApp Catalogue</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.whatsappcatalog.enabled
+                                                ? "Enabled — the menu is published to a WhatsApp catalogue (needs a one-time link in WhatsApp Manager)"
+                                                : "Disabled — the menu is not published to WhatsApp"}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.whatsappcatalog.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("whatsappcatalog", checked)}
+                                    />
+                                </div>
+                            )}
+
                             {features.porter_bridge?.access && (
                                 <div className="flex items-center justify-between p-4 border rounded-lg">
                                     <div className="space-y-0.5">
