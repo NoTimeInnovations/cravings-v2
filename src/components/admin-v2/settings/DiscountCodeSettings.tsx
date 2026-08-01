@@ -57,6 +57,7 @@ type Discount = {
     pp_discount_id: string | null;
     pp_overwrite_enabled: boolean;
     show_on_storefront: boolean;
+    banner_text: string | null;
     // BXGY — the condition that earns the reward, and the reward itself. All
     // NULL on the other three types.
     bxgy_buy_type: string | null;
@@ -98,6 +99,7 @@ const emptyForm = {
     freebie_item_ids: "",
     freebie_item_count: "",
     show_on_storefront: true,
+    banner_text: "",
     bxgy_buy_type: "items" as BxgyBuyType,
     bxgy_buy_item_ids: "",
     bxgy_buy_quantity: "2",
@@ -142,11 +144,21 @@ function MenuItemPicker({
     onChange: (next: PickedItem[]) => void;
 }) {
     const [search, setSearch] = useState("");
-    const matches = menuItems.filter(
-        (item) =>
-            item.name.toLowerCase().includes(search.toLowerCase()) &&
-            !selected.some((s) => s.id === item.id),
-    );
+
+    // Match on NAME, not id. A partner's menu can hold several rows with the
+    // same name (different categories, sizes, POS imports) — filtering by id
+    // alone left an already-added dish still sitting in the dropdown, and let
+    // it be added twice as two identical-looking chips. For a discount rule
+    // "Veg Momo" means the dish, so one row per name is what's wanted.
+    const taken = new Set(selected.map((s) => s.name.trim().toLowerCase()));
+    const seen = new Set<string>();
+    const matches = menuItems.filter((item) => {
+        const key = item.name.trim().toLowerCase();
+        if (taken.has(key) || seen.has(key)) return false;
+        if (!key.includes(search.trim().toLowerCase())) return false;
+        seen.add(key);
+        return true;
+    });
 
     return (
         <div className="space-y-2 sm:col-span-2">
@@ -347,6 +359,7 @@ export function DiscountCodeSettings() {
                     : 1
                 : null,
             show_on_storefront: form.show_on_storefront,
+            banner_text: form.banner_text.trim() || null,
             // Every bxgy_* column is cleared on the other types, so switching an
             // existing discount away from BXGY doesn't leave a stale condition
             // behind for the readers to trip over.
@@ -413,6 +426,7 @@ export function DiscountCodeSettings() {
             freebie_item_ids: disc.freebie_item_ids ?? "",
             freebie_item_count: disc.freebie_item_count != null ? String(disc.freebie_item_count) : "",
             show_on_storefront: disc.show_on_storefront ?? true,
+            banner_text: disc.banner_text ?? "",
             bxgy_buy_type: (disc.bxgy_buy_type as BxgyBuyType) ?? "items",
             bxgy_buy_item_ids: disc.bxgy_buy_item_ids ?? "",
             bxgy_buy_quantity: disc.bxgy_buy_quantity != null ? String(disc.bxgy_buy_quantity) : "2",
@@ -1028,6 +1042,34 @@ export function DiscountCodeSettings() {
                                         />
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Banner text — overrides the generated headline on the
+                                store page. A rule drawn against a dozen items has no
+                                good generated sentence; this lets the partner write
+                                the one they want. */}
+                            <div className="space-y-2">
+                                <Label>
+                                    Store page banner text
+                                    <span className="text-muted-foreground text-xs ml-1">
+                                        (optional — replaces the auto-generated headline)
+                                    </span>
+                                </Label>
+                                <Input
+                                    value={form.banner_text}
+                                    onChange={(e) => setForm({ ...form, banner_text: e.target.value })}
+                                    placeholder={
+                                        form.discount_type === "bxgy"
+                                            ? "e.g. Buy 2 Momos, get Peri Peri Fries FREE"
+                                            : "e.g. Flat 20% off this weekend"
+                                    }
+                                    maxLength={80}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    {form.banner_text.trim()
+                                        ? `Shows as: "${form.banner_text.trim()}"`
+                                        : "Leave blank to use the offer text generated from the rule."}
+                                </p>
                             </div>
 
                             {/* Description */}

@@ -30,6 +30,7 @@ export const discountFields = `
   freebie_item_count
   freebie_item_ids
   show_on_storefront
+  banner_text
   bxgy_buy_type
   bxgy_buy_item_ids
   bxgy_buy_quantity

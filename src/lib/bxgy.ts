@@ -200,7 +200,19 @@ export function bxgyRewardAmount(
 export type BxgyCopyOpts = {
   currency?: string;
   nameOf?: (menuItemId: string) => string | undefined;
+  /**
+   * Cap on how many item names to spell out before summarising the rest.
+   * A rule drawn against a whole category can name a dozen items, which turns
+   * the storefront banner into a wall of text nobody reads. Defaults to 3.
+   */
+  maxNames?: number;
 };
+
+/** "A / B / C +9 more" — keeps a long item list to a readable length. */
+function joinNames(names: string[], max = 3): string {
+  if (names.length <= max) return names.join(" / ");
+  return `${names.slice(0, max).join(" / ")} +${names.length - max} more`;
+}
 
 /**
  * What the customer GETS, as a short noun phrase — "Free Oreo Dosa Crepe",
@@ -226,7 +238,9 @@ export function bxgyRewardLabel(
     .filter(Boolean) as string[];
   const per = Math.floor(num(cfg.freebie_item_count)) || 1;
   const each = per > 1 ? `${per}× ` : "";
-  return names.length ? `Free ${each}${names.join(" + ")}` : `Free ${each}item`;
+  return names.length
+    ? `Free ${each}${joinNames(names, opts.maxNames)}`
+    : `Free ${each}item`;
 }
 
 /** What the customer must DO to earn it — "Buy 2 Oreo Kheer", "Spend ₹500". */
@@ -246,7 +260,7 @@ export function bxgyConditionLabel(
     .map((id) => opts.nameOf?.(id))
     .filter(Boolean) as string[];
   return names.length
-    ? `Buy ${qty} ${names.join(" / ")}`
+    ? `Buy ${qty} ${joinNames(names, opts.maxNames)}`
     : `Buy ${qty} qualifying item${qty > 1 ? "s" : ""}`;
 }
 

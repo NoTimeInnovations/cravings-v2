@@ -28,6 +28,7 @@ type DiscountData = {
   used_count: number;
   per_user_usage_limit: number | null;
   show_on_storefront: boolean;
+  banner_text: string | null;
   bxgy_buy_type: string | null;
   bxgy_buy_item_ids: string | null;
   bxgy_buy_quantity: number | null;
@@ -139,7 +140,7 @@ const DiscountBanner = ({
           id code discount_type discount_value min_order_value
           max_discount_amount starts_at expires_at valid_time_from
           valid_time_to has_coupon freebie_item_count freebie_item_ids
-          usage_limit used_count per_user_usage_limit show_on_storefront
+          usage_limit used_count per_user_usage_limit show_on_storefront banner_text
           bxgy_buy_type bxgy_buy_item_ids bxgy_buy_quantity bxgy_buy_value
           bxgy_reward_type bxgy_reward_value bxgy_max_repeat
         }
@@ -259,6 +260,8 @@ const DiscountBanner = ({
   // A human sentence for a single offer: its description if present, otherwise a
   // generated "Get up to X% off" / "Get ₹X off" / "Free <item>" line.
   const offerSentence = (d: DiscountData): string => {
+    const custom = d.banner_text;
+    if (typeof custom === "string" && custom.trim()) return custom.trim();
     const desc = (d as any)?.description;
     if (typeof desc === "string" && desc.trim()) return desc.trim();
     if (d.discount_type === "bxgy") {
@@ -319,7 +322,9 @@ const DiscountBanner = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold leading-snug line-clamp-2" style={{ color: accent }}>
-                      {disc.discount_type === "bxgy"
+                      {disc.banner_text?.trim()
+                        ? disc.banner_text.trim()
+                        : disc.discount_type === "bxgy"
                         ? bxgyRewardLabel(disc, { currency, nameOf: (id) => freebieItemNames[id] }).toUpperCase()
                         : disc.discount_type === "freebie"
                         ? (() => {
@@ -340,9 +345,13 @@ const DiscountBanner = ({
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    {disc.discount_type === "bxgy" && (
-                      <span className="text-[10px] font-semibold opacity-75">
-                        {bxgyConditionLabel(disc, { currency, nameOf: (id) => freebieItemNames[id] })}
+                    {disc.discount_type === "bxgy" && !disc.banner_text?.trim() && (
+                      <span className="text-[10px] font-semibold opacity-75 line-clamp-2">
+                        {bxgyConditionLabel(disc, {
+                          currency,
+                          nameOf: (id) => freebieItemNames[id],
+                          maxNames: 2,
+                        })}
                         {bxgyRepeatSuffix(disc)}
                       </span>
                     )}
