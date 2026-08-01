@@ -80,6 +80,8 @@ const FEATURE_DESCRIPTIONS: Record<string, string> = {
   whatsappOrdering: "Gates the Manage WhatsApp Templates surface.",
   porter_bridge: "Routes dispatch through porter-bridge.",
   delivery_pool: "Menuthere rider pool — shows the Delivery Pool panel; dispatch fires on accepted.",
+  whatsappcatalog:
+    "Publishes the menu as a WhatsApp Catalogue. Needs the partner's OWN WABA (not a shared number) and an image on every item.",
   prebooking: "Scheduled / prebooked orders for a future date & time.",
   loyalty_points: "Partner-scoped loyalty points.",
 };
