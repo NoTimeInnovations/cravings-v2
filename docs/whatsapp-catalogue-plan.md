@@ -103,6 +103,34 @@ builds a cart and gets silence is worse than never having shown them a catalogue
 This is also the natural seam for Shape B later: the same handler stops handing
 off and starts placing the order.
 
+## Status — measured on oreodemo, 2026-08-01
+
+Everything below was run against the real account, not reasoned about.
+
+| | |
+|---|---|
+| Catalogue scopes via Embedded Signup | ❌ **impossible.** A freshly reconnected token is `type=SYSTEM_USER` with only `whatsapp_business_management`, `whatsapp_business_messaging`, `whatsapp_business_manage_events`, `public_profile`. Adding the Catalog API use case to the app does not change it — the use case governs what the APP may request, ES governs what the TOKEN carries. |
+| Catalogue under our own portfolio | ✅ works. System user with `catalog_management` on business `1349187156965445`. |
+| Catalogue created for oreodemo | ✅ `1425080372783453` |
+| Menu → products | ✅ 123 of 123 pushed, 0 failed, 0 skipped |
+| Price encoding | ✅ **minor units confirmed.** Sent `18000`, Meta stored `₹180.00`. The assumption flagged in whatsappCatalog.ts was right. |
+| Cart + catalogue visible on the number | ✅ `POST {phone_number_id}/whatsapp_commerce_settings` → `{is_cart_enabled: true, is_catalog_visible: true}` |
+| Catalogue ↔ WABA link | ❌ `POST {waba_id}/product_catalogs` → **(#10) This operation can not be performed on SMB business type**, with BOTH the partner token and the system user token. |
+
+So the only remaining blocker is the association itself. Everything either side of
+it works.
+
+`(#10)` is a property of the portfolio, not of permissions — oreodemo's WABA was
+created by coexistence onboarding (`featureType:
+"whatsapp_business_app_onboarding"`), which produces an SMB portfolio, and Meta
+refuses this endpoint on that type no matter which token asks.
+
+Two ways past it, both untested:
+- link the catalogue by hand in WhatsApp Manager / Commerce Manager, and see
+  whether the UI is subject to the same restriction. If it is not, the API
+  limitation is cosmetic and provisioning simply ends with a manual step;
+- onboard pilot partners WITHOUT coexistence, so their portfolio is not SMB.
+
 ## Verify before writing code
 
 One live probe on a pilot partner, because none of it is answerable from the repo:
