@@ -111,6 +111,16 @@ export type OrderDiscountArg = {
  * freebie type and for a BXGY whose reward is a freebie — both carry the items
  * in `freebie_items`, and both need them added to the order.
  */
+/**
+ * Online checkout may now apply SEVERAL discounts to one order (when the partner
+ * has turned stacking on), so `discounts` arrives as either a single object —
+ * every existing caller — or a list. Normalising here means the rest of the
+ * store only ever deals with a list.
+ */
+export const asDiscountList = (
+  d: OrderDiscountArg | OrderDiscountArg[] | null | undefined,
+): OrderDiscountArg[] => (Array.isArray(d) ? d.filter(Boolean) : d ? [d] : []);
+
 const grantsFreebieItems = (
   d: OrderDiscountArg | null | undefined,
 ): d is OrderDiscountArg & {
@@ -663,7 +673,7 @@ interface OrderState {
     deliveryCharge?: number,
     notes?: string,
     tableName?: string,
-    discounts?: OrderDiscountArg | null,
+    discounts?: OrderDiscountArg | OrderDiscountArg[] | null,
     customerName?: string,
     customerPhone?: string,
     cashfreeOrderId?: string | null,
@@ -1768,7 +1778,7 @@ const useOrderStore = create(
         deliveryCharge?: number,
         notes?: string,
         tableName?: string,
-        discounts?: OrderDiscountArg | null,
+        discounts?: OrderDiscountArg | OrderDiscountArg[] | null,
         customerName?: string,
         /**
          * Phone to write to `orders.phone`. Lets the checkout modal pass a
@@ -1919,7 +1929,11 @@ const useOrderStore = create(
             0
           );
 
-          const discountSavings = discounts?.savings || 0;
+          // Every applied discount contributes; a stacked order has several.
+          const discountSavings = asDiscountList(discounts).reduce(
+            (sum, d) => sum + (Number(d?.savings) || 0),
+            0,
+          );
           let grandTotal = Math.max(0, subtotal + (gstIncluded || 0) + totalExtraCharges - discountSavings);
 
           // Round Off: when enabled, append a final charge that brings the grand
@@ -1964,29 +1978,29 @@ const useOrderStore = create(
             const loyaltyValue = Math.max(0, Math.round(((loyaltyRedeem?.value) || 0) * 100) / 100);
             const ppTotalPrice = Math.max(0, Math.round((grandTotal - loyaltyValue) * 100) / 100);
             const ppDiscounts: any[] = [];
-            if (discounts) {
+            for (const disc of asDiscountList(discounts)) {
               ppDiscounts.push({
-                code: discounts.code,
+                code: disc.code,
                 // Petpooja knows percentage / flat / freebie and nothing else,
                 // so a BXGY goes across as the flat amount it actually took off
                 // the bill. The money reconciles; the rule that produced it is
                 // ours and stays on our order record.
-                type: discounts.type === "bxgy" ? "flat" : discounts.type,
-                value: discounts.type === "bxgy" ? discounts.savings : discounts.value,
-                savings: discounts.savings,
-                pp_discount_id: discounts.pp_discount_id || null,
-                description: discounts.description || null,
-                terms_conditions: discounts.terms_conditions || null,
-                max_discount_amount: discounts.max_discount_amount || null,
-                min_order_value: discounts.min_order_value || null,
-                discount_on_total: discounts.discount_on_total ?? true,
-                discount_order_types: discounts.discount_order_types || null,
-                valid_days: discounts.valid_days || null,
-                applicable_on: discounts.applicable_on || null,
-                rank: discounts.rank || null,
-                freebie_item_count: discounts.freebie_item_count || null,
-                freebie_item_ids: discounts.freebie_item_ids || null,
-                freebie_item_names: discounts.freebie_item_names || null,
+                type: disc.type === "bxgy" ? "flat" : disc.type,
+                value: disc.type === "bxgy" ? disc.savings : disc.value,
+                savings: disc.savings,
+                pp_discount_id: disc.pp_discount_id || null,
+                description: disc.description || null,
+                terms_conditions: disc.terms_conditions || null,
+                max_discount_amount: disc.max_discount_amount || null,
+                min_order_value: disc.min_order_value || null,
+                discount_on_total: disc.discount_on_total ?? true,
+                discount_order_types: disc.discount_order_types || null,
+                valid_days: disc.valid_days || null,
+                applicable_on: disc.applicable_on || null,
+                rank: disc.rank || null,
+                freebie_item_count: disc.freebie_item_count || null,
+                freebie_item_ids: disc.freebie_item_ids || null,
+                freebie_item_names: disc.freebie_item_names || null,
               });
             }
             if (loyaltyValue > 0) {
@@ -2124,14 +2138,16 @@ const useOrderStore = create(
                     created_at: createdAt,
                   };
                 }),
-                ...(grantsFreebieItems(discounts)
-                  ? discounts.freebie_items.map((fi) => {
+                ...asDiscountList(discounts)
+                  .filter(grantsFreebieItems)
+                  .flatMap((disc) =>
+                    disc.freebie_items.map((fi) => {
                       const ppIdFromMenu = hotelData?.menus?.find((m) => m.id === fi.id)?.pp_id;
                       return {
                         id: uuidv4(),
                         order_id: orderId,
                         menu_id: fi.id,
-                        quantity: discounts.freebie_item_count || 1,
+                        quantity: disc.freebie_item_count || 1,
                         variant: null,
                         item: {
                           id: fi.id,
@@ -2144,8 +2160,8 @@ const useOrderStore = create(
                         },
                         created_at: createdAt,
                       };
-                    })
-                  : []),
+                    }),
+                  ),
               ],
             };
 
@@ -2251,7 +2267,7 @@ const useOrderStore = create(
                   : null,
               notes: notes || null,
               display_id: getNextDisplayOrderNumber.toString(),
-              discounts: discounts ? [discounts] : null,
+              discounts: asDiscountList(discounts).length ? asDiscountList(discounts) : null,
               source: "customer",
               cashfree_order_id: cashfreeOrderId || null,
               scheduled_date,
@@ -2272,10 +2288,12 @@ const useOrderStore = create(
                     ...(item.tax_inclusive && { tax_inclusive: true }),
                   },
                 })),
-                ...(grantsFreebieItems(discounts)
-                  ? discounts.freebie_items.map((fi) => ({
+                ...asDiscountList(discounts)
+                  .filter(grantsFreebieItems)
+                  .flatMap((disc) =>
+                    disc.freebie_items.map((fi) => ({
                       menu_id: fi.id,
-                      quantity: discounts.freebie_item_count || 1,
+                      quantity: disc.freebie_item_count || 1,
                       item: {
                         id: fi.id,
                         name: fi.name,
@@ -2284,8 +2302,8 @@ const useOrderStore = create(
                         category: fi.category || null,
                         is_freebie: true,
                       },
-                    }))
-                  : []),
+                    })),
+                  ),
               ],
             }
           );
@@ -2326,7 +2344,7 @@ const useOrderStore = create(
             },
             gstIncluded,
             extraCharges: exCharges,
-            discounts: discounts ? [discounts] as any : [],
+            discounts: asDiscountList(discounts) as any,
           };
 
           // Stock-managed partners: decrement stock at PLACEMENT for EVERY order
