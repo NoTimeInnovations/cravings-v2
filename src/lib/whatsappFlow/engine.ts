@@ -818,9 +818,14 @@ export async function runFlowForInbound(args: {
   // we drop it. This is the primary double-advance guard. Run it in parallel
   // with the active-run lookup — they're independent, so one round-trip; if the
   // claim turns out to be a duplicate we bail before doing any work.
-  const eventP = fetchFromHasura(M_EVENT, {
-    o: { partner_id: partnerId, contact_phone: contactPhone, wa_message_id: waMessageId, input },
-  })
+  const eventP = fetchFromHasura(
+    M_EVENT,
+    { o: { partner_id: partnerId, contact_phone: contactPhone, wa_message_id: waMessageId, input } },
+    // quiet: a violation here is the guard WORKING, not a fault — Meta redelivers
+    // webhooks constantly, so this fired "Error from Hasura: Uniqueness violation"
+    // on every retry. Genuine failures are still logged, by the catch below.
+    { quiet: true },
+  )
     .then(() => false)
     .catch((e: any) => {
       if (/unique|duplicate/i.test(String(e?.message || e))) return true; // already processed
@@ -1382,14 +1387,20 @@ export async function runOrderTriggeredFlows(args: {
     // get silently dropped, so only one of them ever fired.
     const idemKey = `order_${orderId}_${status}_${flow.id}`;
     try {
-      await fetchFromHasura(M_EVENT, {
-        o: {
-          partner_id: partnerId,
-          contact_phone: customerPhone,
-          wa_message_id: idemKey,
-          input: { orderTrigger: status, orderId },
+      await fetchFromHasura(
+        M_EVENT,
+        {
+          o: {
+            partner_id: partnerId,
+            contact_phone: customerPhone,
+            wa_message_id: idemKey,
+            input: { orderTrigger: status, orderId },
+          },
         },
-      });
+        // Same as the inbound claim: a re-fired order status is meant to collide
+        // here. Real failures still reach the catch and are logged there.
+        { quiet: true },
+      );
     } catch (e: any) {
       if (/unique|duplicate/i.test(String(e?.message || e))) continue;
       console.error("Order flow idempotency insert failed:", e);
