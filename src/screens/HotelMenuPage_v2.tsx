@@ -28,6 +28,7 @@ import V4 from "@/components/hotelDetail/styles/V4/V4";
 import V5 from "@/components/hotelDetail/styles/V5/V5";
 import V6 from "@/components/hotelDetail/styles/V6/V6";
 import AddedRecommendationsSheet from "@/components/hotelDetail/shared/AddedRecommendationsSheet";
+import { VisuKitchenPixel } from "@/components/storefront/VisuKitchenPixel";
 import { LanguageSwitcher } from "@/components/hotelDetail/LanguageSwitcher";
 import { shortCurrencySymbol } from "@/lib/currencyDisplay";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
@@ -700,6 +701,9 @@ const HotelMenuPage = ({
 
   return (
     <ViewOnlyContext.Provider value={viewOnly}>
+      {/* Hardcoded Meta Pixel for Visu Kitchen only (fires on every storefront
+          entry route since this component renders for all of them). */}
+      {hoteldata?.id === "834b40b7-8f2d-4f4d-ae03-ca5955b23299" && <VisuKitchenPixel />}
       {isReorderMode && <ReorderHandler hotelData={hoteldata} />}
       {!onboardingDismissed ? null : (
         <>
