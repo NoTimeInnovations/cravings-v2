@@ -814,8 +814,10 @@ export async function runFlowForInbound(args: {
   // the flow runs exactly as usual, but {{order_link}} resolves to that table's
   // qrScan link instead of the generic one.
   orderLinkOverride?: string;
+  /** Display label of the matched table, exposed as {{table_name}}. */
+  tableLabelOverride?: string;
 }): Promise<void> {
-  const { partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName = null, sendToken, flowTyping = false, orderLinkOverride } = args;
+  const { partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName = null, sendToken, flowTyping = false, orderLinkOverride, tableLabelOverride } = args;
 
   // Layer 1 — idempotency: claim this Meta message id. A retry (or a second
   // instance handed the same delivery) throws on the partial-unique index and
@@ -893,7 +895,7 @@ export async function runFlowForInbound(args: {
       // A fresh wave is taken inside startNewRun so the counts reflect the run
       // we're about to abort; the optimistic waveP is dropped.
       await abortRun(active.id);
-      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken, undefined, flowTyping, undefined, orderLinkOverride);
+      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken, undefined, flowTyping, undefined, orderLinkOverride, tableLabelOverride);
       await accountP.catch(() => {});
       return;
     } else {
@@ -916,6 +918,7 @@ export async function runFlowForInbound(args: {
     flowTyping,
     readTypingP,
     orderLinkOverride,
+    tableLabelOverride,
   );
   await accountP.catch(() => {});
 }
@@ -1237,6 +1240,9 @@ async function startNewRun(
   // and still creates the customer account, which short-circuiting the engine
   // would skip.
   orderLinkOverride?: string,
+  // Display label for the matched table ("Table 1", "Garden 2"), exposed as
+  // {{table_name}} so the reply can name it back to the customer.
+  tableLabelOverride?: string,
 ) {
   const { flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes } =
     await (prefetchedWave ?? runStartRunWave(partnerId, contactPhone, prefetchedToken));
@@ -1316,6 +1322,13 @@ async function startNewRun(
   // replaced: reorder_link still points at the customer's own history, which is
   // not table-specific.
   if (orderLinkOverride) sysVars.order_link = orderLinkOverride;
+  // Empty (not absent) when no table matched, so a flow using {{table_name}}
+  // renders blank rather than leaking the literal placeholder.
+  sysVars.table_name = tableLabelOverride ?? "";
+  // Ready-made phrase so one line of copy works with AND without a table:
+  // "...below to order from *Table 1*" vs "...below to order". Interpolating
+  // {{table_name}} directly would leave a dangling "from" on the no-match path.
+  sysVars.table_phrase = tableLabelOverride ? ` from *${tableLabelOverride}*` : "";
   const state: RunState = { flowId: matched.id, variables: sysVars, stepCount: 0, version: 0 };
   const outbound: Outbound[] = [];
   const { parkedNodeId, completed, sleepMs } = executeForward(graph, startId, state, outbound);

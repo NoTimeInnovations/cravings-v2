@@ -1080,6 +1080,7 @@ export async function POST(req: NextRequest) {
               // unless the message actually names a table, so ordinary traffic
               // costs no query.
               let orderLinkOverride: string | undefined;
+              let tableLabelOverride: string | undefined;
               if (flowInput.type === "text" && extractTableLabel(flowInput.normalized || "")) {
                 try {
                   const { rows, storeName } = await getPartnerTablesCached(runPartnerId);
@@ -1090,6 +1091,10 @@ export async function POST(req: NextRequest) {
                       branch?.store_name ?? storeName,
                       m.table.id,
                     );
+                    // What the partner actually calls this table, falling back
+                    // to "Table N" the same way every other surface does.
+                    tableLabelOverride =
+                      m.table.table_name?.trim() || `Table ${m.table.table_number}`;
                   }
                   // "ambiguous" deliberately falls through to the generic link:
                   // qr_codes.price_adjustment rewrites prices, so guessing the
@@ -1118,6 +1123,7 @@ export async function POST(req: NextRequest) {
                   // Table-scoped link when the customer named a table; the
                   // partner's own welcome copy is otherwise untouched.
                   orderLinkOverride,
+                  tableLabelOverride,
                 });
               } catch (e) {
                 console.error("Flow engine error:", e);

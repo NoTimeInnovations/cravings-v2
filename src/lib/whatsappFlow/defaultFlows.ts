@@ -48,6 +48,51 @@ function welcomeFlow(): DefaultFlowDef {
   };
 }
 
+// Table order link: a diner sitting at a table messages "I want to order from
+// table 5" and gets a link that opens THAT table's menu, already signed in.
+//
+// The webhook resolves the table and hands the engine a table-scoped
+// {{order_link}} plus {{table_name}}. When no table matches — an unknown
+// number, an ambiguous one, or a partner with no tables — both fall back:
+// {{order_link}} is the ordinary link and {{table_name}} is empty, so this same
+// reply still works and the customer is never left without an answer.
+//
+// The trigger is "contains" rather than "exact" because the phrasing is free
+// text. That is deliberately looser than the other default flows; the reply is
+// safe either way, since an unmatched table just yields the normal order link.
+function tableOrderFlow(): DefaultFlowDef {
+  return {
+    name: "Table order link",
+    graph: {
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger",
+          position: { x: 140, y: 220 },
+          data: { matchType: "contains", keywords: ["table", "room"] },
+        },
+        {
+          id: "link",
+          type: "link_button",
+          position: { x: 440, y: 160 },
+          data: {
+            text:
+              "Hi \u{1F44B} Welcome to *{{store_name}}*!\n\n" +
+              "\u{1F6D2} Tap *Order Now* below to order{{table_phrase}}\n\n" +
+              "_The link is valid for 23 hours._ \u23F1\uFE0F",
+            buttonText: "Order Now",
+            url: "{{order_link}}",
+          },
+        },
+      ],
+      edges: [{ id: "e", source: "trigger", target: "link", sourceHandle: null, targetHandle: null }],
+    },
+    triggers: [
+      { matchType: "contains", keywords: ["table", "room"], nodeId: "trigger", priority: TRIGGER_PRIORITY.contains },
+    ],
+  };
+}
+
 // Order link: triggered when the customer taps the "Order Now" quick-reply
 // (which sends the text "Order Now") or types it. Replies with the auto-login
 // order link that opens the menu already signed in.
@@ -206,6 +251,7 @@ export function buildDefaultFlows(): DefaultFlowDef[] {
 
     // ── Order link: "order now" -> auto-login menu link ──
     orderNowFlow(),
+    tableOrderFlow(),
 
     // ── Reorder: "reorder" -> one-tap link to reload the last order ──
     reorderFlow(),
