@@ -2794,7 +2794,13 @@ const PlaceOrderModalV2 = ({
     ) : orderType === "takeaway" ? (
       <>Pickup from {storeNameNode}</>
     ) : (
-      <>Dine-in at {storeNameNode}</>
+      // Name the table when the customer arrived via a table QR. Without it the
+      // checkout gives no way to tell a mis-scanned table from the right one —
+      // and the table is what the kitchen ticket is routed by.
+      <>
+        Dine-in at {storeNameNode}
+        {(tableNumber ?? 0) > 0 ? ` · Table ${tableNumber}` : ""}
+      </>
     );
     return (
       <div className="fixed inset-0 z-[500] flex flex-col justify-end bg-black/40">
