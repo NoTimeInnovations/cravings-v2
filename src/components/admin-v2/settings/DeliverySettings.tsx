@@ -28,6 +28,21 @@ import type {
 // Single source of truth for the WhatsApp/phone number rule (shared with the
 // missing-number banner shown in Store & Ordering settings).
 import { sanitizeLocalPhone, hasValidWhatsappNumbers } from "@/lib/whatsappNumber";
+
+// "Open 24 hours" needs no new stored field. The storefront gate
+// (HotelMenuPage_v2.isWithinDeliveryTime) compares minutes-since-midnight
+// inclusively, so 00:00–23:59 spans the whole day (23:59 = 1439 = the largest
+// value `now` can take), and an ABSENT window is already treated as always
+// open. The toggle therefore just writes the full-day pair — old partner rows
+// with no window keep working and read back as 24h, which is what they are.
+const FULL_DAY_WINDOW = { from: "00:00", to: "23:59" } as const;
+
+// Turning the toggle OFF has to leave an editable window; handing back a
+// full-day pair would render as "24 hours" again and the switch would look stuck.
+const DEFAULT_WINDOW = { from: "09:00", to: "22:00" } as const;
+
+const isFullDayWindow = (w?: { from?: string; to?: string } | null): boolean =>
+    !w || ((w.from ?? "00:00") === "00:00" && (w.to ?? "23:59") === "23:59");
 import { WhatsappNumberBanner } from "./WhatsappNumberBanner";
 import { ContactNumbersDialog } from "./ContactNumbersDialog";
 
@@ -1676,45 +1691,83 @@ export function DeliverySettings() {
                     )}
 
                     <div className="space-y-2">
-                        <Label>Delivery Time Window</Label>
-                        <div className="flex items-center gap-3">
-                            <TimePicker
-                                value={deliveryRules.delivery_time_allowed?.from || "00:00"}
-                                onChange={(val) => setDeliveryRules(prev => ({
-                                    ...prev,
-                                    delivery_time_allowed: { from: val, to: prev.delivery_time_allowed?.to || "23:59" }
-                                }))}
-                            />
-                            <span className="text-sm text-muted-foreground">to</span>
-                            <TimePicker
-                                value={deliveryRules.delivery_time_allowed?.to || "23:59"}
-                                onChange={(val) => setDeliveryRules(prev => ({
-                                    ...prev,
-                                    delivery_time_allowed: { from: prev.delivery_time_allowed?.from || "00:00", to: val }
-                                }))}
-                            />
+                        <div className="flex items-center justify-between gap-3">
+                            <Label>Delivery Time Window</Label>
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="delivery-24h" className="text-sm font-normal text-muted-foreground">
+                                    24 hours
+                                </Label>
+                                <Switch
+                                    id="delivery-24h"
+                                    checked={isFullDayWindow(deliveryRules.delivery_time_allowed)}
+                                    onCheckedChange={(on) => setDeliveryRules(prev => ({
+                                        ...prev,
+                                        delivery_time_allowed: on ? { ...FULL_DAY_WINDOW } : { ...DEFAULT_WINDOW }
+                                    }))}
+                                />
+                            </div>
                         </div>
+                        {isFullDayWindow(deliveryRules.delivery_time_allowed) ? (
+                            <p className="text-sm text-muted-foreground">Delivery orders accepted at any time.</p>
+                        ) : (
+                            <div className="flex items-center gap-3">
+                                <TimePicker
+                                    value={deliveryRules.delivery_time_allowed?.from || "00:00"}
+                                    onChange={(val) => setDeliveryRules(prev => ({
+                                        ...prev,
+                                        delivery_time_allowed: { from: val, to: prev.delivery_time_allowed?.to || "23:59" }
+                                    }))}
+                                />
+                                <span className="text-sm text-muted-foreground">to</span>
+                                <TimePicker
+                                    value={deliveryRules.delivery_time_allowed?.to || "23:59"}
+                                    onChange={(val) => setDeliveryRules(prev => ({
+                                        ...prev,
+                                        delivery_time_allowed: { from: prev.delivery_time_allowed?.from || "00:00", to: val }
+                                    }))}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Takeaway Time Window</Label>
-                        <div className="flex items-center gap-3">
-                            <TimePicker
-                                value={deliveryRules.takeaway_time_allowed?.from || "00:00"}
-                                onChange={(val) => setDeliveryRules(prev => ({
-                                    ...prev,
-                                    takeaway_time_allowed: { from: val, to: prev.takeaway_time_allowed?.to || "23:59" }
-                                }))}
-                            />
-                            <span className="text-sm text-muted-foreground">to</span>
-                            <TimePicker
-                                value={deliveryRules.takeaway_time_allowed?.to || "23:59"}
-                                onChange={(val) => setDeliveryRules(prev => ({
-                                    ...prev,
-                                    takeaway_time_allowed: { from: prev.takeaway_time_allowed?.from || "00:00", to: val }
-                                }))}
-                            />
+                        <div className="flex items-center justify-between gap-3">
+                            <Label>Takeaway Time Window</Label>
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="takeaway-24h" className="text-sm font-normal text-muted-foreground">
+                                    24 hours
+                                </Label>
+                                <Switch
+                                    id="takeaway-24h"
+                                    checked={isFullDayWindow(deliveryRules.takeaway_time_allowed)}
+                                    onCheckedChange={(on) => setDeliveryRules(prev => ({
+                                        ...prev,
+                                        takeaway_time_allowed: on ? { ...FULL_DAY_WINDOW } : { ...DEFAULT_WINDOW }
+                                    }))}
+                                />
+                            </div>
                         </div>
+                        {isFullDayWindow(deliveryRules.takeaway_time_allowed) ? (
+                            <p className="text-sm text-muted-foreground">Takeaway orders accepted at any time.</p>
+                        ) : (
+                            <div className="flex items-center gap-3">
+                                <TimePicker
+                                    value={deliveryRules.takeaway_time_allowed?.from || "00:00"}
+                                    onChange={(val) => setDeliveryRules(prev => ({
+                                        ...prev,
+                                        takeaway_time_allowed: { from: val, to: prev.takeaway_time_allowed?.to || "23:59" }
+                                    }))}
+                                />
+                                <span className="text-sm text-muted-foreground">to</span>
+                                <TimePicker
+                                    value={deliveryRules.takeaway_time_allowed?.to || "23:59"}
+                                    onChange={(val) => setDeliveryRules(prev => ({
+                                        ...prev,
+                                        takeaway_time_allowed: { from: prev.takeaway_time_allowed?.from || "00:00", to: val }
+                                    }))}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-3">
