@@ -4,6 +4,12 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerByPhoneNumberIdCached, type BranchCandidate } from "@/lib/whatsapp-meta";
 import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
 import { normalizePhone } from "@/lib/whatsapp-broadcast";
+import {
+  extractTableLabel,
+  matchTableCandidate,
+  buildTableOrderLink,
+  type TableCandidate,
+} from "@/lib/whatsappTableMatch";
 import { getBusinessCurrency } from "@/lib/whatsapp-cost";
 import { estimateMessageCost } from "@/lib/whatsapp-pricing-analytics";
 import {
@@ -221,6 +227,47 @@ async function tagCampaignAnswer(msg: any): Promise<void> {
   } catch (e) {
     console.error("[campaign-tag] failed", e);
   }
+}
+
+// Tables (QR codes) for a partner, cached briefly. Read only when an inbound
+// actually names a table, so ordinary traffic never pays for it. The TTL is
+// short because a newly created table would otherwise be unreachable, and a
+// deleted one would keep handing out a dead link.
+const WA_LINK_DOMAIN = "menuthere.com";
+const TABLES_TTL_MS = 60_000;
+const tablesCache = new Map<
+  string,
+  { at: number; rows: TableCandidate[]; storeName: string | null }
+>();
+
+const GET_PARTNER_TABLES = `
+  query PartnerTables($pid: uuid!) {
+    qr_codes(where: { partner_id: { _eq: $pid } }) {
+      id
+      table_number
+      table_name
+    }
+    partners_by_pk(id: $pid) {
+      store_name
+    }
+  }
+`;
+
+// store_name comes back with the tables because the printed QR encodes it in
+// the link slug, and the cached partner row the webhook already holds does not
+// carry it.
+async function getPartnerTablesCached(
+  partnerId: string,
+): Promise<{ rows: TableCandidate[]; storeName: string | null }> {
+  const hit = tablesCache.get(partnerId);
+  if (hit && Date.now() - hit.at < TABLES_TTL_MS) {
+    return { rows: hit.rows, storeName: hit.storeName };
+  }
+  const res: any = await fetchFromHasura(GET_PARTNER_TABLES, { pid: partnerId });
+  const rows: TableCandidate[] = res?.qr_codes ?? [];
+  const storeName: string | null = res?.partners_by_pk?.store_name ?? null;
+  tablesCache.set(partnerId, { at: Date.now(), rows, storeName });
+  return { rows, storeName };
 }
 
 function extractIncomingBody(msg: any): { type: string; body: string | null; mediaUrl: string | null } {
@@ -1027,6 +1074,31 @@ export async function POST(req: NextRequest) {
             // self-contained; never let it throw out of the webhook loop. Skipped
             // entirely when WhatsApp Ordering is OFF for this partner.
             if (runWaEnabled && flowInput && msg.id && phoneNumberId) {
+              // "I want to order from table 5" → link straight to that table's
+              // QR page. Only a TEXT inbound is parsed (a button label must
+              // never be table-matched), and the lookup is skipped entirely
+              // unless the message actually names a table, so ordinary traffic
+              // costs no query.
+              let orderLinkOverride: string | undefined;
+              if (flowInput.type === "text" && extractTableLabel(flowInput.normalized || "")) {
+                try {
+                  const { rows, storeName } = await getPartnerTablesCached(runPartnerId);
+                  const m = matchTableCandidate(flowInput.normalized || "", rows);
+                  if (m?.kind === "hit") {
+                    orderLinkOverride = buildTableOrderLink(
+                      WA_LINK_DOMAIN,
+                      branch?.store_name ?? storeName,
+                      m.table.id,
+                    );
+                  }
+                  // "ambiguous" deliberately falls through to the generic link:
+                  // qr_codes.price_adjustment rewrites prices, so guessing the
+                  // wrong table would change what the customer pays.
+                } catch (e) {
+                  console.error("table match failed (using generic link):", e);
+                }
+              }
+
               try {
                 await runFlowForInbound({
                   // Branch-scoped when the customer named an outlet, else the
@@ -1043,6 +1115,9 @@ export async function POST(req: NextRequest) {
                   sendToken: runSendToken,
                   // Send read+typing only if the welcome flow actually runs.
                   flowTyping: runFlowTyping,
+                  // Table-scoped link when the customer named a table; the
+                  // partner's own welcome copy is otherwise untouched.
+                  orderLinkOverride,
                 });
               } catch (e) {
                 console.error("Flow engine error:", e);

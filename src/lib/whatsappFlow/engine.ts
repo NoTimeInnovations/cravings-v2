@@ -810,8 +810,12 @@ export async function runFlowForInbound(args: {
   // When true, send a read receipt + typing indicator IF this inbound triggers
   // the welcome flow. Gated upstream by whatsappOrdering + whatsappFlowTyping.
   flowTyping?: boolean;
+  // Set by the webhook when the inbound named a table ("order from table 5"):
+  // the flow runs exactly as usual, but {{order_link}} resolves to that table's
+  // qrScan link instead of the generic one.
+  orderLinkOverride?: string;
 }): Promise<void> {
-  const { partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName = null, sendToken, flowTyping = false } = args;
+  const { partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName = null, sendToken, flowTyping = false, orderLinkOverride } = args;
 
   // Layer 1 — idempotency: claim this Meta message id. A retry (or a second
   // instance handed the same delivery) throws on the partial-unique index and
@@ -889,7 +893,7 @@ export async function runFlowForInbound(args: {
       // A fresh wave is taken inside startNewRun so the counts reflect the run
       // we're about to abort; the optimistic waveP is dropped.
       await abortRun(active.id);
-      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken, undefined, flowTyping);
+      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken, undefined, flowTyping, undefined, orderLinkOverride);
       await accountP.catch(() => {});
       return;
     } else {
@@ -911,6 +915,7 @@ export async function runFlowForInbound(args: {
     waveP,
     flowTyping,
     readTypingP,
+    orderLinkOverride,
   );
   await accountP.catch(() => {});
 }
@@ -1226,6 +1231,12 @@ async function startNewRun(
   // to the ms the bubble was shown, or null. When absent (keyword-restart path)
   // read+typing is fired inline below instead.
   readTypingP?: Promise<number | null>,
+  // Replaces {{order_link}} for THIS run only. Set when the customer named a
+  // table ("order from table 5") so the partner's own welcome copy is reused
+  // verbatim and only the link changes — the run still claims the message id
+  // and still creates the customer account, which short-circuiting the engine
+  // would skip.
+  orderLinkOverride?: string,
 ) {
   const { flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes } =
     await (prefetchedWave ?? runStartRunWave(partnerId, contactPhone, prefetchedToken));
@@ -1301,6 +1312,10 @@ async function startNewRun(
   const localPhone = toLocalPhone(contactPhone, partner?.country_code);
   const lastOrder = lastOrderRes?.orders?.[0] || null;
   const sysVars = buildMessageRunVars(partnerId, localPhone, partner, lastOrder);
+  // A table-scoped link supersedes the generic one. Only order_link is
+  // replaced: reorder_link still points at the customer's own history, which is
+  // not table-specific.
+  if (orderLinkOverride) sysVars.order_link = orderLinkOverride;
   const state: RunState = { flowId: matched.id, variables: sysVars, stepCount: 0, version: 0 };
   const outbound: Outbound[] = [];
   const { parkedNodeId, completed, sleepMs } = executeForward(graph, startId, state, outbound);
