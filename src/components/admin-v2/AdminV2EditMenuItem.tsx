@@ -113,7 +113,12 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                 category: editingItem.category,
                 is_veg: editingItem.is_veg,
                 variants: variants.length > 0 ? variants : [],
-                addon_groups: sanitizeModifierGroups(addonGroups),
+                // Petpooja owns the customisations on its own items — they're
+                // rebuilt from the addongroups catalogue on every menu push. The
+                // editor is already read-only here, but that's presentation only:
+                // submitting the key at all would write the rendered state back
+                // and clobber the synced groups until the next push undid it.
+                ...(!isPetpooja && { addon_groups: sanitizeModifierGroups(addonGroups) }),
                 tags: editingItem.tags,
                 is_price_as_per_size: editingItem.is_price_as_per_size,
                 is_top: editingItem.is_top,
