@@ -145,6 +145,9 @@ export default function OnboardingFlow({
   const accent = brandColorToHex(themeBrandColor || rawStorefront?.brandColor);
   // Storefront setting: render the onboarding logo full-screen (vs the small badge).
   const onboardingLogoFullScreen = !!rawStorefront?.onboardingLogoFullScreen;
+  // Storefront setting: order-type screen as a 2-column grid where tapping a
+  // tile selects that type directly (no "Continue" button). Default = list.
+  const orderTypeGridSelect = !!rawStorefront?.orderTypeGridSelect;
 
   const hasOrdering = features.ordering.enabled && offered.takeaway;
   // Dine-in table reservation: offered + prebooking feature on.
@@ -570,6 +573,7 @@ export default function OnboardingFlow({
             socialLinks={socialLinks}
             mapHref={getPartnerMapsUrl(hotelData)}
             logoFullScreen={onboardingLogoFullScreen}
+            gridSelect={orderTypeGridSelect}
           />
         )}
 

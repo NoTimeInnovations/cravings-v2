@@ -34,6 +34,58 @@ interface OrderTypeScreenProps {
   mapHref?: string | null;
   /** Render the store logo large (full-width) instead of the small badge. */
   logoFullScreen?: boolean;
+  /** Compact 2-column grid layout where tapping an order type selects it
+   *  immediately (no "Continue" button). Off = the default vertical list. */
+  gridSelect?: boolean;
+}
+
+// Compact grid tile used when `gridSelect` is on — tapping it selects that
+// order type immediately, so there is no separate "Continue" button.
+function GridOptionTile({
+  Icon,
+  label,
+  sub,
+  open,
+  closedNote,
+  accent,
+  onSelect,
+}: {
+  Icon: typeof Bike;
+  label: string;
+  sub: string;
+  open: boolean;
+  closedNote?: string | null;
+  accent: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={() => { if (open) onSelect(); }}
+      disabled={!open}
+      className={`relative flex min-h-[128px] flex-col items-center justify-center gap-2 rounded-2xl bg-white px-3 py-4 text-center transition-all duration-150 ${
+        open
+          ? "border-[1.5px] border-gray-200 shadow-sm active:scale-[0.97]"
+          : "cursor-not-allowed border-[1.5px] border-gray-200 opacity-50"
+      }`}
+    >
+      <div
+        className="flex h-12 w-12 items-center justify-center rounded-xl"
+        style={{ backgroundColor: open ? accent : "#f3f4f6" }}
+      >
+        <Icon className="h-6 w-6" style={{ color: open ? "#fff" : "#111827" }} />
+      </div>
+      <p className="text-[15px] font-semibold tracking-tight text-gray-900">{label}</p>
+      {open ? (
+        <p className="text-[11px] leading-tight text-gray-500">{sub}</p>
+      ) : (
+        closedNote && (
+          <p className="flex items-center gap-1 text-[10px] font-medium text-red-500">
+            <Clock className="h-3 w-3" /> {closedNote}
+          </p>
+        )
+      )}
+    </button>
+  );
 }
 
 export default function OrderTypeScreen({
@@ -59,6 +111,7 @@ export default function OrderTypeScreen({
   socialLinks,
   mapHref,
   logoFullScreen = false,
+  gridSelect = false,
 }: OrderTypeScreenProps) {
   const phoneHref = socialLinks?.phone ? `tel:${socialLinks.phone}` : null;
   const whatsappHref = socialLinks?.whatsapp || null;
@@ -103,6 +156,11 @@ export default function OrderTypeScreen({
       return prev;
     });
   }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive, hotelTimezone, hasDelivery, hasOrdering, hasDineIn]);
+
+  // No order type is currently selectable (all closed / none offered) — the
+  // screen falls back to an "Explore Menu" CTA in every layout.
+  const noTypesOpen =
+    (!isDeliveryOpen || !hasDelivery) && (!isTakeawayOpen || !hasOrdering) && !hasDineIn;
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden mx-auto w-full md:max-w-md" style={{ fontFamily: "'Inter', system-ui, sans-serif", background: heroGradient }}>
@@ -180,7 +238,7 @@ export default function OrderTypeScreen({
       {/* White content sheet — takes the remaining height and scrolls its own
           content in the rare case it overflows (e.g. 3 order types + a
           closed-hours notice), so the sticky CTA below is always on screen. */}
-      <div className="relative z-[1] -mt-5 flex-1 min-h-0 overflow-y-auto rounded-t-[28px] bg-white px-6 pt-5 pb-[112px] shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+      <div className={`relative z-[1] -mt-5 flex-1 min-h-0 overflow-y-auto rounded-t-[28px] bg-white px-6 pt-5 ${gridSelect && !noTypesOpen ? "pb-6" : "pb-[112px]"} shadow-[0_-10px_30px_rgba(0,0,0,0.08)]`}>
         <h1 className="text-xl lg:text-2xl font-semibold tracking-tight text-gray-900">
           How would you like your order?
         </h1>
@@ -188,6 +246,52 @@ export default function OrderTypeScreen({
           You can change this anytime.
         </p>
 
+        {gridSelect ? (
+          <div className="mt-4 grid grid-cols-2 gap-2.5">
+            {hasDelivery && (
+              <GridOptionTile
+                Icon={Bike}
+                label="Delivery"
+                sub="To your doorstep"
+                open={isDeliveryOpen}
+                accent={accent}
+                closedNote={
+                  !isDeliveryActive
+                    ? "Currently unavailable"
+                    : deliveryTimeAllowed
+                      ? `Available ${formatTime12h(deliveryTimeAllowed.from)} - ${formatTime12h(deliveryTimeAllowed.to)}`
+                      : "Currently unavailable"
+                }
+                onSelect={() => onSelect("delivery")}
+              />
+            )}
+            {hasOrdering && (
+              <GridOptionTile
+                Icon={Store}
+                label="Takeaway"
+                sub="Pick up from an outlet"
+                open={isTakeawayOpen}
+                accent={accent}
+                closedNote={
+                  takeawayTimeAllowed
+                    ? `Available ${formatTime12h(takeawayTimeAllowed.from)} - ${formatTime12h(takeawayTimeAllowed.to)}`
+                    : null
+                }
+                onSelect={() => onSelect("takeaway")}
+              />
+            )}
+            {hasDineIn && (
+              <GridOptionTile
+                Icon={Utensils}
+                label="Dine-in"
+                sub="Book a table for later"
+                open={true}
+                accent={accent}
+                onSelect={() => onSelect("dine_in")}
+              />
+            )}
+          </div>
+        ) : (
         <div className="mt-4 flex flex-col gap-2.5">
           {/* Delivery */}
           {hasDelivery && (
@@ -307,6 +411,7 @@ export default function OrderTypeScreen({
             </button>
           )}
         </div>
+        )}
 
         {/* Change location */}
         {hasDelivery && !deliveryAvailable && onChangeLocation && (
@@ -319,32 +424,35 @@ export default function OrderTypeScreen({
         )}
       </div>
 
-      {/* Sticky CTA */}
-      <div className="absolute left-0 right-0 bottom-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 z-30">
-       <div className="px-4 pt-3 pb-5 lg:max-w-md lg:mx-auto">
-        {(!isDeliveryOpen || !hasDelivery) && (!isTakeawayOpen || !hasOrdering) && !hasDineIn ? (
-          <button
-            onClick={onSkip}
-            className="w-full h-[48px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98]"
-            style={{ backgroundColor: accent }}
-          >
-            Explore Menu
-          </button>
-        ) : (
-          <button
-            onClick={() => onSelect(mode)}
-            disabled={
-              (mode === "delivery" && !isDeliveryOpen) ||
-              (mode === "takeaway" && !isTakeawayOpen)
-            }
-            className="w-full h-[48px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
-            style={{ backgroundColor: accent }}
-          >
-            Continue with {mode === "delivery" ? "Delivery" : mode === "takeaway" ? "Takeaway" : "Dine-in"}
-          </button>
-        )}
-       </div>
-      </div>
+      {/* Sticky CTA — hidden in grid/tap-select mode (tapping a tile selects
+          directly), except for the "Explore Menu" fallback when nothing is open. */}
+      {(noTypesOpen || !gridSelect) && (
+        <div className="absolute left-0 right-0 bottom-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 z-30">
+         <div className="px-4 pt-3 pb-5 lg:max-w-md lg:mx-auto">
+          {noTypesOpen ? (
+            <button
+              onClick={onSkip}
+              className="w-full h-[48px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98]"
+              style={{ backgroundColor: accent }}
+            >
+              Explore Menu
+            </button>
+          ) : (
+            <button
+              onClick={() => onSelect(mode)}
+              disabled={
+                (mode === "delivery" && !isDeliveryOpen) ||
+                (mode === "takeaway" && !isTakeawayOpen)
+              }
+              className="w-full h-[48px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
+              style={{ backgroundColor: accent }}
+            >
+              Continue with {mode === "delivery" ? "Delivery" : mode === "takeaway" ? "Takeaway" : "Dine-in"}
+            </button>
+          )}
+         </div>
+        </div>
+      )}
     </div>
   );
 }

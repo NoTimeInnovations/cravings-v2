@@ -16,6 +16,7 @@ export function FeatureSettings() {
     const { userData, setState } = useAuthStore();
     const [features, setFeatures] = useState<any>(null);
     const [showOrderTypeScreen, setShowOrderTypeScreen] = useState(true);
+    const [orderTypeGridSelect, setOrderTypeGridSelect] = useState(false);
     const router = useRouter();
 
     const parseStorefront = (raw: any): any => {
@@ -52,6 +53,7 @@ export function FeatureSettings() {
             setFeatures(currentFeatures);
             const sf = parseStorefront((userData as any).storefront_settings);
             setShowOrderTypeScreen(sf?.showOrderTypeScreen !== false);
+            setOrderTypeGridSelect(!!sf?.orderTypeGridSelect);
         }
     }, [userData]);
 
@@ -74,6 +76,28 @@ export function FeatureSettings() {
             console.error("Error updating order-type screen setting:", error);
             toast.error("Failed to update setting");
             setShowOrderTypeScreen(!enabled);
+        }
+    };
+
+    // Storefront flag: order-type screen as a 2-column grid where tapping a tile
+    // selects that type directly (no "Continue" button). Defaults off (list).
+    const handleOrderTypeGridSelectToggle = async (enabled: boolean) => {
+        if (!userData) return;
+        setOrderTypeGridSelect(enabled);
+        try {
+            const sf = parseStorefront((userData as any).storefront_settings);
+            const payload = JSON.stringify({ ...sf, orderTypeGridSelect: enabled });
+            await updatePartner(userData.id, { storefront_settings: payload } as any);
+            revalidateTag(userData.id);
+            setState({ storefront_settings: payload } as any);
+            toast.success(`Grid layout ${enabled ? "enabled" : "disabled"}`, {
+                description: "Reload to apply changes",
+                action: { label: "Reload", onClick: () => window.location.reload() },
+            });
+        } catch (error) {
+            console.error("Error updating order-type grid setting:", error);
+            toast.error("Failed to update setting");
+            setOrderTypeGridSelect(!enabled);
         }
     };
 
@@ -463,6 +487,23 @@ export function FeatureSettings() {
                                 onCheckedChange={handleOrderTypeScreenToggle}
                             />
                         </div>
+
+                        {showOrderTypeScreen && (
+                            <div className="mt-3 flex items-center justify-between p-4 border rounded-lg">
+                                <div className="space-y-0.5 pr-4">
+                                    <div className="font-medium">Grid layout (tap to select)</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Show the order types as a 2-per-row grid and hide the “Continue”
+                                        button — tapping a type selects it and opens the menu directly.
+                                        Off shows the default vertical list with a Continue button.
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={orderTypeGridSelect}
+                                    onCheckedChange={handleOrderTypeGridSelectToggle}
+                                />
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             )}
