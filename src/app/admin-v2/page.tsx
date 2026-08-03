@@ -96,6 +96,9 @@ const AdminV2StockManagement = dynamic(() => import("@/components/admin-v2/Admin
 const DeliveryPoolPanel = dynamic(() => import("@/components/admin-v2/DeliveryPoolPanel"), {
     loading: ViewLoading
 });
+const AdminV2Tutorials = dynamic(() => import("@/components/admin-v2/AdminV2Tutorials").then(mod => mod.AdminV2Tutorials), {
+    loading: ViewLoading
+});
 import { useAdminStore } from "@/store/adminStore";
 import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 import { SubscriptionGate } from "@/components/admin-v2/SubscriptionGate";
@@ -352,6 +355,11 @@ export default function AdminPage() {
                         {renderedViews.includes("WhatsApp") && (
                             <div className={activeView === "WhatsApp" ? "block" : "hidden"}>
                                 <AdminV2WhatsApp />
+                            </div>
+                        )}
+                        {renderedViews.includes("Tutorials") && (
+                            <div className={activeView === "Tutorials" ? "block" : "hidden"}>
+                                <AdminV2Tutorials />
                             </div>
                         )}
                         </SubscriptionGate>

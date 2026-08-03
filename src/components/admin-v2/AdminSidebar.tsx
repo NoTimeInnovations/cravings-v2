@@ -25,6 +25,7 @@ import {
   Boxes,
   Bell,
   Landmark,
+  GraduationCap,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -60,6 +61,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Website", icon: Globe, id: "website" },
   { title: "Notices", icon: Bell, id: "notices" },
   { title: "WhatsApp", icon: MessageSquare, id: "whatsapp" },
+  { title: "Tutorials", icon: GraduationCap, id: "tutorials" },
   { title: "Settings", icon: Settings, id: "settings" },
   { title: "Billing", icon: Receipt, id: "billing" },
   { title: "Settlements", icon: Landmark, id: "settlements" },
