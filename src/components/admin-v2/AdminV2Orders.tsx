@@ -1013,12 +1013,10 @@ export function AdminV2Orders() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Invoice No</TableHead>
+              <TableHead className="min-w-[110px]">Invoice No</TableHead>
               <TableHead>Order ID</TableHead>
               <TableHead>Table / Location</TableHead>
               <TableHead>Payment method</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Time</TableHead>
               <TableHead>Order type</TableHead>
               {showGrowjetColumn && <TableHead>Delivery Agent</TableHead>}
               <TableHead>Order status</TableHead>
@@ -1065,6 +1063,9 @@ export function AdminV2Orders() {
                             <span className="whitespace-nowrap text-xs text-muted-foreground">
                               {format(new Date(order.createdAt), "d MMM")}
                             </span>
+                            <span className="whitespace-nowrap text-xs text-muted-foreground">
+                              {format(new Date(order.createdAt), "hh:mm a")}
+                            </span>
                           </div>
                         ) : (
                           <span>{order.id.slice(0, 8)}</span>
@@ -1088,12 +1089,6 @@ export function AdminV2Orders() {
                       >
                         {getPaymentModeLabel(order)}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(order.createdAt), "dd-MM-yy")}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(order.createdAt), "hh:mm a")}
                     </TableCell>
                     <TableCell>
                       <div className="flex max-w-[200px] flex-col gap-1">

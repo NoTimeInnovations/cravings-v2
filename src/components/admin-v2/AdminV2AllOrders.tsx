@@ -446,12 +446,10 @@ export function AdminV2AllOrders() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice No</TableHead>
+                  <TableHead className="min-w-[110px]">Invoice No</TableHead>
                   <TableHead>Order ID</TableHead>
                   <TableHead>Table / Location</TableHead>
                   <TableHead>Payment method</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
                   <TableHead>Order type</TableHead>
                   {showGrowjetColumn && <TableHead>Delivery Agent</TableHead>}
                   <TableHead>Order status</TableHead>
@@ -467,11 +465,21 @@ export function AdminV2AllOrders() {
                   >
                     <TableCell className="font-medium">
                       <div className="flex flex-col gap-1">
-                        <span>
-                          {(Number(order.display_id) ?? 0) > 0
-                            ? `${order.display_id}-${getDateOnly(order.createdAt)}`
-                            : order.id.slice(0, 8)}
-                        </span>
+                        {(Number(order.display_id) ?? 0) > 0 ? (
+                          <div className="flex w-fit flex-col items-start gap-0.5">
+                            <Badge className="bg-orange-100 px-2 py-0.5 text-sm font-bold text-orange-800 hover:bg-orange-100">
+                              {order.display_id}
+                            </Badge>
+                            <span className="whitespace-nowrap text-xs text-muted-foreground">
+                              {format(new Date(order.createdAt), "d MMM")}
+                            </span>
+                            <span className="whitespace-nowrap text-xs text-muted-foreground">
+                              {format(new Date(order.createdAt), "hh:mm a")}
+                            </span>
+                          </div>
+                        ) : (
+                          <span>{order.id.slice(0, 8)}</span>
+                        )}
                         <PickupOtpBadge
                           meta={order.delivery_provider_meta}
                           status={order.status}
@@ -494,12 +502,6 @@ export function AdminV2AllOrders() {
                       >
                         {getPaymentDisplayLabel(order)}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(order.createdAt), "yyyy-MM-dd")}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(order.createdAt), "hh:mm a")}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-1">
