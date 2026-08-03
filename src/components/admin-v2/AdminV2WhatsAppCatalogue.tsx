@@ -117,37 +117,56 @@ function ItemRow({
 
       <div className="flex shrink-0 items-center gap-1">
         {busy ? (
-          <Loader2 className="mx-2 h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Working…
+          </span>
         ) : (
           <>
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={onEdit}>
-              <Pencil className="h-4 w-4" />
+            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={onEdit}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit
             </Button>
             {/* Only offered when it would actually do something: a dish that is
                 blocked (no photo, no price) cannot be pushed, and offering the
                 button would just produce an error toast. */}
             {!item.excluded && !blocked && !item.syncedAt && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Send to WhatsApp" onClick={onSync}>
-                <RefreshCw className="h-4 w-4" />
+              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={onSync}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                Send
               </Button>
             )}
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              title={item.excluded ? "Add back to WhatsApp" : "Remove from WhatsApp"}
+              size="sm"
+              className="h-8 px-2"
+              title={
+                item.excluded
+                  ? "Put this dish back in your WhatsApp catalogue"
+                  : "Take it off WhatsApp — it stays on your menu"
+              }
               onClick={onToggleExclude}
             >
-              {item.excluded ? <Undo2 className="h-4 w-4" /> : <X className="h-4 w-4" />}
+              {item.excluded ? (
+                <>
+                  <Undo2 className="mr-1.5 h-3.5 w-3.5" />
+                  Add back
+                </>
+              ) : (
+                <>
+                  <X className="mr-1.5 h-3.5 w-3.5" />
+                  Remove
+                </>
+              )}
             </Button>
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-rose-600 hover:text-rose-700"
+              size="sm"
+              className="h-8 px-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
               title="Delete from WhatsApp and your menu"
               onClick={onDelete}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Delete
             </Button>
           </>
         )}
