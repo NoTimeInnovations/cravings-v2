@@ -118,6 +118,41 @@ export function buildProductListMessage(opts: {
   };
 }
 
+/**
+ * The whole catalogue behind one "View catalog" button.
+ *
+ * Different from product_list in the way that matters here: product_list can
+ * only carry 30 items, so a 124-dish menu arrives amputated. A catalog_message
+ * shows a thumbnail and opens the FULL catalogue in WhatsApp's own browser —
+ * every dish, no cap, and the customer builds their basket in there.
+ *
+ * `thumbnail_product_retailer_id` is required and must be a product Meta
+ * actually holds; a stale id renders a blank card. Pass a currently-synced item.
+ */
+export function buildCatalogMessage(opts: {
+  to: string;
+  thumbnailRetailerId: string;
+  body: string;
+  footer?: string | null;
+}): Record<string, unknown> | null {
+  if (!opts.to || !opts.thumbnailRetailerId) return null;
+  return {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: opts.to,
+    type: "interactive",
+    interactive: {
+      type: "catalog_message",
+      body: { text: clip(opts.body, MAX_BODY) },
+      ...(opts.footer ? { footer: { text: clip(opts.footer, 60) } } : {}),
+      action: {
+        name: "catalog_message",
+        parameters: { thumbnail_product_retailer_id: opts.thumbnailRetailerId },
+      },
+    },
+  };
+}
+
 /** How many items a product_list will actually carry after trimming — so the
  *  caller can tell the partner "showing 30 of 124" instead of quietly dropping
  *  most of the menu. */

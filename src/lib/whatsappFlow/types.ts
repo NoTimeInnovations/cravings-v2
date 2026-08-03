@@ -14,6 +14,10 @@ export type FlowNodeType =
   | "send_video"
   | "send_audio"
   | "send_document"
+  /** Sends the partner's WhatsApp Catalogue as a "View catalog" card. Degrades
+   *  to plain text for a partner with no catalogue, so a shared flow carrying
+   *  this node is never a dead end. */
+  | "send_catalog"
   | "buttons"
   | "link_button"
   | "wait_for_reply"

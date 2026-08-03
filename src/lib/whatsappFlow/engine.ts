@@ -62,7 +62,7 @@ interface RunState {
 }
 
 interface Outbound {
-  kind: "text" | "image" | "video" | "audio" | "document" | "buttons" | "cta";
+  kind: "text" | "image" | "video" | "audio" | "document" | "buttons" | "cta" | "catalog";
   text?: string;
   mediaUrl?: string;
   caption?: string;
@@ -70,6 +70,8 @@ interface Outbound {
   items?: ButtonItem[];
   buttonText?: string;
   url?: string;
+  /** send_catalog: the product whose photo fronts the "View catalog" card. */
+  thumbnailRetailerId?: string;
 }
 
 // ─── GraphQL ─────────────────────────────────────────────────────
@@ -123,7 +125,21 @@ const Q_DUE_SLEEPING = `
 `;
 const Q_PARTNER_INFO = `
   query PartnerInfo($id: uuid!) {
-    partners_by_pk(id: $id) { store_name username currency country_code custom_domain delivery_rules timezone }
+    partners_by_pk(id: $id) { store_name username currency country_code custom_domain delivery_rules timezone wa_catalog_id }
+    # One currently-synced, available dish to use as the catalogue thumbnail.
+    # It MUST be a product Meta actually holds — a stale retailer id renders a
+    # blank card rather than an error.
+    menu(
+      where: {
+        partner_id: { _eq: $id }
+        deletion_status: { _eq: 0 }
+        is_available: { _eq: true }
+        wa_catalog_synced_at: { _is_null: false }
+        image_url: { _is_null: false }
+      }
+      order_by: { priority: asc }
+      limit: 1
+    ) { id }
   }
 `;
 // The customer's most recent order at this partner, matched by PHONE (not user
@@ -487,6 +503,21 @@ function executeForward(
         outbound.push({ kind: "text", text: interpolate(data.text || "", state.variables) });
         nodeId = firstEdgeTarget(graph, node.id);
         break;
+      case "send_catalog": {
+        // The whole catalogue behind a "View catalog" button. Degrades to plain
+        // text when the partner has no catalogue or nothing synced yet, so a
+        // shared/imported flow containing this node still works for them
+        // instead of sending a blank card or nothing at all.
+        const thumb = String(state.variables.catalog_thumbnail_id || "");
+        const body = interpolate(data.text || "", state.variables);
+        if (thumb) {
+          outbound.push({ kind: "catalog", text: body, thumbnailRetailerId: thumb });
+        } else if (body.trim()) {
+          outbound.push({ kind: "text", text: body });
+        }
+        nodeId = firstEdgeTarget(graph, node.id);
+        break;
+      }
       case "send_image":
         outbound.push({
           kind: "image",
@@ -708,6 +739,26 @@ function buildPayload(to: string, o: Outbound): { payload: Record<string, unknow
             action: {
               name: "cta_url",
               parameters: { display_text: (o.buttonText || "Open").slice(0, 20), url },
+            },
+          },
+        },
+      };
+    }
+    case "catalog": {
+      // interactive bodies are capped at 1024 by WhatsApp.
+      const body = (o.text || " ").slice(0, 1024);
+      return {
+        type: "interactive",
+        body,
+        payload: {
+          to,
+          type: "interactive",
+          interactive: {
+            type: "catalog_message",
+            body: { text: body },
+            action: {
+              name: "catalog_message",
+              parameters: { thumbnail_product_retailer_id: o.thumbnailRetailerId },
             },
           },
         },
@@ -963,6 +1014,10 @@ interface PartnerInfo {
   custom_domain?: string | null;
   delivery_rules?: any;
   timezone?: string | null;
+  wa_catalog_id?: string | null;
+  /** Injected at the unpack site from the sibling `menu` selection — the first
+   *  synced, available dish, used as the catalogue card's thumbnail. */
+  catalog_thumbnail_id?: string | null;
 }
 
 // System variables available to every message-triggered run. Pure (no DB): the
@@ -978,6 +1033,9 @@ function buildMessageRunVars(
   if (!partner) return {};
   const p = partner;
   const cur = p.currency ?? "₹";
+  // Only offer the catalogue when BOTH exist: an id with no synced thumbnail
+  // renders a blank card in the customer's chat.
+  const catalogThumbId = p.wa_catalog_id ? p.catalog_thumbnail_id || "" : "";
   const username = p.username || "";
 
   // Offer a "Reorder" link only when this customer has a previous order here.
@@ -1054,6 +1112,11 @@ function buildMessageRunVars(
         : "",
     reorder_items: reorderItems,
     reorder_total: reorderTotal,
+    // Catalogue. Empty when the partner has no catalogue or nothing synced yet,
+    // which is exactly the condition the send_catalog node degrades on — so a
+    // flow with a catalogue node still works for a partner without one.
+    catalog_id: p.wa_catalog_id || "",
+    catalog_thumbnail_id: catalogThumbId,
   };
 }
 
@@ -1314,7 +1377,10 @@ async function startNewRun(
   // Inject system variables (store name, a fresh 10-min auto-login order link,
   // etc.) so welcome/menu flows can use {{order_link}}, {{store_name}}, etc.
   // The link carries an encrypted phone, so no account lookup/creation here.
-  const partner = (partnerRes?.partners_by_pk as PartnerInfo | null) || null;
+  const partnerRow = (partnerRes?.partners_by_pk as PartnerInfo | null) || null;
+  const partner: PartnerInfo | null = partnerRow
+    ? { ...partnerRow, catalog_thumbnail_id: partnerRes?.menu?.[0]?.id ?? null }
+    : null;
   const localPhone = toLocalPhone(contactPhone, partner?.country_code);
   const lastOrder = lastOrderRes?.orders?.[0] || null;
   const sysVars = buildMessageRunVars(partnerId, localPhone, partner, lastOrder);

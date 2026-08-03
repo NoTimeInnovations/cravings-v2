@@ -59,6 +59,7 @@ import {
   Upload,
   AudioLines,
   ExternalLink,
+  ShoppingBag,
 } from "lucide-react";
 import type {
   FlowNodeType,
@@ -80,6 +81,7 @@ const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; 
   send_video: { label: "Send video", icon: VideoIcon, accent: "#db2777" },
   send_audio: { label: "Send audio", icon: AudioLines, accent: "#14b8a6" },
   send_document: { label: "Send document", icon: FileText, accent: "#6366f1" },
+  send_catalog: { label: "Send catalogue", icon: ShoppingBag, accent: "#0d9488" },
   buttons: { label: "Buttons", icon: ListChecks, accent: "#a855f7" },
   link_button: { label: "Link button", icon: ExternalLink, accent: "#2563eb" },
   wait_for_reply: { label: "Wait for reply", icon: MessageCircleQuestion, accent: "#ec4899" },
@@ -99,6 +101,7 @@ const PALETTE: FlowNodeType[] = [
   "send_video",
   "send_audio",
   "send_document",
+  "send_catalog",
   "buttons",
   "link_button",
   "wait_for_reply",
@@ -164,6 +167,8 @@ function defaultData(type: FlowNodeType): Record<string, unknown> {
       return { mediaUrl: "" };
     case "send_document":
       return { mediaUrl: "", filename: "", caption: "" };
+    case "send_catalog":
+      return { text: "Here's our menu 🍽️ Tap below to browse and add to your basket." };
     case "buttons":
       return { text: "Choose an option:", items: [{ id: genId("opt"), label: "Option 1" }] };
     case "link_button":
@@ -221,6 +226,8 @@ function nodeSummary(type: FlowNodeType, data: any): string {
       return data?.mediaUrl ? t(data.mediaUrl) : "No audio";
     case "send_document":
       return data?.filename || (data?.mediaUrl ? t(data.mediaUrl) : "No document");
+    case "send_catalog":
+      return t(data?.text) || "WhatsApp catalogue";
     case "buttons":
       return `${(data?.items || []).length} button(s)`;
     case "link_button":
@@ -815,6 +822,24 @@ function Inspector({
             </>
           )}
         </>
+      )}
+
+      {type === "send_catalog" && (
+        <div className="space-y-2">
+          <Label>Message shown above the catalogue</Label>
+          <Textarea
+            rows={3}
+            value={String(data.text ?? "")}
+            onChange={(e) => onChange({ ...data, text: e.target.value })}
+            placeholder="Here's our menu 🍽️"
+          />
+          <p className="text-xs text-muted-foreground">
+            Sends your WhatsApp catalogue as a card with a “View catalog” button —
+            the customer browses every dish and builds a basket in the chat.
+            Requires WhatsApp Catalogue to be switched on and synced; otherwise
+            only this text is sent.
+          </p>
+        </div>
       )}
 
       {type === "send_text" && (
