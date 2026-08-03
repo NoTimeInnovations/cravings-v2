@@ -68,7 +68,20 @@ const PARTNER_QUERY = `
       feature_flags
       wa_catalog_id
     }
-    menu(where: { partner_id: { _eq: $id }, deletion_status: { _eq: 0 } }) {
+    # Live items, PLUS anything we have already published that has since been
+    # soft-deleted. Filtering on deletion_status _eq 0 alone made the "deleted"
+    # DELETE branch in planCatalogSync unreachable: a dish removed from the Menu
+    # screen simply vanished from this query, was never planned, and stayed on
+    # sale in WhatsApp forever. Bounded — only rows we actually pushed come back.
+    menu(
+      where: {
+        partner_id: { _eq: $id }
+        _or: [
+          { deletion_status: { _eq: 0 } }
+          { wa_catalog_synced_at: { _is_null: false } }
+        ]
+      }
+    ) {
       id
       name
       description
@@ -77,6 +90,7 @@ const PARTNER_QUERY = `
       image_url
       is_available
       deletion_status
+      wa_catalog_excluded
       wa_catalog_synced_at
       stocks { stock_quantity show_stock }
     }
@@ -332,7 +346,11 @@ export async function syncPartnerCatalog(
 export interface CatalogItemStatus {
   id: string;
   name: string;
+  description: string | null;
   imageUrl: string | null;
+  /** Partner took this off WhatsApp deliberately. Kept apart from `reason` in
+   *  the UI: it is a choice, not a problem to fix. */
+  excluded: boolean;
   /** null = eligible. */
   reason: SkipReason | null;
   /** What the partner should DO about it. Empty for eligible rows. */
@@ -345,7 +363,10 @@ export interface CatalogStatus {
   catalogId: string | null;
   total: number;
   eligibleCount: number;
+  /** Genuine problems only — excluded dishes are counted separately so a
+   *  deliberate removal never shows up as "needs attention". */
   ineligibleCount: number;
+  excludedCount: number;
   syncedCount: number;
   items: CatalogItemStatus[];
 }
@@ -373,29 +394,42 @@ export async function getCatalogSyncStatus(
   const partner = data?.partners_by_pk as (CatalogPartner & { feature_flags?: string }) | null;
   if (!partner) return { ok: false, message: "partner not found" };
 
-  const items: Array<CatalogMenuItem & { wa_catalog_synced_at?: string | null }> = data?.menu ?? [];
+  const items: Array<
+    CatalogMenuItem & { wa_catalog_synced_at?: string | null }
+  > = data?.menu ?? [];
 
-  const rows: CatalogItemStatus[] = items.map((item) => {
+  // The query above deliberately includes soft-deleted rows so the SYNC can
+  // remove them from Meta. They must not appear in the partner's list — the
+  // dish is gone from their menu and showing it would look like a bug.
+  const rows: CatalogItemStatus[] = items
+    .filter((item) => (item.deletion_status ?? 0) === 0)
+    .map((item) => {
     const built = buildCatalogProduct(item, partner);
     const reason = built.ok ? null : built.reason;
+    const excluded = !!item.wa_catalog_excluded;
     return {
       id: item.id,
       name: item.name || "(unnamed)",
+      description: item.description || null,
       imageUrl: item.image_url || null,
-      reason,
-      reasonText: reason ? SKIP_REASON_TEXT[reason] : "",
+      excluded,
+      // An excluded dish reports reason "excluded" from buildCatalogProduct.
+      // Null it out so the UI's "problem" styling keys only on real problems.
+      reason: excluded ? null : reason,
+      reasonText: excluded ? "" : reason ? SKIP_REASON_TEXT[reason] : "",
       syncedAt: item.wa_catalog_synced_at ?? null,
     };
   });
 
   // Problems first — the list exists to be acted on, and a partner with 200
   // dishes should not have to scroll for the 12 that need a photo.
-  rows.sort((a, b) => {
-    if (!!a.reason !== !!b.reason) return a.reason ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
+  // Problems first, then excluded, then the healthy ones — the list exists to
+  // be acted on.
+  const rank = (r: CatalogItemStatus) => (r.reason ? 0 : r.excluded ? 1 : 2);
+  rows.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 
-  const eligibleCount = rows.filter((r) => !r.reason).length;
+  const eligibleCount = rows.filter((r) => !r.reason && !r.excluded).length;
+  const excludedCount = rows.filter((r) => r.excluded).length;
   return {
     ok: true,
     status: {
@@ -403,8 +437,9 @@ export async function getCatalogSyncStatus(
       catalogId: partner.wa_catalog_id ?? null,
       total: rows.length,
       eligibleCount,
-      ineligibleCount: rows.length - eligibleCount,
-      syncedCount: rows.filter((r) => !r.reason && r.syncedAt).length,
+      excludedCount,
+      ineligibleCount: rows.filter((r) => !!r.reason).length,
+      syncedCount: rows.filter((r) => !r.reason && !r.excluded && r.syncedAt).length,
       items: rows,
     },
   };

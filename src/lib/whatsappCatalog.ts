@@ -36,6 +36,8 @@ export interface CatalogMenuItem {
   image_url?: string | null;
   is_available?: boolean | null;
   deletion_status?: number | null;
+  /** Partner opted this dish OUT of WhatsApp. */
+  wa_catalog_excluded?: boolean | null;
   stocks?: Array<{ stock_quantity?: number | null; show_stock?: boolean | null }> | null;
 }
 
@@ -54,13 +56,18 @@ export type SkipReason =
   | "no_image"
   | "no_price"
   | "no_name"
-  | "deleted";
+  | "deleted"
+  /** The partner took this dish off WhatsApp by hand. Distinct from the other
+   *  reasons: those are "fix the data and it syncs", this one is a decision, so
+   *  the sync must not quietly undo it. */
+  | "excluded";
 
 export const SKIP_REASON_TEXT: Record<SkipReason, string> = {
   no_image: "Add a photo — WhatsApp will not list an item without one.",
   no_price: "Set a price.",
   no_name: "Set a name.",
   deleted: "Removed from the menu.",
+  excluded: "You removed this from WhatsApp. Press “Add to WhatsApp” to put it back.",
 };
 
 export interface CatalogProduct {
@@ -131,6 +138,7 @@ export function buildCatalogProduct(
   partner: CatalogPartner,
 ): BuildResult {
   if ((item.deletion_status ?? 0) !== 0) return { ok: false, reason: "deleted" };
+  if (item.wa_catalog_excluded) return { ok: false, reason: "excluded" };
 
   const name = (item.name || "").trim();
   if (!name) return { ok: false, reason: "no_name" };
@@ -188,10 +196,14 @@ export function planCatalogSync(
   for (const item of items) {
     const built = buildCatalogProduct(item, partner);
     if (!built.ok) {
-      // A deleted item that was previously pushed has to be REMOVED from the
-      // catalogue, not merely skipped, or WhatsApp keeps selling a dish the
-      // restaurant took off the menu.
-      if (built.reason === "deleted") {
+      // A deleted OR excluded item that was previously pushed has to be REMOVED
+      // from the catalogue, not merely skipped, or WhatsApp keeps selling a dish
+      // the restaurant took off the menu — or off WhatsApp specifically.
+      //
+      // DELETE is idempotent on Meta's side, so re-sending it for an item that
+      // was never pushed is harmless; the alternative (tracking whether we ever
+      // pushed it) would go wrong exactly once and leave a dish on sale.
+      if (built.reason === "deleted" || built.reason === "excluded") {
         requests.push({ method: "DELETE", retailer_id: item.id });
       } else {
         skipped.push({ id: item.id, reason: built.reason });

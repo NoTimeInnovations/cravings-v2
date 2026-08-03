@@ -8,12 +8,23 @@ import {
   CheckCircle2,
   ImageOff,
   Loader2,
+  Pencil,
   RefreshCw,
+  Search,
   Send,
   ShoppingBag,
+  Trash2,
+  Undo2,
+  X,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { sendCatalogueToCustomer } from "@/app/actions/whatsappCatalogSend";
+import {
+  updateCatalogItem,
+  setCatalogItemExcluded,
+  deleteCatalogItem,
+  syncSingleCatalogItem,
+} from "@/app/actions/whatsappCatalogItems";
 import {
   getCatalogSyncStatus,
   provisionAndSyncCatalog,
@@ -41,8 +52,33 @@ const REASON_LABEL: Record<string, string> = {
   deleted: "Removed from menu",
 };
 
-function ItemRow({ item }: { item: CatalogItemStatus }) {
+function ItemRow({
+  item,
+  busy,
+  onEdit,
+  onToggleExclude,
+  onDelete,
+  onSync,
+}: {
+  item: CatalogItemStatus;
+  busy: boolean;
+  onEdit: () => void;
+  onToggleExclude: () => void;
+  onDelete: () => void;
+  onSync: () => void;
+}) {
   const blocked = !!item.reason;
+  const badge = item.excluded
+    ? { text: "Off WhatsApp", cls: "border-border bg-muted text-muted-foreground" }
+    : blocked
+      ? {
+          text: REASON_LABEL[item.reason as string] ?? item.reason ?? "",
+          cls: "border-amber-300 bg-amber-50 text-amber-700",
+        }
+      : item.syncedAt
+        ? { text: "Synced", cls: "border-emerald-300 bg-emerald-50 text-emerald-700" }
+        : { text: "Pending", cls: "border-border bg-muted text-muted-foreground" };
+
   return (
     <div className="flex items-center gap-3 border-b px-3 py-2 last:border-b-0">
       {item.imageUrl ? (
@@ -50,7 +86,7 @@ function ItemRow({ item }: { item: CatalogItemStatus }) {
         <img
           src={item.imageUrl}
           alt=""
-          className="h-9 w-9 shrink-0 rounded object-cover"
+          className={`h-9 w-9 shrink-0 rounded object-cover ${item.excluded ? "opacity-40" : ""}`}
           loading="lazy"
         />
       ) : (
@@ -59,28 +95,63 @@ function ItemRow({ item }: { item: CatalogItemStatus }) {
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{item.name}</p>
+        <p className={`truncate text-sm font-medium ${item.excluded ? "text-muted-foreground" : ""}`}>
+          {item.name}
+        </p>
         {blocked ? (
           <p className="truncate text-xs text-amber-700">{item.reasonText}</p>
-        ) : item.syncedAt ? (
+        ) : item.excluded ? (
           <p className="truncate text-xs text-muted-foreground">
-            In your WhatsApp catalogue
+            Removed from WhatsApp — still on your menu
           </p>
+        ) : item.syncedAt ? (
+          <p className="truncate text-xs text-muted-foreground">In your WhatsApp catalogue</p>
         ) : (
           <p className="truncate text-xs text-muted-foreground">Not sent yet</p>
         )}
       </div>
-      <span
-        className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium ${
-          blocked
-            ? "border-amber-300 bg-amber-50 text-amber-700"
-            : item.syncedAt
-              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-              : "border-border bg-muted text-muted-foreground"
-        }`}
-      >
-        {blocked ? (REASON_LABEL[item.reason as string] ?? item.reason) : item.syncedAt ? "Synced" : "Pending"}
+
+      <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium ${badge.cls}`}>
+        {badge.text}
       </span>
+
+      <div className="flex shrink-0 items-center gap-1">
+        {busy ? (
+          <Loader2 className="mx-2 h-4 w-4 animate-spin text-muted-foreground" />
+        ) : (
+          <>
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={onEdit}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            {/* Only offered when it would actually do something: a dish that is
+                blocked (no photo, no price) cannot be pushed, and offering the
+                button would just produce an error toast. */}
+            {!item.excluded && !blocked && !item.syncedAt && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Send to WhatsApp" onClick={onSync}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title={item.excluded ? "Add back to WhatsApp" : "Remove from WhatsApp"}
+              onClick={onToggleExclude}
+            >
+              {item.excluded ? <Undo2 className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-rose-600 hover:text-rose-700"
+              title="Delete from WhatsApp and your menu"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -96,6 +167,18 @@ export function AdminV2WhatsAppCatalogue() {
   const [showAll, setShowAll] = useState(false);
   const [sendPhone, setSendPhone] = useState("");
   const [sending, setSending] = useState(false);
+  const [query, setQuery] = useState("");
+  /** id of the row currently mid-action, so only that row shows a spinner. */
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<CatalogItemStatus | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editImage, setEditImage] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  /** Keyed on the URL, so correcting a typo clears the error instead of leaving
+   *  the preview permanently hidden (the old code set style.display="none" and
+   *  nothing ever set it back). */
+  const [badPreviewUrl, setBadPreviewUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!partnerId) return;
@@ -199,6 +282,56 @@ export function AdminV2WhatsAppCatalogue() {
     }
   };
 
+  /** Every per-item action shares this: spinner on one row, reload after, and
+   *  the action's own message surfaced rather than a generic failure. */
+  const runItemAction = async (
+    id: string,
+    fn: () => Promise<{ ok: boolean; message?: string }>,
+    successText: string,
+  ) => {
+    if (busyId) return;
+    setBusyId(id);
+    try {
+      const r = await fn();
+      if (r.ok) toast.success(r.message || successText);
+      else toast.error(r.message || "That didn't work.");
+    } catch (e) {
+      toast.error((e as Error).message || "That didn't work.");
+    } finally {
+      setBusyId(null);
+      await load();
+    }
+  };
+
+  const openEdit = (item: CatalogItemStatus) => {
+    setEditing(item);
+    setEditName(item.name);
+    setEditDesc(item.description ?? "");
+    setEditImage(item.imageUrl ?? "");
+    setBadPreviewUrl(null);
+  };
+
+  const saveEdit = async () => {
+    if (!partnerId || !editing || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      const r = await updateCatalogItem(partnerId, editing.id, {
+        name: editName,
+        description: editDesc,
+        imageUrl: editImage,
+      });
+      if (r.ok) {
+        toast.success(r.message || "Saved.");
+        setEditing(null);
+        await load();
+      } else {
+        toast.error(r.message || "Could not save.");
+      }
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   if (loading && !status) {
     return (
       <div className="flex items-center gap-2 rounded-xl border bg-card p-6 text-sm text-muted-foreground">
@@ -221,7 +354,18 @@ export function AdminV2WhatsAppCatalogue() {
   }
 
   const blocked = status.items.filter((i) => i.reason);
-  const visible = showAll ? status.items : status.items.slice(0, 25);
+  // Search filters the WHOLE list before the 25-row cap, otherwise a dish past
+  // row 25 would be unfindable — which is the main reason to have a search box
+  // on a 124-item menu at all.
+  const q = query.trim().toLowerCase();
+  const matched = q
+    ? status.items.filter(
+        (i) =>
+          i.name.toLowerCase().includes(q) ||
+          (i.description || "").toLowerCase().includes(q),
+      )
+    : status.items;
+  const visible = showAll || q ? matched : matched.slice(0, 25);
 
   return (
     <div className="space-y-4">
@@ -245,7 +389,7 @@ export function AdminV2WhatsAppCatalogue() {
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border bg-card p-4">
           <p className="text-2xl font-bold tabular-nums">{status.eligibleCount}</p>
           <p className="text-sm text-muted-foreground">Ready for WhatsApp</p>
@@ -266,6 +410,12 @@ export function AdminV2WhatsAppCatalogue() {
           </p>
           <p className="text-sm text-muted-foreground">Need attention</p>
         </div>
+        {status.excludedCount > 0 && (
+          <div className="rounded-xl border bg-card p-4">
+            <p className="text-2xl font-bold tabular-nums">{status.excludedCount}</p>
+            <p className="text-sm text-muted-foreground">Off WhatsApp (by you)</p>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4">
@@ -353,28 +503,161 @@ export function AdminV2WhatsAppCatalogue() {
       <div className="overflow-hidden rounded-xl border bg-card">
         <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Menu items ({status.total})
+            Menu items ({q ? `${matched.length} of ${status.total}` : status.total})
           </p>
-          {status.ineligibleCount > 0 && (
-            <p className="text-xs text-muted-foreground">Problems listed first</p>
-          )}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search dishes"
+              className="h-8 w-44 rounded-md border bg-background pl-7 pr-2 text-sm"
+            />
+          </div>
         </div>
         {status.items.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
             You have no menu items yet.
           </p>
+        ) : visible.length === 0 ? (
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+            No dishes match “{query}”.
+          </p>
         ) : (
-          visible.map((item) => <ItemRow key={item.id} item={item} />)
+          visible.map((item) => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              busy={busyId === item.id}
+              onEdit={() => openEdit(item)}
+              onSync={() =>
+                runItemAction(
+                  item.id,
+                  () => syncSingleCatalogItem(partnerId!, item.id),
+                  `${item.name} is now on WhatsApp.`,
+                )
+              }
+              onToggleExclude={() =>
+                runItemAction(
+                  item.id,
+                  () => setCatalogItemExcluded(partnerId!, item.id, !item.excluded),
+                  item.excluded
+                    ? `${item.name} is back on WhatsApp.`
+                    : `${item.name} removed from WhatsApp. It's still on your menu.`,
+                )
+              }
+              onDelete={() => {
+                // Deleting reaches OUTSIDE this screen — storefront, QR menu and
+                // POS all lose the dish — so it gets an explicit confirmation
+                // that says so.
+                if (
+                  !window.confirm(
+                    `Delete "${item.name}"?\n\nThis removes it from WhatsApp AND from your menu, so it disappears from your storefront, QR menu and POS too.`,
+                  )
+                )
+                  return;
+                void runItemAction(
+                  item.id,
+                  () => deleteCatalogItem(partnerId!, item.id),
+                  `${item.name} deleted.`,
+                );
+              }}
+            />
+          ))
         )}
       </div>
 
-      {status.items.length > visible.length && (
+      {!q && matched.length > visible.length && (
         <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
           Show all {status.total} items
         </Button>
       )}
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
+
+      {editing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !savingEdit && setEditing(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl bg-background p-5 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-semibold">Edit dish</h3>
+            {/* Said up front, because it is the surprising part: this is not a
+                WhatsApp-only edit. */}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Changes apply to your whole menu — storefront, QR menu and POS — and
+              are sent to WhatsApp straight away.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Name</label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Description</label>
+                <textarea
+                  rows={3}
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  placeholder="Shown under the dish in WhatsApp"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Photo URL</label>
+                <input
+                  value={editImage}
+                  onChange={(e) => setEditImage(e.target.value)}
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  placeholder="https://…"
+                />
+                <p className="text-xs text-muted-foreground">
+                  WhatsApp will not list a dish without a photo.
+                </p>
+                {editImage.trim() ? (
+                  badPreviewUrl === editImage.trim() ? (
+                    <p className="mt-2 text-xs text-rose-600">
+                      That image didn’t load. Check the link.
+                    </p>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={editImage.trim()}
+                      src={editImage.trim()}
+                      alt=""
+                      className="mt-2 h-20 w-20 rounded object-cover"
+                      onError={() => setBadPreviewUrl(editImage.trim())}
+                    />
+                  )
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setEditing(null)} disabled={savingEdit}>
+                Cancel
+              </Button>
+              <Button onClick={saveEdit} disabled={savingEdit || !editName.trim()}>
+                {savingEdit ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
+                  </>
+                ) : (
+                  "Save & update WhatsApp"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

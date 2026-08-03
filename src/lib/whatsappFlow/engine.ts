@@ -135,6 +135,11 @@ const Q_PARTNER_INFO = `
         deletion_status: { _eq: 0 }
         is_available: { _eq: true }
         wa_catalog_synced_at: { _is_null: false }
+        # The partner's DECISION, not the bookkeeping stamp. Filtering on
+        # synced_at alone made "removed from WhatsApp" depend on a column any
+        # write path can set, so a stale stamp would put a dish Meta no longer
+        # holds back into a customer message as a blank row.
+        wa_catalog_excluded: { _eq: false }
         image_url: { _is_null: false }
       }
       order_by: { priority: asc }
