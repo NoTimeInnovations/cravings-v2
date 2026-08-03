@@ -9,9 +9,11 @@ import {
   ImageOff,
   Loader2,
   RefreshCw,
+  Send,
   ShoppingBag,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { sendCatalogueToCustomer } from "@/app/actions/whatsappCatalogSend";
 import {
   getCatalogSyncStatus,
   provisionAndSyncCatalog,
@@ -92,6 +94,8 @@ export function AdminV2WhatsAppCatalogue() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [sendPhone, setSendPhone] = useState("");
+  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     if (!partnerId) return;
@@ -170,6 +174,28 @@ export function AdminV2WhatsAppCatalogue() {
     } finally {
       setSyncing(false);
       await load();
+    }
+  };
+
+  const handleSend = async () => {
+    if (!partnerId || sending || !sendPhone.trim()) return;
+    setSending(true);
+    try {
+      const r = await sendCatalogueToCustomer(partnerId, sendPhone.trim());
+      if (r.ok) {
+        const n = r.sent ?? 0;
+        toast.success(
+          r.eligible && r.eligible > n
+            ? `Sent ${n} of your ${r.eligible} dishes (WhatsApp caps a menu message at ${n}).`
+            : `Sent ${n} dish${n === 1 ? "" : "es"} to ${sendPhone.trim()}.`,
+        );
+      } else {
+        toast.error(r.message || "Could not send the menu.");
+      }
+    } catch (e) {
+      toast.error((e as Error).message || "Could not send the menu.");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -260,6 +286,41 @@ export function AdminV2WhatsAppCatalogue() {
           what’s there rather than duplicating it.
         </p>
       </div>
+
+      {status.catalogId && status.syncedCount > 0 && (
+        <div className="rounded-xl border bg-card p-4">
+          <p className="font-medium">Send your menu to a customer</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Sends a browsable list of dishes straight into the chat. WhatsApp only
+            allows this if they’ve messaged you in the last 24 hours.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              type="tel"
+              inputMode="tel"
+              value={sendPhone}
+              onChange={(e) => setSendPhone(e.target.value)}
+              placeholder="Customer’s WhatsApp number"
+              className="h-9 w-56 rounded-md border bg-background px-3 text-sm"
+            />
+            <Button
+              variant="outline"
+              onClick={handleSend}
+              disabled={sending || !sendPhone.trim()}
+            >
+              {sending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending…
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" /> Send menu
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {status.catalogId && (
         <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-3.5">
