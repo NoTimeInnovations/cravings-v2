@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { VariableTextInput } from "./VariableTextInput";
+import { TestFlowDialog } from "./TestFlowDialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -60,6 +61,7 @@ import {
   AudioLines,
   ExternalLink,
   ShoppingBag,
+  Play,
 } from "lucide-react";
 import type {
   FlowNodeType,
@@ -72,7 +74,20 @@ import {
   ORDER_FLOW_VARIABLES,
   LOYALTY_EVENTS,
   LOYALTY_FLOW_VARIABLES,
+  MESSAGE_FLOW_VARIABLES,
+  MESSAGE_FLOW_VARIABLE_INFO,
 } from "@/lib/whatsappFlow/types";
+
+// Trigger match-types that fire on an inbound customer message (welcome, "hi",
+// any message, …) rather than a backend event. These runs get the store/order
+// variables in MESSAGE_FLOW_VARIABLES (shop_open, delivery_hours, order_link, …).
+const MESSAGE_TRIGGER_TYPES = new Set([
+  "welcome",
+  "exact",
+  "contains",
+  "any",
+  "default",
+]);
 
 const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; accent: string }> = {
   trigger: { label: "Trigger", icon: Zap, accent: "#f59e0b" },
@@ -340,6 +355,7 @@ function BuilderInner({
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
 
   // Seed a trigger node for new flows; hydrate from the API for existing ones.
   useEffect(() => {
@@ -554,26 +570,42 @@ function BuilderInner({
       ) : (
         <div className="flex min-h-0 flex-1">
           {/* Palette */}
-          <div className="w-[190px] shrink-0 overflow-y-auto border-r p-2">
-            <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">Add step</p>
-            <div className="space-y-1">
-              {PALETTE.map((type) => {
-                const meta = NODE_META[type];
-                const Icon = meta.icon;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => addNode(type)}
-                    className="flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs hover:bg-muted"
-                  >
-                    <Icon className="h-4 w-4" style={{ color: meta.accent }} />
-                    <span className="flex-1">{meta.label}</span>
-                    <Plus className="h-3 w-3 text-muted-foreground" />
-                  </button>
-                );
-              })}
+          <div className="flex w-[190px] shrink-0 flex-col border-r">
+            <div className="flex-1 overflow-y-auto p-2">
+              <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">Add step</p>
+              <div className="space-y-1">
+                {PALETTE.map((type) => {
+                  const meta = NODE_META[type];
+                  const Icon = meta.icon;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => addNode(type)}
+                      className="flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs hover:bg-muted"
+                    >
+                      <Icon className="h-4 w-4" style={{ color: meta.accent }} />
+                      <span className="flex-1">{meta.label}</span>
+                      <Plus className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+            {/* Test button — pinned at the bottom. Simulates the flow against the
+                store's live situation. Needs a partner, so hidden for global flows. */}
+            {!isGlobal && (
+              <div className="border-t p-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setTestOpen(true)}
+                  className="w-full gap-1.5 border-green-600 text-green-700 hover:bg-green-50 hover:text-green-800"
+                >
+                  <Play className="h-4 w-4" />
+                  Test this flow
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Canvas */}
@@ -614,6 +646,14 @@ function BuilderInner({
           </div>
         </div>
       )}
+
+      {/* Test / simulate dialog */}
+      <TestFlowDialog
+        open={testOpen}
+        onOpenChange={setTestOpen}
+        partnerId={partnerId}
+        getGraph={buildGraph}
+      />
 
       {/* Save dialog */}
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
@@ -729,17 +769,20 @@ function Inspector({
     const set = new Set<string>();
     let hasOrder = false;
     let hasLoyalty = false;
+    let hasMessage = false;
     for (const n of allNodes) {
       const d = (n.data || {}) as any;
       if (n.type === "trigger") {
         if (d.matchType === "order") hasOrder = true;
-        if (d.matchType === "loyalty") hasLoyalty = true;
+        else if (d.matchType === "loyalty") hasLoyalty = true;
+        else if (MESSAGE_TRIGGER_TYPES.has(d.matchType || "any")) hasMessage = true;
       }
       if (n.type === "wait_for_reply" && d.variableName) set.add(String(d.variableName));
       if (n.type === "set_variable" && d.name) set.add(String(d.name));
     }
     if (hasOrder) ORDER_FLOW_VARIABLES.forEach((v) => set.add(v));
     if (hasLoyalty) LOYALTY_FLOW_VARIABLES.forEach((v) => set.add(v));
+    if (hasMessage) MESSAGE_FLOW_VARIABLES.forEach((v) => set.add(v));
     return Array.from(set);
   }, [allNodes]);
 
@@ -820,6 +863,26 @@ function Inspector({
                 </p>
               </div>
             </>
+          )}
+          {MESSAGE_TRIGGER_TYPES.has(data.matchType || "any") && (
+            <div className="space-y-1.5 rounded-md border bg-muted/40 p-2 text-[11px] leading-relaxed text-muted-foreground">
+              <p className="font-medium text-foreground">Store variables you can use</p>
+              <p>
+                Use these in any message (type <span className="font-mono">#</span>)
+                or in a Condition step — e.g. branch on{" "}
+                <span className="font-mono">{`{{shop_open}}`}</span> equals{" "}
+                <span className="font-mono">false</span> to reply when you&apos;re
+                closed.
+              </p>
+              <dl className="space-y-0.5">
+                {MESSAGE_FLOW_VARIABLE_INFO.map((v) => (
+                  <div key={v.name} className="flex gap-1.5">
+                    <dt className="shrink-0 font-mono text-foreground">{`{{${v.name}}}`}</dt>
+                    <dd className="min-w-0">— {v.desc}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           )}
         </>
       )}

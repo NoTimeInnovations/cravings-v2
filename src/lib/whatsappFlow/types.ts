@@ -153,6 +153,37 @@ export const LOYALTY_FLOW_VARIABLES = [
   "currency",
 ] as const;
 
+// ─── Message-triggered flows (welcome / keyword / any) ───────────
+// Variables the engine injects into every MESSAGE-triggered run (welcome, exact,
+// contains, any, default) — the "hi"/"menu" greeting paths. Unlike order/loyalty
+// these carry no event payload; they describe the STORE and the customer's own
+// order history, so a welcome flow can branch on whether the shop is open, show
+// today's timings, or offer a one-tap reorder. Each entry has a short,
+// partner-facing description shown in the builder's variable helper box.
+//
+// The boolean flags render as the literal strings "true" / "false", so a
+// condition node checks them with equals "true" (or "false").
+export const MESSAGE_FLOW_VARIABLE_INFO: { name: string; desc: string }[] = [
+  { name: "shop_open", desc: `"true" if your store's open/closed switch is ON, else "false"` },
+  { name: "can_order_now", desc: `"true" if delivery OR takeaway is open right now (by your timings)` },
+  { name: "delivery_available_now", desc: `"true" if delivery is open right now` },
+  { name: "takeaway_available_now", desc: `"true" if takeaway is open right now` },
+  { name: "delivery_hours", desc: `Your delivery timings, e.g. "9:00 AM to 10:00 PM"` },
+  { name: "takeaway_hours", desc: `Your takeaway timings` },
+  { name: "store_name", desc: "Your store's name" },
+  { name: "currency", desc: "Your currency symbol (₹, $, …)" },
+  { name: "order_link", desc: "A ready-to-tap link for the customer to place an order" },
+  { name: "reorder_link", desc: "Link that repeats the customer's last order (blank if none)" },
+  { name: "reorder_items", desc: "List of the customer's last order's items (blank if none)" },
+  { name: "reorder_total", desc: "Total of the customer's last order (blank if none)" },
+  { name: "table_name", desc: `The table they named/scanned, e.g. "Table 5" (blank if none)` },
+];
+
+// Just the names, for the "#" variable picker in message fields.
+export const MESSAGE_FLOW_VARIABLES = MESSAGE_FLOW_VARIABLE_INFO.map(
+  (v) => v.name,
+) as readonly string[];
+
 // ─── Conditions / captures ───────────────────────────────────────
 export type ConditionOp = "equals" | "contains" | "isEmpty" | "gt" | "lt";
 

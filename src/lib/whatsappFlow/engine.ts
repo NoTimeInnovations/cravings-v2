@@ -125,7 +125,7 @@ const Q_DUE_SLEEPING = `
 `;
 const Q_PARTNER_INFO = `
   query PartnerInfo($id: uuid!) {
-    partners_by_pk(id: $id) { store_name username currency country_code custom_domain delivery_rules timezone wa_catalog_id }
+    partners_by_pk(id: $id) { store_name username currency country_code custom_domain delivery_rules timezone wa_catalog_id is_shop_open }
     # One currently-synced, available dish to use as the catalogue thumbnail.
     # It MUST be a product Meta actually holds — a stale retailer id renders a
     # blank card rather than an error.
@@ -643,6 +643,66 @@ function executeForward(
   return { parkedNodeId: null, completed: true };
 }
 
+// ─── Simulation (builder "Test this flow") ───────────────────────
+// A dry-run of a flow for the builder's preview: walks the SAME graph with the
+// SAME executeForward the live engine uses, so what a partner sees in the test
+// can't drift from what a customer actually gets. Conditions are evaluated
+// against the variables passed in (the partner's live shop/delivery state, or
+// sample order/loyalty data), so the branch taken reflects the real situation
+// "at this moment". Unlike a real run this never touches the DB or sends
+// anything — it just collects the outbound messages.
+//
+// Delays are "fast-forwarded": their downstream messages are automatic, so the
+// preview keeps walking past a delay (emitting a marker) instead of parking.
+// A buttons / wait_for_reply step is where the customer must act, so the walk
+// stops there and emits a "wait" marker (the preview can't guess their reply).
+export type SimStep =
+  | (Outbound & { marker?: undefined })
+  | { kind: "delay"; marker: true; seconds: number }
+  | { kind: "wait"; marker: true; waitFor: "reply" | "choice" };
+
+export function simulateFlow(
+  graph: FlowGraph,
+  variables: Record<string, unknown>,
+  startNodeId: string | null,
+): { steps: SimStep[]; endedBy: "complete" | "wait" } {
+  const state: RunState = {
+    flowId: "sim",
+    variables: { ...variables },
+    stepCount: 0,
+    version: 0,
+  };
+  const steps: SimStep[] = [];
+  let start = startNodeId;
+  let guard = 0;
+  while (start && guard++ < 100) {
+    const outbound: Outbound[] = [];
+    const { parkedNodeId, completed, sleepMs } = executeForward(graph, start, state, outbound);
+    for (const o of outbound) steps.push(o as SimStep);
+    if (completed) return { steps, endedBy: "complete" };
+    if (sleepMs && sleepMs > 0 && parkedNodeId) {
+      // Delay: note it and keep walking — the next steps fire automatically.
+      steps.push({ kind: "delay", marker: true, seconds: Math.round(sleepMs / 1000) });
+      start = parkedNodeId;
+      continue;
+    }
+    // Parked awaiting customer input (buttons / wait_for_reply), or hit the
+    // per-turn send cap. Only the first two are genuine waits worth marking.
+    const node = nodeById(graph, parkedNodeId);
+    if (node?.type === "wait_for_reply") {
+      steps.push({ kind: "wait", marker: true, waitFor: "reply" });
+      return { steps, endedBy: "wait" };
+    }
+    if (node?.type === "buttons") {
+      steps.push({ kind: "wait", marker: true, waitFor: "choice" });
+      return { steps, endedBy: "wait" };
+    }
+    // Send-cap or an unexpected park: treat as done.
+    return { steps, endedBy: "complete" };
+  }
+  return { steps, endedBy: "complete" };
+}
+
 // Persistence fields for a run's post-turn state. When the walk parked on a
 // delay (`sleepMs`), the row sleeps: resume_at holds the wake time and the TTL
 // is pushed out so it always outlives the delay. Otherwise resume_at is cleared
@@ -1011,7 +1071,7 @@ async function abortRun(id: string): Promise<void> {
   await fetchFromHasura(M_ABORT_RUN, { id }).catch(() => {});
 }
 
-interface PartnerInfo {
+export interface PartnerInfo {
   store_name?: string | null;
   username?: string | null;
   currency?: string | null;
@@ -1023,13 +1083,14 @@ interface PartnerInfo {
   /** Injected at the unpack site from the sibling `menu` selection — the first
    *  synced, available dish, used as the catalogue card's thumbnail. */
   catalog_thumbnail_id?: string | null;
+  is_shop_open?: boolean | null;
 }
 
 // System variables available to every message-triggered run. Pure (no DB): the
 // partner row and last order are prefetched in startNewRun's parallel wave, and
 // the auto-login link is an ENCRYPTED PHONE token, so the customer's account is
 // resolved/created only when they tap — nothing on the reply path waits on it.
-function buildMessageRunVars(
+export function buildMessageRunVars(
   partnerId: string,
   localPhone: string,
   partner: PartnerInfo | null,
@@ -1091,7 +1152,16 @@ function buildMessageRunVars(
   const deliveryHours = fmtRange(dr?.delivery_time_allowed);
   const takeawayHours = fmtRange(dr?.takeaway_time_allowed);
 
+  // Manual open/closed switch (General settings → "Your store is open"). Distinct
+  // from the time-window flags below: a partner can be within delivery hours yet
+  // have flipped the store closed. Defaults to open when the column is
+  // null/undefined so an unset partner isn't treated as permanently shut.
+  const shopOpen = p.is_shop_open !== false;
+
   return {
+    // "true" only when the store's open/closed switch is ON. A welcome flow can
+    // branch on this to answer "are you open?" before offering the order link.
+    shop_open: shopOpen ? "true" : "false",
     delivery_available_now: deliveryNow ? "true" : "false",
     takeaway_available_now: takeawayNow ? "true" : "false",
     // "true" if at least one order type (delivery OR takeaway) is open right now.
