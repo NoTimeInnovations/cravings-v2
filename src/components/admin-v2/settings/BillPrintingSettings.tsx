@@ -20,6 +20,9 @@ import {
     isBillDetailQrEnabled,
     isBillLogoEnabled,
     getBillLogoUrl,
+    isBillAutoPrintEnabled,
+    getBillAutoPrintStatus,
+    BILL_AUTO_PRINT_STATUSES,
     type BillLayout,
 } from "@/lib/printLayout";
 
@@ -47,6 +50,8 @@ export function BillPrintingSettings() {
     const [showLogo, setShowLogo] = useState(false);
     const [billLogoUrl, setBillLogoUrl] = useState<string | null>(null);
     const [isLogoUploading, setIsLogoUploading] = useState(false);
+    const [autoPrint, setAutoPrint] = useState(false);
+    const [autoPrintStatus, setAutoPrintStatus] = useState("completed");
 
     useEffect(() => {
         if (userData) {
@@ -57,6 +62,8 @@ export function BillPrintingSettings() {
             setShowDetailQr(isBillDetailQrEnabled(data.delivery_rules));
             setShowLogo(isBillLogoEnabled(data.delivery_rules));
             setBillLogoUrl(getBillLogoUrl(data.delivery_rules));
+            setAutoPrint(isBillAutoPrintEnabled(data.delivery_rules));
+            setAutoPrintStatus(getBillAutoPrintStatus(data.delivery_rules));
         }
     }, [userData]);
 
@@ -115,6 +122,8 @@ export function BillPrintingSettings() {
                     bill_show_detail_qr: showDetailQr,
                     bill_show_logo: showLogo,
                     bill_logo_url: billLogoUrl || "",
+                    bill_auto_print_enabled: autoPrint,
+                    bill_auto_print_status: autoPrintStatus,
                 },
             };
 
@@ -129,7 +138,7 @@ export function BillPrintingSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, includeCategoryName, billLayout, fullArabic, showDetailQr, showLogo, billLogoUrl, setState]);
+    }, [userData, includeCategoryName, billLayout, fullArabic, showDetailQr, showLogo, billLogoUrl, autoPrint, autoPrintStatus, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -154,9 +163,11 @@ export function BillPrintingSettings() {
             fullArabic !== isFullArabic(data.delivery_rules) ||
             showDetailQr !== isBillDetailQrEnabled(data.delivery_rules) ||
             showLogo !== isBillLogoEnabled(data.delivery_rules) ||
-            (billLogoUrl || null) !== getBillLogoUrl(data.delivery_rules);
+            (billLogoUrl || null) !== getBillLogoUrl(data.delivery_rules) ||
+            autoPrint !== isBillAutoPrintEnabled(data.delivery_rules) ||
+            autoPrintStatus !== getBillAutoPrintStatus(data.delivery_rules);
         setHasChanges(changed);
-    }, [includeCategoryName, billLayout, fullArabic, showDetailQr, showLogo, billLogoUrl, userData, setHasChanges]);
+    }, [includeCategoryName, billLayout, fullArabic, showDetailQr, showLogo, billLogoUrl, autoPrint, autoPrintStatus, userData, setHasChanges]);
 
     return (
         <div className="space-y-6">
@@ -302,6 +313,50 @@ export function BillPrintingSettings() {
                         </div>
                         <Switch checked={fullArabic} onCheckedChange={setFullArabic} />
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Auto print</CardTitle>
+                    <CardDescription>
+                        Open the bill automatically when an order reaches a chosen status,
+                        so nobody has to press Print.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5 pr-4">
+                            <Label>Auto print the bill</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Prints from the device where the status is changed, so keep
+                                this dashboard open on the machine with the printer.
+                            </p>
+                        </div>
+                        <Switch checked={autoPrint} onCheckedChange={setAutoPrint} />
+                    </div>
+
+                    {autoPrint && (
+                        <div className="space-y-2 rounded-lg border p-4">
+                            <Label>Print when the order status changes to</Label>
+                            <select
+                                value={autoPrintStatus}
+                                onChange={(e) => setAutoPrintStatus(e.target.value)}
+                                className="h-9 w-full max-w-xs rounded-md border bg-background px-3 text-sm"
+                            >
+                                {BILL_AUTO_PRINT_STATUSES.map((s) => (
+                                    <option key={s.value} value={s.value}>
+                                        {s.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-xs text-muted-foreground">
+                                Only this status prints — moving an order through earlier
+                                statuses on the way there does not. Cancelled is not offered:
+                                there is nothing to bill.
+                            </p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

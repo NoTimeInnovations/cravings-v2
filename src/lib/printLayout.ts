@@ -75,3 +75,39 @@ export function getBillLogoUrl(deliveryRules: any): string | null {
   const url = parseDeliveryRules(deliveryRules)?.bill_logo_url;
   return typeof url === "string" && url.trim() ? url.trim() : null;
 }
+
+/**
+ * Auto-print: open the bill automatically when an order reaches a chosen status
+ * (partners.delivery_rules.bill_auto_print_enabled / bill_auto_print_status).
+ *
+ * Two fields rather than one nullable status, so switching the feature off and
+ * on again does not forget which status the partner had picked.
+ */
+export function isBillAutoPrintEnabled(deliveryRules: any): boolean {
+  return !!parseDeliveryRules(deliveryRules)?.bill_auto_print_enabled;
+}
+
+/** Statuses a bill can auto-print on. Deliberately excludes "cancelled" — a
+ *  cancelled order has nothing to bill, and printing one wastes paper on the
+ *  busiest possible moment. */
+export const BILL_AUTO_PRINT_STATUSES: { value: string; label: string }[] = [
+  { value: "accepted", label: "Accepted" },
+  { value: "food_ready", label: "Food ready" },
+  { value: "dispatched", label: "Dispatched" },
+  { value: "completed", label: "Completed" },
+];
+
+export const DEFAULT_BILL_AUTO_PRINT_STATUS = "completed";
+
+/**
+ * Which status triggers the auto-print. Falls back to "completed" — the common
+ * case — and refuses a value not in the list above, so a hand-edited or stale
+ * delivery_rules cannot arm the trigger on something unexpected (e.g.
+ * "cancelled").
+ */
+export function getBillAutoPrintStatus(deliveryRules: any): string {
+  const v = parseDeliveryRules(deliveryRules)?.bill_auto_print_status;
+  return BILL_AUTO_PRINT_STATUSES.some((s) => s.value === v)
+    ? (v as string)
+    : DEFAULT_BILL_AUTO_PRINT_STATUS;
+}
