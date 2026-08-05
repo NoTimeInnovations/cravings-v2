@@ -546,12 +546,22 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     // which then prints the same documents that were asked for.
     const startPrint = (docs: PrintDoc[]) => {
         if (!activeOrderData) return;
-        if (activeOrderData.payment_method) {
-            printKotAndBill(activeOrderData.id, { docs });
-        } else {
+        // Only a BILL needs a payment method — a KOT is a kitchen ticket and
+        // never showed one. And on delivery nobody at the counter can know it
+        // yet: the rider collects at the door, or it was paid online. Asking
+        // there either blocks the print or trains staff to pick a wrong value;
+        // it is recorded afterwards from the order's Payment Details card.
+        const needsBill = docs.includes("bill");
+        const isDelivery =
+            activeOrderData.type === "delivery" ||
+            (typeof activeOrderData.deliveryAddress === "string" &&
+                activeOrderData.deliveryAddress.trim().length > 0);
+        if (needsBill && !activeOrderData.payment_method && !isDelivery) {
             setPendingPrintDocs(docs);
             setIsSelectingPaymentMethod(true);
+            return;
         }
+        printKotAndBill(activeOrderData.id, { docs });
     };
 
     const handlePrintBill = () => startPrint(["bill"]);
@@ -1145,7 +1155,14 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     Order #{activeOrderData.display_id || activeOrderData.id?.slice(0, 8)}
                                 </h3>
                                 <p className="text-xs text-muted-foreground">
-                                    {activeOrderData.tableName || `Table ${activeOrderData.tableNumber}`} • {
+                                    {/* Delivery and takeaway have no table, and the
+                                        bare fallback rendered a literal "Table null". */}
+                                    {(activeOrderData.tableName ||
+                                        (activeOrderData.tableNumber
+                                            ? `Table ${activeOrderData.tableNumber}`
+                                            : null)) &&
+                                        `${activeOrderData.tableName || `Table ${activeOrderData.tableNumber}`} • `}
+                                    {
                                         (activeOrderData.type === 'delivery' && !activeOrderData.deliveryAddress) ? "Takeaway" :
                                             activeOrderData.type === 'delivery' ? "Delivery" :
                                                 (activeOrderData.type === 'table_order' || activeOrderData.type === 'pos') ? "Dine-in" :
