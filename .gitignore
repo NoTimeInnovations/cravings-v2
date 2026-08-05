@@ -54,3 +54,8 @@ google_tokens.json
 # Local-only task list
 tasks.md
 .env*.local
+
+# Claude Code worktrees - local scratch checkouts. They were committed as
+# gitlinks with no .gitmodules entry, so every Vercel build warned
+# "Failed to fetch one or more git submodules" while trying to resolve them.
+/.claude/worktrees/

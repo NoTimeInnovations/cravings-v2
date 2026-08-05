@@ -398,6 +398,21 @@ export async function returnToTeleverySession(): Promise<{
  * mutable, so it must never try to clear a stale marker. And it must never
  * throw — an exception here is a 500 on the whole dashboard.
  */
+/**
+ * Next signals "you used a dynamic API during a static render" by THROWING, and
+ * relies on that error reaching it to bail out to dynamic rendering. A blanket
+ * catch swallows the signal — the route stays static and this returns
+ * managing:false, so an impersonated dashboard would render unmarked.
+ *
+ * Rethrow it; it is control flow, not a failure, and must never be logged as one.
+ */
+function rethrowIfDynamicBailout(err: unknown): void {
+  const digest = (err as { digest?: unknown } | null)?.digest;
+  if (typeof digest === "string" && digest.startsWith("DYNAMIC_SERVER_USAGE")) {
+    throw err;
+  }
+}
+
 export async function getManagedOutletContext(): Promise<{
   managing: boolean;
   outletName?: string;
@@ -419,10 +434,12 @@ export async function getManagedOutletContext(): Promise<{
         outletName: p?.store_name || p?.username || undefined,
       };
     } catch (err) {
+      rethrowIfDynamicBailout(err);
       console.error("getManagedOutletContext name lookup failed:", err);
       return { managing: true };
     }
   } catch (err) {
+    rethrowIfDynamicBailout(err);
     // A corrupt/re-keyed cookie makes decryptText throw; from an async layout
     // that is a 500 on every admin-v2 page instead of a normal dashboard.
     console.error("getManagedOutletContext failed:", err);

@@ -6,6 +6,20 @@ import { getManagedOutletContext } from "@/app/actions/televerySession";
 import { getSuperadminManagedContext } from "@/app/actions/superadminSession";
 import { ManagingOutletBanner } from "@/components/televery/ManagingOutletBanner";
 
+/**
+ * Never statically prerendered. This layout reads httpOnly cookies to decide
+ * whether the dashboard is being impersonated, so a static render is not just
+ * useless — it is wrong, and it was noisy: Next attempted a prerender at build
+ * time, cookies() threw DYNAMIC_SERVER_USAGE, and the two context actions logged
+ * it as a failure. Every production build showed
+ *
+ *   getSuperadminManagedContext failed: Error: Dynamic server usage: Route
+ *   /admin-v2 couldn't be rendered statically because it used `cookies`
+ *
+ * in red while succeeding, which trains people to ignore build errors.
+ */
+export const dynamic = "force-dynamic";
+
 export default async function AdminV2Layout({
     children,
 }: {

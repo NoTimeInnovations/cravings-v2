@@ -317,6 +317,21 @@ export async function returnToSuperadminSession(): Promise<{
  * mutable, so it must never try to clear a stale marker — and must never throw,
  * because an exception here is a 500 on the whole dashboard.
  */
+/**
+ * Next signals "you used a dynamic API during a static render" by THROWING, and
+ * relies on that error reaching it to bail out to dynamic rendering. A blanket
+ * catch swallows the signal — the route stays static and this returns
+ * managing:false, so an impersonated dashboard would render unmarked.
+ *
+ * Rethrow it; it is control flow, not a failure, and must never be logged as one.
+ */
+function rethrowIfDynamicBailout(err: unknown): void {
+  const digest = (err as { digest?: unknown } | null)?.digest;
+  if (typeof digest === "string" && digest.startsWith("DYNAMIC_SERVER_USAGE")) {
+    throw err;
+  }
+}
+
 export async function getSuperadminManagedContext(): Promise<{
   managing: boolean;
   partnerName?: string;
@@ -334,10 +349,12 @@ export async function getSuperadminManagedContext(): Promise<{
       const p = res?.partners_by_pk;
       return { managing: true, partnerName: p?.store_name || p?.username || undefined };
     } catch (err) {
+      rethrowIfDynamicBailout(err);
       console.error("getSuperadminManagedContext name lookup failed:", err);
       return { managing: true };
     }
   } catch (err) {
+    rethrowIfDynamicBailout(err);
     console.error("getSuperadminManagedContext failed:", err);
     return { managing: false };
   }
