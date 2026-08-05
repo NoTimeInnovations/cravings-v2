@@ -13,6 +13,14 @@ function getTimeWindowKey() {
     return Date.now().toString();
 }
 
+/** How recent an order must be to count as "just arrived" and ring the alarm. */
+const NEW_ORDER_WINDOW_MS = 5 * 60 * 1000;
+
+function isJustCreated(order: Order) {
+    const created = new Date(order.createdAt ?? "").getTime();
+    return Number.isFinite(created) && Date.now() - created <= NEW_ORDER_WINDOW_MS;
+}
+
 export function OrderSubscriptionManager() {
     const { userData } = useAuthStore();
     const {
@@ -31,7 +39,6 @@ export function OrderSubscriptionManager() {
     } = useOrderSubscriptionStore();
 
     const soundRef = useRef<Howl | null>(null);
-    const prevOrdersRef = useRef<Order[]>([]);
     const initialLoadCompleted = useRef<boolean>(false);
     const allSeenOrderIds = useRef<Set<string>>(new Set());
     // Orders that rang the alarm and have not been dealt with yet. The alarm
@@ -42,12 +49,16 @@ export function OrderSubscriptionManager() {
     // Track time window — periodically refresh to keep the rolling 24hr window current
     const [dateKey, setDateKey] = useState(getTimeWindowKey);
 
-    // Refresh the 24hr window every minute so the subscription stays current
+    // Refresh the 24hr window every minute so the subscription stays current.
+    //
+    // The seen-order set is deliberately NOT cleared here. It used to be, along
+    // with resetting initialLoadCompleted, which meant that once a minute the very
+    // next batch was silently swallowed as a fresh "baseline" — an order landing in
+    // that batch never rang. Keeping the ids means the re-subscribe simply sees
+    // everything as already-seen and stays quiet, while a real new order still rings.
     useEffect(() => {
         const interval = setInterval(() => {
             setDateKey(getTimeWindowKey());
-            initialLoadCompleted.current = false;
-            allSeenOrderIds.current.clear();
         }, 60 * 1000); // every 1 minute
 
         return () => clearInterval(interval);
@@ -116,7 +127,6 @@ export function OrderSubscriptionManager() {
                         allSeenOrderIds.current.add(order.id);
                     });
                     initialLoadCompleted.current = true;
-                    prevOrdersRef.current = paginatedOrders;
                     setLoading(false);
                     settleAlarm(paginatedOrders);
                     // Update store
@@ -124,19 +134,24 @@ export function OrderSubscriptionManager() {
                     return;
                 }
 
+                // An order is NEW when its id has never been seen AND it was created
+                // just now. The recency test is what makes this reliable: the old
+                // guard required the page to GROW, but the page holds `limit` (10)
+                // orders, so once a partner had 10 orders in the 24hr window a new
+                // order simply pushed the oldest off, the length never changed, and
+                // the alarm went permanently silent. Recency still rejects the case
+                // that guard existed for — old ids surfacing from a pagination shift
+                // or from paging around — because those orders are not recent.
                 const genuinelyNewOrders = paginatedOrders.filter(
-                    (order) => !allSeenOrderIds.current.has(order.id)
+                    (order) =>
+                        !allSeenOrderIds.current.has(order.id) && isJustCreated(order)
                 );
 
                 paginatedOrders.forEach((order) => {
                     allSeenOrderIds.current.add(order.id);
                 });
 
-                // Only show new-order notification if the list actually grew.
-                // When an order is deleted, pagination shifts can surface
-                // previously-unseen IDs — those are NOT new orders.
-                const listGrew = paginatedOrders.length > prevOrdersRef.current.length;
-                if (genuinelyNewOrders.length > 0 && listGrew) {
+                if (genuinelyNewOrders.length > 0) {
                     genuinelyNewOrders.forEach((order) =>
                         alertingOrderIds.current.add(order.id)
                     );
@@ -155,7 +170,6 @@ export function OrderSubscriptionManager() {
 
                 settleAlarm(paginatedOrders);
 
-                prevOrdersRef.current = paginatedOrders;
                 setLoading(false);
                 // Update store
                 setOrders(paginatedOrders);
