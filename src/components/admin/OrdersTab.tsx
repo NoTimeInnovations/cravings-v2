@@ -83,7 +83,7 @@ const OrdersTab = () => {
   // Preload sound effect immediately
   useEffect(() => {
     soundRef.current = new Howl({
-      src: ["/audio/tone.wav"],
+      src: ["/audio/custom_sound.mp3"],
       volume: 1,
       preload: true,
     });

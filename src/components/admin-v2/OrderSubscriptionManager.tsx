@@ -33,6 +33,10 @@ export function OrderSubscriptionManager() {
     const prevOrdersRef = useRef<Order[]>([]);
     const initialLoadCompleted = useRef<boolean>(false);
     const allSeenOrderIds = useRef<Set<string>>(new Set());
+    // Orders that rang the alarm and have not been dealt with yet. The alarm
+    // loops until this is empty, i.e. until every new order has been accepted
+    // (or otherwise moved off `pending` — cancelled counts as dealt with too).
+    const alertingOrderIds = useRef<Set<string>>(new Set());
 
     // Track time window — periodically refresh to keep the rolling 24hr window current
     const [dateKey, setDateKey] = useState(getTimeWindowKey);
@@ -48,13 +52,20 @@ export function OrderSubscriptionManager() {
         return () => clearInterval(interval);
     }, []);
 
-    // Initialize sound
+    // Initialize sound. It LOOPS: a new order keeps ringing until it is accepted,
+    // so a busy counter can't miss one. Silenced by settleAlarm() below.
     useEffect(() => {
         soundRef.current = new Howl({
-            src: ["/audio/tone.wav"],
+            src: ["/audio/custom_sound.mp3"],
             volume: 1,
+            loop: true,
             preload: true,
         });
+        return () => {
+            soundRef.current?.stop();
+            soundRef.current?.unload();
+            soundRef.current = null;
+        };
     }, []);
 
     // Subscribe to order count
@@ -74,6 +85,23 @@ export function OrderSubscriptionManager() {
 
         const offset = (currentPage - 1) * limit;
 
+        // Silence the alarm once every order that raised it has been accepted
+        // (i.e. left `pending`) or vanished from the list. Runs on EVERY update,
+        // including the re-seed after the 24hr window refreshes, so accepting an
+        // order always stops the ringing promptly.
+        const settleAlarm = (currentOrders: Order[]) => {
+            if (alertingOrderIds.current.size === 0) return;
+            const stillPending = new Set(
+                currentOrders
+                    .filter((order) => order.status === "pending")
+                    .map((order) => order.id)
+            );
+            alertingOrderIds.current.forEach((id) => {
+                if (!stillPending.has(id)) alertingOrderIds.current.delete(id);
+            });
+            if (alertingOrderIds.current.size === 0) soundRef.current?.stop();
+        };
+
         const unsubscribe = subscribePaginatedOrders(
             limit,
             offset,
@@ -85,6 +113,7 @@ export function OrderSubscriptionManager() {
                     initialLoadCompleted.current = true;
                     prevOrdersRef.current = paginatedOrders;
                     setLoading(false);
+                    settleAlarm(paginatedOrders);
                     // Update store
                     setOrders(paginatedOrders);
                     return;
@@ -103,7 +132,12 @@ export function OrderSubscriptionManager() {
                 // previously-unseen IDs — those are NOT new orders.
                 const listGrew = paginatedOrders.length > prevOrdersRef.current.length;
                 if (genuinelyNewOrders.length > 0 && listGrew) {
-                    soundRef.current?.play();
+                    genuinelyNewOrders.forEach((order) =>
+                        alertingOrderIds.current.add(order.id)
+                    );
+                    // Already looping for an earlier unaccepted order? Let it run —
+                    // restarting would cut the tone off mid-loop.
+                    if (!soundRef.current?.playing()) soundRef.current?.play();
                     // Stable id → a fresh new-order alert replaces the previous
                     // one instead of stacking another toast on top.
                     toast.info(
@@ -113,6 +147,8 @@ export function OrderSubscriptionManager() {
                         { id: "new-order-toast" },
                     );
                 }
+
+                settleAlarm(paginatedOrders);
 
                 prevOrdersRef.current = paginatedOrders;
                 setLoading(false);
