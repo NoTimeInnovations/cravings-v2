@@ -61,6 +61,7 @@ import { AdminV2AllOrders } from "./AdminV2AllOrders";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { Edit, FileClock, CalendarClock } from "lucide-react";
+import { printKotAndBill, type PrintDoc } from "@/lib/printOrder";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { expireCfOrder } from "@/app/actions/cfOrders";
 import { getFeatures } from "@/lib/getFeatures";
@@ -343,6 +344,8 @@ export function AdminV2Orders() {
   const [orderType, setOrderType] = useState<string>("all");
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [orderToPrint, setOrderToPrint] = useState<string | null>(null);
+  // Which documents to print once the payment chooser is answered.
+  const [pendingPrintDocs, setPendingPrintDocs] = useState<PrintDoc[]>(["bill"]);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const cancellingOrder = lookupOrders.find((o) => o.id === cancellingOrderId) || null;
@@ -514,26 +517,43 @@ export function AdminV2Orders() {
     }
   };
 
-  const handlePrintBill = async (order: Order) => {
+  // Print entry point for every document combination (bill, KOT, or both).
+  const handlePrintDocs = (order: Order, docs: PrintDoc[]) => {
     // Printing NEVER changes the order's status. We still ask for a payment
     // method when none is recorded, since that belongs on the bill.
-    if (!order.payment_method) {
+    // …except on delivery: nobody at the counter knows the method yet (the
+    // rider collects at the door, or it was paid online). It is recorded
+    // afterwards from the order's Payment Details card.
+    const needsBill = docs.includes("bill");
+    const isDelivery =
+      order.type === "delivery" ||
+      (typeof order.deliveryAddress === "string" && order.deliveryAddress.trim().length > 0);
+    if (needsBill && !order.payment_method && !isDelivery) {
       setOrderToPrint(order.id);
+      setPendingPrintDocs(docs);
       setPaymentModalOpen(true);
       return;
     }
-    window.open(`/bill/${order.id}`, "_blank");
+    printKotAndBill(order.id, { docs });
   };
 
-  const handlePaymentMethodConfirm = async (method: string) => {
+  const handlePrintBill = (order: Order) => handlePrintDocs(order, ["bill"]);
+  const handlePrintKot = (order: Order) => handlePrintDocs(order, ["kot"]);
+  const handlePrintKotAndBill = (order: Order) => handlePrintDocs(order, ["kot", "bill"]);
+
+  // NOT async: the tabs are claimed inside the click and the payment mutation
+  // runs in `before`, so awaiting it can't cost us the popup.
+  const handlePaymentMethodConfirm = (method: string) => {
     if (!orderToPrint) return;
     const orderId = orderToPrint;
-    await updateOrderPaymentMethod(orderId, method, lookupOrders, setPagedOrdersOnly);
     setPaymentModalOpen(false);
 
     // Recording the payment method does not complete the order — this chooser is
     // opened by Print, so completing here would change the status on print.
-    window.open(`/bill/${orderId}`, "_blank");
+    printKotAndBill(orderId, {
+      docs: pendingPrintDocs,
+      before: () => updateOrderPaymentMethod(orderId, method, lookupOrders, setPagedOrdersOnly),
+    });
     setOrderToPrint(null);
   };
 
@@ -1177,17 +1197,18 @@ export function AdminV2Orders() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() =>
-                                window.open(`/kot/${order.id}`, "_blank")
-                              }
-                            >
+                            <DropdownMenuItem onClick={() => handlePrintKot(order)}>
                               Print KOT
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handlePrintBill(order)}
                             >
                               Print Bill
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handlePrintKotAndBill(order)}
+                            >
+                              Print KOT + Bill
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1384,12 +1405,15 @@ export function AdminV2Orders() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem
-                        onClick={() => window.open(`/kot/${order.id}`, "_blank")}
+                        onClick={() => handlePrintKot(order)}
                       >
                         Print KOT
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handlePrintBill(order)}>
                         Print Bill
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handlePrintKotAndBill(order)}>
+                        Print KOT + Bill
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

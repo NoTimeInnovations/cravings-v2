@@ -41,6 +41,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Printer } from "lucide-react";
+import { printKotAndBill, type PrintDoc } from "@/lib/printOrder";
 import { PasswordProtectionModal } from "../PasswordProtectionModal";
 
 interface POSCartSidebarProps {
@@ -127,6 +128,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const [customItemPrice, setCustomItemPrice] = useState("");
     const [isAddingNote, setIsAddingNote] = useState(false);
     const [isSelectingPaymentMethod, setIsSelectingPaymentMethod] = useState(false);
+    // Which documents the payment chooser should print once a method is picked.
+    // The chooser is opened by Bill / KOT+Bill, so it has to remember which.
+    const [pendingPrintDocs, setPendingPrintDocs] = useState<PrintDoc[]>(["bill"]);
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
     const [actionDescription, setActionDescription] = useState("");
@@ -537,27 +541,39 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
 
 
-    const handlePrintBill = async () => {
+    // Print entry point for every document combination. Printing NEVER changes
+    // the order's status; a missing payment method just detours via the chooser,
+    // which then prints the same documents that were asked for.
+    const startPrint = (docs: PrintDoc[]) => {
         if (!activeOrderData) return;
-        // Printing NEVER changes the order's status.
         if (activeOrderData.payment_method) {
-            window.open(`/bill/${activeOrderData.id}`, '_blank');
+            printKotAndBill(activeOrderData.id, { docs });
         } else {
+            setPendingPrintDocs(docs);
             setIsSelectingPaymentMethod(true);
         }
     };
 
-    const handlePaymentSelection = async (method: string) => {
+    const handlePrintBill = () => startPrint(["bill"]);
+    const handlePrintKot = () => startPrint(["kot"]);
+    const handlePrintKotAndBill = () => startPrint(["kot", "bill"]);
+
+    // NOT async: the tabs must be claimed inside the click, before the payment
+    // mutation is awaited — otherwise the popup is blocked (WebKit always, Chrome
+    // intermittently). printKotAndBill claims them first and runs the mutation
+    // in `before`. Deliberately does NOT complete the order — this chooser is
+    // opened by Print, and printing must not change status.
+    const handlePaymentSelection = (method: string) => {
         if (!activeOrderData) return;
+        const order = activeOrderData;
 
-        // Update payment method. Deliberately does NOT complete the order —
-        // this chooser is opened by Print, and printing must not change status.
-        await updateOrderPaymentMethod(activeOrderData.id, method);
-
-        if (activeOrderData) {
-            setSelectedOrder({ ...activeOrderData, payment_method: method });
-        }
-        window.open(`/bill/${activeOrderData.id}`, '_blank');
+        printKotAndBill(order.id, {
+            docs: pendingPrintDocs,
+            before: async () => {
+                await updateOrderPaymentMethod(order.id, method);
+                setSelectedOrder({ ...order, payment_method: method });
+            },
+        });
         setIsSelectingPaymentMethod(false);
     };
 
@@ -1298,9 +1314,15 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         <Printer className="h-4 w-4 mr-2" />
                                         Bill
                                     </Button>
-                                    <Button variant="outline" className="w-full" onClick={() => window.open(`/kot/${activeOrderData.id}`, '_blank')}>
+                                    <Button variant="outline" className="w-full" onClick={handlePrintKot}>
                                         <FileText className="h-4 w-4 mr-2" />
                                         KOT
+                                    </Button>
+                                    {/* Prints both documents from one click — two separate print
+                                        jobs, since KOT and bill usually go to different printers. */}
+                                    <Button variant="outline" className="w-full col-span-2" onClick={handlePrintKotAndBill}>
+                                        <Printer className="h-4 w-4 mr-2" />
+                                        KOT + Bill
                                     </Button>
                                     {(userData?.role !== 'captain' || activeOrderData.status !== 'completed') &&
                                       !(isCompletedOrderLockEnabled(userData) && activeOrderData.status === 'completed') && (

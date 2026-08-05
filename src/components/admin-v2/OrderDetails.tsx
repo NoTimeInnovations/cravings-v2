@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bike, XCircle, AlertTriangle, AlarmClock } from "lucide-react";
+import { printKotAndBill, type PrintDoc } from "@/lib/printOrder";
 
 // Mapbox-based live tracker reused from the customer order page. Lazy-loaded
 // (ssr: false) because mapbox-gl needs window/document.
@@ -264,6 +265,14 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
     const { updateOrderStatus, updateOrderPaymentMethod } = useOrderStore();
     const { setOrders: setPagedOrders, orders: pagedOrders } = useOrderSubscriptionStore();
     const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
+    // Which documents to print once the payment chooser is answered — the
+    // chooser can be opened by Bill or by KOT + Bill.
+    const [pendingPrintDocs, setPendingPrintDocs] = React.useState<PrintDoc[]>(["bill"]);
+    // `type` is the direct signal, but older rows predate it — a delivery
+    // address is the same fact recorded a different way.
+    const isDeliveryOrder =
+        order?.type === "delivery" ||
+        (typeof order?.deliveryAddress === "string" && order.deliveryAddress.trim().length > 0);
     const [passwordModalOpen, setPasswordModalOpen] = React.useState(false);
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
     const [cancelOpen, setCancelOpen] = React.useState(false);
@@ -386,30 +395,40 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
         }
     };
 
-    const handlePrint = async (type: 'bill' | 'kot') => {
+    const handlePrint = (type: 'bill' | 'kot' | 'both') => {
         if (type === 'kot') {
-            window.open(`/kot/${order.id}`, '_blank');
+            printKotAndBill(order.id, { docs: ['kot'] });
             return;
         }
+        const docs: PrintDoc[] = type === 'both' ? ['kot', 'bill'] : ['bill'];
         // Printing NEVER changes the order's status — a bill can be printed at
         // any point (mid-meal, for a customer to check) and the staff decide
         // separately when the order is actually done. We still ask for a payment
         // method if none is recorded, since that belongs on the bill.
-        if (!order.payment_method) {
+        // …except on delivery, where nobody at the counter can know it yet: the
+        // rider collects at the door, or it was paid online. Blocking the print
+        // on a question staff cannot answer just trains them to pick a wrong
+        // value. It is recorded afterwards from the Payment Details card below.
+        if (!order.payment_method && !isDeliveryOrder) {
+            setPendingPrintDocs(docs);
             setPaymentModalOpen(true);
             return;
         }
-        window.open(`/bill/${order.id}`, '_blank');
+        printKotAndBill(order.id, { docs });
     };
 
-    const handlePaymentMethodConfirm = async (method: string) => {
-        await updateOrderPaymentMethod(order.id, method, actionOrders, commitOrders);
+    // NOT async: the tabs are claimed inside the click and the payment mutation
+    // runs in `before`, so awaiting it can't cost us the popup.
+    const handlePaymentMethodConfirm = (method: string) => {
         setPaymentModalOpen(false);
 
         // Recording the payment method must not complete the order either — this
         // chooser is opened by Print, so completing here would change the status
         // as a side effect of printing.
-        window.open(`/bill/${order.id}`, '_blank');
+        printKotAndBill(order.id, {
+            docs: pendingPrintDocs,
+            before: () => updateOrderPaymentMethod(order.id, method, actionOrders, commitOrders),
+        });
     };
 
     const getStatusColor = (status: string) => {
@@ -512,6 +531,9 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handlePrint('bill')}>
                                 Print Bill
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handlePrint('both')}>
+                                Print KOT + Bill
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -1070,16 +1092,31 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
                 />
             )}
 
-            {(order.payment_method || order.is_paid) && (
+            {/* Always shown once a method is recorded OR the order could still
+                need one — a delivery order prints without being asked, so this
+                card is the only place its method can be set. */}
+            {(order.payment_method || order.is_paid || isDeliveryOrder) && (
                 <div className="border rounded-lg bg-card p-4">
                     <h3 className="font-semibold mb-3">Payment Details</h3>
                     <div className="text-sm space-y-2">
-                        {order.payment_method && (
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Method:</span>
-                                <span className="font-medium capitalize">{getPaymentDisplayLabel(order)}</span>
-                            </div>
-                        )}
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Method:</span>
+                            <span className="flex items-center gap-2">
+                                {order.payment_method ? (
+                                    <span className="font-medium capitalize">{getPaymentDisplayLabel(order)}</span>
+                                ) : (
+                                    <span className="text-muted-foreground italic">Not recorded</span>
+                                )}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => setPaymentModalOpen(true)}
+                                >
+                                    {order.payment_method ? "Change" : "Set"}
+                                </Button>
+                            </span>
+                        </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Status:</span>
                             {order.is_paid ? (
