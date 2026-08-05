@@ -1,14 +1,16 @@
 import { BellIcon, BellOffIcon } from 'lucide-react'
 import React, { useEffect, useRef } from 'react'
 import { toast } from 'sonner';
+import { isDesktopApp } from '@/lib/isDesktopApp';
 
 const AlertToggle = () => {
     const [isActive , setIsActive] = React.useState(true);
       const soundRef = useRef<Howl | null>(null);
     
 
-      // Preload sound effect immediately
+      // Preload sound effect immediately (desktop app only — silent in a browser)
       useEffect(() => {
+        if (!isDesktopApp()) return;
         soundRef.current = new Howl({
           src: ["/audio/custom_sound.mp3"],
           volume: 1,

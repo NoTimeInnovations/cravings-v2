@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { isDesktopApp } from "@/lib/isDesktopApp";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Howl } from "howler";
@@ -80,8 +81,9 @@ const OrdersTab = () => {
   const [isCreateOrderOverlayOpen, setIsCreateOrderOverlayOpen] =
     useState(false);
 
-  // Preload sound effect immediately
+  // Preload sound effect immediately (desktop app only — silent in a browser)
   useEffect(() => {
+    if (!isDesktopApp()) return;
     soundRef.current = new Howl({
       src: ["/audio/custom_sound.mp3"],
       volume: 1,

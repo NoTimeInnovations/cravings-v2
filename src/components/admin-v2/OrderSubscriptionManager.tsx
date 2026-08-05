@@ -6,6 +6,7 @@ import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import useOrderStore, { Order } from "@/store/orderStore";
 import { Howl } from "howler";
 import { toast } from "sonner";
+import { isDesktopApp } from "@/lib/isDesktopApp";
 
 /** Returns a key that changes periodically to trigger re-subscription with fresh 24hr window */
 function getTimeWindowKey() {
@@ -54,7 +55,11 @@ export function OrderSubscriptionManager() {
 
     // Initialize sound. It LOOPS: a new order keeps ringing until it is accepted,
     // so a busy counter can't miss one. Silenced by settleAlarm() below.
+    //
+    // Desktop app ONLY — in a browser the dashboard stays silent (the toast still
+    // shows). soundRef stays null there, so every play()/stop() below is a no-op.
     useEffect(() => {
+        if (!isDesktopApp()) return;
         soundRef.current = new Howl({
             src: ["/audio/custom_sound.mp3"],
             volume: 1,
