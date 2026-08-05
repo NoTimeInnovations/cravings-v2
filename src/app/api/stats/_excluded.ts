@@ -35,6 +35,7 @@ export const EXCLUDED_PARTNER_IDS: string[] = [
   "74f45104-cadc-4af1-960e-d18d52146ba2", // donut_cafe23
   "0d5f2c84-d9f8-4991-a099-4242aed6c0ec", // abhin_ks556
   "d85e0723-1a87-4da6-ba9e-1a55f548eaad", // testfreeplan
+  "d2767900-2234-4a6f-a7b8-301ebb146332", // Kerala Specials (Onam Sadhya demo store)
 ];
 
 // Customer/user IDs whose orders should never count in public analytics.
