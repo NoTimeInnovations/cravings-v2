@@ -13,6 +13,7 @@ import { GalleryImageV4 } from "@/components/website/GalleryImageV4";
 import { MadeWithMenuthereBadge } from "@/components/website/MadeWithMenuthereBadge";
 import { parseBannerLogo } from "@/lib/bannerLogo";
 import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
+import { partnerBasePath, partnerHref } from "@/lib/partnerLinks";
 
 interface PartnerData {
   id: string;
@@ -47,6 +48,12 @@ interface Props {
   partner: PartnerData;
   config: WebsiteConfig;
   menuItems?: MenuItem[];
+  /**
+   * True when served from the partner's OWN domain, where the proxy already
+   * maps the root to /{username}. Defaults to false so the menuthere.com shape
+   * (/{username}/…) stays the behaviour for any caller that does not pass it.
+   */
+  isCustomDomain?: boolean;
 }
 
 function parseSocials(raw: any): Record<string, string> {
@@ -117,10 +124,14 @@ export default function WebsitePageV4({
   partner,
   config,
   menuItems = [],
+  isCustomDomain = false,
 }: Props) {
   const merged = mergeWebsiteConfig(config);
 
-  const menuUrl = `/${partner.username}?back=true`;
+  // "" on the partner's own domain, "/{username}" on menuthere.com — see
+  // src/lib/partnerLinks.ts. Every partner-scoped link below hangs off this.
+  const base = partnerBasePath(partner.username, isCustomDomain);
+  const menuUrl = `${partnerHref(base)}?back=true`;
   const orderUrl = merged.hero.cta_link || menuUrl;
   // The hero uses its own dedicated image (the first collage slot) and is
   // intentionally NOT tied to the store banner — changing the banner should
@@ -263,7 +274,7 @@ export default function WebsitePageV4({
             {sectionAvailable.menu && <a href="#menu">Menu</a>}
             {sectionAvailable.why && <a href="#why-choose-us">Highlights</a>}
             {sectionAvailable.reviews && <a href="#reviews">Reviews</a>}
-            <a href={`/${partner.username}/contact-us`}>Contact</a>
+            <a href={partnerHref(base, "/contact-us")}>Contact</a>
           </div>
           <div className="wb4-nav-cta">
             <a className="wb4-nav-btn" href={orderUrl}>
@@ -647,23 +658,23 @@ export default function WebsitePageV4({
               </div>
               <div className="wb4-foot-col">
                 <h5>Quick Links</h5>
-                <a href={`/${partner.username}/about-us`}>About Us</a>
-                <a href={`/${partner.username}/contact-us`}>Contact Us</a>
+                <a href={partnerHref(base, "/about-us")}>About Us</a>
+                <a href={partnerHref(base, "/contact-us")}>Contact Us</a>
                 <span className="wb4-foot-sublabel">Policies</span>
                 <div className="wb4-foot-sublist">
-                  <a href={`/${partner.username}/privacy-policy`}>
+                  <a href={partnerHref(base, "/privacy-policy")}>
                     Privacy Policy
                   </a>
                   <a
-                    href={`/${partner.username}/refund-and-cancellation-policy`}
+                    href={partnerHref(base, "/refund-and-cancellation-policy")}
                   >
                     Refund &amp; Cancellation
                   </a>
-                  <a href={`/${partner.username}/terms-and-conditions`}>
+                  <a href={partnerHref(base, "/terms-and-conditions")}>
                     Terms &amp; Conditions
                   </a>
                   <a
-                    href={`/${partner.username}/shipping-and-delivery-policy`}
+                    href={partnerHref(base, "/shipping-and-delivery-policy")}
                   >
                     Shipping &amp; Delivery
                   </a>

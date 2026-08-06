@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { Metadata } from "next";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -7,6 +8,7 @@ import { getMenu } from "@/api/menu";
 import { WebsiteConfig, mergeWebsiteConfig } from "@/types/website";
 import WebsitePageV4 from "@/screens/WebsitePageV4";
 import { Button } from "@/components/ui/button";
+import { partnerBasePath, partnerHref } from "@/lib/partnerLinks";
 
 interface PartnerRow {
   id: string;
@@ -92,6 +94,11 @@ export default async function Page({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
+  // Set by src/proxy.ts when the request arrives on a partner's own domain,
+  // where the root is already rewritten to /{username}. Same read as
+  // src/app/[username]/layout.tsx.
+  const isCustomDomain = (await headers()).get("x-is-custom-domain") === "1";
+  const base = partnerBasePath(username, isCustomDomain);
   const partner = await fetchPartner(username);
 
   if (!partner) notFound();
@@ -106,7 +113,7 @@ export default async function Page({
           Our new website is coming soon.
         </p>
         <Button className="mt-8" asChild>
-          <Link href={`/${username}`}>View Our Menu</Link>
+          <Link href={partnerHref(base)}>View Our Menu</Link>
         </Button>
       </div>
     );
@@ -125,6 +132,7 @@ export default async function Page({
       partner={partner}
       config={config}
       menuItems={menuItems}
+      isCustomDomain={isCustomDomain}
     />
   );
 }
