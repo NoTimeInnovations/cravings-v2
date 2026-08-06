@@ -40,6 +40,40 @@ function maybeRefundLoyalty(orderId: string, reason: string): void {
 }
 
 /**
+ * Cancel any Shiprocket shipment tied to this order.
+ *
+ * Hooked HERE rather than only on the status-change path, because the cancel
+ * DIALOG is how orders are actually cancelled everywhere that matters — the
+ * dashboard, the order detail view and the customer's own tracking page all
+ * short-circuit to it and never reach updateOrderStatus. A shipment cancelled
+ * only there would leave the courier collecting a parcel for an order that no
+ * longer exists, billed to the merchant.
+ *
+ * Calls the plain-module core rather than the guarded server action, because a
+ * customer cancelling their own order cannot satisfy that guard (it is scoped to
+ * partner/captain/superadmin).
+ *
+ * ⚠ Note what this action does and does NOT check: it requires a session with
+ * role user|partner, but it never compares the order's user_id / partner_id
+ * against the caller. That gap is pre-existing — maybeCancelPorter,
+ * maybeRefundLoyalty and maybeRestock all sit behind the same weak check — and it
+ * means anyone holding an order UUID can trigger this. Shiprocket inherits that
+ * exposure rather than introducing it, but the cost here is a real cancelled
+ * parcel, so an ownership check on cancelOrderAction is worth adding.
+ *
+ * Fire-and-forget and idempotent (a row already `cancelled` returns a silent
+ * skip) — a cancel never fails over Shiprocket.
+ */
+function maybeCancelShiprocket(orderId: string): void {
+  import("@/lib/shiprocket/shipments")
+    .then(({ cancelShipmentCore }) => cancelShipmentCore(orderId))
+    .then((r) => {
+      if (r && !r.ok) console.warn(`[shiprocket] cancel via cancelOrderAction failed: ${r.message}`);
+    })
+    .catch((e) => console.warn("[shiprocket] cancel via cancelOrderAction threw:", e));
+}
+
+/**
  * Add the cancelled order's stock back. Fire-and-forget and idempotent (an
  * atomic RELEASE inside restockOrderStock ensures it restocks at most once, even
  * if cancel and expire race). A cancel never fails over a restock hiccup.
@@ -119,6 +153,7 @@ export async function cancelOrderAction(
         return { success: false, message: "Failed to cancel order" };
       }
       maybeCancelPorter(orderId, reason);
+      maybeCancelShiprocket(orderId);
       maybeRefundLoyalty(orderId, "Order cancelled");
       maybeRestock(orderId);
       return { success: true };
@@ -153,6 +188,7 @@ export async function cancelOrderAction(
     }
 
     maybeCancelPorter(orderId, reason);
+    maybeCancelShiprocket(orderId);
     maybeRefundLoyalty(orderId, "Order cancelled");
     maybeRestock(orderId);
     return { success: true };

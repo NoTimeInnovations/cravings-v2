@@ -60,6 +60,7 @@ import { Notification } from "@/app/actions/notification";
 import { dispatchDeliveryAgent, cancelDeliveryAgent } from "@/app/actions/deliveryAgent";
 import { dispatchViaDeliveryBridge, cancelDispatch, scheduleDelayedDispatch, clearDelayedDispatch } from "@/app/actions/porterBridge";
 import { dispatchDeliveryPool, cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
+import { dispatchShiprocketOnStatus, cancelShiprocketShipment } from "@/app/actions/shiprocketDispatch";
 import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 import { linkMapsUsageToOrder } from "@/app/actions/trackGoogleApi";
 import { peekMapsSessionId, resetMapsSession } from "@/lib/mapsUsage";
@@ -995,6 +996,40 @@ const useOrderStore = create(
                 cancelDeliveryPoolDispatch(orderId).then((r) => {
                   if (!r.ok && r.status !== 404) console.warn(`[delivery-pool] cancel failed: ${r.message}`);
                 }).catch((e) => console.warn("[delivery-pool] cancel threw:", e));
+              }
+            }
+
+            // Shiprocket — the partner's OWN shipping account. Unlike the rider
+            // providers above, this books a courier/parcel, so the trigger status
+            // and the auto/manual choice are per-store settings rather than fixed
+            // here. Those settings live next to the encrypted credentials in a
+            // server-only table, so the SERVER decides whether this transition is
+            // the configured trigger; we just tell it which status we reached.
+            //
+            // Deliberately NOT gated on isRealDelivery: a delivery-address check is
+            // still applied server-side, but the shape lives with the rest of the
+            // Shiprocket rules rather than being duplicated here.
+            //
+            // Double-dispatch is impossible by construction — the shipment row's
+            // primary key is the claim — so this can fire alongside the manual
+            // Ship button without billing the partner twice.
+            if (features.shiprocket.access && features.shiprocket.enabled) {
+              if (newStatus === "cancelled") {
+                cancelShiprocketShipment(orderId).then((r) => {
+                  if (!r.ok) console.warn(`[shiprocket] cancel failed: ${r.message}`);
+                }).catch((e) => console.warn("[shiprocket] cancel threw:", e));
+              } else {
+                dispatchShiprocketOnStatus(orderId, newStatus).then((r) => {
+                  if (!r.ok) {
+                    console.warn(`[shiprocket] dispatch failed: ${r.message}`);
+                    // A courier that could not be booked is something the person
+                    // standing at the counter has to know about NOW — silently
+                    // logging it means the parcel simply never ships.
+                    toast.error(`Shiprocket: ${r.message}`);
+                  } else if (r.awb) {
+                    toast.success(`Shipped via ${r.courier ?? "Shiprocket"} · AWB ${r.awb}`);
+                  }
+                }).catch((e) => console.warn("[shiprocket] dispatch threw:", e));
               }
             }
           } catch (e) {
