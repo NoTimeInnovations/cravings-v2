@@ -236,6 +236,9 @@ const V6ItemCard = ({
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
   const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
+  // Whether to surface the "customisable" caption under the Add button
+  // (Swiggy/Zomato place it beneath the ADD control, not under the description).
+  const isCustomisable = hasVariants || hasMultipleVariantsOnOffer || hasCustomizations;
 
   // Items with customization groups route the variant-sheet trigger to the shared
   // customizer sheet instead (it also handles the variant choice).
@@ -599,6 +602,11 @@ const V6ItemCard = ({
 
             {addControl && <div className="shrink-0">{addControl}</div>}
           </div>
+
+          {/* "customisable" hint — sits under the Add button, Swiggy/Zomato-style */}
+          {addControl && isCustomisable && (
+            <div className="mt-1 text-right text-[10px] font-medium leading-none text-gray-400">customisable</div>
+          )}
         </div>
       </div>
 
