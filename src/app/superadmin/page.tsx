@@ -23,6 +23,7 @@ import DeliveryPoolDashboard from "@/components/superAdmin/DeliveryPoolDashboard
 import DeleteCustomer from "@/components/superAdmin/DeleteCustomer";
 import SuperadminGlobalFlows from "@/components/superAdmin/SuperadminGlobalFlows";
 import TutorialsManagement from "@/components/superAdmin/TutorialsManagement";
+import DeliveryUndoManagement from "@/components/superAdmin/DeliveryUndoManagement";
 
 type SearchParams = Promise<{ [key: string]: string | undefined }>;
 
@@ -46,6 +47,11 @@ const page = async (props: { searchParams: SearchParams }) => {
       component: null,
       id: "create-pp-partner",
       href: "/superadmin/create-pp-partner",
+    },
+    {
+      name: "Delivery Undo",
+      component: <DeliveryUndoManagement />,
+      id: "delivery-undo",
     },
     {
       name: "Edit Partners",
