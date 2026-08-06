@@ -7,14 +7,18 @@ import {
   Bell,
   Loader2,
   MapPin,
+  ImagePlus,
   Plus,
   Search,
   Send,
+  RefreshCw,
   Store,
   X,
 } from "lucide-react";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { processImage } from "@/lib/processImage";
+import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +53,8 @@ import {
   upsertDuListingMutation,
 } from "@/api/deliveryUndo";
 import {
+  getDeliveryUndoHealth,
+  resyncDeliveryUndo,
   sendDuNotification,
   type DuAudience,
 } from "@/app/actions/deliveryUndo";
@@ -86,7 +92,15 @@ interface DuPartner {
   du_listing: DuListing | null;
 }
 
+/** A home-screen category pill. `image` also fills the search-grid tile. */
+interface DuCuisine {
+  name: string;
+  image?: string;
+}
+
 interface DuConfig {
+  cuisines?: DuCuisine[];
+  /** Legacy plain-string form, still written on every save for old app builds. */
   cuisineChips?: string[];
   trendingSearches?: string[];
   defaultRadiusKm?: number;
@@ -153,6 +167,30 @@ function blockers(p: DuPartner): string[] {
   return out;
 }
 
+/**
+ * Pushes the current Hasura state to Cloudflare D1.
+ *
+ * Every save must be followed by this — Hasura records the decision, but the
+ * app reads D1, so an unsynced save is invisible to users. Surfaced as a
+ * toast rather than done silently so a failure is never mistaken for success.
+ */
+async function pushToApp() {
+  const res = await resyncDeliveryUndo();
+  if (res.ok) {
+    const skipped = res.skipped?.length ?? 0;
+    toast.success(
+      `Live in the app — ${res.listings} kitchens, ${res.dishes} dishes` +
+        (skipped ? ` (${skipped} skipped)` : ""),
+    );
+    res.skipped?.forEach((s) =>
+      toast.warning(`${s.name}: ${s.reason}`, { duration: 6000 }),
+    );
+  } else {
+    toast.error(`Saved, but not live yet: ${res.error}`, { duration: 8000 });
+  }
+  return res;
+}
+
 /* ───────────────────────── component ───────────────────────── */
 
 const DeliveryUndoManagement = () => {
@@ -167,6 +205,8 @@ const DeliveryUndoManagement = () => {
           presented, and what gets pushed to users.
         </p>
       </div>
+
+      <HealthStrip />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4">
@@ -191,6 +231,61 @@ const DeliveryUndoManagement = () => {
           <NotifyTab />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+};
+
+/** Shows whether what's in the app matches what's in Hasura. */
+const HealthStrip = () => {
+  const [health, setHealth] = useState<Awaited<
+    ReturnType<typeof getDeliveryUndoHealth>
+  > | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setHealth(await getDeliveryUndoHealth());
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const stale = (health?.staleHours ?? 0) > 24;
+
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm">
+      <span className="font-medium">App data</span>
+      {health?.ok ? (
+        <>
+          <Badge variant="secondary">{health.listings} kitchens</Badge>
+          <Badge variant="secondary">{health.dishes} dishes</Badge>
+          <span className="text-xs text-muted-foreground">
+            {health.lastReconcileAt
+              ? `synced ${new Date(health.lastReconcileAt).toLocaleString()}`
+              : "never synced"}
+            {stale && " · stale"}
+          </span>
+        </>
+      ) : (
+        <span className="text-xs text-destructive">
+          {health?.error ?? "checking…"}
+        </span>
+      )}
+      <Button
+        size="sm"
+        variant="outline"
+        className="ml-auto"
+        disabled={syncing}
+        onClick={async () => {
+          setSyncing(true);
+          await pushToApp();
+          await refresh();
+          setSyncing(false);
+        }}
+      >
+        <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+        Force resync
+      </Button>
     </div>
   );
 };
@@ -257,6 +352,7 @@ const ListingsTab = () => {
       });
       toast.success(next ? `${p.store_name} listed` : `${p.store_name} removed`);
       load();
+      await pushToApp();
     } catch (e) {
       console.error(e);
       toast.error("Update failed");
@@ -425,6 +521,7 @@ const ListingEditor = ({
         },
       });
       toast.success("Listing saved");
+      await pushToApp();
       onSaved();
     } catch (e) {
       console.error(e);
@@ -587,11 +684,17 @@ const Field = ({
 
 /* ─────────────────────── app config ─────────────────────── */
 
+/** S3 keys have to survive a cuisine name like "Kerala / Malabar". */
+const slugify = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "cuisine";
+
 const ConfigTab = () => {
   const [config, setConfig] = useState<DuConfig>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newChip, setNewChip] = useState("");
+  /** Name of the cuisine whose image is mid-upload, or null. */
+  const [uploading, setUploading] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -612,7 +715,8 @@ const ConfigTab = () => {
     try {
       await fetchFromHasura(updateDuAppConfigMutation, { config: next });
       setConfig(next);
-      toast.success("Saved — live in the app on next launch");
+      toast.success("Config saved");
+      await pushToApp();
     } catch (e) {
       console.error(e);
       toast.error("Save failed");
@@ -621,7 +725,42 @@ const ConfigTab = () => {
     }
   };
 
-  const chips = config.cuisineChips ?? [];
+  // `cuisines` is the rich list the app prefers; `cuisineChips` is the older
+  // plain-string field. Older configs only have the latter, so fall back to it
+  // and let the first save promote them.
+  const cuisines: DuCuisine[] =
+    config.cuisines ?? (config.cuisineChips ?? []).map((name) => ({ name }));
+
+  /**
+   * Writes both shapes. Keeping `cuisineChips` in sync means an app build that
+   * predates cuisine images still renders its filter row.
+   */
+  const saveCuisines = (next: DuCuisine[]) =>
+    save({ ...config, cuisines: next, cuisineChips: next.map((c) => c.name) });
+
+  const pickImage = async (index: number, file: File) => {
+    setUploading(cuisines[index].name);
+    const blobUrl = URL.createObjectURL(file);
+    try {
+      // Same pipeline as menu images: centre-crop to a square and re-encode
+      // before it ever reaches S3, so a 6 MB phone photo doesn't become the
+      // tile the app downloads.
+      const processed = await processImage(blobUrl, "upload");
+      const url = await uploadFileToS3(
+        processed,
+        `delivery-undo/cuisines/${slugify(cuisines[index].name)}-${Date.now()}.webp`,
+      );
+      await saveCuisines(
+        cuisines.map((c, i) => (i === index ? { ...c, image: url } : c)),
+      );
+    } catch (e) {
+      console.error(e);
+      toast.error("Image upload failed");
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+      setUploading(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -636,39 +775,96 @@ const ConfigTab = () => {
       <Card>
         <CardContent className="p-4 space-y-3">
           <div>
-            <h3 className="font-medium">Home screen category pills</h3>
+            <h3 className="font-medium">Cuisine categories</h3>
             <p className="text-xs text-muted-foreground">
-              The filter row under the search bar. Order here is the order in
-              the app. A pill only matches restaurants whose cuisines include
-              exactly this word.
+              The filter row under the search bar, and the &ldquo;Browse by
+              cuisine&rdquo; grid in search. Order here is the order in the app.
+              A pill only matches restaurants whose cuisines include exactly
+              this word. Images show in the search grid; without one the app
+              falls back to a coloured tile.
             </p>
           </div>
 
-          <div className="flex gap-2 flex-wrap">
-            {chips.map((chip, i) => (
-              <Badge
-                key={chip}
-                variant="secondary"
-                className="pl-3 pr-1 py-1 text-sm flex items-center gap-1"
+          <div className="space-y-2">
+            {cuisines.map((cuisine, i) => (
+              <div
+                key={cuisine.name}
+                className="flex items-center gap-3 border rounded-lg p-2"
               >
-                {chip}
-                <button
-                  className="hover:text-destructive p-0.5"
-                  onClick={() =>
-                    save({
-                      ...config,
-                      cuisineChips: chips.filter((_, x) => x !== i),
-                    })
-                  }
-                  aria-label={`Remove ${chip}`}
+                <label
+                  className="relative w-14 h-14 shrink-0 rounded-md overflow-hidden bg-muted grid place-items-center cursor-pointer group"
+                  title={cuisine.image ? "Change image" : "Add image"}
                 >
-                  <X className="w-3 h-3" />
-                </button>
-              </Badge>
+                  {cuisine.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={cuisine.image}
+                      alt={cuisine.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ImagePlus className="w-5 h-5 text-muted-foreground" />
+                  )}
+                  <span className="absolute inset-0 bg-black/50 text-white text-[10px] font-medium grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {cuisine.image ? "Change" : "Add"}
+                  </span>
+                  {uploading === cuisine.name && (
+                    <span className="absolute inset-0 bg-black/60 grid place-items-center">
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    </span>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={saving || uploading !== null}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      // Reset first: picking the same file twice in a row
+                      // fires no change event otherwise.
+                      e.target.value = "";
+                      if (file) pickImage(i, file);
+                    }}
+                  />
+                </label>
+
+                <span className="flex-1 text-sm font-medium">
+                  {cuisine.name}
+                </span>
+
+                {cuisine.image && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={saving}
+                    onClick={() =>
+                      saveCuisines(
+                        cuisines.map((c, x) =>
+                          x === i ? { name: c.name } : c,
+                        ),
+                      )
+                    }
+                  >
+                    Remove image
+                  </Button>
+                )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="hover:text-destructive"
+                  disabled={saving}
+                  aria-label={`Remove ${cuisine.name}`}
+                  onClick={() =>
+                    saveCuisines(cuisines.filter((_, x) => x !== i))
+                  }
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
             ))}
-            {chips.length === 0 && (
+            {cuisines.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No pills — the app hides the filter row entirely.
+                No cuisines — the app hides the filter row entirely.
               </p>
             )}
           </div>
@@ -680,10 +876,7 @@ const ConfigTab = () => {
               onChange={(e) => setNewChip(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && newChip.trim()) {
-                  save({
-                    ...config,
-                    cuisineChips: [...chips, newChip.trim()],
-                  });
+                  saveCuisines([...cuisines, { name: newChip.trim() }]);
                   setNewChip("");
                 }
               }}
@@ -691,7 +884,7 @@ const ConfigTab = () => {
             <Button
               disabled={!newChip.trim() || saving}
               onClick={() => {
-                save({ ...config, cuisineChips: [...chips, newChip.trim()] });
+                saveCuisines([...cuisines, { name: newChip.trim() }]);
                 setNewChip("");
               }}
             >

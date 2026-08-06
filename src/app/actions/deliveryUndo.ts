@@ -13,6 +13,83 @@ import { insertDuNotificationMutation } from "@/api/deliveryUndo";
 
 const ONESIGNAL_API = "https://api.onesignal.com/notifications";
 
+export interface DuResyncResult {
+  ok: boolean;
+  listings?: number;
+  dishes?: number;
+  /** Partners that could not be projected, with the reason. */
+  skipped?: { name: string; reason: string }[];
+  ms?: number;
+  error?: string;
+}
+
+/**
+ * Rebuilds the Delivery Undo read model on Cloudflare D1 from Hasura.
+ *
+ * Called after every superadmin save so changes are live in the app within a
+ * couple of seconds. Hasura holds the decision (it has the FK to `partners`);
+ * D1 is what the app actually reads, so a save that is not followed by this
+ * is invisible to users.
+ *
+ * Never throws — a failed resync must not make a successful save look failed.
+ * The caller surfaces `error` and the operator can retry.
+ */
+export async function resyncDeliveryUndo(): Promise<DuResyncResult> {
+  const url = process.env.DU_WORKER_URL;
+  const token = process.env.DU_ADMIN_TOKEN;
+
+  if (!url || !token) {
+    return {
+      ok: false,
+      error:
+        "Worker not configured. Set DU_WORKER_URL and DU_ADMIN_TOKEN.",
+    };
+  }
+
+  try {
+    const res = await fetch(`${url}/internal/resync`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      // A full rebuild is a couple of seconds; well inside the default
+      // function timeout, but bounded so a hung Worker cannot hold the
+      // request open indefinitely.
+      signal: AbortSignal.timeout(25_000),
+    });
+
+    const body = (await res.json()) as DuResyncResult & { error?: string };
+    if (!res.ok || !body.ok) {
+      return { ok: false, error: body.error ?? `Worker returned ${res.status}` };
+    }
+    return body;
+  } catch (e) {
+    const error = e instanceof Error ? e.message : "Unknown error";
+    return { ok: false, error };
+  }
+}
+
+/** Read-only view of the projection, for the superadmin health strip. */
+export async function getDeliveryUndoHealth(): Promise<{
+  ok: boolean;
+  listings?: number;
+  dishes?: number;
+  lastReconcileAt?: string | null;
+  staleHours?: number | null;
+  error?: string;
+}> {
+  const url = process.env.DU_WORKER_URL;
+  if (!url) return { ok: false, error: "DU_WORKER_URL not set" };
+  try {
+    const res = await fetch(`${url}/internal/health`, {
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    });
+    if (!res.ok) return { ok: false, error: `Worker returned ${res.status}` };
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Unknown" };
+  }
+}
+
 /** Notification channel created natively by the app; carries the custom sound. */
 const ANDROID_CHANNEL_ID = "du_default_v1";
 
