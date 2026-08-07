@@ -46,6 +46,7 @@ import {
   Check,
   ChevronLeft,
   Pencil,
+  Sparkles,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -258,6 +259,7 @@ export default function TargetSection() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sort, setSort] = useState<SortKey>("total_desc");
+  const [syncing, setSyncing] = useState(false);
 
   const load = useCallback(async (soft = false) => {
     if (soft) setRefreshing(true);
@@ -313,6 +315,38 @@ export default function TargetSection() {
     },
     [load]
   );
+
+  // Auto-add every restaurant that has "started" (≥ ~2 orders/week over the last
+  // two weeks) so active stores never slip off the watchlist. Idempotent — only
+  // new ones are added; existing rows keep their plan / status / note.
+  const syncActive = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const r = await fetch("/api/stats/watchlist/sync", { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast.error(d.error ?? "Sync failed");
+        return;
+      }
+      if (d.added > 0) {
+        toast.success(
+          `Added ${d.added} active restaurant${d.added === 1 ? "" : "s"} to the watchlist.`
+        );
+        await load(true);
+      } else if ((d.qualified ?? 0) > 0) {
+        toast(`All ${d.qualified} active restaurants are already tracked.`);
+      } else {
+        toast(
+          `No restaurants with ${d.minOrders ?? 4}+ orders in the last ${d.windowDays ?? 14} days.`
+        );
+      }
+    } catch (e) {
+      console.error("watchlist sync failed", e);
+      toast.error("Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }, [load]);
 
   const patchEntry = useCallback(
     async (id: string, patch: Partial<Pick<WatchlistEntry, "planInr" | "status" | "note">>) => {
@@ -626,6 +660,16 @@ export default function TargetSection() {
             <div className="flex items-center gap-3">
               <SortSelect value={sort} onChange={setSort} />
               <AddRestaurant existingIds={existingIds} onAdd={addEntry} />
+              <button
+                type="button"
+                onClick={syncActive}
+                disabled={syncing}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-2.5 text-xs font-medium text-muted-foreground shadow-sm hover:bg-neutral-50 disabled:opacity-60"
+                title="Add restaurants with 2+ orders/week (last 2 weeks) to the watchlist"
+              >
+                <Sparkles className={cn("size-3.5", syncing && "animate-pulse")} />
+                {syncing ? "Syncing…" : "Sync active"}
+              </button>
               <button
                 type="button"
                 onClick={() => load(true)}
