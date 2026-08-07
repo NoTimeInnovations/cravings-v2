@@ -213,6 +213,9 @@ const V3ItemCard = ({
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
   const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
+  // Whether to surface the "Customisable" caption under the Add button
+  // (Swiggy/Zomato place it beneath the ADD control, not under the description).
+  const isCustomisable = hasVariants || hasMultipleVariantsOnOffer || hasCustomizations || item.is_price_as_per_size === true;
 
   // Items with customization groups route the variant-sheet trigger to the shared
   // customizer sheet instead (it also handles the variant choice).
@@ -454,14 +457,11 @@ const V3ItemCard = ({
             </p>
           )}
 
-          {/* "Customisable" hint — only when the item actually has options */}
-          {(hasVariants || item.is_price_as_per_size === true) && (
-            <p className="mt-1.5 text-[10.5px] font-semibold tracking-[.2px] text-[#a3a3a3]">Customisable</p>
-          )}
         </div>
 
         {/* Right - Image & Add button (overlaps the bottom edge of the image) */}
-        <div className="relative w-[118px] shrink-0">
+        <div className="flex w-[118px] shrink-0 flex-col items-center">
+          <div className="relative w-[118px]">
           <div className="relative flex h-[112px] w-[118px] items-center justify-center overflow-hidden rounded-[14px] bg-gray-100 shadow-[0_4px_14px_-8px_rgba(0,0,0,.3)]">
             {visible && (
               <img
@@ -559,6 +559,15 @@ const V3ItemCard = ({
                 </button>
               ) : null}
             </div>
+          )}
+          </div>
+
+          {/* "Customisable" hint — sits under the Add button, Swiggy/Zomato-style */}
+          {isCustomisable && (
+            <>
+              <div className="h-[18px]" />
+              <p className="text-[10.5px] font-semibold tracking-[.2px] text-[#a3a3a3]">Customisable</p>
+            </>
           )}
         </div>
       </div>

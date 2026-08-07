@@ -19,6 +19,7 @@ import {
 import { revalidateTag } from "@/app/actions/revalidate";
 import { ImageUpload } from "@/components/storefront/ImageUpload";
 import { NoticeCanvas } from "@/components/notices/NoticeCanvas";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import {
   NoticeRow, NoticeCustomConfig, NoticeElement, NoticeType,
   defaultCustomConfig, toRenderable, gradientCss, DEFAULT_AUTO_CLOSE,
@@ -129,7 +130,15 @@ export function AdminV2Notices() {
     }
   };
   const handleDelete = async (n: NoticeRow) => {
-    if (!confirm("Delete this notice?")) return;
+    if (
+      !(await confirmDialog({
+        title: "Delete this notice?",
+        description: "This can't be undone.",
+        confirmText: "Delete",
+        destructive: true,
+      }))
+    )
+      return;
     try {
       await fetchFromHasura(deleteNoticeMutation, { id: n.id });
       setNotices((prev) => prev.filter((x) => x.id !== n.id));

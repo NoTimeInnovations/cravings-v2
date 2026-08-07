@@ -7,6 +7,7 @@ import {
   cancelDispatch,
   dispatchViaDeliveryBridge,
 } from "@/app/actions/porterBridge";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 type ProviderState = "won" | "checking" | "tried" | "pending";
 interface HistItem {
@@ -183,7 +184,16 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
   // checking providers and hasn't already been cancelled).
   const handleCancel = async () => {
     if (cancelling || cancelled) return;
-    if (!window.confirm("Cancel this delivery dispatch? The provider search will stop.")) return;
+    if (
+      !(await confirmDialog({
+        title: "Cancel this delivery dispatch?",
+        description: "The provider search will stop.",
+        confirmText: "Cancel dispatch",
+        cancelText: "Keep searching",
+        destructive: true,
+      }))
+    )
+      return;
     setCancelling(true);
     setCancelError(null);
     const r = await cancelDispatch(orderId, undefined, "partner");
@@ -210,9 +220,14 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
   const handleCancelAndRebook = async () => {
     if (cancelling || rebooking) return;
     if (
-      !window.confirm(
-        "Cancel the current search and book again?\n\nThe current provider search stops and a fresh rider hunt starts. This books a real delivery.",
-      )
+      !(await confirmDialog({
+        title: "Cancel the current search and book again?",
+        description:
+          "The current provider search stops and a fresh rider hunt starts. This books a real delivery.",
+        confirmText: "Cancel & book again",
+        cancelText: "Keep searching",
+        destructive: true,
+      }))
     )
       return;
     setRebooking(true);

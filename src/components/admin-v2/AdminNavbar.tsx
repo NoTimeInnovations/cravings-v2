@@ -11,6 +11,7 @@ import { isFreePlan } from "@/lib/getPlanLimits";
 import { AdminAccountSwitcher } from "./AdminAccountSwitcher";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { usePOSStore } from "@/store/posStore";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 interface AdminNavbarProps {
     onToggleSidebar?: () => void;
@@ -29,7 +30,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
     // feed stays dead until the JS context is torn down. Reloading is the only
     // thing that resyncs all of it; ?view= is already in the URL so the user
     // lands back on the same tab.
-    const handleReload = () => {
+    const handleReload = async () => {
         if (reloading) return;
 
         // The POS cart and unsaved settings live in memory only.
@@ -37,7 +38,12 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
         const hasUnsavedSettings = useAdminSettingsStore.getState().hasChanges;
         if (hasOpenBill || hasUnsavedSettings) {
             const what = hasOpenBill ? "an open bill" : "unsaved changes";
-            if (!window.confirm(`You have ${what}. Refreshing will discard it. Refresh anyway?`)) return;
+            if (!(await confirmDialog({
+                title: "Discard and refresh?",
+                description: `You have ${what}. Refreshing will discard it.`,
+                confirmText: "Refresh anyway",
+                destructive: true,
+            }))) return;
         }
 
         setReloading(true);

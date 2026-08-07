@@ -210,6 +210,9 @@ const V4ItemCard = ({
 
   const hasVariants = (item.variants?.length ?? 0) > 0;
   const hasCustomizations = (item.addon_groups?.length ?? 0) > 0;
+  // Whether to surface the "Customisable" caption under the Add button
+  // (Swiggy/Zomato place it beneath the ADD control, not under the description).
+  const isCustomisable = hasVariants || hasMultipleVariantsOnOffer || hasCustomizations;
 
   // Items with customization groups route the variant-sheet trigger to the shared
   // customizer sheet instead (it also handles the variant choice).
@@ -462,7 +465,8 @@ const V4ItemCard = ({
             fill, and overflow-hidden clips anything outside the box. The image
             box is always rendered (placeholder when there's no photo) so the
             Add button has a consistent anchor, exactly like V3. */}
-        <div className="relative shrink-0">
+        <div className="flex shrink-0 flex-col items-center">
+          <div className="relative">
           <div
             className="relative overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5 bg-gray-100"
             style={{ width: V4_THUMB_W, height: V4_THUMB_H }}
@@ -565,6 +569,15 @@ const V4ItemCard = ({
                 </button>
               ) : null}
             </div>
+          )}
+          </div>
+
+          {/* "Customisable" hint — sits under the Add button, Swiggy/Zomato-style */}
+          {isOrderable && isCustomisable && (
+            <>
+              <div className="h-3" />
+              <span className="text-[10.5px] font-semibold tracking-[.2px] text-gray-400">Customisable</span>
+            </>
           )}
         </div>
       </div>

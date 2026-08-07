@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import "@smastrom/react-rating/style.css";
 import { Toaster } from "@/components/ui/sonner";
+import { ConfirmDialogHost } from "@/components/ui/confirm-dialog";
 import BottomNav from "@/components/BottomNav";
 import DevModeSync from "@/components/DevModeSync";
 import DisableZoom from "@/components/DisableZoom";
@@ -217,6 +218,9 @@ document.head.appendChild(o)}initApollo();`,
             <DisableZoom />
             <OrderChannelInit />
 <Toaster richColors closeButton position="top-center" visibleToasts={1} />
+            {/* Backs confirmDialog()/promptDialog() — mounted once here so the
+                imperative helpers work from any route without a provider. */}
+            <ConfirmDialogHost />
             {!isCustomDomain && <Navbar />}
             <main id="main-content">
               {children}

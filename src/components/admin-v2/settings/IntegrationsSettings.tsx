@@ -19,6 +19,7 @@ import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { UpgradePrompt } from "@/components/admin-v2/UpgradePrompt";
 import { WhatsAppHealthStatus } from "@/components/admin-v2/WhatsAppHealthStatus";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 // Map Meta's per-number name_status to a small badge. Returns null when there's
 // nothing worth surfacing (no display name requested yet, or unknown).
@@ -344,7 +345,12 @@ export function IntegrationsSettings() {
             return;
         }
 
-        if (!confirm("Sync menu to Google? This will overwrite your Google Menu.")) return;
+        if (!(await confirmDialog({
+            title: "Sync menu to Google?",
+            description: "This will overwrite your Google Menu.",
+            confirmText: "Sync menu",
+            destructive: true,
+        }))) return;
 
         setIsSyncingMenu(true);
         const toastId = toast.loading("Syncing menu...");
@@ -479,10 +485,20 @@ export function IntegrationsSettings() {
     const handleDisconnectWhatsApp = async (phoneNumberId?: string) => {
         if (!userData) return;
         const single = !!phoneNumberId && wabaNumbers.length > 1;
-        const msg = single
-            ? "Disconnect this number? Your other numbers stay connected."
-            : "Disconnect your WhatsApp Business Account? You can reconnect anytime.";
-        if (!confirm(msg)) return;
+        const confirmOptions = single
+            ? {
+                  title: "Disconnect this number?",
+                  description: "Your other numbers stay connected.",
+                  confirmText: "Disconnect",
+                  destructive: true,
+              }
+            : {
+                  title: "Disconnect your WhatsApp Business Account?",
+                  description: "You can reconnect anytime.",
+                  confirmText: "Disconnect",
+                  destructive: true,
+              };
+        if (!(await confirmDialog(confirmOptions))) return;
 
         setIsWabaLoading(true);
         try {

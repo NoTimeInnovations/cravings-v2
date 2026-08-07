@@ -62,6 +62,7 @@ import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
 import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings } from "@/lib/prebooking";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 export function AdminV2AllOrders() {
   const {
@@ -126,7 +127,14 @@ export function AdminV2AllOrders() {
   const handleDeleteOrder = async (order: Order) => {
     if (order.status === "completed") {
       setPendingAction(() => async () => {
-        if (confirm("Are you sure you want to delete this order?")) {
+        if (
+          await confirmDialog({
+            title: "Delete this order?",
+            description: "Are you sure you want to delete this order?",
+            confirmText: "Delete order",
+            destructive: true,
+          })
+        ) {
           try {
             const success = await deleteOrder(order.id);
             if (success) {
@@ -151,7 +159,14 @@ export function AdminV2AllOrders() {
       return;
     }
 
-    if (confirm("Are you sure you want to delete this order?")) {
+    if (
+      await confirmDialog({
+        title: "Delete this order?",
+        description: "Are you sure you want to delete this order?",
+        confirmText: "Delete order",
+        destructive: true,
+      })
+    ) {
       try {
         const success = await deleteOrder(order.id);
         if (success) {
