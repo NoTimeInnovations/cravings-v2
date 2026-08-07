@@ -186,3 +186,45 @@ export function isWithinThirdPartyFreeZone(
   if (!Number.isFinite(d) || d <= 0) return false;
   return d <= freeKm;
 }
+
+/**
+ * The delivery benefit to actually apply at checkout, combining BOTH perks over a
+ * base fare — regardless of who's delivering. This is the single decision the
+ * checkout memo makes, extracted so it's testable for every source:
+ *
+ *  - `isThirdPartyCharge = false` → NORMAL delivery (own rider / agent / custom
+ *    pricing). Only the value-based free/reduced perk applies (the Porter
+ *    near-zone is meaningless when the store already controls the fare).
+ *  - `isThirdPartyCharge = true`  → the customer is charged the live third-party
+ *    (Porter/Rapido) quote. The value-based perk applies AND, inside the free
+ *    near-zone, the fare is fully waived (the store absorbs the courier fee).
+ *
+ * The two perks compose to the customer's best outcome: a full waiver (near-zone)
+ * beats a reduction, so it wins when it applies. The "unlock" celebration only
+ * fires when the value perk was actually earned by cart value — being nearby is
+ * not an unlock, so it shows the FREE line without confetti (qualifies=false).
+ */
+export function resolveDeliveryBenefit(args: {
+  rules: DeliveryRules | null | undefined;
+  subtotalMajor: number;
+  distanceKm: number | null | undefined;
+  baseFare: number;
+  isThirdPartyCharge: boolean;
+}): DeliveryBenefit {
+  const { rules, subtotalMajor, distanceKm, baseFare, isThirdPartyCharge } = args;
+
+  const valueBenefit = computeDeliveryBenefit(rules, subtotalMajor, distanceKm, baseFare);
+  const originalFare = Math.max(0, Number(baseFare) || 0);
+
+  if (isThirdPartyCharge && originalFare > 0 && isWithinThirdPartyFreeZone(rules, distanceKm)) {
+    return {
+      finalFare: 0,
+      benefit: "free",
+      originalFare,
+      qualifies: valueBenefit.qualifies,
+      amountToUnlock: 0,
+    };
+  }
+
+  return valueBenefit;
+}

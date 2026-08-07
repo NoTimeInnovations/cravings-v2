@@ -98,7 +98,7 @@ import { valueStack, canStack, givesGift, type StackableDiscount } from "@/lib/d
 import { bxgyFreebieUnits, bxgyGivesFreeItem, bxgyRepeatCount, bxgyRewardAmount, describeBxgy } from "@/lib/bxgy";
 import { fireGiftConfetti, originOf } from "@/lib/giftConfetti";
 import { GiftEarnedModal } from "@/components/hotelDetail/GiftEarnedModal";
-import { computeDeliveryBenefit, isWithinThirdPartyFreeZone } from "@/lib/freeDelivery";
+import { computeDeliveryBenefit, resolveDeliveryBenefit } from "@/lib/freeDelivery";
 import { deliverySavings } from "@/lib/deliveryBenefitDisplay";
 import { DeliveryFeeValue } from "@/components/hotelDetail/delivery/DeliveryFeeLine";
 import { FreeDeliveryNudge } from "@/components/hotelDetail/delivery/FreeDeliveryNudge";
@@ -1017,29 +1017,16 @@ const PlaceOrderModalV2 = ({
     } else if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) {
       baseFare = deliveryInfo.cost;
     }
-    const rules = hotelData?.delivery_rules;
-    const dist = deliveryInfo?.distance;
-
-    // Value-based free/reduced perk (covers every source) — drives the nudge +
-    // unlock celebration.
-    const valueBenefit = computeDeliveryBenefit(rules, subtotal, dist, baseFare);
-
-    // Third-party (Porter/Rapido) free near-zone: when the customer is charged the
-    // live bridge quote, the store absorbs the fare within N km (ANY order value)
-    // and the customer pays the quote beyond it. Full free is always the best deal,
-    // so it wins when it applies. Celebrate only if the value perk ALSO unlocked —
-    // being merely nearby isn't an "unlock".
-    if (usePorterForCharge && baseFare > 0 && isWithinThirdPartyFreeZone(rules, dist)) {
-      return {
-        finalFare: 0,
-        benefit: "free" as const,
-        originalFare: baseFare,
-        qualifies: valueBenefit.qualifies,
-        amountToUnlock: 0,
-      };
-    }
-
-    return valueBenefit;
+    // Combine the value-based perk (every source) with the third-party free
+    // near-zone (Porter/Rapido live quote only). Pure + unit-tested for both the
+    // normal-delivery and third-party paths — see resolveDeliveryBenefit.
+    return resolveDeliveryBenefit({
+      rules: hotelData?.delivery_rules,
+      subtotalMajor: subtotal,
+      distanceKm: deliveryInfo?.distance,
+      baseFare,
+      isThirdPartyCharge: usePorterForCharge,
+    });
   }, [
     isQrScan,
     orderType,

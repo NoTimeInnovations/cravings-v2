@@ -20,6 +20,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { taxLabel } from "@/lib/taxLabel";
 import { getTakeawayAdjustment, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
 import { computeParcelCharge } from "@/lib/parcelCharge";
+import { resolveDeliveryBenefit } from "@/lib/freeDelivery";
 import { roadDistanceKm, haversineKm, type LatLng } from "@/lib/roadDistance";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { useAuthStore, User } from "@/store/authStore"; // <-- Added
@@ -500,13 +501,26 @@ const OrderDrawer = ({
         )
       : 0;
     const hideDeliveryCharge = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
-    const deliveryCharge =
+    const rawDeliveryCharge =
       !isQrScan &&
       orderType === "delivery" &&
       deliveryInfo?.cost &&
       !deliveryInfo?.isOutOfRange &&
       !hideDeliveryCharge
         ? deliveryInfo.cost
+        : 0;
+    // Apply the value-based free/reduced-delivery perk to the WhatsApp order too,
+    // so its fee matches what the in-app checkout charges. A WhatsApp order is own
+    // delivery (no live third-party quote), so isThirdPartyCharge is false.
+    const deliveryCharge =
+      rawDeliveryCharge > 0
+        ? resolveDeliveryBenefit({
+            rules: hotelData?.delivery_rules,
+            subtotalMajor: baseTotal,
+            distanceKm: deliveryInfo?.distance,
+            baseFare: rawDeliveryCharge,
+            isThirdPartyCharge: false,
+          }).finalFare
         : 0;
     const parcelCharge =
       tableNumber === 0
@@ -593,7 +607,9 @@ const OrderDrawer = ({
       !deliveryInfo?.isOutOfRange
         ? (hideDeliveryCharge
           ? `_Extra delivery charges apply_`
-          : `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}`)
+          : deliveryCharge > 0
+            ? `*Delivery Charge:* ${hotelData.currency}${deliveryCharge.toFixed(2)}`
+            : `*Delivery Charge:* Free`)
         : "",
       qrGroup?.extra_charge
         ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}`
