@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, Loader2, PackageCheck, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { getShipmentForOrder, shipOrderNow } from "@/app/actions/shiprocketDispatch";
-import type { ShipmentView } from "@/lib/shiprocket/types";
+import { LIVE_SHIPMENT_STATUSES, type ShipmentView } from "@/lib/shiprocket/types";
 
 /**
  * Shiprocket panel on an order: current shipment state, and the manual Ship
@@ -17,6 +17,16 @@ import type { ShipmentView } from "@/lib/shiprocket/types";
  * porter flow left partners stuck. It IS disabled once a parcel really is on its
  * way, because a second send would bill the store again for the same order.
  */
+/** What each live state says on the order. Keys come from the webhook. */
+const LIVE_TEXT: Partial<Record<ShipmentView["status"], string>> = {
+    awb_assigned: "Courier booked",
+    pickup_requested: "Pickup scheduled",
+    in_transit: "On the way",
+    out_for_delivery: "Out for delivery",
+    delivered: "Delivered",
+    rto: "Returning to store",
+};
+
 export default function ShiprocketOrderPanel({
     orderId,
     orderStatus,
@@ -72,11 +82,12 @@ export default function ShiprocketOrderPanel({
 
     if (loading) return null;
 
-    // A shipment that is genuinely in flight. `created` is excluded on purpose:
-    // the Shiprocket order exists but has no courier, which is the state that most
+    // A shipment that is genuinely in flight — including the webhook-driven states
+    // (in transit, delivered, RTO). `created` is excluded on purpose: the
+    // Shiprocket order exists but has no courier, which is the state that most
     // needs a retry — and the server RESUMES that one at the courier step rather
     // than creating (and billing) a second order.
-    const live = shipment?.status === "awb_assigned" || shipment?.status === "pickup_requested";
+    const live = !!shipment && LIVE_SHIPMENT_STATUSES.has(shipment.status);
     // A send that is genuinely mid-flight. Pressing again would only be refused.
     const inFlight = shipment?.status === "claimed";
     // We do not know whether Shiprocket has this order. Retrying may create a
@@ -105,7 +116,9 @@ export default function ShiprocketOrderPanel({
                         {!shipment
                             ? "Not shipped yet."
                             : live
-                              ? `${shipment.courierName ?? "Courier"} · AWB ${shipment.awbCode}`
+                              ? `${LIVE_TEXT[shipment.status] ?? "On its way"} · ${shipment.courierName ?? "Courier"}${
+                                    shipment.awbCode ? ` · AWB ${shipment.awbCode}` : ""
+                                }`
                               : shipment.status === "created"
                                 ? "Order created at Shiprocket, but no courier assigned yet."
                                 : shipment.status === "cancelled"

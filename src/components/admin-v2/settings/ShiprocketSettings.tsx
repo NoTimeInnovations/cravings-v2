@@ -25,6 +25,7 @@ import {
     Truck,
 } from "lucide-react";
 import {
+    ensureShiprocketWebhookToken,
     getShiprocketStatus,
     saveShiprocketCredentials,
     testShiprocketConnection,
@@ -32,6 +33,7 @@ import {
 } from "@/app/actions/shiprocketPartner";
 import {
     DEFAULT_SHIPROCKET_CONFIG,
+    HYPERLOCAL_CATEGORIES,
     type ShiprocketConfig,
     type ShiprocketPickupLocation,
 } from "@/lib/shiprocket/types";
@@ -55,6 +57,7 @@ export function ShiprocketSettings() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
+    const [rotating, setRotating] = useState(false);
 
     const [apiEmail, setApiEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -80,6 +83,14 @@ export function ShiprocketSettings() {
                     setApiEmail(s.apiEmail ?? "");
                     setCfg(s.config);
                 }
+                // Mint the store's webhook token the first time this panel is
+                // opened, so the URL is simply there to copy. Asking a merchant to
+                // press "generate" before they can finish setup is a step that
+                // gets skipped, and a skipped webhook silently breaks Quick.
+                if (!s.config.webhook_token) {
+                    const t = await ensureShiprocketWebhookToken(partnerId);
+                    if (t.ok) setCfg((prev) => ({ ...prev, webhook_token: t.token }));
+                }
             } catch (e) {
                 console.error("[shiprocket] status load failed", e);
                 toast.error("Could not load your Shiprocket settings");
@@ -93,6 +104,37 @@ export function ShiprocketSettings() {
     useEffect(() => {
         load();
     }, [load]);
+
+    // The URL the merchant pastes into Shiprocket. Built from the public base so a
+    // preview/tunnel deployment hands out its own host rather than production's.
+    const webhookUrl = cfg.webhook_token
+        ? `${(process.env.NEXT_PUBLIC_BASE_URL || "https://menuthere.com").replace(/\/$/, "")}/api/webhook/parcel-status/${cfg.webhook_token}`
+        : "";
+
+    const copy = async (text: string, label: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            toast.success(`${label} copied`);
+        } catch {
+            toast.error("Copy failed");
+        }
+    };
+
+    const handleRotateWebhook = async () => {
+        if (!partnerId) return;
+        setRotating(true);
+        try {
+            const r = await ensureShiprocketWebhookToken(partnerId, { rotate: true });
+            if (!r.ok) {
+                toast.error(r.error || "Could not generate a new webhook URL");
+                return;
+            }
+            setCfg((prev) => ({ ...prev, webhook_token: r.token }));
+            toast.success("New webhook URL generated — update it in Shiprocket");
+        } finally {
+            setRotating(false);
+        }
+    };
 
     const patch = (p: Partial<ShiprocketConfig>) => setCfg((prev) => ({ ...prev, ...p }));
     const patchPackage = (p: Partial<ShiprocketConfig["package"]>) =>
@@ -301,6 +343,34 @@ export function ShiprocketSettings() {
                                 </p>
                             </div>
 
+                            {/* ── What's in the bag (hyperlocal only) ───────── */}
+                            {!isParcel && (
+                                <div className="space-y-1.5">
+                                    <Label>What you send</Label>
+                                    <Select
+                                        value={cfg.category}
+                                        onValueChange={(v) =>
+                                            patch({ category: v as ShiprocketConfig["category"] })
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {HYPERLOCAL_CATEGORIES.map((c) => (
+                                                <SelectItem key={c} value={c}>
+                                                    {c}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Shiprocket Quick requires this on every order and rejects the
+                                        booking without it.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* ── Pickup location ───────────────────────────── */}
                             <div className="space-y-1.5">
                                 <Label>Pickup location</Label>
@@ -448,6 +518,67 @@ export function ShiprocketSettings() {
                                         onCheckedChange={(v) => patch({ request_pickup: v })}
                                     />
                                 </div>
+                            </div>
+
+                            {/* ── Webhook setup ─────────────────────────────── */}
+                            <div className="rounded-lg border bg-muted/30 p-3 space-y-2.5">
+                                <p className="text-sm font-medium">
+                                    Webhook setup (Shiprocket → Settings → Additional Settings → Webhooks)
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {isParcel
+                                        ? "Without this, tracking updates never reach this dashboard."
+                                        : "Required for Shiprocket Quick — the tracking number is issued when a rider accepts, and this is the only way it reaches us."}
+                                </p>
+                                <div>
+                                    <div className="text-xs text-muted-foreground mb-1">URL</div>
+                                    <div className="flex items-center gap-2">
+                                        <code className="flex-1 truncate rounded bg-background px-2 py-1 text-xs">
+                                            {webhookUrl || "Generating…"}
+                                        </code>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={!webhookUrl}
+                                            onClick={() => copy(webhookUrl, "Webhook URL")}
+                                        >
+                                            Copy
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-muted-foreground mb-1">
+                                        Token (Auth Token Type: <b>x-api-key</b>)
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <code className="flex-1 truncate rounded bg-background px-2 py-1 text-xs">
+                                            {cfg.webhook_token || "Generating…"}
+                                        </code>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={!cfg.webhook_token}
+                                            onClick={() => copy(cfg.webhook_token ?? "", "Token")}
+                                        >
+                                            Copy
+                                        </Button>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    This URL is unique to your store — don&apos;t share it. Remember to turn the
+                                    Webhook Connection toggle on after saving in Shiprocket.{" "}
+                                    <button
+                                        type="button"
+                                        className="underline underline-offset-2"
+                                        onClick={handleRotateWebhook}
+                                        disabled={rotating}
+                                    >
+                                        {rotating ? "Generating…" : "Generate a new one"}
+                                    </button>{" "}
+                                    if it has been exposed — the old URL stops working immediately.
+                                </p>
                             </div>
 
                             {/* ── Actions ───────────────────────────────────── */}

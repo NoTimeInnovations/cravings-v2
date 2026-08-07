@@ -411,6 +411,66 @@ export async function checkHyperlocalServiceability(
   };
 }
 
+/**
+ * What Shiprocket currently thinks of an order we created.
+ *
+ * `cancelled` is the one that matters: an order cancelled IN THE SHIPROCKET PANEL
+ * is invisible to us otherwise, and our row would go on resuming at the courier
+ * step forever against an order that can never take one.
+ */
+export async function getOrderStatus(
+  partnerId: string,
+  srOrderId: string,
+): Promise<SrResult<{ status: string | null; statusCode: number | null; cancelled: boolean }>> {
+  const res = await srFetch<any>(partnerId, `/orders/show/${encodeURIComponent(srOrderId)}`);
+  if (!res.ok) return res;
+  const d = (res.data as any)?.data ?? res.data;
+  const status = d?.status != null ? String(d.status) : null;
+  const codeNum = Number(d?.status_code);
+  const statusCode = Number.isFinite(codeNum) ? codeNum : null;
+  // Both signals, because neither is documented: status_code 5 is what a cancel
+  // produces today, and the label is spelled "CANCELED" (one L) — matching on
+  // "cancel" covers either spelling if Shiprocket ever changes one of them.
+  return {
+    ok: true,
+    data: { status, statusCode, cancelled: statusCode === 5 || /cancel/i.test(status ?? "") },
+  };
+}
+
+/**
+ * The couriers Shiprocket will actually accept for an order that already exists.
+ *
+ * Needed because the quote form of /courier/serviceability answers a hyperlocal
+ * query with a nameplate ("Shiprocket Quick") and NO courier_company_id, while the
+ * by-order form returns the real riders — PICO_EXPRESS_QUICK, Bharat, Quick-Mover —
+ * each carrying an id we can assign. `is_hyperlocal` is the only field that
+ * separates them from the parcel couriers in the same list.
+ */
+export async function listCouriersForOrder(
+  partnerId: string,
+  srOrderId: string,
+): Promise<SrResult<Array<{ id: number; name: string; isHyperlocal: boolean; rate: number | null }>>> {
+  const res = await srFetch<any>(partnerId, PATH_SERVICEABILITY, {
+    query: { order_id: srOrderId },
+  });
+  if (!res.ok) return res;
+  const list = (res.data as any)?.data?.available_courier_companies;
+  if (!Array.isArray(list)) return fail("unknown", "Shiprocket returned no courier list for this order.");
+  return {
+    ok: true,
+    data: list
+      .filter((c: any) => Number.isFinite(Number(c?.courier_company_id)))
+      .map((c: any) => ({
+        id: Number(c.courier_company_id),
+        name: String(c?.courier_name ?? "Courier"),
+        isHyperlocal: c?.is_hyperlocal === true,
+        rate: Number.isFinite(Number(c?.freight_charge ?? c?.rate))
+          ? Number(c.freight_charge ?? c.rate)
+          : null,
+      })),
+  };
+}
+
 /** Create the order. THE non-idempotent call — never replayed automatically. */
 export async function createAdhocOrder(
   partnerId: string,
@@ -467,7 +527,11 @@ export async function assignAwb(
   if (!awbCode) {
     return fail(
       "validation",
-      "Shiprocket did not assign an AWB. This is usually an empty Shiprocket wallet, an unserviceable PIN code, or a pickup location whose phone is unverified.",
+      `Shiprocket accepted the request but assigned no AWB${
+        courierId ? ` for courier ${courierId}` : " (no courier was named, so Shiprocket chose)"
+      }. Usual causes: the chosen courier cannot serve this shipment (a parcel ` +
+        "courier on a hyperlocal order returns exactly this), an empty wallet, an " +
+        "unserviceable PIN code, or a pickup location whose phone is unverified.",
     );
   }
   return {

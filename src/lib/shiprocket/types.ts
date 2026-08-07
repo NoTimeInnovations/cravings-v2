@@ -19,6 +19,33 @@ export type ShiprocketMode = "parcel" | "hyperlocal";
 /** Order status that auto-dispatch fires on. Mirrors porter_dispatch_trigger. */
 export type ShiprocketTrigger = "accepted" | "food_ready" | "dispatched";
 
+/**
+ * What is in the bag, for Shiprocket Quick (hyperlocal) only.
+ *
+ * REQUIRED by the hyperlocal order-create: omitting it is not treated as "no
+ * preference", it is rejected outright with "Invalid category selected for
+ * hyperlocal shipment" — an error that reads like a bad value but is what a
+ * MISSING field produces. Parcel mode neither needs nor accepts it.
+ *
+ * Sent as `category_name` on every order_items entry, NOT on the order. All of
+ * this was established against the live API, because Shiprocket's published docs
+ * do not mention the field at all: a top-level `category_name` is rejected
+ * identically to sending nothing, and the value is case-sensitive ("Food" passes,
+ * "food" does not). Do not "tidy" the casing.
+ */
+export const HYPERLOCAL_CATEGORIES = [
+  "Food",
+  "Groceries",
+  "Medicines",
+  "Electronics",
+  "Clothes",
+  "Documents",
+  "Loose Goods",
+  "Others",
+] as const;
+
+export type ShiprocketCategory = (typeof HYPERLOCAL_CATEGORIES)[number];
+
 export interface ShiprocketPackage {
   /** cm. Shiprocket rejects anything <= 0.5. */
   length: number;
@@ -48,6 +75,19 @@ export interface ShiprocketConfig {
   courier_id: number | null;
   /** Sales channel id. Blank = Shiprocket's default "Custom" channel. */
   channel_id: string | null;
+  /**
+   * This store's own webhook token. It is the LAST path segment of the URL the
+   * merchant pastes into Shiprocket, and it is how an inbound event is attributed
+   * to a partner — Shiprocket sends nothing that identifies the account, so
+   * without a per-store token any merchant's events could touch any other
+   * merchant's orders. Generated for them; never typed by hand.
+   */
+  webhook_token: string | null;
+  /**
+   * What is in the bag. Sent as `category_name` on each line item of a hyperlocal
+   * order, where it is mandatory. Ignored in parcel mode.
+   */
+  category: ShiprocketCategory;
   /** Default box, used for parcel mode when an order carries no size of its own. */
   package: ShiprocketPackage;
 }
@@ -71,6 +111,11 @@ export const DEFAULT_SHIPROCKET_CONFIG: ShiprocketConfig = {
   request_pickup: true,
   courier_id: null,
   channel_id: null,
+  // Minted server-side on first save — see ensureShiprocketWebhookToken.
+  webhook_token: null,
+  // Most stores on this platform sell prepared food; a store shipping something
+  // else picks its own in the settings panel.
+  category: "Food",
   package: { ...DEFAULT_SHIPROCKET_PACKAGE },
 };
 
@@ -117,6 +162,16 @@ export function parseShiprocketConfig(raw: unknown): ShiprocketConfig {
     courier_id: Number.isFinite(courierId) && courierId > 0 ? courierId : null,
     channel_id:
       typeof obj.channel_id === "string" && obj.channel_id.trim() ? obj.channel_id.trim() : null,
+    webhook_token:
+      typeof obj.webhook_token === "string" && obj.webhook_token.trim()
+        ? obj.webhook_token.trim()
+        : null,
+    // Falls back rather than passing an unrecognised value through: Shiprocket
+    // rejects the whole order over this field, so a stale or hand-edited config
+    // should still ship as Food instead of failing at the counter.
+    category: (HYPERLOCAL_CATEGORIES as readonly string[]).includes(obj.category)
+      ? obj.category
+      : DEFAULT_SHIPROCKET_CONFIG.category,
     package: {
       // Shiprocket's floor is 0.5cm / 0kg; clamp to something a courier will accept
       // rather than letting a 0 through to be rejected at order-create time.
@@ -143,6 +198,15 @@ export function parseShiprocketConfig(raw: unknown): ShiprocketConfig {
  *                     parcel under a new reference, which Shiprocket cannot dedupe.
  *                     Only a human pressing the button may retry this.
  *  cancelled        — cancelled locally. Never auto-retried, for the same reason.
+ *
+ * The states below arrive ONLY from the Shiprocket webhook, never from a dispatch
+ * call. They are the parcel's life after we stop talking to it, so nothing in the
+ * claim logic may re-send from any of them.
+ *
+ *  in_transit       — collected, moving. (Shiprocket "PICKED UP" / "IN TRANSIT".)
+ *  out_for_delivery — with the rider for the final hop.
+ *  delivered        — done.
+ *  rto              — coming back to the store: refused, unreachable, or expired.
  */
 export type ShipmentStatus =
   | "claimed"
@@ -151,7 +215,26 @@ export type ShipmentStatus =
   | "pickup_requested"
   | "failed"
   | "unknown"
-  | "cancelled";
+  | "cancelled"
+  | "in_transit"
+  | "out_for_delivery"
+  | "delivered"
+  | "rto";
+
+/**
+ * Shipment states that mean a parcel is real and in the world. Re-shipping any of
+ * them would book and bill a SECOND one, so the Ship button must stay disabled —
+ * this is the list the order panel asks, and new live states must be added here or
+ * a delivered parcel quietly becomes re-shippable.
+ */
+export const LIVE_SHIPMENT_STATUSES: ReadonlySet<ShipmentStatus> = new Set([
+  "awb_assigned",
+  "pickup_requested",
+  "in_transit",
+  "out_for_delivery",
+  "delivered",
+  "rto",
+]);
 
 /** A shipment as the admin UI sees it. No secrets — safe to send to the browser. */
 export interface ShipmentView {

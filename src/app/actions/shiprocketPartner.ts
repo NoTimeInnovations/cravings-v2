@@ -11,6 +11,7 @@
 //
 // Nothing here ever returns the stored password, in any form, to the client.
 
+import { randomBytes } from "crypto";
 import { getAuthCookie } from "@/app/auth/actions";
 import { fetchFromHasuraServer } from "@/lib/hasuraServerClient";
 import { encryptSecret, paymentCryptoConfigured } from "@/lib/paymentCrypto";
@@ -91,6 +92,58 @@ export async function getShiprocketStatus(partnerId: string): Promise<Shiprocket
   } catch (e) {
     console.error("[shiprocket] status lookup failed", (e as Error)?.message);
     return base;
+  }
+}
+
+/**
+ * This store's webhook token, minting one the first time it is asked for.
+ *
+ * Per store rather than one shared secret, because Shiprocket's callback carries
+ * NOTHING that identifies the sending account — with a single global token, any
+ * merchant holding it could post events for another merchant's order and drive it
+ * to completed. The token is the last path segment of the URL they paste, so it
+ * both authenticates the caller and names the partner.
+ *
+ * `rotate` mints a fresh one; the old URL stops working the moment it is saved, so
+ * the merchant has to update Shiprocket. That is the point of a rotation.
+ */
+export async function ensureShiprocketWebhookToken(
+  partnerId: string,
+  opts: { rotate?: boolean } = {},
+): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  try {
+    await requireOwnerOrSuperadmin(partnerId);
+  } catch {
+    return { ok: false, error: "Not authorized" };
+  }
+  try {
+    const row = await fetchShiprocketCredRow(partnerId);
+    const current = configFromRow(row).webhook_token;
+    if (current && !opts.rotate) return { ok: true, token: current };
+
+    // 32 hex chars of CSPRNG. This is a bearer token in a URL, so it has to be
+    // unguessable on its own — there is no second factor behind it.
+    const token = randomBytes(16).toString("hex");
+    const merged = parseShiprocketConfig({
+      ...(configFromRow(row) as unknown as Record<string, unknown>),
+      webhook_token: token,
+    });
+    // upsert: a store may open this panel before it has ever saved credentials.
+    await fetchFromHasuraServer(
+      `mutation SetWebhookToken($obj: partner_shiprocket_credentials_insert_input!) {
+        insert_partner_shiprocket_credentials_one(
+          object: $obj,
+          on_conflict: {
+            constraint: partner_shiprocket_credentials_pkey,
+            update_columns: [config, updated_at]
+          }
+        ) { partner_id }
+      }`,
+      { obj: { partner_id: partnerId, config: merged, updated_at: new Date().toISOString() } },
+    );
+    return { ok: true, token };
+  } catch (e) {
+    return { ok: false, error: (e as Error)?.message || "Could not create a webhook token" };
   }
 }
 

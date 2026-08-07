@@ -27,6 +27,8 @@ import {
   assignAwb,
   createAdhocOrder,
   generateLabel,
+  getOrderStatus,
+  listCouriersForOrder,
   requestPickup,
 } from "@/lib/shiprocket/client";
 import { resolveDestination } from "@/lib/shiprocket/address";
@@ -169,7 +171,7 @@ type Claim =
   /** Nothing exists upstream — build and send a whole new order. */
   | { ok: true; kind: "create"; attempt: number }
   /** The Shiprocket order already exists; only the courier is missing. */
-  | { ok: true; kind: "resume"; attempt: number; shipmentId: string }
+  | { ok: true; kind: "resume"; attempt: number; shipmentId: string; srOrderId: string | null }
   | { ok: false; reason: string };
 
 /**
@@ -252,7 +254,7 @@ async function claimShipment(
             shipment_id: { _is_null: false }
           },
           _set: { status: "claimed", last_error: null, updated_at: $now }
-        ) { affected_rows returning { attempt shipment_id } }
+        ) { affected_rows returning { attempt shipment_id sr_order_id } }
       }`,
       { id: orderId, now },
     );
@@ -263,6 +265,7 @@ async function claimShipment(
         kind: "resume",
         attempt: r.returning?.[0]?.attempt ?? 1,
         shipmentId: String(r.returning?.[0]?.shipment_id),
+        srOrderId: r.returning?.[0]?.sr_order_id ? String(r.returning[0].sr_order_id) : null,
       };
     }
   }
@@ -383,16 +386,33 @@ function buildOrderPayload(
   dest: { pincode: string; city: string; state: string; country: string },
   ref: string,
 ): Record<string, unknown> {
+  // Shiprocket rejects an order that repeats a SKU ("SKU cannot be repeated"),
+  // so uniqueness across the lines is our problem to guarantee, not a nicety.
+  const seenSkus = new Set<string>();
   const items = (order.order_items ?? []).map((line, i) => {
     const name = line.item?.name || line.menu?.name || `Item ${i + 1}`;
     const price = Number(line.item?.price ?? line.menu?.price ?? 0) || 0;
+    // Our menu rows have no SKU concept. `item.id` is the VARIANT id
+    // ("<menuId>|Small"), which is what actually distinguishes two lines of the
+    // same dish — `menu.id` is shared by every variant of it, so a cart holding a
+    // Small and a Large of one drink would send the same SKU twice and be refused.
+    const baseSku = String(line.item?.id ?? line.menu?.id ?? `ITEM-${i + 1}`).slice(0, 46);
+    // Even variant ids can collide (the same variant added twice as separate lines
+    // with different notes), so position is the last resort. Suffixed after the
+    // slice, or two long ids sharing a prefix would collide again.
+    let sku = baseSku;
+    for (let n = 2; seenSkus.has(sku); n += 1) sku = `${baseSku}-${n}`;
+    seenSkus.add(sku);
     return {
       name: String(name).slice(0, 100),
-      // Shiprocket requires a SKU. Our menu rows have no SKU concept, so the menu
-      // id is the only stable per-item identifier we can offer.
-      sku: String(line.menu?.id ?? `ITEM-${i + 1}`).slice(0, 50),
+      sku,
       units: Math.max(1, Number(line.quantity) || 1),
       selling_price: price,
+      // Hyperlocal only, and it belongs HERE rather than on the order: Shiprocket
+      // reads the category off each line item and ignores a top-level one entirely.
+      // Verified against the live API — a top-level `category_name` is rejected
+      // exactly like sending nothing. Parcel orders must not carry it.
+      ...(cfg.mode === "hyperlocal" ? { category_name: cfg.category } : {}),
     };
   });
 
@@ -439,6 +459,7 @@ function buildOrderPayload(
   // same-city rider, and nothing in the response says so.
   if (cfg.mode === "hyperlocal") {
     payload.shipping_method = "HL";
+    // The category that hyperlocal demands is set per line item above, not here.
     if (drop) {
       payload.latitude = drop.lat;
       payload.longitude = drop.lng;
@@ -539,11 +560,41 @@ async function dispatchShiprocket(
   }
 
   let shipmentId: string;
+  let srOrderId: string | null;
 
   if (claim.kind === "resume") {
     // The Shiprocket order already exists; we are only finishing the courier step.
     // Nothing is re-created and nothing is re-billed for the order itself.
     shipmentId = claim.shipmentId;
+    srOrderId = claim.srOrderId;
+
+    // ...unless it was cancelled in the Shiprocket panel behind our back. That
+    // order can never take a courier, and resume outranks re-create, so without
+    // this check the row is stuck: every retry assigns against a dead order and
+    // reports "order is in cancelled state" forever.
+    //
+    // We move it to `cancelled` and STOP rather than re-creating in the same call.
+    // Re-creating means a new reference, a new billable parcel, and Shiprocket has
+    // no way to recognise it as a duplicate — that has to be someone's decision,
+    // not the silent second half of a retry. `cancelled` is re-claimable by the
+    // manual button, so the very next press books a fresh order.
+    if (srOrderId) {
+      const upstream = await getOrderStatus(order.partner_id, srOrderId);
+      if (upstream.ok && upstream.data.cancelled) {
+        const msg =
+          `This order was cancelled at Shiprocket (${upstream.data.status ?? "cancelled"}), so it can no longer be given a courier. ` +
+          `Press Ship again to book a NEW Shiprocket order — it gets a new reference and is billed separately.`;
+        await persistShipment(orderId, {
+          status: "cancelled" as ShipmentStatus,
+          last_error: msg,
+        });
+        // Reported as a SKIP, not a failure. Nothing went wrong: the row has been
+        // moved to a state the button can re-create from, and the only thing left
+        // is for a human to decide to pay for a second parcel. Returning ok:false
+        // put a red "could not ship" toast on what is really a prompt.
+        return { ok: true, skipped: msg };
+      }
+    }
   } else {
     // Resolved AFTER the claim, because it is a billable Google Geocoding call —
     // every attempt the claim refuses (a double-tap, auto-dispatch racing the
@@ -605,6 +656,7 @@ async function dispatchShiprocket(
     }
 
     shipmentId = created.data.shipmentId;
+    srOrderId = created.data.orderId;
     await persistShipment(orderId, {
       status: "created" as ShipmentStatus,
       sr_order_id: created.data.orderId,
@@ -618,8 +670,64 @@ async function dispatchShiprocket(
   // by now, so the row rests at `created` — a state the manual Try again button
   // RESUMES from rather than re-creating, so a stuck order is recoverable without
   // paying for a second one.
-  const awb = await assignAwb(order.partner_id, shipmentId, cfg.courier_id);
+  // WHICH courier, and why we cannot let Shiprocket decide on hyperlocal.
+  //
+  // Left to itself, /courier/assign/awb takes Shiprocket's own recommendation, and
+  // that recommendation is a PARCEL courier even for an order filed as HL — on the
+  // order that exposed this, `recommended_courier_company_id` was Blue Dart Air
+  // while the Quick riders sat further down the same list. Assigning a parcel
+  // courier to a hyperlocal shipment does not error: it returns HTTP 200 with no
+  // AWB and no awb_assign_error, i.e. a shipment that looks booked and has no
+  // rider. So for hyperlocal we name the courier ourselves.
+  let courierId = cfg.courier_id;
+  if (cfg.mode === "hyperlocal" && !courierId) {
+    if (!srOrderId) {
+      const msg =
+        "Order created at Shiprocket, but we have no Shiprocket order id to look up a rider with. Assign a courier from the Shiprocket panel.";
+      await persistShipment(orderId, { status: "created" as ShipmentStatus, last_error: msg });
+      return { ok: false, message: msg };
+    }
+    const couriers = await listCouriersForOrder(order.partner_id, srOrderId);
+    if (!couriers.ok) {
+      const msg = `Order created at Shiprocket, but its courier list could not be read: ${couriers.message}`;
+      await persistShipment(orderId, { status: "created" as ShipmentStatus, last_error: msg });
+      return { ok: false, message: msg };
+    }
+    // Cheapest rider wins. A null rate sorts last rather than being treated as
+    // free, so a courier that quoted nothing is never picked over one that did.
+    const hyperlocal = couriers.data
+      .filter((c) => c.isHyperlocal)
+      .sort((a, b) => (a.rate ?? Infinity) - (b.rate ?? Infinity));
+    if (hyperlocal.length === 0) {
+      const msg =
+        "Order created at Shiprocket, but no Shiprocket Quick rider serves this route right now. " +
+        "It can be shipped from the Shiprocket panel, or retried later.";
+      await persistShipment(orderId, { status: "created" as ShipmentStatus, last_error: msg });
+      return { ok: false, message: msg };
+    }
+    courierId = hyperlocal[0].id;
+    console.log(
+      `[shiprocket] order=${orderId} hyperlocal courier ${hyperlocal[0].name} (${courierId}) at ${hyperlocal[0].rate ?? "?"}`,
+    );
+  }
+
+  const awb = await assignAwb(order.partner_id, shipmentId, courierId);
   if (!awb.ok) {
+    // A hyperlocal AWB is NOT issued synchronously. Shiprocket Quick answers the
+    // assign with no AWB and parks the order at "SEARCHING FOR RIDER" (code 95)
+    // until a rider actually accepts, which may be minutes later or never. That is
+    // a live, unbilled dispatch — not the failure the empty response looks like.
+    // Verified by polling a real order: status 95, cost 0.00, wallet untouched.
+    if (cfg.mode === "hyperlocal" && srOrderId) {
+      const upstream = await getOrderStatus(order.partner_id, srOrderId);
+      if (upstream.ok && upstream.data.statusCode === 95) {
+        const msg =
+          "Sent to Shiprocket Quick — searching for a rider. The tracking number appears once one accepts; " +
+          "nothing is charged until then.";
+        await persistShipment(orderId, { status: "created" as ShipmentStatus, last_error: msg });
+        return { ok: true, skipped: msg };
+      }
+    }
     const msg = `Order created at Shiprocket, but no courier could be assigned: ${awb.message}`;
     await persistShipment(orderId, { status: "created" as ShipmentStatus, last_error: msg });
     return { ok: false, message: msg };
