@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  BarChart3,
   Bell,
   Loader2,
   MapPin,
@@ -53,9 +54,11 @@ import {
   upsertDuListingMutation,
 } from "@/api/deliveryUndo";
 import {
+  getDeliveryUndoAnalytics,
   getDeliveryUndoHealth,
   resyncDeliveryUndo,
   sendDuNotification,
+  type DuAnalytics,
   type DuAudience,
 } from "@/app/actions/deliveryUndo";
 
@@ -219,6 +222,9 @@ const DeliveryUndoManagement = () => {
           <TabsTrigger value="notify">
             <Bell className="w-4 h-4 mr-2" /> Notifications
           </TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 className="w-4 h-4 mr-2" /> Analytics
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="listings">
@@ -229,6 +235,9 @@ const DeliveryUndoManagement = () => {
         </TabsContent>
         <TabsContent value="notify">
           <NotifyTab />
+        </TabsContent>
+        <TabsContent value="analytics">
+          <AnalyticsTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -1219,3 +1228,204 @@ const NotifyTab = () => {
 };
 
 export default DeliveryUndoManagement;
+
+/* ─────────────────────── analytics ─────────────────────── */
+
+const RANGES = [7, 30, 90] as const;
+
+/**
+ * Traffic for the app and the website.
+ *
+ * Deliberately not a charting library: four numbers, a sparkline and one table
+ * is the whole story, and pulling in a chart package for it would cost more
+ * than it explains.
+ */
+const AnalyticsTab = () => {
+  const [days, setDays] = useState<number>(30);
+  const [data, setData] = useState<DuAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async (d: number) => {
+    setLoading(true);
+    try {
+      setData(await getDeliveryUndoAnalytics(d));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load(days);
+  }, [days, load]);
+
+  if (loading && !data) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground py-10 justify-center">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+      </div>
+    );
+  }
+
+  if (!data?.ok) {
+    return (
+      <Card>
+        <CardContent className="p-4 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 mt-0.5 text-destructive shrink-0" />
+          <div>
+            <p className="font-medium">Couldn&apos;t load analytics</p>
+            <p className="text-sm text-muted-foreground">{data?.error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const t = data.totals ?? {};
+  const peakDay = Math.max(
+    1,
+    ...(data.daily ?? []).map((d) => d.app + d.site),
+  );
+
+  return (
+    <div className="space-y-6 max-w-5xl">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          Since {data.since}
+          {loading && " · refreshing…"}
+        </p>
+        <div className="flex gap-2">
+          {RANGES.map((r) => (
+            <Button
+              key={r}
+              size="sm"
+              variant={days === r ? "default" : "outline"}
+              onClick={() => setDays(r)}
+            >
+              {r}d
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="Website views" value={data.site?.pageViews ?? 0} />
+        <Stat label="Menu views" value={t.restaurant_view ?? 0} />
+        <Stat label="Order Now taps" value={t.wa_tap ?? 0} />
+        <Stat label="Searches" value={t.search_performed ?? 0} />
+      </div>
+
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div>
+            <h3 className="font-medium">Per restaurant</h3>
+            <p className="text-xs text-muted-foreground">
+              Taps ÷ views. A high view count with a low rate usually means the
+              menu is browsable but something about it stops people ordering.
+            </p>
+          </div>
+          {data.restaurants?.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground">
+                    <th className="py-2 font-medium">Restaurant</th>
+                    <th className="py-2 font-medium text-right">Menu views</th>
+                    <th className="py-2 font-medium text-right">Order taps</th>
+                    <th className="py-2 font-medium text-right">Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.restaurants.map((r) => (
+                    <tr key={r.listingId} className="border-t">
+                      <td className="py-2 pr-3">{r.name}</td>
+                      <td className="py-2 text-right tabular-nums">
+                        {r.menuViews}
+                      </td>
+                      <td className="py-2 text-right tabular-nums">
+                        {r.orderTaps}
+                      </td>
+                      <td className="py-2 text-right tabular-nums">
+                        {r.tapRate}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No restaurant traffic in this window yet.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="font-medium">Daily</h3>
+            {data.daily?.length ? (
+              <div className="flex items-end gap-1 h-28">
+                {data.daily.map((d) => (
+                  <div
+                    key={d.day}
+                    className="flex-1 flex flex-col justify-end gap-0.5 min-w-1"
+                    title={`${d.day} · app ${d.app} · site ${d.site}`}
+                  >
+                    <div
+                      className="bg-primary/80 rounded-sm"
+                      style={{ height: `${(d.app / peakDay) * 100}%` }}
+                    />
+                    <div
+                      className="bg-muted-foreground/40 rounded-sm"
+                      style={{ height: `${(d.site / peakDay) * 100}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nothing yet.</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Solid = app, grey = website.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="font-medium">Website pages</h3>
+            {data.site?.byPath.length ? (
+              <div className="space-y-1.5">
+                {data.site.byPath.map((p) => (
+                  <div
+                    key={p.path}
+                    className="flex justify-between gap-3 text-sm"
+                  >
+                    <span className="truncate text-muted-foreground">
+                      {p.path}
+                    </span>
+                    <span className="tabular-nums">{p.views}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No visits yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const Stat = ({ label, value }: { label: string; value: number }) => (
+  <Card>
+    <CardContent className="p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-2xl font-semibold tabular-nums mt-1">
+        {value.toLocaleString()}
+      </p>
+    </CardContent>
+  </Card>
+);
