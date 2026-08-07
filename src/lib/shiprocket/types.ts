@@ -69,6 +69,15 @@ export interface ShiprocketConfig {
   /** Ask Shiprocket to schedule a pickup right after the AWB is assigned. */
   request_pickup: boolean;
   /**
+   * Charge the customer what Shiprocket quotes, instead of the store's own
+   * distance-based delivery_rules pricing.
+   *
+   * Off is a real choice, not a fallback: Shiprocket's rate is what the SHIPMENT
+   * costs, which on a small food order can be most of the basket, and a store may
+   * well prefer a flat ₹40 and absorb the rest. Mirrors porter_pricing_mode.
+   */
+  use_shiprocket_charge: boolean;
+  /**
    * Pin a courier by Shiprocket's courier_company_id. null = let Shiprocket pick
    * its recommended courier, which is what almost every store wants.
    */
@@ -126,6 +135,9 @@ export const DEFAULT_SHIPROCKET_CONFIG: ShiprocketConfig = {
   auto_dispatch: false,
   dispatch_trigger: "accepted",
   request_pickup: true,
+  // On by default: a store that turned shipping on is paying these rates, so
+  // billing them through is the less surprising of the two defaults.
+  use_shiprocket_charge: true,
   courier_id: null,
   channel_id: null,
   pickup_pincode: null,
@@ -179,6 +191,9 @@ export function parseShiprocketConfig(raw: unknown): ShiprocketConfig {
     // Absent means "yes" — scheduling the pickup is the useful default and older
     // rows predate the field.
     request_pickup: obj.request_pickup !== false,
+    // Absent means yes — same reason as request_pickup: rows written before the
+    // field existed were all quoting Shiprocket's rate.
+    use_shiprocket_charge: obj.use_shiprocket_charge !== false,
     courier_id: Number.isFinite(courierId) && courierId > 0 ? courierId : null,
     channel_id:
       typeof obj.channel_id === "string" && obj.channel_id.trim() ? obj.channel_id.trim() : null,

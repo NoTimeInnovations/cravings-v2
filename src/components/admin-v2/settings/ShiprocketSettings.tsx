@@ -507,6 +507,21 @@ export function ShiprocketSettings() {
 
                                 <div className="flex items-center justify-between gap-3 pt-1">
                                     <div className="space-y-0.5 pr-3">
+                                        <Label className="text-sm">Charge customers Shiprocket's rate</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            {cfg.use_shiprocket_charge
+                                                ? "Customers are quoted Shiprocket's live price for their address at checkout. If Shiprocket can't quote it, your own delivery pricing is used instead."
+                                                : "Customers pay your own delivery pricing (Settings → Delivery). You absorb the difference between that and what Shiprocket charges you."}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={cfg.use_shiprocket_charge}
+                                        onCheckedChange={(v) => patch({ use_shiprocket_charge: v })}
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between gap-3 pt-1">
+                                    <div className="space-y-0.5 pr-3">
                                         <Label className="text-sm">Schedule the pickup too</Label>
                                         <p className="text-xs text-muted-foreground">
                                             Ask the courier to collect as soon as the AWB is assigned. Off means you

@@ -104,6 +104,13 @@ export async function quoteShiprocketCharge(input: {
     const creds = await shiprocketCredsForPartner(partnerId);
     if (!creds) return { ok: false, message: "Shiprocket is not enabled for this store" };
     const cfg = creds.config;
+    // The store bills its own way. Checked BEFORE any network call so a store
+    // that opted out never spends a Shiprocket request on a price nobody shows.
+    // The checkout treats ok:false as "no quote" and falls back to delivery_rules,
+    // so nothing client-side needs to know this setting exists.
+    if (!cfg.use_shiprocket_charge) {
+      return { ok: false, message: "this store prices delivery itself" };
+    }
 
     const partnerData = await fetchFromHasuraServer(PARTNER_FOR_QUOTE, { id: partnerId });
     const partner = (partnerData as any)?.partners_by_pk;
