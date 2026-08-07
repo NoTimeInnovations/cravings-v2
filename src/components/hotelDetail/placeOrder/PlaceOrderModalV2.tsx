@@ -967,6 +967,9 @@ const PlaceOrderModalV2 = ({
         partnerId: (hotelData as any)?.id,
         drop: { lat: userCoordinates.lat, lng: userCoordinates.lng },
         address: address || null,
+        // Shiprocket charges a collection fee on COD, so the quote has to know
+        // which one the customer is about to choose.
+        cod: paymentMethod !== "online",
       });
       if (cancelled) return;
       setShiprocketQuoteLoading(false);
@@ -989,6 +992,7 @@ const PlaceOrderModalV2 = ({
     userCoordinates?.lat,
     userCoordinates?.lng,
     address,
+    paymentMethod,
   ]);
 
   const [porterQuote, setPorterQuote] = useState<{

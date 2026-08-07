@@ -169,6 +169,10 @@ export async function quoteShiprocketCharge(input: {
     });
     if (!dest.ok) return { ok: false, message: dest.message };
 
+    // Defaults to COD because that is the common case here, but the checkout now
+    // passes the real choice: prepaid and COD are different courier sets AND
+    // different prices, so assuming COD over-charges a customer paying online by
+    // the collection fee.
     const cod: 0 | 1 = input.cod === false ? 0 : 1;
 
     // Keyed on everything that moves the price. Hyperlocal is distance-priced, so
@@ -228,20 +232,47 @@ export async function quoteShiprocketCharge(input: {
       height: cfg.package.height,
     });
     if (!res.ok) return { ok: false, message: res.message };
-    // Cheapest wins, and a courier that quoted nothing sorts last rather than
-    // being read as free — the same rule dispatch uses when picking a rider.
+    // WHAT THE MERCHANT IS ACTUALLY BILLED, which is not `freight_charge`.
+    //
+    // On a COD shipment Shiprocket also charges a collection fee, and the two
+    // fields differ by exactly that: on this account Blue Dart quoted
+    // freight_charge 175.35, cod_charges 55.65, rate 231.00 — and 175.35 + 55.65
+    // is 231.00. `rate` already reflects the cod flag we passed in the query, so
+    // it is the number to show. Quoting freight alone under-charged every
+    // cash-on-delivery customer by the collection fee, which the store then
+    // absorbed: an ₹80 quote against ₹137 off the wallet.
+    //
+    // freight + cod_charges is the fallback for a courier that omits `rate`,
+    // and freight alone the last resort.
     const priced = res.data.couriers
-      .map((c: any) => ({
-        name: String(c?.courier_name ?? "Courier"),
-        rate: Number(c?.freight_charge ?? c?.rate),
-      }))
+      .map((c: any) => {
+        const rate = Number(c?.rate);
+        const freight = Number(c?.freight_charge);
+        const codFee = Number(c?.cod_charges);
+        const billed = Number.isFinite(rate)
+          ? rate
+          : Number.isFinite(freight)
+            ? freight + (cod === 1 && Number.isFinite(codFee) ? codFee : 0)
+            : NaN;
+        return {
+          id: Number.isFinite(Number(c?.courier_company_id)) ? Number(c.courier_company_id) : null,
+          name: String(c?.courier_name ?? "Courier"),
+          rate: billed,
+        };
+      })
       .filter((c) => Number.isFinite(c.rate));
     if (!priced.length) {
       const miss: ShiprocketQuote = { ok: false, message: "no courier serves this PIN code" };
       cacheSet(cacheKey, miss);
       return miss;
     }
-    const best = priced.reduce((a, b) => (a.rate <= b.rate ? a : b));
+    // PRICE THE COURIER THAT WILL ACTUALLY BE BOOKED. Parcel dispatch names no
+    // courier, so Shiprocket assigns its own recommendation — quoting the cheapest
+    // instead means the customer is charged one courier's price and the wallet pays
+    // another's. Cheapest is the fallback for when the recommendation is missing
+    // or unpriced.
+    const recommended = priced.find((c) => c.id != null && c.id === res.data.recommendedId);
+    const best = recommended ?? priced.reduce((a, b) => (a.rate <= b.rate ? a : b));
     const quote: ShiprocketQuote = {
       ok: true,
       rate: Math.ceil(best.rate),
