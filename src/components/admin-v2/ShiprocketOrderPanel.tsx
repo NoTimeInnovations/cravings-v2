@@ -17,6 +17,17 @@ import { LIVE_SHIPMENT_STATUSES, type ShipmentView } from "@/lib/shiprocket/type
  * porter flow left partners stuck. It IS disabled once a parcel really is on its
  * way, because a second send would bill the store again for the same order.
  */
+/**
+ * How the shipment was actually sent. Shown because the settings panel is
+ * self-saving: a partner can switch the store to Parcel, ship without pressing
+ * Save, and get a Quick booking — and with nothing on the order saying which was
+ * used, the only symptom is a rider turning up for a parcel job.
+ */
+const MODE_TEXT: Record<string, string> = {
+    parcel: "Parcel courier",
+    hyperlocal: "Shiprocket Quick",
+};
+
 /** Mirrors STALE_CLAIM_MS in shiprocketDispatch — the age at which the server
  *  stops believing a claim is still in flight. */
 const STALE_CLAIM_MS = 15 * 60 * 1000;
@@ -144,6 +155,11 @@ export default function ShiprocketOrderPanel({
                     <p className="font-medium flex items-center gap-1.5">
                         <Truck className="h-4 w-4 text-orange-600" />
                         Shiprocket
+                        {shipment?.mode && MODE_TEXT[shipment.mode] && (
+                            <span className="font-normal text-xs text-muted-foreground">
+                                · {MODE_TEXT[shipment.mode]}
+                            </span>
+                        )}
                     </p>
                     <p className="text-xs text-muted-foreground">
                         {!shipment

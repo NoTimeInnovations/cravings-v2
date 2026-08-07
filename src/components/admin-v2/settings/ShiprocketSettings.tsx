@@ -58,6 +58,16 @@ export function ShiprocketSettings() {
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [rotating, setRotating] = useState(false);
+    /**
+     * What the SERVER currently holds, as a comparable string.
+     *
+     * This panel is self-saving, so every control here is local form state until
+     * Save is pressed — and dispatch reads the server, not the form. A partner who
+     * switched the mode to Parcel and went straight to an order shipped it
+     * hyperlocal, because that is what was still stored, with the panel showing
+     * "Parcel courier" the whole time. Nothing said the two had diverged.
+     */
+    const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
     const [apiEmail, setApiEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -92,6 +102,7 @@ export function ShiprocketSettings() {
                     setApiEmail(s.apiEmail ?? "");
                     setCfg(s.config);
                 }
+                setSavedSnapshot(JSON.stringify({ email: s.apiEmail ?? "", config: s.config }));
                 // Mint the store's webhook token the first time this panel is
                 // opened, so the URL is simply there to copy. Asking a merchant to
                 // press "generate" before they can finish setup is a step that
@@ -113,6 +124,14 @@ export function ShiprocketSettings() {
     useEffect(() => {
         load();
     }, [load]);
+
+    // Unsaved edits. The webhook token is excluded because it is minted by the
+    // server on load and saved separately — counting it would show every partner
+    // "unsaved changes" the moment they opened the panel.
+    const dirty =
+        savedSnapshot !== null &&
+        (JSON.stringify({ email: apiEmail.trim(), config: cfg }) !== savedSnapshot ||
+            password.trim().length > 0);
 
     // The URL the merchant pastes into Shiprocket. Built from the public base so a
     // preview/tunnel deployment hands out its own host rather than production's.
@@ -173,6 +192,7 @@ export function ShiprocketSettings() {
             // Clear the field so the next save doesn't look like it's re-sending
             // a password that was never displayed.
             setPassword("");
+            setSavedSnapshot(JSON.stringify({ email: apiEmail.trim(), config: cfg }));
             toast.success("Shiprocket settings saved");
             await load();
         } catch (e) {
@@ -610,6 +630,12 @@ export function ShiprocketSettings() {
                             </div>
 
                             {/* ── Actions ───────────────────────────────────── */}
+                            {dirty && (
+                                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-2.5 py-2">
+                                    You have unsaved changes. Orders keep shipping with the settings
+                                    you last saved until you press Save.
+                                </p>
+                            )}
                             <div className="flex flex-wrap items-center gap-3">
                                 <Button
                                     onClick={handleSave}
