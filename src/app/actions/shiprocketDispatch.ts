@@ -25,6 +25,7 @@ import { fetchFromHasuraServer } from "@/lib/hasuraServerClient";
 import { shiprocketCredsForPartner } from "@/lib/shiprocket/creds";
 import {
   assignAwb,
+  cancelShiprocketOrder,
   createAdhocOrder,
   generateLabel,
   getOrderStatus,
@@ -36,6 +37,7 @@ import {
   cancelShipmentCore,
   getShipmentRow,
   persistShipment,
+  persistShipmentUnlessCancelled,
 } from "@/lib/shiprocket/shipments";
 import type { ShipmentStatus, ShipmentView, ShiprocketConfig } from "@/lib/shiprocket/types";
 
@@ -171,7 +173,15 @@ type Claim =
   /** Nothing exists upstream — build and send a whole new order. */
   | { ok: true; kind: "create"; attempt: number }
   /** The Shiprocket order already exists; only the courier is missing. */
-  | { ok: true; kind: "resume"; attempt: number; shipmentId: string; srOrderId: string | null }
+  | {
+      ok: true;
+      kind: "resume";
+      attempt: number;
+      shipmentId: string;
+      srOrderId: string | null;
+      /** The mode this shipment was CREATED under, which may not be today's setting. */
+      mode: string | null;
+    }
   | { ok: false; reason: string };
 
 /**
@@ -225,11 +235,33 @@ async function claimShipment(
   //    the order forever. Age it out into `unknown` rather than straight back into
   //    the retry pool: we genuinely do not know whether Shiprocket accepted it, and
   //    an automatic re-send would be a second real parcel.
+  //    WHICH state it ages into depends on whether we already know the Shiprocket
+  //    order — and getting this wrong costs a second parcel. A claim carrying a
+  //    shipment_id came from the RESUME path: the order demonstrably exists
+  //    upstream and only its courier was missing, so it goes back to `created`,
+  //    from which a retry resumes at the AWB step and re-bills nothing. Only a
+  //    claim with no shipment_id is genuinely ambiguous, and that is the one that
+  //    becomes `unknown` — whose sole exit re-creates from scratch, NULLing the
+  //    ids and sending a fresh reference Shiprocket cannot dedupe.
   const staleBefore = new Date(Date.now() - STALE_CLAIM_MS).toISOString();
   await fetchFromHasuraServer(
     `mutation AgeOutStaleClaim($id: uuid!, $before: timestamptz!, $now: timestamptz!) {
-      update_shiprocket_shipments(
-        where: { order_id: { _eq: $id }, status: { _eq: "claimed" }, updated_at: { _lt: $before } },
+      resumable: update_shiprocket_shipments(
+        where: {
+          order_id: { _eq: $id }, status: { _eq: "claimed" },
+          updated_at: { _lt: $before }, shipment_id: { _is_null: false }
+        },
+        _set: {
+          status: "created",
+          updated_at: $now,
+          last_error: "The previous send did not finish. The order exists at Shiprocket without a courier — shipping again finishes it without creating a second one."
+        }
+      ) { affected_rows }
+      ambiguous: update_shiprocket_shipments(
+        where: {
+          order_id: { _eq: $id }, status: { _eq: "claimed" },
+          updated_at: { _lt: $before }, shipment_id: { _is_null: true }
+        },
         _set: {
           status: "unknown",
           updated_at: $now,
@@ -254,7 +286,7 @@ async function claimShipment(
             shipment_id: { _is_null: false }
           },
           _set: { status: "claimed", last_error: null, updated_at: $now }
-        ) { affected_rows returning { attempt shipment_id sr_order_id } }
+        ) { affected_rows returning { attempt shipment_id sr_order_id mode } }
       }`,
       { id: orderId, now },
     );
@@ -266,6 +298,7 @@ async function claimShipment(
         attempt: r.returning?.[0]?.attempt ?? 1,
         shipmentId: String(r.returning?.[0]?.shipment_id),
         srOrderId: r.returning?.[0]?.sr_order_id ? String(r.returning[0].sr_order_id) : null,
+        mode: r.returning?.[0]?.mode ?? null,
       };
     }
   }
@@ -374,9 +407,14 @@ function shiprocketDate(iso: string | null | undefined, timeZone?: string | null
  * happened. Without the suffix every retry is rejected as a duplicate.
  */
 function orderRef(order: OrderForShipping, attempt: number): string {
+  // 12 UUID characters, not 4. display_id restarts per store and repeats across
+  // months, so "MT-12-a1b2" could genuinely be produced by two different orders —
+  // and the webhook finds the row BY this reference, so a collision delivers one
+  // parcel's "Delivered" onto the other parcel's order. 12 hex chars makes that
+  // vanishingly unlikely while staying inside Shiprocket's length limit.
   const base = order.display_id
-    ? `MT-${order.display_id}-${order.id.slice(0, 4)}`
-    : `MT-${order.id.slice(0, 12)}`;
+    ? `MT-${order.display_id}-${order.id.slice(0, 12)}`
+    : `MT-${order.id.slice(0, 16)}`;
   return attempt > 1 ? `${base}-R${attempt}` : base;
 }
 
@@ -559,6 +597,21 @@ async function dispatchShiprocket(
     return { ok: true, skipped: claim.reason };
   }
 
+  // The mode a shipment FINISHES in must be the one it started in. A partner who
+  // switches the store from parcel to Quick between the create and the retry would
+  // otherwise have us hunt for a hyperlocal rider for an order Shiprocket holds as
+  // a parcel — the courier classes are not interchangeable, and the order was
+  // already filed upstream under the old one.
+  const effectiveMode =
+    claim.kind === "resume" && (claim.mode === "parcel" || claim.mode === "hyperlocal")
+      ? claim.mode
+      : cfg.mode;
+  if (claim.kind === "resume" && claim.mode && claim.mode !== cfg.mode) {
+    console.log(
+      `[shiprocket] order=${orderId} resuming as ${claim.mode} (store is now ${cfg.mode})`,
+    );
+  }
+
   let shipmentId: string;
   let srOrderId: string | null;
 
@@ -657,12 +710,28 @@ async function dispatchShiprocket(
 
     shipmentId = created.data.shipmentId;
     srOrderId = created.data.orderId;
-    await persistShipment(orderId, {
+    // GUARDED, not a plain write. The order was cancelled here while we were
+    // talking to Shiprocket if this comes back false — in which case the parcel we
+    // just created is one nobody wants, and we withdraw it rather than going on to
+    // book a courier for an order that no longer exists.
+    const stillWanted = await persistShipmentUnlessCancelled(orderId, {
       status: "created" as ShipmentStatus,
       sr_order_id: created.data.orderId,
       shipment_id: created.data.shipmentId,
       last_error: null,
     });
+    if (!stillWanted) {
+      const undo = await cancelShiprocketOrder(order.partner_id, created.data.orderId);
+      await persistShipment(orderId, {
+        sr_order_id: created.data.orderId,
+        shipment_id: created.data.shipmentId,
+        last_error: undo.ok
+          ? "Order was cancelled while it was being sent; the Shiprocket order was withdrawn."
+          : `Order was cancelled while it was being sent, and withdrawing it at Shiprocket failed: ${undo.message}. Check reference ${ref} in your Shiprocket panel.`,
+      });
+      console.warn(`[shiprocket] order=${orderId} cancelled mid-dispatch; upstream undo ok=${undo.ok}`);
+      return { ok: true, skipped: "order was cancelled while it was being sent" };
+    }
   }
 
   // AWB assignment is a separate call and can fail on its own (no serviceable
@@ -680,7 +749,7 @@ async function dispatchShiprocket(
   // AWB and no awb_assign_error, i.e. a shipment that looks booked and has no
   // rider. So for hyperlocal we name the courier ourselves.
   let courierId = cfg.courier_id;
-  if (cfg.mode === "hyperlocal" && !courierId) {
+  if (effectiveMode === "hyperlocal" && !courierId) {
     if (!srOrderId) {
       const msg =
         "Order created at Shiprocket, but we have no Shiprocket order id to look up a rider with. Assign a courier from the Shiprocket panel.";
@@ -718,7 +787,7 @@ async function dispatchShiprocket(
     // until a rider actually accepts, which may be minutes later or never. That is
     // a live, unbilled dispatch — not the failure the empty response looks like.
     // Verified by polling a real order: status 95, cost 0.00, wallet untouched.
-    if (cfg.mode === "hyperlocal" && srOrderId) {
+    if (effectiveMode === "hyperlocal" && srOrderId) {
       const upstream = await getOrderStatus(order.partner_id, srOrderId);
       if (upstream.ok && upstream.data.statusCode === 95) {
         const msg =
@@ -733,7 +802,9 @@ async function dispatchShiprocket(
     return { ok: false, message: msg };
   }
 
-  await persistShipment(orderId, {
+  // Same guard on the far side of the courier call: a cancel that lands between
+  // the create and the AWB must not end with a rider on the way.
+  const stillWantedAfterAwb = await persistShipmentUnlessCancelled(orderId, {
     status: "awb_assigned" as ShipmentStatus,
     awb_code: awb.data.awbCode,
     courier_name: awb.data.courierName,
@@ -741,6 +812,19 @@ async function dispatchShiprocket(
     tracking_url: awb.data.awbCode ? `https://shiprocket.co/tracking/${awb.data.awbCode}` : null,
     last_error: null,
   });
+  if (!stillWantedAfterAwb) {
+    const undo = srOrderId ? await cancelShiprocketOrder(order.partner_id, srOrderId) : null;
+    await persistShipment(orderId, {
+      awb_code: awb.data.awbCode,
+      courier_name: awb.data.courierName,
+      last_error:
+        undo && undo.ok
+          ? `Order was cancelled while a courier was being assigned; the Shiprocket order was withdrawn (AWB ${awb.data.awbCode ?? "-"}).`
+          : `Order was cancelled while a courier was being assigned, and withdrawing it at Shiprocket failed. AWB ${awb.data.awbCode ?? "-"} may still be live — cancel it in your Shiprocket panel.`,
+    });
+    console.warn(`[shiprocket] order=${orderId} cancelled after AWB; upstream undo ok=${undo?.ok}`);
+    return { ok: true, skipped: "order was cancelled while a courier was being assigned" };
+  }
 
   // Pickup + label are conveniences. Neither failing invalidates a shipment that
   // already has an AWB, so both are best-effort and never flip the row to failed.
@@ -767,7 +851,7 @@ async function dispatchShiprocket(
   }
 
   console.log(
-    `[shiprocket] order=${orderId} shipped mode=${cfg.mode} kind=${claim.kind} awb=${awb.data.awbCode ?? "-"} courier=${awb.data.courierName ?? "-"}`,
+    `[shiprocket] order=${orderId} shipped mode=${effectiveMode} kind=${claim.kind} awb=${awb.data.awbCode ?? "-"} courier=${awb.data.courierName ?? "-"}`,
   );
 
   return {

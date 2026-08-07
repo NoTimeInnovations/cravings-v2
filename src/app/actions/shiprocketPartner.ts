@@ -59,6 +59,13 @@ export interface ShiprocketStatus {
   /** RZP_CREDS_MASTER_KEY is set on this server; without it nothing can be saved. */
   masterKeyConfigured: boolean;
   config: ShiprocketConfig;
+  /**
+   * True when the settings row could NOT be read (Hasura error), as opposed to
+   * there being nothing saved. The two look identical otherwise, and treating a
+   * failed read as "nothing saved" is how a panel mints a second webhook token and
+   * then saves default settings over a working configuration.
+   */
+  loadFailed: boolean;
 }
 
 export async function getShiprocketStatus(partnerId: string): Promise<ShiprocketStatus> {
@@ -72,6 +79,7 @@ export async function getShiprocketStatus(partnerId: string): Promise<Shiprocket
     featureEnabled: false,
     masterKeyConfigured: paymentCryptoConfigured(),
     config: parseShiprocketConfig(null),
+    loadFailed: false,
   };
   if (!partnerId) return base;
   try {
@@ -88,10 +96,11 @@ export async function getShiprocketStatus(partnerId: string): Promise<Shiprocket
       featureEnabled,
       masterKeyConfigured: paymentCryptoConfigured(),
       config: configFromRow(row),
+      loadFailed: false,
     };
   } catch (e) {
     console.error("[shiprocket] status lookup failed", (e as Error)?.message);
-    return base;
+    return { ...base, loadFailed: true };
   }
 }
 
@@ -194,10 +203,37 @@ export async function saveShiprocketCredentials(
     if (input.config) {
       // Merge onto the stored config so a partial save (e.g. just the pickup
       // location) cannot silently reset the package size or the trigger.
+      // The webhook token and the cached pickup point are SERVER-OWNED. They
+      // arrive in this payload only because the settings panel round-trips the
+      // whole config object, and honouring them would let any authorized partner
+      // claim another store's token — which is the value that routes inbound
+      // Shiprocket events, so store B could quietly take over store A's webhook.
+      // Stripped here and re-applied from the stored row, so the only writer of
+      // these keys is the server code that owns them.
+      const {
+        webhook_token: _clientToken,
+        pickup_pincode: _clientPin,
+        pickup_lat: _clientLat,
+        pickup_lng: _clientLng,
+        ...clientConfig
+      } = input.config as Record<string, unknown>;
+      const stored = configFromRow(existing);
+      // Changing the pickup LOCATION invalidates the cached point that belongs to
+      // the old one. Carrying it over would quote every delivery from the previous
+      // address — plausible-looking prices measured from the wrong warehouse.
+      const nextPickup =
+        typeof clientConfig.pickup_location === "string"
+          ? clientConfig.pickup_location.trim()
+          : stored.pickup_location;
+      const pickupChanged = nextPickup !== stored.pickup_location;
       obj.config = parseShiprocketConfig({
-        ...(configFromRow(existing) as unknown as Record<string, unknown>),
-        ...input.config,
-        package: { ...configFromRow(existing).package, ...(input.config.package ?? {}) },
+        ...(stored as unknown as Record<string, unknown>),
+        ...clientConfig,
+        webhook_token: stored.webhook_token,
+        pickup_pincode: pickupChanged ? null : stored.pickup_pincode,
+        pickup_lat: pickupChanged ? null : stored.pickup_lat,
+        pickup_lng: pickupChanged ? null : stored.pickup_lng,
+        package: { ...stored.package, ...((input.config.package as any) ?? {}) },
       });
     }
     if (credsChanged) {

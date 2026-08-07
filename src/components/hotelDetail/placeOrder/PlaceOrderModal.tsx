@@ -702,6 +702,10 @@ interface BillCardProps {
   } | null;
   porterQuoteLoading?: boolean;
   usePorterForCharge?: boolean;
+  /** When set, the bill uses the Shiprocket quote — lowest precedence of the
+   *  three, since porter/agent are what would actually move the order. */
+  shiprocketQuote?: { available: boolean; rate?: number; courier?: string | null } | null;
+  useShiprocketForCharge?: boolean;
   /** ₹ value of loyalty points the customer is redeeming on this order. */
   loyaltyRedeemValue?: number;
   /** Per-item takeaway surcharge baked into prices (0 when not takeaway). */
@@ -726,6 +730,8 @@ const BillCard = ({
   porterQuote,
   porterQuoteLoading,
   usePorterForCharge,
+  shiprocketQuote,
+  useShiprocketForCharge,
   loyaltyRedeemValue = 0,
   takeawayAdjPerItem = 0,
 }: BillCardProps) => {
@@ -756,13 +762,26 @@ const BillCard = ({
   // overrides the legacy hide_delivery_charge flag (same as the live-quote path
   // and the extra_charges builder that actually bills), so it's not checked here.
   const porterFallback = deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
+  // Shiprocket's live quote is the billed amount when the store prices that way,
+  // with the partner's own pricing as the fallback — the same shape as porter.
+  // This MUST agree with _barDeliveryCharge and the extra_charges builders in
+  // PlaceOrderModal: the bill the customer reads and the amount actually charged
+  // are computed in four separate places in this file, and any one of them
+  // disagreeing means showing one price and taking another.
+  const useShiprocket = !!useShiprocketForCharge;
+  const shiprocketPrice =
+    useShiprocket && shiprocketQuote?.available && typeof shiprocketQuote?.rate === "number"
+      ? shiprocketQuote.rate
+      : 0;
   const deliveryCharges = usePorter
     ? (isDelivery ? (porterPrice || porterFallback) : 0)
     : useAgent
       ? (isDelivery ? agentPrice : 0)
-      : isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
-        ? deliveryInfo.cost
-        : 0;
+      : useShiprocket
+        ? (isDelivery ? (shiprocketPrice || porterFallback) : 0)
+        : isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
+          ? deliveryInfo.cost
+          : 0;
 
   const totalItemCount = items.reduce((acc, item) => acc + item.quantity, 0);
   const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
@@ -3214,7 +3233,11 @@ const PlaceOrderModal = ({
       if (
         hotelData?.delivery_rules?.hide_delivery_charge &&
         !useAgentForCharge &&
-        !usePorterForCharge
+        !usePorterForCharge &&
+        // ...and not when Shiprocket is pricing it either: the bill card, the
+        // sticky bar and both extra_charges builders all bill the quote, so an
+        // early 0 here is the one place that would disagree with what is charged.
+        !useShiprocketForCharge
       )
         return 0;
       // Porter takes precedence over delivery_agent if both are enabled.
@@ -3473,7 +3496,10 @@ const PlaceOrderModal = ({
       if (
         !isQrScan &&
         orderType === "delivery" &&
-        (!(hotelData?.delivery_rules?.hide_delivery_charge) || usePorterForCharge || useAgentForCharge)
+        (!(hotelData?.delivery_rules?.hide_delivery_charge) ||
+          usePorterForCharge ||
+          useAgentForCharge ||
+          useShiprocketForCharge)
       ) {
         // Porter takes precedence — its live quote IS the customer-billed
         // delivery charge. Falls through to Adloggs, then to delivery_rules.
@@ -3483,7 +3509,11 @@ const PlaceOrderModal = ({
               : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0))
           : useAgentForCharge
             ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
-            : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
+            : useShiprocketForCharge
+              ? (shiprocketQuote?.available && typeof shiprocketQuote.rate === "number"
+                  ? shiprocketQuote.rate
+                  : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0))
+              : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
         if (amt > 0) {
           extraCharges.push({
             name: "Delivery Charge",
@@ -3676,14 +3706,18 @@ const PlaceOrderModal = ({
         const amt = getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
         if (amt > 0) extraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
       }
-      if (!isQrScan && orderType === "delivery" && (!(hotelData?.delivery_rules?.hide_delivery_charge) || usePorterForCharge || useAgentForCharge)) {
+      if (!isQrScan && orderType === "delivery" && (!(hotelData?.delivery_rules?.hide_delivery_charge) || usePorterForCharge || useAgentForCharge || useShiprocketForCharge)) {
         const amt = usePorterForCharge
           ? (porterQuote?.available && typeof porterQuote.fare === "number"
               ? porterQuote.fare
               : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0))
           : useAgentForCharge
             ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
-            : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
+            : useShiprocketForCharge
+              ? (shiprocketQuote?.available && typeof shiprocketQuote.rate === "number"
+                  ? shiprocketQuote.rate
+                  : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0))
+              : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
         if (amt > 0) extraCharges.push({ name: "Delivery Charge", amount: amt, charge_type: "FLAT_FEE" });
       }
       if (tableNumber === 0 && !isDineIn) {
@@ -4077,6 +4111,14 @@ const PlaceOrderModal = ({
       if (porterQuote?.available && typeof porterQuote.fare === "number") return porterQuote.fare;
       // Third-party unavailable → fall back to the partner's own delivery pricing.
       // Porter mode overrides the legacy hide flag (matches the extra_charges builder).
+      return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
+    }
+    if (useShiprocketForCharge) {
+      // Checked BEFORE the hide flag, like porter above: when a live quote is the
+      // price, hiding the line does not stop the amount being charged.
+      if (shiprocketQuote?.available && typeof shiprocketQuote.rate === "number") {
+        return shiprocketQuote.rate;
+      }
       return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
     }
     if (_barHideDelivery) return 0;
@@ -4508,6 +4550,8 @@ const PlaceOrderModal = ({
                   porterQuote={porterQuote}
                   porterQuoteLoading={porterQuoteLoading}
                   usePorterForCharge={usePorterForCharge}
+                  shiprocketQuote={shiprocketQuote}
+                  useShiprocketForCharge={useShiprocketForCharge}
                   loyaltyRedeemValue={loyaltyRedeemValue}
                   takeawayAdjPerItem={takeawayAdjPerItem}
                 />

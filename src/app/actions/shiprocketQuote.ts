@@ -27,6 +27,39 @@ import {
 import { resolveDestination } from "@/lib/shiprocket/address";
 import { parseShiprocketConfig, type ShiprocketMode } from "@/lib/shiprocket/types";
 
+/**
+ * Short-lived quote cache, keyed by what actually changes the price.
+ *
+ * This action is unauthenticated by necessity (a customer picking an address has
+ * no session), which means anyone can call it in a loop with a partner id scraped
+ * from a storefront — and every call otherwise spends a billable Google geocode
+ * plus a Shiprocket request on THAT MERCHANT's account. Rates do not move minute
+ * to minute, so a short cache turns a flood into one real lookup per route, and
+ * incidentally makes the common case (a customer nudging the map pin inside one
+ * PIN code) free.
+ *
+ * Per-instance and unbounded in lifetime but not in size — serverless instances
+ * are recycled often, and the entry is small.
+ */
+const QUOTE_TTL_MS = 3 * 60 * 1000;
+const quoteCache = new Map<string, { at: number; value: ShiprocketQuote }>();
+
+function cacheGet(key: string): ShiprocketQuote | null {
+  const hit = quoteCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > QUOTE_TTL_MS) {
+    quoteCache.delete(key);
+    return null;
+  }
+  return hit.value;
+}
+
+function cacheSet(key: string, value: ShiprocketQuote): void {
+  // Cheap bound so a hostile caller cannot grow this without limit.
+  if (quoteCache.size > 500) quoteCache.clear();
+  quoteCache.set(key, { at: Date.now(), value });
+}
+
 export type ShiprocketQuote =
   | { ok: true; rate: number; courier: string | null; mode: ShiprocketMode }
   | { ok: false; message: string };
@@ -68,19 +101,21 @@ async function pickupPoint(
   const point: PickupPoint = { pincode: pin, lat: match?.lat ?? null, lng: match?.lng ?? null };
 
   try {
-    const merged = parseShiprocketConfig({
-      ...(config as any),
-      pickup_pincode: point.pincode,
-      pickup_lat: point.lat,
-      pickup_lng: point.lng,
-    });
+    // _append is a server-side jsonb merge (`config || $patch`), touching only the
+    // three keys this function owns. Writing the whole object from the snapshot we
+    // read seconds ago would revert anything saved in between — including a webhook
+    // token the merchant had just rotated and pasted into Shiprocket, silently
+    // breaking their status updates from an unauthenticated code path.
     await fetchFromHasuraServer(
-      `mutation CachePickupPoint($id: uuid!, $config: jsonb!) {
+      `mutation CachePickupPoint($id: uuid!, $patch: jsonb!) {
         update_partner_shiprocket_credentials_by_pk(
-          pk_columns: { partner_id: $id }, _set: { config: $config }
+          pk_columns: { partner_id: $id }, _append: { config: $patch }
         ) { partner_id }
       }`,
-      { id: partnerId, config: merged },
+      {
+        id: partnerId,
+        patch: { pickup_pincode: point.pincode, pickup_lat: point.lat, pickup_lng: point.lng },
+      },
     );
   } catch {
     /* caching is an optimisation; a failed write just means we look it up again */
@@ -92,7 +127,12 @@ export async function quoteShiprocketCharge(input: {
   partnerId: string;
   drop: { lat: number; lng: number } | null;
   address?: string | null;
-  /** Unpaid orders are collected on delivery, and COD is priced differently. */
+  /**
+   * Whether this order will be collected on delivery. Priced differently, and on
+   * some PINs the COD and prepaid courier sets differ entirely — quoting COD for
+   * an order about to be paid online can report "no courier" for a route a prepaid
+   * courier serves perfectly well. Defaults to COD, which is the common case here.
+   */
   cod?: boolean;
 }): Promise<ShiprocketQuote> {
   const { partnerId, drop } = input;
@@ -131,11 +171,25 @@ export async function quoteShiprocketCharge(input: {
 
     const cod: 0 | 1 = input.cod === false ? 0 : 1;
 
+    // Keyed on everything that moves the price. Hyperlocal is distance-priced, so
+    // its key keeps ~100m of the drop coordinates; parcel is priced per PIN.
+    const cacheKey =
+      cfg.mode === "hyperlocal"
+        ? `hl:${partnerId}:${pickup.pincode}:${dest.data.pincode}:${cod}:${drop ? `${drop.lat.toFixed(3)},${drop.lng.toFixed(3)}` : "-"}`
+        : `p:${partnerId}:${pickup.pincode}:${dest.data.pincode}:${cod}:${cfg.package.weight}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+
     if (cfg.mode === "hyperlocal") {
       // Quick is priced on the actual ride, so both ends are required, and the
       // pickup end comes from Shiprocket's record of it — never the partners row.
+      // 0/0 is a real coordinate in the Atlantic, and it is what a missing value
+      // coerces to. Quoting from it returns "no rider serves this route" for a
+      // route that is perfectly serviceable, so treat it as absent.
       const from =
-        pickup.lat != null && pickup.lng != null ? { lat: pickup.lat, lng: pickup.lng } : null;
+        pickup.lat != null && pickup.lng != null && (pickup.lat !== 0 || pickup.lng !== 0)
+          ? { lat: pickup.lat, lng: pickup.lng }
+          : null;
       if (!from || !drop) {
         return { ok: false, message: "Shiprocket Quick needs both map locations" };
       }
@@ -148,9 +202,20 @@ export async function quoteShiprocketCharge(input: {
       });
       if (!res.ok) return { ok: false, message: res.message };
       const priced = res.data.couriers.filter((c) => typeof c.rate === "number");
-      if (!priced.length) return { ok: false, message: "no Shiprocket Quick rider serves this route" };
+      if (!priced.length) {
+        const miss: ShiprocketQuote = { ok: false, message: "no Shiprocket Quick rider serves this route" };
+        cacheSet(cacheKey, miss);
+        return miss;
+      }
       const best = priced.reduce((a, b) => ((a.rate ?? Infinity) <= (b.rate ?? Infinity) ? a : b));
-      return { ok: true, rate: Math.ceil(best.rate as number), courier: best.name, mode: "hyperlocal" };
+      const quote: ShiprocketQuote = {
+        ok: true,
+        rate: Math.ceil(best.rate as number),
+        courier: best.name,
+        mode: "hyperlocal",
+      };
+      cacheSet(cacheKey, quote);
+      return quote;
     }
 
     const res = await checkParcelServiceability(partnerId, {
@@ -171,9 +236,20 @@ export async function quoteShiprocketCharge(input: {
         rate: Number(c?.freight_charge ?? c?.rate),
       }))
       .filter((c) => Number.isFinite(c.rate));
-    if (!priced.length) return { ok: false, message: "no courier serves this PIN code" };
+    if (!priced.length) {
+      const miss: ShiprocketQuote = { ok: false, message: "no courier serves this PIN code" };
+      cacheSet(cacheKey, miss);
+      return miss;
+    }
     const best = priced.reduce((a, b) => (a.rate <= b.rate ? a : b));
-    return { ok: true, rate: Math.ceil(best.rate), courier: best.name, mode: "parcel" };
+    const quote: ShiprocketQuote = {
+      ok: true,
+      rate: Math.ceil(best.rate),
+      courier: best.name,
+      mode: "parcel",
+    };
+    cacheSet(cacheKey, quote);
+    return quote;
   } catch (e) {
     return { ok: false, message: (e as Error)?.message || "could not price this delivery" };
   }

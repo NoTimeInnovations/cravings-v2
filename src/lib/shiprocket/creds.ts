@@ -43,19 +43,34 @@ const CRED_FIELDS = `
   last_error
 `;
 
-/** Raw row, no feature gate — the status action needs it even when the flag is off. */
+/**
+ * Raw row, no feature gate — the status action needs it even when the flag is off.
+ *
+ * THROWS when the read itself fails. It used to swallow the error and return null,
+ * which made "this store has no Shiprocket set up" and "Hasura just timed out"
+ * the same answer — and the settings panel, reading the second as the first,
+ * would mint a fresh webhook token and let a Save write default settings over a
+ * live configuration. Callers that genuinely do not care use the ...OrNull form.
+ */
 export async function fetchShiprocketCredRow(
   partnerId: string,
 ): Promise<ShiprocketCredRow | null> {
   if (!partnerId) return null;
+  const data = await fetchFromHasuraServer(
+    `query ShiprocketCreds($id: uuid!) {
+      partner_shiprocket_credentials_by_pk(partner_id: $id) { ${CRED_FIELDS} }
+    }`,
+    { id: partnerId },
+  );
+  return (data as any)?.partner_shiprocket_credentials_by_pk ?? null;
+}
+
+/** For paths where an unreadable row and an absent one are genuinely equivalent. */
+export async function fetchShiprocketCredRowOrNull(
+  partnerId: string,
+): Promise<ShiprocketCredRow | null> {
   try {
-    const data = await fetchFromHasuraServer(
-      `query ShiprocketCreds($id: uuid!) {
-        partner_shiprocket_credentials_by_pk(partner_id: $id) { ${CRED_FIELDS} }
-      }`,
-      { id: partnerId },
-    );
-    return (data as any)?.partner_shiprocket_credentials_by_pk ?? null;
+    return await fetchShiprocketCredRow(partnerId);
   } catch (e) {
     console.error("[shiprocket] cred lookup failed", (e as Error)?.message);
     return null;
@@ -114,7 +129,10 @@ export async function shiprocketCredsForPartner(partnerId: string): Promise<
 > {
   if (!partnerId) return null;
   if (!(await isShiprocketEnabled(partnerId))) return null;
-  const row = await fetchShiprocketCredRow(partnerId);
+  // OrNull here on purpose: this feeds dispatch and the checkout quote, where an
+  // unreadable row must read as "not configured" (skip, spend nothing) rather than
+  // throw into a fire-and-forget caller that would never see it.
+  const row = await fetchShiprocketCredRowOrNull(partnerId);
   const creds = credsFromRow(row, partnerId);
   if (!creds || !row) return null;
   return { ...creds, config: configFromRow(row), row };
@@ -126,7 +144,20 @@ export async function shiprocketCredsForPartner(partnerId: string): Promise<
 // Map (a warm serverless instance handling several orders should not re-read the
 // DB each time) and the encrypted DB column behind it.
 
-const memo = new Map<string, { token: string; expMs: number }>();
+const memo = new Map<string, { token: string; expMs: number; cachedAtMs: number }>();
+
+/**
+ * How long a warm instance may serve a token WITHOUT re-reading the row.
+ *
+ * The token itself lives 10 days, but a partner who moves to a different
+ * Shiprocket account saves new credentials and clears the DB cache — which a warm
+ * instance never sees, because it answers from `memo` and never reads the row
+ * again. It would go on creating orders in the OLD merchant's account, billing a
+ * wallet that is no longer theirs, for up to ten days. One minute of staleness is
+ * a fair price for skipping the DB inside a single dispatch, which is all this
+ * cache was ever for.
+ */
+const MEMO_TTL_MS = 60 * 1000;
 
 /** Refresh this far ahead of the real expiry, so a call never starts on a token
  *  that dies mid-flight. */
@@ -136,7 +167,14 @@ const REFRESH_SKEW_MS = 12 * 60 * 60 * 1000; // 12 hours
 export function readMemoToken(partnerId: string): string | null {
   const hit = memo.get(partnerId);
   if (!hit) return null;
-  if (hit.expMs - REFRESH_SKEW_MS > Date.now()) return hit.token;
+  const now = Date.now();
+  if (hit.cachedAtMs + MEMO_TTL_MS <= now) {
+    // Past the TTL we go back to the row, which is where a credential change or a
+    // cleared token becomes visible.
+    memo.delete(partnerId);
+    return null;
+  }
+  if (hit.expMs - REFRESH_SKEW_MS > now) return hit.token;
   memo.delete(partnerId);
   return null;
 }
@@ -159,7 +197,7 @@ export function tokenFromRow(
   if (!Number.isFinite(expMs) || expMs - REFRESH_SKEW_MS <= Date.now()) return null;
   const token = tryDecryptSecret(row.token_enc, partnerId);
   if (!token) return null;
-  memo.set(partnerId, { token, expMs });
+  memo.set(partnerId, { token, expMs, cachedAtMs: Date.now() });
   return token;
 }
 
@@ -168,7 +206,7 @@ export async function writeCachedToken(
   token: string,
   expiresAt: Date,
 ): Promise<void> {
-  memo.set(partnerId, { token, expMs: expiresAt.getTime() });
+  memo.set(partnerId, { token, expMs: expiresAt.getTime(), cachedAtMs: Date.now() });
   try {
     await fetchFromHasuraServer(
       `mutation CacheShiprocketToken($id: uuid!, $tok: String!, $exp: timestamptz!, $now: timestamptz!) {

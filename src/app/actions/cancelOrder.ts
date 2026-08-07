@@ -93,6 +93,8 @@ const GET_ORDER_PARTNER_PP_ID = `
     orders_by_pk(id: $orderId) {
       id
       status
+      user_id
+      partner_id
       partner {
         id
         petpooja_restaurant_id
@@ -136,6 +138,36 @@ export async function cancelOrderAction(
     const data = await fetchFromHasura(GET_ORDER_PARTNER_PP_ID, { orderId });
     const order = data?.orders_by_pk;
     if (!order) return { success: false, message: "Order not found" };
+
+    // OWNERSHIP, not just routing. This is a "use server" export, so it is a public
+    // RPC endpoint: with only a role check, any signed-in account could cancel any
+    // store's orders by id — and this action does not merely flip a status, it
+    // withdraws Porter bookings, refunds loyalty and cancels real Shiprocket
+    // parcels. Order ids are no defence: the browser carries a Hasura admin secret,
+    // so they can simply be listed.
+    //
+    // Enforced wherever there IS a signal to enforce on:
+    //   partner → must own the order. No exceptions, and this alone stops one store
+    //             cancelling another's.
+    //   user    → must match orders.user_id when it is set.
+    //
+    // ~60% of orders are placed by guests and carry user_id = null, with no phone
+    // on the row either, so for those there is nothing to check a customer against.
+    // Rejecting them would break a real flow (order as a guest, sign in, cancel
+    // from the tracking link), so they are allowed through as before and logged.
+    // Closing that properly needs an ownership signal recorded at placement time.
+    if (auth.role === "partner" && order.partner_id !== auth.id) {
+      return { success: false, message: "Not authorized to cancel this order" };
+    }
+    if (auth.role === "user" && order.user_id && order.user_id !== auth.id) {
+      return { success: false, message: "Not authorized to cancel this order" };
+    }
+    if (auth.role === "user" && !order.user_id) {
+      console.warn(
+        `[cancel-order] order=${orderId} has no user_id; cancelled by user=${auth.id} without an ownership check`,
+      );
+    }
+
     isPetpoojaPartner = !!order.partner?.petpooja_restaurant_id;
   } catch (err: any) {
     return { success: false, message: err?.message || "Failed to load order" };

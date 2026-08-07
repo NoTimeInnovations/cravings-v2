@@ -154,10 +154,22 @@ export const DEFAULT_SHIPROCKET_CONFIG: ShiprocketConfig = {
 const MODES: ShiprocketMode[] = ["parcel", "hyperlocal"];
 const TRIGGERS: ShiprocketTrigger[] = ["accepted", "food_ready", "dispatched"];
 
+/** A coordinate that is actually present, or null. Never 0-from-nothing. */
+function coord(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n !== 0 ? n : null;
+}
+
 function num(v: unknown, fallback: number, min: number): number {
   const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
-  if (!Number.isFinite(n) || n < min) return fallback;
-  return n;
+  // Missing or unparseable -> the default. But a REAL number below Shiprocket's
+  // floor gets clamped to the floor, not replaced by the default: a partner
+  // shipping flat envelopes who typed 0.5cm was silently given a 10cm box, which
+  // is a bigger declared parcel, a higher volumetric weight and a higher quote
+  // than they asked for.
+  if (!Number.isFinite(n)) return fallback;
+  return n < min ? min : n;
 }
 
 /**
@@ -201,8 +213,11 @@ export function parseShiprocketConfig(raw: unknown): ShiprocketConfig {
       typeof obj.pickup_pincode === "string" && /^[1-9]\d{5}$/.test(obj.pickup_pincode.trim())
         ? obj.pickup_pincode.trim()
         : null,
-    pickup_lat: Number.isFinite(Number(obj.pickup_lat)) ? Number(obj.pickup_lat) : null,
-    pickup_lng: Number.isFinite(Number(obj.pickup_lng)) ? Number(obj.pickup_lng) : null,
+    // Presence FIRST: Number(null) is 0 and Number.isFinite(0) is true, so the
+    // obvious coercion turns "no coordinate on file" into the Atlantic Ocean and
+    // every hyperlocal quote comes back unserviceable.
+    pickup_lat: coord(obj.pickup_lat),
+    pickup_lng: coord(obj.pickup_lng),
     webhook_token:
       typeof obj.webhook_token === "string" && obj.webhook_token.trim()
         ? obj.webhook_token.trim()

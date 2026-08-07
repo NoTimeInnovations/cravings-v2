@@ -3,6 +3,7 @@ import { timingSafeEqual } from "crypto";
 import { fetchFromHasuraServer } from "@/lib/hasuraServerClient";
 import { persistShipment } from "@/lib/shiprocket/shipments";
 import { defaultStatusHistory, setStatusHistory } from "@/lib/statusHistory";
+import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 import type { ShipmentStatus } from "@/lib/shiprocket/types";
 
 /* ──────────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ const FIND_SHIPMENT = `
           { sr_order_id: { _eq: $srOrderId } }
         ]
       },
+      order_by: { created_at: desc },
       limit: 1
     ) {
       order_id status awb_code sr_order_ref
@@ -83,27 +85,59 @@ const SET_ORDER_STATUS = `
  * Shiprocket's label → our shipment state, and whether the customer's order should
  * move with it.
  *
- * Matched on the LABEL rather than status_code: the numeric codes are undocumented
- * and we have only ever confirmed two of them by observation (5 = CANCELED,
- * 95 = SEARCHING FOR RIDER), whereas the labels are what Shiprocket shows in its
- * own panel. An unrecognised label deliberately returns nulls — we still record
- * the AWB and courier from the event, but we do not invent a state transition for
- * a string we do not understand.
+ * SUBSTRING MATCHING IS A TRAP HERE, and the negative guards below are the whole
+ * reason this function is careful rather than short. Shiprocket's vocabulary
+ * contains labels that CONTAIN the happy word and mean its opposite:
+ *   "UNDELIVERED"             contains "delivered"  — the parcel did NOT arrive
+ *   "RTO DELIVERED"           contains "delivered"  — it came back to the store
+ *   "CANCELLATION REQUESTED"  contains "cancel"     — nothing is cancelled yet
+ * Reading any of those as the happy state marks a customer's order `completed`,
+ * which on an unpaid COD order says it was paid for and delivered when it was not.
+ * So terminal states are matched EXACTLY (after normalising), and only the
+ * genuinely in-flight states use containment.
+ *
+ * Numeric status ids are used where we have confirmed them against the live API
+ * (5 = CANCELED, 7 = Delivered, 95 = SEARCHING FOR RIDER); the rest are
+ * undocumented, so the label stays the primary signal.
  */
-function mapStatus(label: string): {
+function mapStatus(
+  label: string,
+  statusId: number | null,
+): {
   shipment: ShipmentStatus | null;
   order: "dispatched" | "completed" | null;
 } {
-  const s = label.toLowerCase();
-  // RTO first: "RTO DELIVERED" contains "delivered" but means the exact opposite.
+  // Collapse punctuation/whitespace so "RTO-Delivered" and "RTO  DELIVERED" agree.
+  const s = label.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+
+  // ── Negatives first. Each of these contains a word matched later on. ──
+  if (s.includes("undelivered") || s.includes("not delivered")) {
+    // A real state, but not one this table models: no transition, and the label is
+    // surfaced on the row so the partner sees it.
+    return { shipment: null, order: null };
+  }
   if (s.includes("rto")) return { shipment: "rto", order: null };
-  if (s.includes("cancel")) return { shipment: "cancelled", order: null };
-  if (s.includes("delivered")) return { shipment: "delivered", order: "completed" };
+  // "Cancellation requested" is a request Shiprocket may well refuse on a parcel
+  // already collected. Treating it as cancelled would offer the partner a "Ship
+  // again" button for a parcel that is still on its way — a second billed send.
+  if (s.includes("cancellation requested") || s.includes("cancellation request")) {
+    return { shipment: null, order: null };
+  }
+
+  // ── Terminal states: exact, never containment. ──
+  if (statusId === 5 || s === "canceled" || s === "cancelled") {
+    return { shipment: "cancelled", order: null };
+  }
+  if (statusId === 7 || s === "delivered") return { shipment: "delivered", order: "completed" };
+
+  // ── In-flight states: containment is safe, nothing negates these. ──
   if (s.includes("out for delivery")) return { shipment: "out_for_delivery", order: "dispatched" };
   if (s.includes("in transit") || s.includes("picked up") || s.includes("shipped")) {
     return { shipment: "in_transit", order: "dispatched" };
   }
-  if (s.includes("searching for rider")) return { shipment: "created", order: null };
+  if (statusId === 95 || s.includes("searching for rider")) {
+    return { shipment: "created", order: null };
+  }
   if (s.includes("pickup") || s.includes("awb") || s.includes("rider assigned")) {
     return { shipment: "awb_assigned", order: null };
   }
@@ -153,6 +187,34 @@ function headerAgrees(req: NextRequest, token: string): boolean {
 // A value no column can hold, for the identifier fields an event omits. It must
 // not be empty string (which can match a blank column) and must not be NUL,
 // which Postgres rejects outright inside a text comparison.
+/**
+ * How far along the parcel a state is, used to refuse an event that would move it
+ * backwards. Webhook deliveries are not ordered — Shiprocket retries, so a
+ * "picked up" queued behind a "delivered" can arrive after it.
+ */
+const PROGRESS: Record<string, number> = {
+  claimed: 0,
+  unknown: 0,
+  failed: 0,
+  created: 1,
+  awb_assigned: 2,
+  pickup_requested: 3,
+  in_transit: 4,
+  out_for_delivery: 5,
+  delivered: 6,
+  rto: 6,
+  cancelled: 6,
+};
+
+function allowsTransition(current: ShipmentStatus, next: ShipmentStatus): boolean {
+  if (current === next) return false;
+  // Nothing outranks a delivered or returned parcel: those are the two states
+  // where the goods have physically finished moving, and a late event claiming
+  // otherwise is stale by definition.
+  if (current === "delivered" || current === "rto") return false;
+  return (PROGRESS[next] ?? 0) >= (PROGRESS[current] ?? 0);
+}
+
 const NO_MATCH = "__no_match__";
 
 function str(v: unknown): string | null {
@@ -210,6 +272,8 @@ async function handleEvent(e: any, partnerId: string): Promise<void> {
   const srOrderId = str(e?.order_id) ?? str(e?.sr_order_id);
   // Title case in the sample ("Delivered"); mapStatus lowercases before matching.
   const label = str(e?.current_status) ?? str(e?.shipment_status) ?? str(e?.status) ?? "";
+  const rawId = Number(e?.current_status_id ?? e?.shipment_status_id);
+  const statusId = Number.isFinite(rawId) ? rawId : null;
   const courier = str(e?.courier_name) ?? str(e?.courier);
   // Freshest scan line ("SHIPMENT OUT FOR DELIVERY", "PATIALA") — the human detail
   // behind the status, kept in meta for the panel and for diagnosing odd events.
@@ -234,14 +298,29 @@ async function handleEvent(e: any, partnerId: string): Promise<void> {
     return;
   }
 
-  const mapped = mapStatus(label);
+  const mapped = mapStatus(label, statusId);
+
+  // Webhook events are not ordered. Shiprocket retries, and a "picked up" queued
+  // behind a "delivered" arrives after it — so a naive write walks the parcel
+  // backwards, and a row that regressed to `created` becomes a "Try again" button
+  // on a parcel already in a van. Progress only, and terminal states are final.
+  const shipmentStatus =
+    mapped.shipment && allowsTransition(row.status as ShipmentStatus, mapped.shipment)
+      ? mapped.shipment
+      : null;
+  if (mapped.shipment && !shipmentStatus) {
+    console.log(
+      `[shiprocket-webhook] order=${row.order_id} ignoring "${label}" (${mapped.shipment}) — row is already ${row.status}`,
+    );
+  }
+
   const patch: Record<string, unknown> = {};
   // The AWB is the whole point of this route for hyperlocal — record it whatever
   // the status says, but never blank one we already hold.
   if (awb) patch.awb_code = awb;
   if (courier) patch.courier_name = courier;
   if (awb) patch.tracking_url = `https://shiprocket.co/tracking/${awb}`;
-  if (mapped.shipment) patch.status = mapped.shipment;
+  if (shipmentStatus) patch.status = shipmentStatus;
   if (label) {
     patch.meta = {
       last_webhook_status: label,
@@ -251,17 +330,19 @@ async function handleEvent(e: any, partnerId: string): Promise<void> {
     // An unmapped label is worth surfacing (UNDELIVERED, LOST, ON HOLD all land
     // here) rather than being swallowed as an unchanged row.
     if (!mapped.shipment) patch.last_error = `Shiprocket: ${label}`;
-    else if (mapped.shipment !== "rto") patch.last_error = null;
+    else if (shipmentStatus && shipmentStatus !== "rto") patch.last_error = null;
   }
 
   if (Object.keys(patch).length > 0) {
     await persistShipment(row.order_id, patch);
   }
   console.log(
-    `[shiprocket-webhook] order=${row.order_id} "${label}" -> ${mapped.shipment ?? "(no state change)"} awb=${awb ?? "-"}`,
+    `[shiprocket-webhook] order=${row.order_id} "${label}" -> ${shipmentStatus ?? "(no state change)"} awb=${awb ?? "-"}`,
   );
 
-  if (mapped.order) {
+  // Mirror only when the shipment itself moved: an out-of-order or refused event
+  // must not drag the customer's order forward on its own.
+  if (mapped.order && shipmentStatus) {
     await mirrorOrderStatus(row.order_id, mapped.order);
   }
 }
@@ -292,6 +373,19 @@ async function mirrorOrderStatus(orderId: string, next: "dispatched" | "complete
 
   await fetchFromHasuraServer(SET_ORDER_STATUS, { id: orderId, history, status: next });
   console.log(`[shiprocket-webhook] order=${orderId} status -> ${next}`);
+
+  // Completing an order awards the customer's loyalty points everywhere else in
+  // the app. Setting orders.status directly would skip that silently, so the
+  // customer of a Shiprocket store would earn nothing on a delivered parcel —
+  // the same hole the delivery-pool webhook closes at route.ts:131.
+  // awardLoyaltyForOrder is idempotent, and its failure must not fail the hook.
+  if (next === "completed") {
+    try {
+      await awardLoyaltyForOrder(orderId);
+    } catch (e) {
+      console.warn(`[shiprocket-webhook] loyalty award failed for ${orderId}:`, (e as Error)?.message);
+    }
+  }
 }
 
 // Shiprocket pings the URL when it is saved. Answer only for a real token, so the

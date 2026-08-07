@@ -1013,11 +1013,21 @@ const useOrderStore = create(
             // Double-dispatch is impossible by construction — the shipment row's
             // primary key is the claim — so this can fire alongside the manual
             // Ship button without billing the partner twice.
+            // CANCEL IS NOT GATED ON `enabled`, only on access. A partner whose
+            // parcels are already booked and who then switches Shiprocket off —
+            // which is precisely what someone does when the integration is
+            // misbehaving — would otherwise cancel six orders in the dashboard and
+            // have six couriers still turn up, with nothing in the UI saying so.
+            // Withdrawing a booking is cleanup of money already spent, not new spend.
+            if (features.shiprocket.access && newStatus === "cancelled") {
+              cancelShiprocketShipment(orderId).then((r) => {
+                if (!r.ok) console.warn(`[shiprocket] cancel failed: ${r.message}`);
+              }).catch((e) => console.warn("[shiprocket] cancel threw:", e));
+            }
+
             if (features.shiprocket.access && features.shiprocket.enabled) {
               if (newStatus === "cancelled") {
-                cancelShiprocketShipment(orderId).then((r) => {
-                  if (!r.ok) console.warn(`[shiprocket] cancel failed: ${r.message}`);
-                }).catch((e) => console.warn("[shiprocket] cancel threw:", e));
+                /* handled above, ungated */
               } else {
                 dispatchShiprocketOnStatus(orderId, newStatus).then((r) => {
                   if (!r.ok) {

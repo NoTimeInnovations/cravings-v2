@@ -955,6 +955,10 @@ const PlaceOrderModalV2 = ({
       return;
     }
     let cancelled = false;
+    // Drop the previous address's price immediately. Keeping it would show — and
+    // charge — a number computed for somewhere the customer has already moved
+    // away from, for as long as the debounce plus the round trip takes.
+    setShiprocketQuote(null);
     setShiprocketQuoteLoading(true);
     // Debounced like the Porter quote: an address picker fires on every drag of
     // the pin, and each call costs the merchant a Shiprocket request.
@@ -1047,7 +1051,11 @@ const PlaceOrderModalV2 = ({
   const effectiveHideDeliveryCharge =
     !!hotelData?.delivery_rules?.hide_delivery_charge &&
     !useAgentForCharge &&
-    !usePorterForCharge;
+    !usePorterForCharge &&
+    // Same reasoning as the two above: when a live quote IS the price, "informed
+    // at delivery" is a lie — the amount is already in the total the customer is
+    // about to pay, and hiding the line makes it an unexplained difference.
+    !useShiprocketForCharge;
 
   const deliveryCharge = useMemo(() => {
     if (isQrScan || orderType !== "delivery") return 0;
@@ -1097,6 +1105,13 @@ const PlaceOrderModalV2 = ({
   // Block placement until we have an `available: true` quote. The
   // missing-coords case is already covered by other guards; this enforces
   // "must have a successful serviceability check before placing".
+  // Placing while the quote is in flight would bill the delivery_rules fallback
+  // for a shipment about to be priced by Shiprocket. Bounded by the 500ms debounce
+  // plus one request, and it never blocks when the quote simply failed — that case
+  // legitimately falls back.
+  const shiprocketQuotePending =
+    useShiprocketForCharge && orderType === "delivery" && !!userCoordinates && shiprocketQuoteLoading;
+
   const agentBlocksOrder =
     useAgentForCharge &&
     orderType === "delivery" &&
@@ -2605,7 +2620,11 @@ const PlaceOrderModalV2 = ({
             );
             return;
           }
-        } else if (!usePorterForCharge && deliveryInfo?.isOutOfRange) {
+        } else if (
+          !usePorterForCharge &&
+          !(useShiprocketForCharge && shiprocketQuote?.available) &&
+          deliveryInfo?.isOutOfRange
+        ) {
           toast.error("Delivery is not available to your location.");
           return;
         }
@@ -3169,8 +3188,14 @@ const PlaceOrderModalV2 = ({
     (orderType === "delivery" &&
       !useAgentForCharge &&
       !usePorterForCharge &&
+      // A successful Shiprocket quote IS the serviceability answer for that
+      // address. delivery_radius describes how far the store's own riders go; a
+      // parcel courier is not bound by it, and blocking here charged the customer
+      // the quote and then refused to take the order.
+      !(useShiprocketForCharge && shiprocketQuote?.available) &&
       deliveryInfo?.isOutOfRange) ||
     agentBlocksOrder ||
+    shiprocketQuotePending ||
     (!isQrScan && !orderType) ||
     (!isQrScan && orderType === "delivery" && !isDeliveryOpen) ||
     (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) ||
@@ -3879,6 +3904,24 @@ const PlaceOrderModalV2 = ({
                         <div className="text-xs text-gray-400 mt-0.5">
                           ETA {porterQuote.etaMins} min
                         </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Shiprocket: same dedicated row + loading state as porter, so the
+                      customer never sees a delivery_rules amount that the live quote
+                      is about to replace. */}
+                  {orderType === "delivery" && useShiprocketForCharge && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Delivery Charges</span>
+                      {shiprocketQuoteLoading || !shiprocketQuote ? (
+                        <span className="text-gray-400 inline-flex items-center gap-1.5">
+                          <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+                          Calculating…
+                        </span>
+                      ) : deliveryCharge > 0 ? (
+                        <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
+                      ) : (
+                        <span className="font-semibold" style={{ color: accent }}>Free</span>
                       )}
                     </div>
                   )}

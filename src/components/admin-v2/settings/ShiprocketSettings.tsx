@@ -79,6 +79,15 @@ export function ShiprocketSettings() {
             try {
                 const s = await getShiprocketStatus(partnerId);
                 setStatus(s);
+                // A FAILED READ IS NOT AN EMPTY STORE. If the row could not be read
+                // we show an error and touch nothing: filling the form with defaults
+                // would invite a Save that overwrites a working configuration, and
+                // minting a webhook token below would rotate one the merchant has
+                // already pasted into Shiprocket, silently killing their updates.
+                if (s.loadFailed) {
+                    toast.error("Could not load your Shiprocket settings — try again");
+                    return;
+                }
                 if (resetForm) {
                     setApiEmail(s.apiEmail ?? "");
                     setCfg(s.config);
@@ -142,6 +151,10 @@ export function ShiprocketSettings() {
 
     const handleSave = async () => {
         if (!partnerId) return;
+        if (status?.loadFailed) {
+            toast.error("Your settings could not be loaded, so saving would overwrite them. Reload first.");
+            return;
+        }
         if (!apiEmail.trim()) {
             toast.error("Enter the Shiprocket API user email");
             return;

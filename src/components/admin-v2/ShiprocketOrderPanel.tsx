@@ -17,6 +17,10 @@ import { LIVE_SHIPMENT_STATUSES, type ShipmentView } from "@/lib/shiprocket/type
  * porter flow left partners stuck. It IS disabled once a parcel really is on its
  * way, because a second send would bill the store again for the same order.
  */
+/** Mirrors STALE_CLAIM_MS in shiprocketDispatch — the age at which the server
+ *  stops believing a claim is still in flight. */
+const STALE_CLAIM_MS = 15 * 60 * 1000;
+
 /** What each live state says on the order. Keys come from the webhook. */
 const LIVE_TEXT: Partial<Record<ShipmentView["status"], string>> = {
     awb_assigned: "Courier booked",
@@ -88,8 +92,27 @@ export default function ShiprocketOrderPanel({
     // needs a retry — and the server RESUMES that one at the courier step rather
     // than creating (and billing) a second order.
     const live = !!shipment && LIVE_SHIPMENT_STATUSES.has(shipment.status);
-    // A send that is genuinely mid-flight. Pressing again would only be refused.
-    const inFlight = shipment?.status === "claimed";
+    // A send that is genuinely mid-flight — but only while it is FRESH. A claim
+    // whose function was killed (deploy, timeout, Shiprocket hanging) leaves the
+    // row at `claimed` forever, and treating that as in-flight disabled the button
+    // in exactly the state that needs pressing: the order was wedged with
+    // "Sending to Shiprocket…" and no way out. The server ages a stale claim out at
+    // 15 minutes, so past that the panel offers the recovery instead.
+    const claimAgeMs = shipment?.updatedAt ? Date.now() - Date.parse(shipment.updatedAt) : 0;
+    const staleClaim =
+        shipment?.status === "claimed" && Number.isFinite(claimAgeMs) && claimAgeMs > STALE_CLAIM_MS;
+    const inFlight = shipment?.status === "claimed" && !staleClaim;
+    // A hyperlocal send that worked and is waiting for a rider. The row sits at
+    // `created` with a last_error that is really a status line, so it must not be
+    // painted as a failure — a merchant who reads it as one presses Ship again and
+    // pays for a second rider search.
+    const searchingForRider =
+        shipment?.status === "created" &&
+        !!shipment?.lastError &&
+        /searching for a rider/i.test(shipment.lastError);
+    // The Shiprocket order exists but we never recorded its shipment id, so the
+    // server cannot resume it at the courier step and re-creating would bill twice.
+    const unresumable = shipment?.status === "created" && !shipment?.shipmentId;
     // We do not know whether Shiprocket has this order. Retrying may create a
     // SECOND real parcel, so the button says so rather than reading like a no-op.
     const ambiguous = shipment?.status === "unknown";
@@ -104,13 +127,15 @@ export default function ShiprocketOrderPanel({
         ? "Shipped"
         : inFlight
           ? "Sending…"
-          : ambiguous
-            ? "Ship anyway"
-            : cancelled
-              ? "Ship again"
-              : shipment
-                ? "Try again"
-                : "Ship with Shiprocket";
+          : searchingForRider
+            ? "Finding a rider…"
+            : ambiguous || staleClaim
+              ? "Ship anyway"
+              : cancelled
+                ? "Ship again"
+                : shipment
+                  ? "Try again"
+                  : "Ship with Shiprocket";
 
     return (
         <div className="rounded-lg border p-3 space-y-3">
@@ -127,8 +152,14 @@ export default function ShiprocketOrderPanel({
                               ? `${LIVE_TEXT[shipment.status] ?? "On its way"} · ${shipment.courierName ?? "Courier"}${
                                     shipment.awbCode ? ` · AWB ${shipment.awbCode}` : ""
                                 }`
-                              : shipment.status === "created"
-                                ? "Order created at Shiprocket, but no courier assigned yet."
+                              : searchingForRider
+                                ? "Sent to Shiprocket Quick — waiting for a rider to accept. The tracking number appears here when one does."
+                                : unresumable
+                                  ? "Created at Shiprocket, but we have no shipment id for it — finish or cancel this one in your Shiprocket panel."
+                                  : staleClaim
+                                    ? "The last send never finished. We cannot tell whether Shiprocket accepted it."
+                                    : shipment.status === "created"
+                                      ? "Order created at Shiprocket, but no courier assigned yet."
                                 : cancelled
                                   ? "Shipment cancelled. Ship again to book a new one."
                                   : inFlight
@@ -140,7 +171,7 @@ export default function ShiprocketOrderPanel({
                 </div>
                 <Button
                     onClick={ship}
-                    disabled={busy || live || inFlight}
+                    disabled={busy || live || inFlight || searchingForRider || unresumable}
                     size="sm"
                     variant={shipment ? "outline" : "default"}
                     className="shrink-0"
@@ -156,7 +187,7 @@ export default function ShiprocketOrderPanel({
 
             {/* Not red when cancelled: nothing failed there, and a red box on an
                 expected outcome trains people to ignore the red boxes. */}
-            {shipment?.lastError && !live && !cancelled && (
+            {shipment?.lastError && !live && !cancelled && !searchingForRider && (
                 <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-2.5 py-2">
                     {shipment.lastError}
                 </p>
@@ -171,7 +202,7 @@ export default function ShiprocketOrderPanel({
                 </p>
             )}
 
-            {ambiguous && (
+            {(ambiguous || staleClaim) && (
                 <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-2.5 py-2">
                     Shipping again sends a <span className="font-semibold">new</span> reference.
                     If the first one did go through, you will be billed for two parcels — open

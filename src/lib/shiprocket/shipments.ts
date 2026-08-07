@@ -71,6 +71,44 @@ export async function persistShipment(
   }
 }
 
+/**
+ * Write to the shipment row ONLY IF it has not been cancelled underneath us.
+ *
+ * A dispatch is a chain of slow HTTP calls — create, courier list, AWB, pickup,
+ * label — each with a 20s timeout, so it holds the row for tens of seconds. In
+ * that window the customer or the partner can cancel the order, which writes
+ * `cancelled` here. With an unconditional write the dispatch simply stamped
+ * `created` and then `awb_assigned` over the top, and a courier collected a real,
+ * billed parcel for an order that no longer existed — with the row showing a
+ * healthy shipment, so nobody could see it had happened.
+ *
+ * Returns false when the row was cancelled, which is the caller's signal to undo
+ * upstream rather than carry on.
+ */
+export async function persistShipmentUnlessCancelled(
+  orderId: string,
+  set: Record<string, unknown>,
+): Promise<boolean> {
+  try {
+    const data = await fetchFromHasuraServer(
+      `mutation UpdateShipmentUnlessCancelled($id: uuid!, $set: shiprocket_shipments_set_input!) {
+        update_shiprocket_shipments(
+          where: { order_id: { _eq: $id }, status: { _neq: "cancelled" } },
+          _set: $set
+        ) { affected_rows }
+      }`,
+      { id: orderId, set: { ...set, updated_at: new Date().toISOString() } },
+    );
+    return ((data as any)?.update_shiprocket_shipments?.affected_rows ?? 0) > 0;
+  } catch (e) {
+    console.warn("[shiprocket] guarded persist failed", (e as Error)?.message);
+    // A failed WRITE is not evidence the row was cancelled. Saying "cancelled"
+    // here would make the dispatch cancel a perfectly good parcel upstream, so a
+    // transient Hasura error deliberately reads as "carry on".
+    return true;
+  }
+}
+
 export async function partnerIdForOrder(orderId: string): Promise<string | null> {
   try {
     const data = await fetchFromHasuraServer(
@@ -113,9 +151,33 @@ export async function cancelShipmentCore(
       console.warn(`[shiprocket] order=${orderId} cancel rejected: ${res.message}`);
     }
   }
+
+  // What we tell the partner afterwards depends on what we could actually reach.
+  //
+  //  claimed  — a dispatch is IN FLIGHT and has no Shiprocket id yet, so there is
+  //             nothing to cancel upstream from here. Writing `cancelled` is what
+  //             stops it: every post-create write in dispatchShiprocket is guarded
+  //             on this row not being cancelled, and the dispatch undoes its own
+  //             order when it sees the guard fail.
+  //  unknown  — we never learned whether Shiprocket created the order, so a real
+  //             parcel may exist under sr_order_ref. That warning is the only
+  //             record of it and must NOT be cleared just because someone
+  //             cancelled here; it is the thing a human needs to act on.
+  const notes: string[] = [];
+  if (message) notes.push(`Cancelled here; Shiprocket said: ${message}`);
+  if (shipment.status === "claimed" && !shipment.srOrderId) {
+    notes.push("Cancelled while a send was in flight — it will be withdrawn at Shiprocket automatically.");
+  }
+  if (shipment.status === "unknown") {
+    notes.push(
+      `Cancelled here, but Shiprocket may still hold reference ${shipment.srOrderRef ?? "(unknown)"} — check your Shiprocket panel and cancel it there.`,
+    );
+    if (shipment.lastError) notes.push(shipment.lastError);
+  }
+
   await persistShipment(orderId, {
     status: "cancelled" as ShipmentStatus,
-    last_error: message ? `Cancelled locally; Shiprocket said: ${message}`.slice(0, 500) : null,
+    last_error: notes.length ? notes.join(" ").slice(0, 500) : null,
   });
   return { ok: true };
 }

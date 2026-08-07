@@ -12,7 +12,7 @@
 
 import {
   clearCachedToken,
-  fetchShiprocketCredRow,
+  fetchShiprocketCredRowOrNull,
   isShiprocketEnabled,
   readMemoToken,
   recordShiprocketError,
@@ -198,7 +198,9 @@ export async function getShiprocketToken(
   const memoised = readMemoToken(partnerId);
   if (memoised) return { ok: true, data: memoised };
 
-  const row = await fetchShiprocketCredRow(partnerId);
+  // OrNull: this module's contract is that nothing throws — every path returns an
+  // SrResult, because these calls run inside fire-and-forget dispatch.
+  const row = await fetchShiprocketCredRowOrNull(partnerId);
   if (!row) return fail("not_configured", "Shiprocket is not set up for this store.");
 
   // Check the flag ONCE, with a cheap flags-only query — not by re-reading and
@@ -327,8 +329,13 @@ export async function listPickupLocations(
       pinCode: l?.pin_code != null ? String(l.pin_code) : null,
       // Shiprocket sends these as strings ("10.0410273"), and they are the only
       // trustworthy pickup point for a hyperlocal quote.
-      lat: Number.isFinite(Number(l?.lat)) ? Number(l.lat) : null,
-      lng: Number.isFinite(Number(l?.long ?? l?.lng)) ? Number(l.long ?? l.lng) : null,
+      // Same presence-before-coercion rule as parseShiprocketConfig: Shiprocket
+      // sends "" or null for an address it never geocoded, and Number("") is 0.
+      lat: l?.lat !== null && l?.lat !== undefined && l?.lat !== "" && Number.isFinite(Number(l.lat)) && Number(l.lat) !== 0 ? Number(l.lat) : null,
+      lng: (() => {
+        const raw = l?.long ?? l?.lng;
+        return raw !== null && raw !== undefined && raw !== "" && Number.isFinite(Number(raw)) && Number(raw) !== 0 ? Number(raw) : null;
+      })(),
       address: l?.address ?? null,
       phoneVerified: l?.phone_verified === 1 || l?.phone_verified === true,
     })).filter((l) => l.nickname),
@@ -587,11 +594,29 @@ export async function cancelShiprocketOrder(
   partnerId: string,
   srOrderId: string,
 ): Promise<SrResult<any>> {
-  return srFetch(partnerId, "/orders/cancel", {
+  const res = await srFetch<any>(partnerId, "/orders/cancel", {
     method: "POST",
     json: { ids: [Number(srOrderId) || srOrderId] },
     idempotent: false,
+    // NEVER gated. Cancelling is cleanup of something already paid for, not new
+    // spend, and it has to keep working after the feature flag is switched off —
+    // which is exactly when a partner is turning Shiprocket off BECAUSE something
+    // went wrong and they are cancelling the parcels still in flight.
+    gated: false,
   });
+  if (!res.ok) return res;
+
+  // Shiprocket answers a REFUSED cancel with HTTP 200 and the refusal in the body
+  // ("Order already shipped", "cannot be cancelled"). Reading that as success told
+  // the partner their parcel was withdrawn while a courier was still delivering it,
+  // and cleared the error that would have shown otherwise.
+  const body = res.data as any;
+  const embedded = Number(body?.status_code);
+  const msg = typeof body?.message === "string" ? body.message : "";
+  if ((Number.isFinite(embedded) && embedded >= 400) || /cannot|could not|not.*cancel|already/i.test(msg)) {
+    return fail("validation", (msg || "Shiprocket refused the cancellation.").slice(0, 300));
+  }
+  return res;
 }
 
 /** Wallet balance — a shipment fails once the merchant's wallet runs dry. */
