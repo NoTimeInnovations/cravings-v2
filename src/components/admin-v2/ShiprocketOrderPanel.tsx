@@ -93,6 +93,12 @@ export default function ShiprocketOrderPanel({
     // We do not know whether Shiprocket has this order. Retrying may create a
     // SECOND real parcel, so the button says so rather than reading like a no-op.
     const ambiguous = shipment?.status === "unknown";
+    // Cancelled — here or in the Shiprocket panel. Pressing does NOT retry
+    // anything: the old Shiprocket order is dead and unreusable, so this books a
+    // whole new one under a new reference. The button says "Ship again" rather
+    // than "Try again" because those are different acts and only one of them
+    // costs money a second time.
+    const cancelled = shipment?.status === "cancelled";
 
     const label = live
         ? "Shipped"
@@ -100,9 +106,11 @@ export default function ShiprocketOrderPanel({
           ? "Sending…"
           : ambiguous
             ? "Ship anyway"
-            : shipment
-              ? "Try again"
-              : "Ship with Shiprocket";
+            : cancelled
+              ? "Ship again"
+              : shipment
+                ? "Try again"
+                : "Ship with Shiprocket";
 
     return (
         <div className="rounded-lg border p-3 space-y-3">
@@ -121,8 +129,8 @@ export default function ShiprocketOrderPanel({
                                 }`
                               : shipment.status === "created"
                                 ? "Order created at Shiprocket, but no courier assigned yet."
-                                : shipment.status === "cancelled"
-                                  ? "Shipment cancelled."
+                                : cancelled
+                                  ? "Shipment cancelled. Ship again to book a new one."
                                   : inFlight
                                     ? "Sending to Shiprocket…"
                                     : ambiguous
@@ -146,9 +154,20 @@ export default function ShiprocketOrderPanel({
                 </Button>
             </div>
 
-            {shipment?.lastError && !live && (
+            {/* Not red when cancelled: nothing failed there, and a red box on an
+                expected outcome trains people to ignore the red boxes. */}
+            {shipment?.lastError && !live && !cancelled && (
                 <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-2.5 py-2">
                     {shipment.lastError}
+                </p>
+            )}
+
+            {cancelled && (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-2.5 py-2">
+                    {shipment?.lastError ??
+                        "This shipment was cancelled, and a cancelled Shiprocket order can never be reused."}{" "}
+                    Shipping again is a <span className="font-semibold">new</span> booking, billed
+                    separately.
                 </p>
             )}
 
