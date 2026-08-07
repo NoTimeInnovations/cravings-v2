@@ -31,6 +31,7 @@ import { useAuthStore } from "@/store/authStore";
 import { ImageUpload } from "@/components/storefront/ImageUpload";
 import VideoEditor from "@/components/VideoEditor";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 type HeaderFormat = "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
 type ButtonKind = "QUICK_REPLY" | "URL" | "PHONE_NUMBER";
@@ -237,7 +238,15 @@ export function AdminV2WhatsAppTemplates() {
 
   const handleDelete = async (row: TemplateRow) => {
     if (!partnerId) return;
-    if (!confirm(`Delete template "${row.name}"? This removes it from Meta too.`)) return;
+    if (
+      !(await confirmDialog({
+        title: `Delete template "${row.name}"?`,
+        description: "This removes it from Meta too.",
+        confirmText: "Delete",
+        destructive: true,
+      }))
+    )
+      return;
     setDeletingId(row.id);
     try {
       const res = await fetch(
