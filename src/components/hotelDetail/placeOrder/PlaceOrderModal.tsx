@@ -75,6 +75,7 @@ import { computeMaxRedeemable } from "@/lib/loyalty/config";
 import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
+import { quoteShiprocketCharge } from "@/app/actions/shiprocketQuote";
 import { clearSessionOrderType } from "@/lib/onboardingSession";
 import { isBeyondThirdPartyRadius } from "@/lib/hybridDelivery";
 
@@ -2329,6 +2330,58 @@ const PlaceOrderModal = ({
     !!hotelFeatures?.porter_bridge?.enabled &&
     !beyondThirdPartyRadius;
 
+  // Shiprocket prices the delivery when the store ships through its own account.
+  // Lowest precedence of the three: Porter or an own-rider network is what would
+  // actually MOVE the order, so their quote wins where both are configured.
+  const useShiprocketForCharge =
+    !!hotelFeatures?.shiprocket?.access &&
+    !!hotelFeatures?.shiprocket?.enabled &&
+    !usePorterForCharge &&
+    !useAgentForCharge;
+
+  const [shiprocketQuote, setShiprocketQuote] = useState<{
+    available: boolean;
+    rate?: number;
+    courier?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!useShiprocketForCharge || !isDelivery || isQrScan || orderType !== "delivery") {
+      setShiprocketQuote(null);
+      return;
+    }
+    if (!selectedCoords) {
+      setShiprocketQuote(null);
+      return;
+    }
+    let cancelled = false;
+    // Debounced: the address picker fires on every drag of the pin and each call
+    // costs the merchant a Shiprocket request.
+    const t = setTimeout(async () => {
+      const res = await quoteShiprocketCharge({
+        partnerId: (hotelData as any)?.id,
+        drop: { lat: selectedCoords.lat, lng: selectedCoords.lng },
+        address: address || null,
+      });
+      if (cancelled) return;
+      setShiprocketQuote(
+        res.ok ? { available: true, rate: res.rate, courier: res.courier } : { available: false },
+      );
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [
+    useShiprocketForCharge,
+    isDelivery,
+    isQrScan,
+    orderType,
+    (hotelData as any)?.id,
+    selectedCoords?.lat,
+    selectedCoords?.lng,
+  ]);
+
   const [porterQuote, setPorterQuote] = useState<{
     available: boolean;
     fare?: number;
@@ -3175,6 +3228,11 @@ const PlaceOrderModal = ({
           ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP
           : 0;
       }
+      if (useShiprocketForCharge && shiprocketQuote?.available && typeof shiprocketQuote.rate === "number") {
+        return shiprocketQuote.rate;
+      }
+      // Unquotable is not unshippable: fall through to the store's own pricing so
+      // the order still goes through, exactly as the porter branch does.
       return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
     })();
     const parcelCharge =

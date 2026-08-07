@@ -52,6 +52,7 @@ import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
 import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd, validateCustomPrebookTime } from "@/lib/prebooking";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
+import { quoteShiprocketCharge } from "@/app/actions/shiprocketQuote";
 import { isBeyondThirdPartyRadius } from "@/lib/hybridDelivery";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
@@ -923,6 +924,69 @@ const PlaceOrderModalV2 = ({
     (hotelData?.delivery_rules as any)?.porter_pricing_mode !== "custom" &&
     !beyondThirdPartyRadius;
 
+  // Shiprocket prices the delivery when the store ships through its own Shiprocket
+  // account. Lowest precedence of the three third parties: a store with Porter or
+  // an own-rider network configured is using those to MOVE the order, so their
+  // quote is the one that matches reality.
+  //
+  // The quote is advisory. Shiprocket's rate endpoint and the bill on a created
+  // order do not always agree, so this is what the customer pays, not what the
+  // merchant is charged.
+  const useShiprocketForCharge =
+    partnerFeatures.shiprocket.access &&
+    partnerFeatures.shiprocket.enabled &&
+    !usePorterForCharge &&
+    !useAgentForCharge;
+
+  const [shiprocketQuote, setShiprocketQuote] = useState<{
+    available: boolean;
+    rate?: number;
+    courier?: string | null;
+  } | null>(null);
+  const [shiprocketQuoteLoading, setShiprocketQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!useShiprocketForCharge || orderType !== "delivery" || isQrScan) {
+      setShiprocketQuote(null);
+      return;
+    }
+    if (!userCoordinates) {
+      setShiprocketQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setShiprocketQuoteLoading(true);
+    // Debounced like the Porter quote: an address picker fires on every drag of
+    // the pin, and each call costs the merchant a Shiprocket request.
+    const t = setTimeout(async () => {
+      const res = await quoteShiprocketCharge({
+        partnerId: (hotelData as any)?.id,
+        drop: { lat: userCoordinates.lat, lng: userCoordinates.lng },
+        address: address || null,
+      });
+      if (cancelled) return;
+      setShiprocketQuoteLoading(false);
+      setShiprocketQuote(
+        res.ok
+          ? { available: true, rate: res.rate, courier: res.courier }
+          : { available: false },
+      );
+    }, 500);
+    return () => {
+      cancelled = true;
+      setShiprocketQuoteLoading(false);
+      clearTimeout(t);
+    };
+  }, [
+    useShiprocketForCharge,
+    orderType,
+    isQrScan,
+    (hotelData as any)?.id,
+    userCoordinates?.lat,
+    userCoordinates?.lng,
+    address,
+  ]);
+
   const [porterQuote, setPorterQuote] = useState<{
     available: boolean;
     fare?: number;
@@ -1004,6 +1068,16 @@ const PlaceOrderModalV2 = ({
       }
       return 0;
     }
+    if (useShiprocketForCharge) {
+      if (shiprocketQuote?.available && typeof shiprocketQuote.rate === "number") {
+        return shiprocketQuote.rate;
+      }
+      // Unquotable is not unshippable — an unserviceable PIN or a Shiprocket
+      // outage falls back to the store's own pricing and the order still goes
+      // through, exactly as the porter branch does above.
+      if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) return deliveryInfo.cost;
+      return 0;
+    }
     if (hotelData?.delivery_rules?.hide_delivery_charge) return 0;
     if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) return deliveryInfo.cost;
     return 0;
@@ -1016,6 +1090,8 @@ const PlaceOrderModalV2 = ({
     agentQuote,
     usePorterForCharge,
     porterQuote,
+    useShiprocketForCharge,
+    shiprocketQuote,
   ]);
 
   // Block placement until we have an `available: true` quote. The

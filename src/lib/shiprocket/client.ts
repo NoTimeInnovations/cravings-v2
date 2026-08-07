@@ -325,6 +325,10 @@ export async function listPickupLocations(
       city: l?.city ?? null,
       state: l?.state ?? null,
       pinCode: l?.pin_code != null ? String(l.pin_code) : null,
+      // Shiprocket sends these as strings ("10.0410273"), and they are the only
+      // trustworthy pickup point for a hyperlocal quote.
+      lat: Number.isFinite(Number(l?.lat)) ? Number(l.lat) : null,
+      lng: Number.isFinite(Number(l?.long ?? l?.lng)) ? Number(l.long ?? l.lng) : null,
       address: l?.address ?? null,
       phoneVerified: l?.phone_verified === 1 || l?.phone_verified === true,
     })).filter((l) => l.nickname),

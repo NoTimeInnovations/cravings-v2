@@ -76,6 +76,23 @@ export interface ShiprocketConfig {
   /** Sales channel id. Blank = Shiprocket's default "Custom" channel. */
   channel_id: string | null;
   /**
+   * PIN code of the chosen pickup location, cached from Shiprocket when it is
+   * first needed. Rate quotes are priced from pickup PIN → delivery PIN, and a
+   * customer waiting at checkout should not pay for a round trip to Shiprocket to
+   * re-read an address that changes about once a year.
+   */
+  pickup_pincode: string | null;
+  /**
+   * Coordinates of that same pickup location, as SHIPROCKET holds them.
+   *
+   * Not the partner's geo_location: the two genuinely disagree — the store this
+   * was built against sits in Bangalore on the partners row and ships from a
+   * Kerala pickup address — and a hyperlocal quote priced from the wrong city is
+   * wrong by hundreds of kilometres, silently.
+   */
+  pickup_lat: number | null;
+  pickup_lng: number | null;
+  /**
    * This store's own webhook token. It is the LAST path segment of the URL the
    * merchant pastes into Shiprocket, and it is how an inbound event is attributed
    * to a partner — Shiprocket sends nothing that identifies the account, so
@@ -111,6 +128,9 @@ export const DEFAULT_SHIPROCKET_CONFIG: ShiprocketConfig = {
   request_pickup: true,
   courier_id: null,
   channel_id: null,
+  pickup_pincode: null,
+  pickup_lat: null,
+  pickup_lng: null,
   // Minted server-side on first save — see ensureShiprocketWebhookToken.
   webhook_token: null,
   // Most stores on this platform sell prepared food; a store shipping something
@@ -162,6 +182,12 @@ export function parseShiprocketConfig(raw: unknown): ShiprocketConfig {
     courier_id: Number.isFinite(courierId) && courierId > 0 ? courierId : null,
     channel_id:
       typeof obj.channel_id === "string" && obj.channel_id.trim() ? obj.channel_id.trim() : null,
+    pickup_pincode:
+      typeof obj.pickup_pincode === "string" && /^[1-9]\d{5}$/.test(obj.pickup_pincode.trim())
+        ? obj.pickup_pincode.trim()
+        : null,
+    pickup_lat: Number.isFinite(Number(obj.pickup_lat)) ? Number(obj.pickup_lat) : null,
+    pickup_lng: Number.isFinite(Number(obj.pickup_lng)) ? Number(obj.pickup_lng) : null,
     webhook_token:
       typeof obj.webhook_token === "string" && obj.webhook_token.trim()
         ? obj.webhook_token.trim()
@@ -259,6 +285,9 @@ export interface ShiprocketPickupLocation {
   city: string | null;
   state: string | null;
   pinCode: string | null;
+  /** Where Shiprocket thinks this pickup is — see pickup_lat on the config. */
+  lat: number | null;
+  lng: number | null;
   address: string | null;
   /** Shiprocket will not pick up from a location whose phone is unverified. */
   phoneVerified: boolean;
