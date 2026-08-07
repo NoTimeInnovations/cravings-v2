@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { confirmDialog, promptDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 
 type Row = Record<string, any>;
@@ -247,7 +248,7 @@ export default function DeliveryPoolPanel() {
                   <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" disabled={busy}
                     onClick={() => act(poolApprove(rid, str(q.id)), "Approved")}>Approve</Button>
                   <Button variant="outline" size="sm" disabled={busy}
-                    onClick={() => { const reason = window.prompt("Reason for rejecting?") || ""; if (reason) act(poolReject(rid, str(q.id), reason), "Rejected"); }}>Reject</Button>
+                    onClick={async () => { const reason = (await promptDialog({ title: "Reject this rider request?", description: "Add a reason for rejecting this rider.", placeholder: "Reason for rejecting" })) || ""; if (reason) act(poolReject(rid, str(q.id), reason), "Rejected"); }}>Reject</Button>
                 </div>
               </div>
             ))}
@@ -310,7 +311,7 @@ export default function DeliveryPoolPanel() {
                           <Button variant="ghost" size="sm" className="mr-1" disabled={busy}
                             onClick={() => act(poolDisableRider(rid, str(r.rider_id), !r.disabled), r.disabled ? "Enabled" : "Disabled")}>{r.disabled ? "Enable" : "Disable"}</Button>
                           <Button variant="ghost" size="sm" className="text-red-600" disabled={busy}
-                            onClick={() => { if (window.confirm("Remove this rider?")) act(poolRemoveRider(rid, str(r.rider_id)), "Removed"); }}>Remove</Button>
+                            onClick={async () => { if (await confirmDialog({ title: "Remove this rider?", description: "They will be unlinked from your pool and will stop receiving your orders.", confirmText: "Remove", destructive: true })) act(poolRemoveRider(rid, str(r.rider_id)), "Removed"); }}>Remove</Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -337,7 +338,7 @@ export default function DeliveryPoolPanel() {
                         <Button variant="outline" size="sm" disabled={busy}
                           onClick={() => act(poolDisableRider(rid, str(r.rider_id), !r.disabled), r.disabled ? "Enabled" : "Disabled")}>{r.disabled ? "Enable" : "Disable"}</Button>
                         <Button variant="outline" size="sm" className="text-red-600" disabled={busy}
-                          onClick={() => { if (window.confirm("Remove this rider?")) act(poolRemoveRider(rid, str(r.rider_id)), "Removed"); }}>Remove</Button>
+                          onClick={async () => { if (await confirmDialog({ title: "Remove this rider?", description: "They will be unlinked from your pool and will stop receiving your orders.", confirmText: "Remove", destructive: true })) act(poolRemoveRider(rid, str(r.rider_id)), "Removed"); }}>Remove</Button>
                       </div>
                     </CardContent>
                   </Card>

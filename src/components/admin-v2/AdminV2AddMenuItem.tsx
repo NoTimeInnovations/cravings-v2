@@ -17,6 +17,7 @@ import { useCategoryStore, formatDisplayName } from "@/store/categoryStore_hasur
 import { useAuthStore } from "@/store/authStore";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 interface AdminV2AddMenuItemProps {
     onBack: () => void;
@@ -132,12 +133,19 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
     };
 
     // Variant Handlers
-    const addVariant = () => {
+    const addVariant = async () => {
         if (!newVariant.name) {
             toast.error("Please fill the option name");
             return;
         }
-        if (!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
+        if (
+            !newVariant.price &&
+            !(await confirmDialog({
+                title: "Price is zero",
+                description: "This option has no price set. Do you want to proceed?",
+                confirmText: "Add option",
+            }))
+        ) {
             return;
         }
         setVariants([...variants, { ...newVariant }]);
@@ -145,12 +153,19 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
         setShowVariantForm(false);
     };
 
-    const updateVariant = () => {
+    const updateVariant = async () => {
         if (editingVariantIndex === null || !newVariant.name) {
             toast.error("Please fill option name");
             return;
         }
-        if (!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
+        if (
+            !newVariant.price &&
+            !(await confirmDialog({
+                title: "Price is zero",
+                description: "This option has no price set. Do you want to proceed?",
+                confirmText: "Save option",
+            }))
+        ) {
             return;
         }
         const updatedVariants = [...variants];

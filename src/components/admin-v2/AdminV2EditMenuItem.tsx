@@ -16,6 +16,7 @@ import { useAuthStore, Partner } from "@/store/authStore";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 interface AdminV2EditMenuItemProps {
     item: MenuItem;
@@ -139,7 +140,14 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
     };
 
     const handleDelete = async () => {
-        if (confirm("Are you sure you want to delete this item? This action cannot be undone.")) {
+        if (
+            await confirmDialog({
+                title: "Delete this item?",
+                description: "This action cannot be undone.",
+                confirmText: "Delete",
+                destructive: true,
+            })
+        ) {
             try {
                 await deleteItem(item.id!);
                 onBack();
@@ -151,12 +159,19 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
     };
 
     // Variant Handlers
-    const addVariant = () => {
+    const addVariant = async () => {
         if (!newVariant.name) {
             toast.error("Please fill the option name");
             return;
         }
-        if (!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
+        if (
+            !newVariant.price &&
+            !(await confirmDialog({
+                title: "Price is zero",
+                description: "This option has no price set. Do you want to proceed?",
+                confirmText: "Add option",
+            }))
+        ) {
             return;
         }
         setVariants([...variants, { ...newVariant }]);
@@ -164,12 +179,19 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
         setShowVariantForm(false);
     };
 
-    const updateVariant = () => {
+    const updateVariant = async () => {
         if (editingVariantIndex === null || !newVariant.name) {
             toast.error("Please fill option name");
             return;
         }
-        if (!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
+        if (
+            !newVariant.price &&
+            !(await confirmDialog({
+                title: "Price is zero",
+                description: "This option has no price set. Do you want to proceed?",
+                confirmText: "Save option",
+            }))
+        ) {
             return;
         }
         const updatedVariants = [...variants];

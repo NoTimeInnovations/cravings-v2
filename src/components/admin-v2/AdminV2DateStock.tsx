@@ -23,6 +23,7 @@ import {
 } from "@/lib/prebooking";
 import { getFeatures } from "@/lib/getFeatures";
 import { toast } from "sonner";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 // Per-date stock grid: menu items as rows, the next N bookable dates as columns.
 // A row is "capped" when its stock has a daily_default (also marked stock_type
@@ -198,9 +199,15 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
   }, [items, search]);
 
   // Discard-guard for actions that reload/replace the grid.
-  const confirmDiscard = () =>
+  // Async because the dialog is promise-based — every caller must await it.
+  const confirmDiscard = async () =>
     !isDirty ||
-    window.confirm("You have unsaved changes. Discard them?");
+    (await confirmDialog({
+      title: "Discard unsaved changes?",
+      description: "You have unsaved changes. Discarding will lose them.",
+      confirmText: "Discard",
+      destructive: true,
+    }));
 
   // ---- pending edit setters (record locally; nothing hits the DB until Save) ----
   const editCell = (item: GridItem, date: string, raw: string) => {
@@ -424,8 +431,8 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
         </div>
         <Select
           value={String(horizon)}
-          onValueChange={(v) => {
-            if (!confirmDiscard()) return;
+          onValueChange={async (v) => {
+            if (!(await confirmDiscard())) return;
             setHorizon(Number(v));
           }}
         >
@@ -444,8 +451,8 @@ export function AdminV2DateStock({ partnerId }: { partnerId: string }) {
         <Button
           variant="outline"
           className="bg-white"
-          onClick={() => {
-            if (confirmDiscard()) fetchData();
+          onClick={async () => {
+            if (await confirmDiscard()) fetchData();
           }}
           disabled={refreshing || saving}
           title="Refresh"

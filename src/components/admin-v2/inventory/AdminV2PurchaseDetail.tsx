@@ -20,6 +20,8 @@ import {
     Phone,
     Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 export const AdminV2PurchaseDetail = () => {
     const {
@@ -39,15 +41,18 @@ export const AdminV2PurchaseDetail = () => {
 
     const handleDelete = async () => {
         if (
-            window.confirm(
-                "Are you sure you want to delete this purchase? This action cannot be undone."
-            )
+            await confirmDialog({
+                title: "Delete this purchase?",
+                description: "This action cannot be undone.",
+                confirmText: "Delete purchase",
+                destructive: true,
+            })
         ) {
             try {
                 await deletePurchase(selectedPurchase.id);
             } catch (error) {
                 console.error("Failed to delete purchase:", error);
-                alert("Failed to delete the purchase. Please try again.");
+                toast.error("Failed to delete the purchase. Please try again.");
             }
         }
     };

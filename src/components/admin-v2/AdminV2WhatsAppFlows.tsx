@@ -14,6 +14,7 @@ import { provisionDefaultFlows } from "@/app/actions/provisionDefaultFlows";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { patchFlowEnabled } from "@/lib/whatsappFlowsBulk";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 type FlowListItem = Pick<
   Flow,
@@ -144,7 +145,15 @@ export function AdminV2WhatsAppFlows() {
   };
 
   const remove = async (f: FlowListItem) => {
-    if (!confirm(`Delete flow "${f.name}"? This can't be undone.`)) return;
+    if (
+      !(await confirmDialog({
+        title: `Delete flow "${f.name}"?`,
+        description: "This can't be undone.",
+        confirmText: "Delete",
+        destructive: true,
+      }))
+    )
+      return;
     try {
       const res = await fetch(`/api/whatsapp/flows/${f.id}?partnerId=${partnerId}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
