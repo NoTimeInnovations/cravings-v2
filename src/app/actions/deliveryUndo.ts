@@ -90,6 +90,55 @@ export async function getDeliveryUndoHealth(): Promise<{
   }
 }
 
+export interface DuAnalytics {
+  ok: boolean;
+  days?: number;
+  since?: string;
+  totals?: Record<string, number>;
+  restaurants?: {
+    listingId: string;
+    name: string;
+    slug: string;
+    menuViews: number;
+    orderTaps: number;
+    tapRate: number;
+  }[];
+  site?: { pageViews: number; byPath: { path: string; views: number }[] };
+  daily?: { day: string; app: number; site: number }[];
+  error?: string;
+}
+
+/**
+ * Traffic for the Delivery Undo app and website.
+ *
+ * Reads through the Worker rather than Hasura: the events live in Cloudflare
+ * D1 next to the read model the app queries, and this is an admin-only
+ * endpoint, so the token never leaves the server.
+ */
+export async function getDeliveryUndoAnalytics(
+  days = 30,
+): Promise<DuAnalytics> {
+  const url = process.env.DU_WORKER_URL;
+  const token = process.env.DU_ADMIN_TOKEN;
+  if (!url || !token) {
+    return {
+      ok: false,
+      error: "Worker not configured. Set DU_WORKER_URL and DU_ADMIN_TOKEN.",
+    };
+  }
+  try {
+    const res = await fetch(`${url}/internal/analytics?days=${days}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15_000),
+      cache: "no-store",
+    });
+    if (!res.ok) return { ok: false, error: `Worker returned ${res.status}` };
+    return { ok: true, ...(await res.json()) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Unknown" };
+  }
+}
+
 /** Notification channel created natively by the app; carries the custom sound. */
 const ANDROID_CHANNEL_ID = "du_default_v1";
 
@@ -114,15 +163,26 @@ export interface DuSendResult {
  * `OR` operator entries — a bare list is treated as AND and would match
  * nobody once there is more than one value.
  */
+/**
+ * OneSignal's built-in "everyone" segment.
+ *
+ * NOT "Subscribed Users" — that was the name under the old player model and it
+ * does not exist on apps created since. Sending to a segment that does not
+ * exist matches nobody, and OneSignal reports it as "All included players are
+ * not subscribed", which reads like a device problem and is not one. The
+ * current defaults are Total / Active / Inactive / Engaged Subscriptions.
+ */
+const EVERYONE_SEGMENT = "Total Subscriptions";
+
 function buildTargeting(audience: DuAudience) {
   if (audience.type === "all") {
-    return { included_segments: ["Subscribed Users"] };
+    return { included_segments: [EVERYONE_SEGMENT] };
   }
 
   const tag = audience.type === "district" ? "city" : "area";
   const values = audience.values.filter(Boolean);
   if (values.length === 0) {
-    return { included_segments: ["Subscribed Users"] };
+    return { included_segments: [EVERYONE_SEGMENT] };
   }
 
   const filters: Record<string, string>[] = [];
