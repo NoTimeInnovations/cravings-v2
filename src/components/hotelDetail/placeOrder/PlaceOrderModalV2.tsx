@@ -3860,6 +3860,11 @@ const PlaceOrderModalV2 = ({
                     !effectiveHideDeliveryCharge &&
                     !useAgentForCharge &&
                     !usePorterForCharge &&
+                    // Shiprocket has its own row below. Without this the bill listed
+                    // "Delivery Charges" twice, both showing the same amount — the
+                    // total was right, but a customer reading two identical lines
+                    // reasonably assumes they are being charged twice.
+                    !useShiprocketForCharge &&
                     !deliveryInfo?.isOutOfRange &&
                     deliveryInfo?.distance != null && (
                       <div>
@@ -3911,17 +3916,26 @@ const PlaceOrderModalV2 = ({
                       customer never sees a delivery_rules amount that the live quote
                       is about to replace. */}
                   {orderType === "delivery" && useShiprocketForCharge && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Delivery Charges</span>
-                      {shiprocketQuoteLoading || !shiprocketQuote ? (
-                        <span className="text-gray-400 inline-flex items-center gap-1.5">
-                          <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
-                          Calculating…
-                        </span>
-                      ) : deliveryCharge > 0 ? (
-                        <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
-                      ) : (
-                        <span className="font-semibold" style={{ color: accent }}>Free</span>
+                    <div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Delivery Charges</span>
+                        {shiprocketQuoteLoading || !shiprocketQuote ? (
+                          <span className="text-gray-400 inline-flex items-center gap-1.5">
+                            <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+                            Calculating…
+                          </span>
+                        ) : deliveryCharge > 0 ? (
+                          <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
+                        ) : (
+                          <span className="font-semibold" style={{ color: accent }}>Free</span>
+                        )}
+                      </div>
+                      {!shiprocketQuoteLoading && (
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {deliveryInfo?.distance != null && deliveryInfo.distance > 0
+                            ? `${deliveryInfo.distance.toFixed(1)} kms · by Shiprocket`
+                            : "by Shiprocket"}
+                        </div>
                       )}
                     </div>
                   )}

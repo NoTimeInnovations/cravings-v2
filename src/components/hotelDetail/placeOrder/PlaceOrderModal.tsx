@@ -911,7 +911,7 @@ const BillCard = ({
           </div>
         )}
 
-        {isDelivery && !useAgentForCharge && !usePorter && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
+        {isDelivery && !useAgentForCharge && !usePorter && !useShiprocket && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
           <div>
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
@@ -956,6 +956,24 @@ const BillCard = ({
           </div>
         )}
 
+
+        {isDelivery && useShiprocket && (
+          <div>
+            <div className="flex justify-between text-sm">
+              <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
+              {deliveryCharges > 0 ? (
+                <span className="text-inherit"><MenuPrice currency={currency} amount={deliveryCharges.toFixed(0)} /></span>
+              ) : (
+                <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>Free</span>
+              )}
+            </div>
+            <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+              {deliveryInfo?.distance != null && deliveryInfo.distance > 0
+                ? `${deliveryInfo.distance.toFixed(1)} kms · by Shiprocket`
+                : "by Shiprocket"}
+            </div>
+          </div>
+        )}
 
         {parcelCharge > 0 && (
           <div className="flex justify-between text-sm">
