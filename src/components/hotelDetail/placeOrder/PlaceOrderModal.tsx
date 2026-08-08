@@ -32,9 +32,9 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { taxLabel } from "@/lib/taxLabel";
 import { getFeatures } from "@/lib/getFeatures";
-import { discountableSubtotal, isDiscountStackingEnabled } from "@/lib/discountUtils";
-import { valueStack, canStack, givesGift, type StackableDiscount } from "@/lib/discountStack";
-import { bxgyFreebieUnits, bxgyGivesFreeItem, bxgyRepeatCount, bxgyRewardAmount, describeBxgy } from "@/lib/bxgy";
+import { discountableLines, discountableSubtotal, isDiscountStackingEnabled } from "@/lib/discountUtils";
+import { valueStack, canStack, givesGift, scopedBaseFor, type StackableDiscount } from "@/lib/discountStack";
+import { bxgyFreebieUnits, bxgyGivesFreeItem, bxgyRepeatCount, bxgyRewardAmount, describeBxgy, parseIdList } from "@/lib/bxgy";
 import { fireGiftConfetti, originOf } from "@/lib/giftConfetti";
 import { GiftEarnedModal } from "@/components/hotelDetail/GiftEarnedModal";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
@@ -2131,6 +2131,14 @@ const PlaceOrderModal = ({
   const menuPriceOf = (id: string) =>
     Number(hotelData?.menus?.find((m) => m.id === id.trim())?.price) || 0;
 
+  // Resolves a menu item to its category, so an id in category_item_ids that
+  // names a CATEGORY scopes the discount to every item under it — the admin
+  // field offers "Specific Categories/Items", so both spaces must resolve.
+  const categoryOf = (id: string) =>
+    (hotelData?.menus?.find((m) => m.id === id.trim()) as any)?.category?.id as
+      | string
+      | undefined;
+
 
   const getFreebieItemsTotal = (disc: typeof appliedDiscount) => {
     if (!disc || disc.type !== "freebie" || !disc.freebie_item_ids) return 0;
@@ -2139,6 +2147,11 @@ const PlaceOrderModal = ({
       .split(",")
       .reduce((total, id) => total + menuPriceOf(id) * count, 0);
   };
+
+  // The cart lines an item-scoped discount is measured against: everything not
+  // already sold at an offer price. Same exclusion the shared base makes, kept
+  // as LINES because a scope is a membership test, not a subtotal.
+  const discountLines = discountableLines(items || [], (hotelData as any)?.offers);
 
   // How many times the cart earns the applied BXGY reward right now (0 = not
   // yet). Measured against the discountable subtotal so an all-offer cart
@@ -2169,6 +2182,14 @@ const PlaceOrderModal = ({
     if (base <= 0 && !givesGift(d as StackableDiscount)) return "alloffer";
     if (d.min_order_value && sub < Number(d.min_order_value)) return "min";
     if (d.type === "bxgy" && bxgyRepeatCount(d, lines, base) <= 0) return "bxgy";
+    // Scoped to items the cart does not hold ⇒ worth ₹0. Refuse it outright
+    // rather than letting it sit in the stack advertising a saving of nothing.
+    // A gift is exempt: its worth comes from freebie_item_ids, not these lines.
+    if (
+      !givesGift(d as StackableDiscount) &&
+      scopedBaseFor(d as StackableDiscount, discountLines, categoryOf) === 0
+    )
+      return "noitems";
     return null;
   };
 
@@ -2184,6 +2205,8 @@ const PlaceOrderModal = ({
       lines: items || [],
       base: discountableSubtotal(items || [], (hotelData as any)?.offers),
       priceOf: menuPriceOf,
+      moneyLines: discountLines,
+      categoryOf,
     },
   );
   const stackSavings = stackResult.savings;
@@ -2205,9 +2228,15 @@ const PlaceOrderModal = ({
       // an all-offer cart or subtract the gift's price from items they pay for.
       return bxgyGivesFreeItem(disc) ? amount : Math.min(amount, sub);
     }
-    let savings = disc.type === "percentage" ? (sub * disc.value) / 100 : disc.value;
+    // An item-scoped discount is worth a share of ITS items, not of the cart.
+    // Must move in lockstep with valueOne or the "You save ₹X" line and the
+    // sticky bar would keep quoting whole-cart maths while the bill and the
+    // charge use the scoped figure.
+    const scoped = scopedBaseFor(disc as StackableDiscount, discountLines, categoryOf);
+    const moneyBase = scoped ?? sub;
+    let savings = disc.type === "percentage" ? (moneyBase * disc.value) / 100 : disc.value;
     if (disc.max_discount_amount) savings = Math.min(savings, disc.max_discount_amount);
-    return Math.min(savings, sub);
+    return Math.min(savings, moneyBase);
   };
 
   const hotelFeatures = getFeatures(hotelData?.feature_flags || "");
@@ -2541,6 +2570,10 @@ const PlaceOrderModal = ({
           !bxgyGivesFreeItem(disc)
         )
           return false;
+        // Same trap for an item-scoped discount: worth ₹0 while its items are
+        // absent, so auto-applying it would be undone by the revalidation
+        // effect and re-applied here on the next pass.
+        if (!givesGift(disc as StackableDiscount) && scopedBaseFor(disc, discountLines, categoryOf) === 0) return false;
         // Auto-apply must only ever pick an ELIGIBLE discount, or the effect
         // that drops ineligible ones would clear it and this would re-apply it
         // on the next pass. A BXGY the cart doesn't earn is exactly that.
@@ -2943,6 +2976,19 @@ const PlaceOrderModal = ({
         setDiscountError(`Minimum order of ${hotelData?.currency || "₹"}${disc.min_order_value} required.`);
         return;
       }
+      // Name the items rather than applying the code for ₹0 and leaving the
+      // customer to work out why nothing came off.
+      if (!givesGift(disc as StackableDiscount) && scopedBaseFor(disc, discountLines, categoryOf) === 0) {
+        const names = parseIdList(disc.category_item_ids)
+          .map((id) => hotelData?.menus?.find((m) => m.id === id)?.name)
+          .filter(Boolean);
+        setDiscountError(
+          names.length
+            ? `Only valid on ${names.slice(0, 3).join(", ")}${names.length > 3 ? " and more" : ""}.`
+            : "Not valid for the items in your cart.",
+        );
+        return;
+      }
       // Say WHY a BXGY code bounced — "Buy 2 of Pizza, get a free Coke" beats
       // applying it for ₹0 and leaving the customer to work it out.
       if (
@@ -3032,6 +3078,17 @@ const PlaceOrderModal = ({
       setAppliedDiscounts((prev) => prev.filter((x) => x !== appliedDiscount));
       setDiscountError("");
       toast.info("Discount removed: order below minimum amount.");
+      return;
+    }
+
+    // The items it was scoped to have left the cart, so it is worth nothing.
+    if (
+      !givesGift(appliedDiscount as StackableDiscount) &&
+      scopedBaseFor(appliedDiscount as StackableDiscount, discountLines, categoryOf) === 0
+    ) {
+      setAppliedDiscounts((prev) => prev.filter((x) => x !== appliedDiscount));
+      setDiscountError("");
+      toast.info("Discount removed: its items are no longer in your cart.");
       return;
     }
 
@@ -3167,6 +3224,7 @@ const PlaceOrderModal = ({
         discount_order_types: d.discount_order_types,
         valid_days: d.valid_days,
         applicable_on: d.applicable_on,
+        category_item_ids: d.category_item_ids,
         rank: d.rank,
         // Units actually EARNED, not the rule's per-reward count.
         freebie_item_count: gift ? r.freebieUnits : d.freebie_item_count,

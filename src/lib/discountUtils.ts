@@ -28,16 +28,29 @@ export type OrderDiscountLike = {
  */
 export function computeDiscountAmount(
   discount: OrderDiscountLike | null | undefined,
-  subtotal: number
+  subtotal: number,
+  /**
+   * The worth of just the items an item-scoped discount names, when the caller
+   * has the lines to work it out (see discountStack.scopedBaseFor). NULL or
+   * omitted keeps the whole-cart behaviour.
+   *
+   * A caller that has the lines MUST pass this. Recomputing a scoped discount
+   * against the full subtotal re-expands it to the whole bill and then persists
+   * that as the order's total — the customer was charged the scoped amount.
+   */
+  scopedBase?: number | null
 ): number {
   if (!discount) return 0;
   if (discount.type === "percentage") {
-    let amount = (subtotal * (Number(discount.value) || 0)) / 100;
+    const base = scopedBase == null ? subtotal : scopedBase;
+    let amount = (base * (Number(discount.value) || 0)) / 100;
     const cap = Number(discount.max_discount_amount);
     if (Number.isFinite(cap) && cap > 0) amount = Math.min(amount, cap);
     return amount;
   }
-  return Number(discount.value) || 0;
+  // A scoped flat discount cannot exceed the items it names.
+  const flat = Number(discount.value) || 0;
+  return scopedBase == null ? flat : Math.min(flat, scopedBase);
 }
 
 /**

@@ -28,6 +28,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { taxLabel } from "@/lib/taxLabel";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
+import { scopedBaseFor } from "@/lib/discountStack";
 
 export interface MenuItem {
   id?: string;
@@ -227,11 +228,21 @@ export const EditOrderModal = () => {
     // because the same save also blanked the discounts column, so the bill was
     // consistently wrong rather than visibly wrong. Now that the column is
     // preserved, the total has to agree with it. Mirrors AdminV2EditOrder.
+    // A scoped discount was charged against ITS items; recomputing it on the
+    // whole subtotal would re-expand it to the bill on save. Mirrors
+    // AdminV2EditOrder.
+    const scopeLines = (currentItems as any[]).map((i: any) => ({
+      id: i?.menu_id ?? i?.id,
+      price: i?.menu?.price ?? i?.price,
+      quantity: i?.quantity,
+    }));
+    const categoryOf = (menuId: string) =>
+      (currentItems as any[]).find((i: any) => (i?.menu_id ?? i?.id) === menuId)?.category_id;
     const discountAmount = discounts.reduce((total, discount) => {
       const disc = discount as any;
       return total + (disc.type === "freebie"
         ? getDiscountAmount(disc, preDiscount)
-        : computeDiscountAmount(disc, preDiscount));
+        : computeDiscountAmount(disc, preDiscount, scopedBaseFor(disc, scopeLines, categoryOf)));
     }, 0);
 
     const discountedTotal = Math.max(0, preDiscount - discountAmount);

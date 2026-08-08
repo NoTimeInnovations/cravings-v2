@@ -53,8 +53,14 @@ const num = (v: unknown): number => {
 
 /** Cart line ids are `<menuItemId>` on the POS but `<menuItemId>|<variant>` on
  *  the storefront. A BXGY condition is written against the menu item, so both
- *  forms have to resolve to the same id. */
-const baseId = (id: unknown): string => String(id ?? "").split("|")[0].trim();
+ *  forms have to resolve to the same id.
+ *
+ *  The POS carries a second suffix: a customised line is `<menuItemId>_custom_…`
+ *  (posStore strips it in three places of its own). Without stripping it here a
+ *  customised line silently fails to satisfy an item condition at the counter,
+ *  so it is folded in — one normaliser, not two. */
+export const baseId = (id: unknown): string =>
+  String(id ?? "").split("|")[0].split("_custom_")[0].trim();
 
 export const parseIdList = (csv: string | null | undefined): string[] =>
   (csv ?? "")

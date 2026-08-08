@@ -91,6 +91,7 @@ export type OrderDiscountArg = {
   discount_order_types?: string;
   valid_days?: string;
   applicable_on?: string;
+  category_item_ids?: string;
   rank?: number;
   freebie_item_count?: number;
   freebie_item_ids?: string;
@@ -2073,6 +2074,9 @@ const useOrderStore = create(
                 discount_order_types: disc.discount_order_types || null,
                 valid_days: disc.valid_days || null,
                 applicable_on: disc.applicable_on || null,
+                // Without the id list a later recompute reads "Specific" as
+                // unscoped and re-expands the discount to the whole bill.
+                category_item_ids: disc.category_item_ids || null,
                 rank: disc.rank || null,
                 freebie_item_count: disc.freebie_item_count || null,
                 freebie_item_ids: disc.freebie_item_ids || null,
