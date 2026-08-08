@@ -355,6 +355,7 @@ export const getOrderByIdQuery = `
       scheduled_time
       scheduled_time_to
       booking_persons
+      payment_method
       delivery_address
       status
       phone

@@ -101,6 +101,10 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     const [totalPrice, setTotalPrice] = useState(0);
     const [tableNumber, setTableNumber] = useState<number | null>(null);
     const [phone, setPhone] = useState<string | null>(null);
+    // Editable here because this is the only screen a partner reaches to correct
+    // an order after the fact — the Print chooser only ever asks when the method
+    // is MISSING, so a wrong one (cash recorded for a UPI payment) was permanent.
+    const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
     const [newItemId, setNewItemId] = useState<string>("");
     const [searchQuery, setSearchQuery] = useState("");
     const [showExtraItems, setShowExtraItems] = useState(false);
@@ -155,6 +159,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                 setTotalPrice(orderData.total_price);
                 setTableNumber(orderData.table_number);
                 setPhone(orderData.phone);
+                setPaymentMethod(orderData.payment_method ?? null);
                 // Loaded purely so the save can write it back unchanged. The
                 // query already selected it; nothing read it, so every save sent
                 // the column as null and erased the address off delivery orders.
@@ -405,6 +410,10 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                     discounts: discounts.length > 0 ? discounts : null,
                     notes: orderNote || null,
                     delivery_address: deliveryAddress,
+                    // Always written, so DESELECTING clears it. Safe only because
+                    // GetOrderById now selects payment_method — otherwise this would
+                    // blank the column on every save, exactly as delivery_address once was.
+                    payment_method: paymentMethod,
                 },
             });
 
@@ -754,6 +763,50 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                         </div>
                                     </>
                                 )}
+
+                                {/* Shown for every order type, and always editable —
+                                    including when a method is already recorded, which
+                                    is exactly the case that had no way to be corrected. */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Payment Method</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[
+                                            { value: "cash", label: "Cash", icon: "💵" },
+                                            { value: "upi", label: "UPI", icon: "📱" },
+                                            { value: "card", label: "Card", icon: "💳" },
+                                        ].map((m) => (
+                                            <Button
+                                                key={m.value}
+                                                type="button"
+                                                variant={paymentMethod === m.value ? "default" : "outline"}
+                                                onClick={() =>
+                                                    // Tapping the selected one clears it, so a method
+                                                    // recorded by mistake can be removed, not just swapped.
+                                                    setPaymentMethod(paymentMethod === m.value ? null : m.value)
+                                                }
+                                                className="flex h-auto flex-col gap-1 py-3"
+                                            >
+                                                <span className="text-xl">{m.icon}</span>
+                                                <span className="text-xs font-medium">{m.label}</span>
+                                            </Button>
+                                        ))}
+                                    </div>
+                                    {!paymentMethod && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Not recorded — the bill will print without a payment method.
+                                        </p>
+                                    )}
+                                    {/* Online payments (cashfree, razorpay) are real values that
+                                        match none of the three buttons. Without this the row looks
+                                        unset, and tapping Cash would silently overwrite a genuine
+                                        gateway payment and break reconciliation. */}
+                                    {paymentMethod && !["cash", "upi", "card"].includes(paymentMethod) && (
+                                        <p className="text-xs text-amber-600">
+                                            Paid online via <span className="font-medium capitalize">{paymentMethod}</span> —
+                                            choosing one of the above will overwrite that record.
+                                        </p>
+                                    )}
+                                </div>
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Order Note</label>
