@@ -94,7 +94,7 @@ import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
 import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
 import { computeMaxRedeemable } from "@/lib/loyalty/config";
-import { discountableSubtotal, isDiscountStackingEnabled } from "@/lib/discountUtils";
+import { discountableSubtotal, isDiscountRefusedForCart, isDiscountStackingEnabled } from "@/lib/discountUtils";
 import { valueStack, canStack, givesGift, type StackableDiscount } from "@/lib/discountStack";
 import { bxgyFreebieUnits, bxgyGivesFreeItem, bxgyRepeatCount, bxgyRewardAmount, describeBxgy } from "@/lib/bxgy";
 import { fireGiftConfetti, originOf } from "@/lib/giftConfetti";
@@ -677,9 +677,27 @@ const PlaceOrderModalV2 = ({
   // Discounts never apply to an item that is already sold at an OFFER price —
   // that line's price is the offer price, so discounting it again would mark it
   // down twice. Everything else in the cart stays discountable.
+  // …and when the partner turns on "don't allow discounts with offers", a single
+  // offer item disqualifies the WHOLE bill rather than just its own line.
+  // Enforced by zeroing the base, not by hiding a button: eligibility and the
+  // savings both derive from it, so a discount that must be refused cannot
+  // qualify, cannot subtract, and cannot be persisted with a stale client.
+  const discountRefused = useMemo(
+    () =>
+      isDiscountRefusedForCart(
+        items || [],
+        (hotelData as any)?.offers,
+        (hotelData as any)?.delivery_rules,
+      ),
+    [items, (hotelData as any)?.offers, (hotelData as any)?.delivery_rules],
+  );
+
   const discountBase = useMemo(
-    () => discountableSubtotal(items || [], (hotelData as any)?.offers),
-    [items, (hotelData as any)?.offers],
+    () =>
+      discountRefused
+        ? 0
+        : discountableSubtotal(items || [], (hotelData as any)?.offers),
+    [discountRefused, items, (hotelData as any)?.offers],
   );
 
   // Per-item takeaway surcharge, baked into prices only when the takeaway order

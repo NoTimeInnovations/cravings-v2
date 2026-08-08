@@ -142,6 +142,40 @@ export function isLineOnOffer(
  * discountable base, which made the discount qualify and be ineligible at the
  * same time, and the checkout oscillated between the two.
  */
+/**
+ * Whether this partner refuses discounts outright on any cart that contains an
+ * offer item — "discounts OR offers, never both".
+ *
+ * Distinct from the default behaviour, which is softer: normally an offer line
+ * is merely excluded from the discount base, so a mixed cart still gets the
+ * discount on its full-price items. Partners running thin margins want the
+ * harder rule, because a customer combining a coupon with an already-marked-down
+ * item is exactly the stacking they meant to prevent.
+ *
+ * Defaults to false — existing partners keep the softer behaviour.
+ */
+export function isDiscountBlockedWithOffers(deliveryRules: any): boolean {
+  return !!deliveryRules?.discount_excludes_offers;
+}
+
+/**
+ * True when a discount must be REFUSED for this cart: the partner opted into the
+ * hard rule and at least one line is sold at an offer price.
+ *
+ * Deliberately checks the cart, not the discount: it is the presence of an offer
+ * item that disqualifies the bill, whichever coupon is being applied.
+ */
+export function isDiscountRefusedForCart(
+  lines: DiscountCartLine[] | null | undefined,
+  offers: OfferLike[] | null | undefined,
+  deliveryRules: any,
+  now: number = Date.now(),
+): boolean {
+  if (!isDiscountBlockedWithOffers(deliveryRules)) return false;
+  if (!lines?.length || !offers?.length) return false;
+  return lines.some((line) => isLineOnOffer(line, offers, now));
+}
+
 export function discountableLines<T extends DiscountCartLine>(
   lines: T[] | null | undefined,
   offers: OfferLike[] | null | undefined,
