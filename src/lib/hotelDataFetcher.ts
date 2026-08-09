@@ -292,10 +292,13 @@ export async function processHotelPage(
     ?.map((item: any) => {
       const deliveryBase = deliveryBasePrice(item);
       const offerPrice = item.offers?.[0]?.offer_price;
-      // If offer exists, apply the same discount amount to delivery base price
-      const finalPrice = offerPrice != null && item.price > 0
-        ? Math.max(0, deliveryBase - (item.price - offerPrice))
-        : deliveryBase;
+      // The offer price is what the customer pays, on delivery exactly as on
+      // dine-in (qrScan) and the business menu. It is NOT re-derived as a
+      // discount off the delivery base: doing that made an item whose
+      // delivery_price differs from its base price sell for something the
+      // partner never typed — offer 50 on a 100 delivery price charged 61 —
+      // which is impossible to explain from the offer screen.
+      const finalPrice = offerPrice != null ? offerPrice : deliveryBase;
       return {
         ...item,
         price: Math.max(0, finalPrice + partnerPriceAdjustment),
