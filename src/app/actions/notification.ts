@@ -7,6 +7,7 @@ import { Offer } from "@/store/offerStore_hasura";
 import { HotelData } from "../hotels/[...id]/page";
 import TEST_PARTNERS from "@/utils/testPartnerAccounts";
 import { getFeatures } from "@/lib/getFeatures";
+import { customerOrderRef } from "@/lib/customerOrderRef";
 
 const BASE_URL = "https://notification-server-khaki.vercel.app";
 
@@ -19,7 +20,8 @@ async function sendWhatsAppOrderPlaced(order: Order, storeName?: string, partner
     const store = storeName || order.partner?.store_name || "your store";
     const currency = order.partner?.currency ?? "₹";
     const username = order.user?.full_name || "Customer";
-    const orderId = order.display_id || order.id.slice(0, 8);
+    // NOT display_id — see customerOrderRef.
+    const orderId = customerOrderRef(order);
 
     const total = `${currency}${order.totalPrice}`;
 
@@ -58,7 +60,8 @@ async function sendWhatsAppStatusUpdate(order: Order, status: string, storeName?
     const orderItems = order.items
       .map((item) => `• ${item.name} × ${item.quantity}`)
       .join("\n");
-    const orderId = order.display_id || order.id.slice(0, 8);
+    // NOT display_id — see customerOrderRef.
+    const orderId = customerOrderRef(order);
 
     const statusEmojis: Record<string, string> = {
       confirmed: "✅",
