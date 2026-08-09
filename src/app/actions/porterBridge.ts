@@ -20,7 +20,7 @@
  */
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { isBeyondThirdPartyRadius } from "@/lib/hybridDelivery";
+import { carrierLabel, describeBand, hybridBandForDistance } from "@/lib/hybridDelivery";
 import { roadDistanceKm, haversineKm } from "@/lib/roadDistance";
 import {
   MAX_PRIOR_DISPATCH_FETCH,
@@ -328,8 +328,9 @@ export async function dispatchPorterBridge(orderId: string): Promise<Result> {
     });
     return { ok: false, message: "order delivery_location missing" };
   }
-  // HYBRID BOOKING — the restaurant delivers anything past their third-party
-  // radius themselves, so do not book a rider for it.
+  // HYBRID BOOKING — the partner routes by distance, and this order gets a bridge
+  // rider only if its band names one. The other bands go to their own riders or to
+  // Shiprocket, and the bridge stays out of them.
   //
   // Gated HERE rather than at the call site because both the immediate dispatch
   // and the delayed one (orders.porter_dispatch_due_at, swept by the
@@ -340,20 +341,27 @@ export async function dispatchPorterBridge(orderId: string): Promise<Result> {
   // Straight-line runs 20–40% short of road distance, so measuring differently
   // here would book a rider for an order the customer was already charged the
   // partner's own price for — the restaurant would pay Porter out of its own
-  // margin. An unmeasurable distance books as before.
+  // margin. An unmeasurable distance falls in the first band, and books as before.
   const hybridRules = (order.partner.delivery_rules ?? null) as any;
   if (hybridRules?.hybrid_booking) {
     const km =
       (await roadDistanceKm(pickupLatLng, dropLatLng)) ??
       haversineKm(pickupLatLng, dropLatLng);
-    if (isBeyondThirdPartyRadius(hybridRules, km)) {
-      await persistProvider(orderId, "own_delivery", null, {
-        reason: "beyond third-party radius (hybrid booking)",
+    const band = hybridBandForDistance(hybridRules, km);
+    if (band != null && band.carrier !== "bridge") {
+      // WHOSE order it is instead, recorded on the row. The order screen reads
+      // this state to tell the counter what happens next, and "you deliver this
+      // one" on an order a Shiprocket courier is coming for is the kind of wrong
+      // that ends with two people carrying the same food.
+      const state = band.carrier === "shiprocket" ? "shiprocket" : "own_delivery";
+      await persistProvider(orderId, state, null, {
+        reason: `hybrid booking — ${describeBand(band)} goes to ${carrierLabel(band.carrier)}`,
         distanceKm: km,
-        thirdPartyMaxKm: hybridRules.third_party_max_km,
+        band: describeBand(band),
+        carrier: band.carrier,
       });
       console.log(
-        `[porter-bridge] order=${orderId} ${km.toFixed(1)}km > ${hybridRules.third_party_max_km}km — own delivery, no rider booked`,
+        `[porter-bridge] order=${orderId} ${km.toFixed(1)}km in ${describeBand(band)} — ${state}, no rider booked`,
       );
       // ok:true, not a failure — the booking was skipped on purpose. Returning
       // ok:false would make the caller treat this as a transient error and
@@ -361,8 +369,8 @@ export async function dispatchPorterBridge(orderId: string): Promise<Result> {
       return {
         ok: true,
         data: {
-          skipped: "own_delivery",
-          reason: "beyond third-party radius",
+          skipped: state,
+          reason: `hybrid booking: ${describeBand(band)} is not the bridge's band`,
           distanceKm: km,
         },
       };

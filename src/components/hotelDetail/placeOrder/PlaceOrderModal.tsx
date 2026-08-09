@@ -77,7 +77,7 @@ import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import { quoteShiprocketCharge } from "@/app/actions/shiprocketQuote";
 import { clearSessionOrderType } from "@/lib/onboardingSession";
-import { isBeyondThirdPartyRadius } from "@/lib/hybridDelivery";
+import { hybridCarrierFor } from "@/lib/hybridDelivery";
 
 const DELIVERY_AGENT_PRICE_MARKUP = 10;
 
@@ -2286,21 +2286,27 @@ const PlaceOrderModal = ({
    * Default-on: when the partner has the `delivery_agent` feature enabled and
    * has NOT explicitly set `use_delivery_agent_charge = false`, treat it as
    * on. Lets new 3PL stores get auto-calc out of the box. */
-  // HYBRID BOOKING: past the partner's third-party radius the restaurant
-  // delivers it themselves, so EVERY third party is off — Adloggs as well as the
-  // bridge. They are independent feature flags, so gating only one hands the
-  // order to the other. Same rule and same helper as the v2 checkout; this modal
-  // is still what every partner not on checkoutStyle "v2" sees.
-  const beyondThirdPartyRadius = isBeyondThirdPartyRadius(
-    hotelData?.delivery_rules as any,
-    deliveryInfo?.distance,
-  );
+  // HYBRID BOOKING: one carrier per distance band (own rider / instant
+  // third-party rider / Shiprocket), and whoever holds this drop's band sets the
+  // price. Adloggs and the bridge are independent flags but one instant lane, so
+  // gating only one hands the order to the other. Same rule and same helper as
+  // the v2 checkout; this modal is still what every partner not on checkoutStyle
+  // "v2" sees.
+  const instantLaneEnabled =
+    (!!hotelFeatures?.porter_bridge?.access && !!hotelFeatures?.porter_bridge?.enabled) ||
+    (!!hotelFeatures?.delivery_agent?.access && !!hotelFeatures?.delivery_agent?.enabled);
+  const hybridCarrier = instantLaneEnabled
+    ? hybridCarrierFor(hotelData?.delivery_rules as any, deliveryInfo?.distance)
+    : null;
+  /** null = no split configured; every lane behaves exactly as it did before. */
+  const hybridAllows = (carrier: "own" | "bridge" | "shiprocket") =>
+    hybridCarrier == null || hybridCarrier === carrier;
 
   const useAgentForCharge =
     !!hotelFeatures?.delivery_agent?.access &&
     !!hotelFeatures?.delivery_agent?.enabled &&
     hotelData?.delivery_rules?.use_delivery_agent_charge !== false &&
-    !beyondThirdPartyRadius;
+    hybridAllows("bridge");
 
   const partnerCoords = useMemo(() => {
     const geo: any = hotelData?.geo_location;
@@ -2394,16 +2400,22 @@ const PlaceOrderModal = ({
   const usePorterForCharge =
     !!hotelFeatures?.porter_bridge?.access &&
     !!hotelFeatures?.porter_bridge?.enabled &&
-    !beyondThirdPartyRadius;
+    hybridAllows("bridge");
 
   // Shiprocket prices the delivery when the store ships through its own account.
   // Lowest precedence of the three: Porter or an own-rider network is what would
   // actually MOVE the order, so their quote wins where both are configured.
+  //
+  // Under HYBRID BOOKING distance decides the carrier instead, so it decides the
+  // price: Shiprocket quotes only the band the partner gave it, and never one
+  // where a rider is coming. Same helper as the v2 checkout and both dispatchers,
+  // so every side answers this identically.
   const useShiprocketForCharge =
     !!hotelFeatures?.shiprocket?.access &&
     !!hotelFeatures?.shiprocket?.enabled &&
     !usePorterForCharge &&
-    !useAgentForCharge;
+    !useAgentForCharge &&
+    hybridAllows("shiprocket");
 
   const [shiprocketQuote, setShiprocketQuote] = useState<{
     available: boolean;

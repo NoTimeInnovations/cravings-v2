@@ -107,6 +107,16 @@ export default function PorterTrackingPanel({
   const driver = meta?.driver;
   const tone = TONE[display.tone];
   const errorMsg = display.tone === "error" ? meta?.error : null;
+  // The card is written for a Porter booking, but the hybrid states mean no
+  // Porter booking exists — this is the store's own trip or a Shiprocket
+  // shipment. Heading "Porter delivery" over either one reads as a rider being
+  // on the way from a company that was never called.
+  const heading =
+    state === "shiprocket"
+      ? "Shiprocket delivery"
+      : state === "own_delivery"
+        ? "Your delivery"
+        : "Porter delivery";
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -117,7 +127,7 @@ export default function PorterTrackingPanel({
           </span>
           <div>
             <div className="text-sm font-semibold tracking-tight">
-              Porter delivery
+              {heading}
             </div>
             {crn && (
               <div className="font-mono text-[11px] text-zinc-500">{crn}</div>
@@ -196,7 +206,14 @@ export default function PorterTrackingPanel({
           />
           {refreshing ? "Refreshing…" : "Refresh"}
         </button>
-        {showCancel && state !== "cancelled" && state !== "ended" && state !== "failed" && (
+        {/* Nothing to cancel on the hybrid states: no rider was ever booked, so
+            the button only produced a confusing "no such booking" failure. */}
+        {showCancel &&
+          state !== "cancelled" &&
+          state !== "ended" &&
+          state !== "failed" &&
+          state !== "own_delivery" &&
+          state !== "shiprocket" && (
           <button
             type="button"
             onClick={onCancel}

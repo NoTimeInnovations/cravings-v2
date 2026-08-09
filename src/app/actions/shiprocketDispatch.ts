@@ -33,6 +33,9 @@ import {
   requestPickup,
 } from "@/lib/shiprocket/client";
 import { resolveDestination } from "@/lib/shiprocket/address";
+import { getFeatures } from "@/lib/getFeatures";
+import { roadDistanceKm, haversineKm } from "@/lib/roadDistance";
+import { carrierLabel, describeBand, hybridBandForDistance } from "@/lib/hybridDelivery";
 import {
   cancelShipmentCore,
   getShipmentRow,
@@ -129,6 +132,10 @@ interface OrderForShipping {
     /** IANA zone; order_date must be stamped in the store's day, not the server's. */
     timezone: string | null;
     geo_location: { coordinates: [number, number] } | null;
+    /** Read ONLY for the hybrid-booking split (below). Stored as JSON or a JSON
+     *  string depending on how it was last written, so always parse-checked. */
+    delivery_rules: any;
+    feature_flags: string | null;
   } | null;
 }
 
@@ -159,6 +166,8 @@ const ORDER_FOR_SHIPPING = `
         location
         timezone
         geo_location
+        delivery_rules
+        feature_flags
       }
     }
   }
@@ -360,6 +369,65 @@ function latLng(
   const [lng, lat] = c;
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   return { lat, lng };
+}
+
+// ── Hybrid booking ─────────────────────────────────────────────────────────
+
+/**
+ * Why this order is NOT Shiprocket's to ship, or null when it is.
+ *
+ * A store running HYBRID BOOKING routes by distance: a ladder of bands, each
+ * naming one carrier — their own rider, an instant third-party rider, or
+ * Shiprocket. Without this check auto-dispatch would ship EVERY delivery,
+ * including the ones a rider is already carrying, so one order would leave the
+ * counter twice and be billed twice: once as a bike fare and once as a courier.
+ *
+ * Measured with the same roadDistanceKm-then-haversine pair the bridge and the
+ * checkout use. Measuring differently here is how two sides end up disagreeing
+ * about which band an order is in, and the disagreement costs a real parcel.
+ *
+ * An unmeasurable distance resolves to the FIRST band, exactly as it does for the
+ * bridge — so the two sides still agree on one carrier for it, whichever the
+ * partner put there, instead of both taking the order or neither.
+ *
+ * Only consulted for AUTO dispatch. The manual Ship button passes force and is
+ * someone deciding, on the order in front of them, to send it anyway.
+ */
+async function hybridSkipReason(order: OrderForShipping): Promise<string | null> {
+  const raw = order.partner?.delivery_rules;
+  let rules: any = raw;
+  if (typeof raw === "string") {
+    try {
+      rules = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!rules || typeof rules !== "object" || !rules.hybrid_booking) return null;
+
+  // The ladder is configured from inside the bridge settings, so a store with no
+  // bridge or agent enabled is carrying rows that name a carrier it no longer
+  // has. Honouring those would stop a Shiprocket-only store shipping anything.
+  const features = getFeatures(order.partner?.feature_flags ?? null);
+  const bridgeLane =
+    (features.porter_bridge.access && features.porter_bridge.enabled) ||
+    (features.delivery_agent.access && features.delivery_agent.enabled);
+  if (!bridgeLane) return null;
+
+  const pickup = latLng(order.partner?.geo_location);
+  const drop = latLng(order.delivery_location);
+  const km =
+    pickup && drop
+      ? ((await roadDistanceKm(drop, pickup)) ?? haversineKm(drop, pickup))
+      : null;
+
+  // null means the ladder is configured but unusable (no boundary anywhere), which
+  // is "behave as before" everywhere else and must be here too.
+  const band = hybridBandForDistance(rules, km);
+  if (band == null || band.carrier === "shiprocket") return null;
+
+  const where = km == null ? "this drop could not be measured" : `${km.toFixed(1)} km`;
+  return `hybrid booking: ${where} falls in ${describeBand(band)}, which ${carrierLabel(band.carrier)} covers`;
 }
 
 function tenDigit(p: string | null | undefined): string | null {
@@ -574,6 +642,17 @@ async function dispatchShiprocket(
   const hasAddress = !!order.delivery_address && order.delivery_address.trim().length > 0;
   if (order.type !== "delivery" || !hasAddress) {
     return { ok: true, skipped: "not a delivery order with an address" };
+  }
+
+  // Whose order is this under hybrid booking? Auto only — the manual button is a
+  // person overriding the split deliberately. Placed after the type check so a
+  // dine-in status change never pays for a distance lookup.
+  if (!opts.force) {
+    const notOurs = await hybridSkipReason(order);
+    if (notOurs) {
+      console.log(`[shiprocket] order=${orderId} not shipped — ${notOurs}`);
+      return { ok: true, skipped: notOurs };
+    }
   }
 
   if (!cfg.pickup_location) {

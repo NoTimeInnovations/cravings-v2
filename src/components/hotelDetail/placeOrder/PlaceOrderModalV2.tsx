@@ -53,7 +53,7 @@ import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnable
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import { quoteShiprocketCharge } from "@/app/actions/shiprocketQuote";
-import { isBeyondThirdPartyRadius } from "@/lib/hybridDelivery";
+import { hybridCarrierFor } from "@/lib/hybridDelivery";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
@@ -833,29 +833,42 @@ const PlaceOrderModalV2 = ({
       timezone: hotelTimezone,
     });
   };
-  // Default-on: when delivery_agent is enabled and the partner has NOT
-  // explicitly set `use_delivery_agent_charge = false`, treat as on.
-  // HYBRID BOOKING: past the partner's third-party radius the restaurant
-  // delivers it themselves, so EVERY third party is off — not just Porter.
-  // Adloggs (delivery_agent) is an independent feature flag, so gating only the
-  // bridge would hand the order to the other third party; worse, agentBlocksOrder
-  // then makes placement impossible outright when Adloggs answers
-  // DISTANCE_TOO_LONG on exactly the long trips this feature exists to take
-  // in-house.
+  // HYBRID BOOKING — the partner has named ONE carrier for this drop's distance
+  // band (own rider / instant third-party rider / Shiprocket), and whoever it is
+  // sets the price. Resolved once here so the three quote branches below cannot
+  // each reach a different conclusion and charge for a carrier that never comes.
+  //
+  // Adloggs (delivery_agent) and the bridge are separate feature flags but one
+  // "instant rider" lane: gating only one hands the order to the other, and
+  // agentBlocksOrder then makes placement impossible outright when Adloggs
+  // answers DISTANCE_TOO_LONG on exactly the long trips a split exists to route
+  // elsewhere.
+  //
+  // Only consulted when that instant lane is actually enabled — the split is
+  // configured from inside the bridge settings, so a store that has since lost
+  // the flag is left with bands naming a carrier it no longer has, and honouring
+  // those would strand orders with nobody.
   //
   // deliveryInfo.distance is the SAME road distance the fee was computed from
   // (OrderDrawer), so the price and the routing decision can never be taken from
   // two different measurements.
-  const beyondThirdPartyRadius = isBeyondThirdPartyRadius(
-    hotelData?.delivery_rules as any,
-    deliveryInfo?.distance,
-  );
+  const instantLaneEnabled =
+    (partnerFeatures.porter_bridge.access && partnerFeatures.porter_bridge.enabled) ||
+    (partnerFeatures.delivery_agent.access && partnerFeatures.delivery_agent.enabled);
+  const hybridCarrier = instantLaneEnabled
+    ? hybridCarrierFor(hotelData?.delivery_rules as any, deliveryInfo?.distance)
+    : null;
+  /** null = no split configured; every lane behaves exactly as it did before. */
+  const hybridAllows = (carrier: "own" | "bridge" | "shiprocket") =>
+    hybridCarrier == null || hybridCarrier === carrier;
 
+  // Default-on: when delivery_agent is enabled and the partner has NOT
+  // explicitly set `use_delivery_agent_charge = false`, treat as on.
   const useAgentForCharge =
     partnerFeatures.delivery_agent.access &&
     partnerFeatures.delivery_agent.enabled &&
     hotelData?.delivery_rules?.use_delivery_agent_charge !== false &&
-    !beyondThirdPartyRadius;
+    hybridAllows("bridge");
 
   const partnerCoords = useMemo(() => {
     const geo: any = hotelData?.geo_location;
@@ -942,12 +955,12 @@ const PlaceOrderModalV2 = ({
   // delivery charge. If they chose "custom", we skip the quote and fall through
   // to their own delivery_rules pricing (deliveryInfo.cost). Mirrors the
   // delivery_agent flow; Porter takes precedence over delivery_agent if both on.
-  // Beyond the third-party radius the bridge is skipped outright — no quote is
-  // requested and no fare is shown, so the price falls through to
+  // In a band the split gave to someone else the bridge is skipped outright — no
+  // quote is requested and no fare is shown, so the price falls through to
   // deliveryInfo.cost (the partner's own pricing) exactly as it already does
   // when no rider is available. Quoting a Porter fare for a trip Porter will not
   // make is the one outcome to avoid: the customer would be billed a
-  // third-party price for the restaurant's own rider.
+  // third-party price for a rider nobody booked.
   //
   // Gated on the FLAG, never by early-returning from the quote effect: the bill
   // row's first branch renders "Calculating…" on `!porterQuote`, so suppressing
@@ -956,7 +969,7 @@ const PlaceOrderModalV2 = ({
     partnerFeatures.porter_bridge.access &&
     partnerFeatures.porter_bridge.enabled &&
     (hotelData?.delivery_rules as any)?.porter_pricing_mode !== "custom" &&
-    !beyondThirdPartyRadius;
+    hybridAllows("bridge");
 
   // Shiprocket prices the delivery when the store ships through its own Shiprocket
   // account. Lowest precedence of the three third parties: a store with Porter or
@@ -966,11 +979,19 @@ const PlaceOrderModalV2 = ({
   // The quote is advisory. Shiprocket's rate endpoint and the bill on a created
   // order do not always agree, so this is what the customer pays, not what the
   // merchant is charged.
+  //
+  // HYBRID BOOKING overrides that precedence, because under a split the carrier is
+  // decided by distance rather than by which integration outranks which. In a band
+  // that is not Shiprocket's it must not price the order — otherwise a store on
+  // "custom" porter pricing (which turns usePorterForCharge off) would quote a
+  // courier rate for a trip a bike rider makes, and the dispatcher would still
+  // send the bike.
   const useShiprocketForCharge =
     partnerFeatures.shiprocket.access &&
     partnerFeatures.shiprocket.enabled &&
     !usePorterForCharge &&
-    !useAgentForCharge;
+    !useAgentForCharge &&
+    hybridAllows("shiprocket");
 
   const [shiprocketQuote, setShiprocketQuote] = useState<{
     available: boolean;

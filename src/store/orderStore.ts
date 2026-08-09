@@ -251,19 +251,35 @@ export interface DeliveryRules {
    *  porter_bridge partners) or "custom" (the partner's own delivery_rules
    *  pricing). Absent = "porter". */
   porter_pricing_mode?: "custom" | "porter";
-  /** HYBRID BOOKING — third party near, the restaurant's own rider far.
+  /** HYBRID BOOKING — route each delivery by distance.
    *
-   *  When on, only orders within `third_party_max_km` are quoted and booked
-   *  through the delivery bridge. Beyond it the bridge is skipped entirely: the
-   *  order is priced with the partner's own delivery pricing and they deliver it
-   *  themselves. Off/absent = today's behaviour, every order goes to the bridge.
+   *  When on, `hybrid_bands` is a ladder of distance bands, each naming ONE
+   *  carrier: "own" (the restaurant's own rider, priced with the pricing below),
+   *  "bridge" (an instant third-party rider — Porter / Rapido / Uber / Adloggs,
+   *  priced live) or "shiprocket" (the store's own Shiprocket account, priced by
+   *  its quote and sent by the Shiprocket auto-dispatch). e.g.
    *
-   *  `third_party_max_km` must be LESS than delivery_radius or the own-delivery
-   *  band is empty and the setting can never fire. 0/absent is treated as "not
-   *  configured" and leaves the split disabled, so switching the toggle on
-   *  without entering a number can never silently strand every order. */
+   *    [{upto: 1, carrier: "own"}, {upto: 10, carrier: "bridge"},
+   *     {upto: null, carrier: "shiprocket"}]
+   *
+   *  `upto` is the band's INCLUSIVE upper edge in km; exactly one row carries
+   *  `upto: null` and covers everything beyond. Rows are normalised (sorted,
+   *  de-duplicated, unusable ones dropped) on read by hybridBands — never trust
+   *  the stored order. Fewer than two usable bands leaves the split off, so a
+   *  half-finished edit can never strand every order.
+   *
+   *  Every side of the system resolves the band through hybridCarrierFor, because
+   *  two carriers each thinking an order is theirs means two vehicles and two
+   *  bills. A band naming a carrier whose feature is off simply never books, and
+   *  the checkout falls back to the store's own pricing. */
   hybrid_booking?: boolean;
+  hybrid_bands?: Array<{ upto: number | null; carrier: "own" | "bridge" | "shiprocket" }>;
+  /** LEGACY single-boundary shape, still read (and mirrored on save) for partners
+   *  configured before the ladder existed: one limit, a carrier on each side.
+   *  `hybrid_bands` wins whenever it is present. */
   third_party_max_km?: number;
+  hybrid_near_provider?: "own" | "bridge" | "shiprocket";
+  hybrid_far_provider?: "own" | "bridge" | "shiprocket";
   /** Menuthere Delivery Pool per-restaurant OTP toggles — rider must enter a
    *  code to confirm pickup (shown to the restaurant) / delivery (sent to the
    *  customer). Read by deliveryPoolDispatch at hand-off. */
