@@ -64,8 +64,11 @@ export function AdminV2Offers() {
     const { items } = useMenuStore();
     const { addOffer, fetchPartnerOffers, offers, deleteOffer, setOfferMaxPerOrder } = useOfferStore();
     const { userData } = useAuthStore();
-    // Petpooja partners' discounts are managed in Petpooja, so creating offers
-    // here is disabled.
+    // Petpooja partners CAN create offers here. These are Menuthere-side offers
+    // on the storefront/QR menu and are separate from the discounts configured
+    // in Petpooja — the note below says so, rather than blocking the button as
+    // it used to. Nothing server-side ever restricted this; the gate was purely
+    // in this screen.
     const isPetpooja = !!(userData as Partner)?.petpooja_restaurant_id;
     const [isCreateOfferOpen, setIsCreateOfferOpen] = useState(false);
     const [isOfferFetched, setIsOfferFetched] = useState(false);
@@ -227,15 +230,13 @@ export function AdminV2Offers() {
                     )}
                 </div>
                 {!isCreateOfferOpen ? (
-                    !isPetpooja && (
-                        <Button
-                            onClick={() => setIsCreateOfferOpen(true)}
-                            className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Create Offer
-                        </Button>
-                    )
+                    <Button
+                        onClick={() => setIsCreateOfferOpen(true)}
+                        className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Offer
+                    </Button>
                 ) : (
                     <div className="flex gap-2">
                         <Button
@@ -261,8 +262,10 @@ export function AdminV2Offers() {
             </div>
 
             {isPetpooja && !isCreateOfferOpen && (
-                <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-                    Offers are managed through <b>Petpooja</b> discounts and can&apos;t be created here.
+                <div className="rounded-md border bg-muted/40 px-4 py-2 text-sm text-muted-foreground">
+                    These offers apply to your Menuthere storefront and QR menu. They are
+                    separate from the discounts you set up in <b>Petpooja</b>, which keep
+                    working as they do today.
                 </div>
             )}
 
@@ -439,17 +442,13 @@ export function AdminV2Offers() {
                         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed rounded-lg bg-card/50">
                             {isOfferFetched ? (
                                 <>
-                                    <p className="text-muted-foreground mb-4">
-                                        {isPetpooja ? "Offers are managed through Petpooja." : "No active offers found"}
-                                    </p>
-                                    {!isPetpooja && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => setIsCreateOfferOpen(true)}
-                                        >
-                                            Create your first offer
-                                        </Button>
-                                    )}
+                                    <p className="text-muted-foreground mb-4">No active offers found</p>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setIsCreateOfferOpen(true)}
+                                    >
+                                        Create your first offer
+                                    </Button>
                                 </>
                             ) : (
                                 <div className="flex items-center gap-2 text-muted-foreground">
