@@ -12,6 +12,7 @@ import useOrderStore from "@/store/orderStore";
 import { useEffect, useMemo, useCallback, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getFeatures, revertFeatureToString } from "@/lib/getFeatures";
+import { isStoreOpen, storeHoursFromSettings } from "@/lib/storeHours";
 import { ViewOnlyContext } from "@/components/hotelDetail/viewOnlyContext";
 import { canSkipOnboarding } from "@/lib/onboardingSession";
 import { isFreePlan } from "@/lib/getPlanLimits";
@@ -180,15 +181,47 @@ const HotelMenuPage = ({
   // existing "menu-only" branch already hides the add/cart UI (and V6's in-layout
   // order-type row), and separately gate the onboarding + notice mounts below.
   const viewOnly = viewOnlyProp || searchParams?.get("viewonly") === "true";
+
+  // A CLOSED SHOP IS BROWSE-ONLY, and it reuses the same trick as viewOnly.
+  //
+  // The closed sheet invites the customer to look at the menu, so the menu has to
+  // be worth looking at — but an Add button that fills a cart the checkout will
+  // then refuse is a worse experience than no Add button at all. Rather than
+  // teaching seven layouts about opening hours, the flags they already read are
+  // neutralised, so every existing "menu-only" branch does the work.
+  //
+  // Deliberately NOT viewOnly itself: that also suppresses the onboarding overlay,
+  // which is where the "Closed right now · Opens tomorrow at 9:00 AM" screen lives.
+  // The onboarding is handed the RAW flags (see featureFlags below), so it still
+  // shows all three order types, dimmed.
+  const [closedTick, setClosedTick] = useState(0);
+  const storeClosedNow = useMemo(
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () =>
+      (hoteldata as any)?.is_shop_open === false ||
+      !isStoreOpen(
+        storeHoursFromSettings((hoteldata as any)?.storefront_settings),
+        (hoteldata as any)?.timezone || hotelTimezone || "Asia/Kolkata",
+      ).open,
+    [(hoteldata as any)?.is_shop_open, (hoteldata as any)?.storefront_settings, (hoteldata as any)?.timezone, hotelTimezone, closedTick],
+  );
+  // The clock only runs while the shop is SHUT, so an open store never re-renders
+  // on a timer; once opening time passes, this recomputes false and stops itself.
+  useEffect(() => {
+    if (!storeClosedNow) return;
+    const t = setInterval(() => setClosedTick((n) => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, [storeClosedNow]);
+
   const effectiveFeatureFlags = useMemo(() => {
     const raw = hoteldata?.feature_flags || "";
-    if (!viewOnly) return raw;
+    if (!viewOnly && !storeClosedNow) return raw;
     const f = getFeatures(raw);
     f.ordering.enabled = false;
     f.delivery.enabled = false;
     f.prebooking.enabled = false;
     return revertFeatureToString(f);
-  }, [hoteldata?.feature_flags, viewOnly]);
+  }, [hoteldata?.feature_flags, viewOnly, storeClosedNow]);
 
   // Onboarding state
   const features = getFeatures(effectiveFeatureFlags);
