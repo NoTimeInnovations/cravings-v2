@@ -188,6 +188,23 @@ export function PrebookingSettings() {
                                 rolling={slotMode === "rolling"}
                             />
 
+                            {/* Rolling slots are "now + interval", so they only ever
+                                exist today. Both of these controls are dead in that
+                                mode — leaving them on screen let a partner set a
+                                three-week booking window and then wonder why the
+                                customer's date list said "Today" and nothing else. */}
+                            {slotMode === "rolling" ? (
+                                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                                    <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                                    <div className="text-sm text-amber-800">
+                                        <div className="font-medium">Customers can only book for today</div>
+                                        Your slot type below is <strong>Rolling from now</strong>, which offers
+                                        times relative to the current moment — so future dates never appear,
+                                        whatever you set here. Switch to <strong>Fixed time ranges</strong> to
+                                        let customers book other days.
+                                    </div>
+                                </div>
+                            ) : (
                             <div className="flex items-center justify-between p-4 border rounded-lg">
                                 <div className="space-y-0.5">
                                     <div className="font-medium">Today only</div>
@@ -197,8 +214,9 @@ export function PrebookingSettings() {
                                 </div>
                                 <Switch checked={todayOnly} onCheckedChange={setTodayOnly} />
                             </div>
+                            )}
 
-                            {!todayOnly && (
+                            {slotMode !== "rolling" && !todayOnly && (
                                 <div className="space-y-2">
                                     <Label>Booking date range (optional)</Label>
                                     <p className="text-xs text-muted-foreground">

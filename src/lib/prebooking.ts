@@ -95,7 +95,12 @@ function readScope(
         // NaN / negative would poison the Math.max downstream and make every date
         // unselectable.
         leadMinutes: Number.isFinite(rawLead) && rawLead > 0 ? Math.floor(rawLead) : 0,
-        days,
+        // All seven weekdays IS no restriction. Kept as an empty list rather than
+        // passed through, because the checkout renders the day set as prose and a
+        // full week produced "…is only made on Sundays, Mondays, Tuesdays,
+        // Wednesdays, Thursdays, Fridays and Saturdays" — a sentence that says
+        // nothing at considerable length.
+        days: days.length === 7 ? [] : days,
     };
 }
 
