@@ -846,6 +846,22 @@ const PlaceOrderModalV2 = ({
     },
     [allMenus, items],
   );
+  // A listed dish sharing the basket with something else. The customer is told
+  // which dish and what to do; placement is refused until they split it.
+  const preorderMixedBlock =
+    schedulingBase && cartScope.mixed
+      ? `${
+          cartScope.itemIds.length === 1
+            ? preorderNameOf(cartScope.itemIds[0])
+            : cartScope.itemIds.map(preorderNameOf).join(" and ")
+        } ${cartScope.itemIds.length === 1 ? "has" : "have"} to be ordered ${
+          cartScope.itemIds.length === 1 ? "on its own" : "on their own"
+        }, because ${
+          cartScope.itemIds.length === 1 ? "it needs" : "they need"
+        } to be made in advance. Please remove ${
+          cartScope.itemIds.length === 1 ? "it" : "them"
+        }, or remove the other items, to continue.`
+      : null;
   // Stable primitive for the picker's memo deps — see preorderDaysKey there.
   const preorderDaysKey = cartScope.days === null ? null : cartScope.days.join(",");
   const preorderBanner = useMemo(() => {
@@ -946,6 +962,7 @@ const PlaceOrderModalV2 = ({
   // that matters on the payment-retry path — a slot chosen before the customer
   // added the cake is still sitting in state and would otherwise be accepted.
   const preorderError = (): string | null => {
+    if (preorderMixedBlock) return preorderMixedBlock;
     // Inert when the partner offers no scheduling for this order kind — otherwise
     // switching prebooking off would make every scoped dish unplaceable.
     if (!preorderRequired) return null;
@@ -3453,6 +3470,8 @@ const PlaceOrderModalV2 = ({
     // cannot: when the picker isn't rendering at all (order type not schedulable),
     // showPicker is false and that term passes.
     !!preorderUnschedulable ||
+    // A basket mixing a preorder dish with anything else can't be placed at all.
+    !!preorderMixedBlock ||
     // The picker's live typed-time error. Needed on top of the guard above: with
     // optional scheduling ON that one passes (an invalid typed time emits a null
     // selection, which reads as "ordering ASAP"), so this is the only thing
@@ -3726,6 +3745,15 @@ const PlaceOrderModalV2 = ({
               <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
                 <CalendarClock className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-amber-800">{preorderBanner}</p>
+              </div>
+            )}
+
+            {/* A preorder dish sharing the basket. No picker is on screen, so this
+                card is the only thing explaining why Place Order is dead. */}
+            {preorderMixedBlock && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                <CalendarClock className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{preorderMixedBlock}</p>
               </div>
             )}
 

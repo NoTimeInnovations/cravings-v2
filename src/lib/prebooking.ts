@@ -58,8 +58,9 @@ export function isOrderTypeAllowed(
 // rather than as a column on `menu`.
 //
 // An order carries ONE schedule (orders.scheduled_date / scheduled_time), so a
-// mixed basket cannot be split: one listed dish schedules the whole order, and
-// the checkout says which dish did it.
+// basket cannot hold two. A listed dish is therefore an order-on-its-own product:
+// alone (or with other listed dishes) it schedules; mixed with anything else the
+// checkout refuses the basket and asks for it to be split.
 
 /** One tab's scope config, read defensively: the checkout gets RAW parsed JSON
  *  (never mergePrebookingConfig), so every field here may be absent or the wrong
@@ -122,11 +123,16 @@ export interface CartPreorderRequirement {
     scoped: boolean;
     /** True when the basket actually contains one of them. */
     matched: boolean;
+    /** A listed dish sharing the basket with something not on the list.
+     *  Scheduling is offered for neither: a listed dish is an order-on-its-own
+     *  product, so the basket has to be split before it can be placed. */
+    mixed: boolean;
     /** Does scheduling apply to THIS basket? Unscoped stores: always. Scoped:
-     *  only when a listed dish is present — otherwise there is no picker and the
-     *  order goes ASAP, which is the whole point of scoping. */
+     *  only when the basket is made up entirely of listed dishes — no listed dish
+     *  means an ordinary ASAP order, and a mix means no order at all until the
+     *  customer splits it. */
     appliesToCart: boolean;
-    /** Scheduling is mandatory for this basket (a listed dish is in it). */
+    /** Scheduling is mandatory for this basket. */
     required: boolean;
     /** Extra notice in minutes. */
     leadMinutes: number;
@@ -139,6 +145,7 @@ export interface CartPreorderRequirement {
 const NO_SCOPE: CartPreorderRequirement = {
     scoped: false,
     matched: false,
+    mixed: false,
     appliesToCart: true,
     required: false,
     leadMinutes: 0,
@@ -152,9 +159,10 @@ const NO_SCOPE: CartPreorderRequirement = {
  * Accepts RAW cart line ids and does the base-id extraction itself, so no caller
  * can forget the variant split. Duplicate lines of one dish collapse to one match.
  *
- * An order carries ONE schedule (orders.scheduled_date / scheduled_time), so a
- * mixed basket cannot be split: if any listed dish is present, the whole order is
- * scheduled to suit it, and the checkout says which dishes did it.
+ * Three outcomes, in `appliesToCart` / `required` / `mixed`:
+ *   no listed dish   -> ordinary ASAP order, no picker
+ *   only listed dishes -> scheduling required, notice and days applied
+ *   listed + other   -> `mixed`: no picker and no order until the basket is split
  */
 export function resolveCartPreorder(
     settings: PrebookingSettings | null | undefined,
@@ -166,18 +174,29 @@ export function resolveCartPreorder(
     if (!scope.scoped) return NO_SCOPE;
 
     const seen = new Set<string>();
+    let hasOther = false;
     for (const raw of cartItemIds ?? []) {
         const id = baseMenuId(raw);
-        if (id && scope.ids.has(id)) seen.add(id);
+        if (!id) continue;
+        if (scope.ids.has(id)) seen.add(id);
+        else hasOther = true;
     }
     const matched = seen.size > 0;
+    // A listed dish alongside anything else. Scheduling is offered for neither:
+    // these are order-on-its-own products, so scheduling the whole basket around
+    // the cake would drag an unrelated pizza a day into the future, and NOT
+    // scheduling it would hand the kitchen a 24-hour cake for tonight. The basket
+    // gets split instead, and the checkout says so.
+    const mixed = matched && hasOther;
+    const applies = matched && !mixed;
     return {
         scoped: true,
         matched,
-        appliesToCart: matched,
-        required: matched,
-        leadMinutes: matched ? scope.leadMinutes : 0,
-        days: matched && scope.days.length ? scope.days : null,
+        mixed,
+        appliesToCart: applies,
+        required: applies,
+        leadMinutes: applies ? scope.leadMinutes : 0,
+        days: applies && scope.days.length ? scope.days : null,
         itemIds: [...seen],
     };
 }

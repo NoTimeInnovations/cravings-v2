@@ -189,6 +189,16 @@ export function PreorderScopePicker({
 
             {value.scope === "items" && (
                 <div className="space-y-4 rounded-lg border p-3">
+                    {/* The consequence partners are most likely to be surprised by,
+                        stated before they pick anything rather than discovered from
+                        a customer complaint. */}
+                    <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+                        These items have to be ordered <strong>on their own</strong>. If a customer
+                        puts one in the same basket as anything else, checkout asks them to split
+                        the order — one basket can only carry one{" "}
+                        {kind === "table" ? "booking" : "delivery time"}.
+                    </p>
+
                     {/* An empty list means "applies to nothing", which would read as
                         the feature being broken. The checkout treats it as unscoped
                         and this says so, rather than failing silently. */}

@@ -2305,6 +2305,22 @@ const PlaceOrderModal = ({
     },
     [allMenus, items],
   );
+  // A listed dish sharing the basket with something else. The customer is told
+  // which dish and what to do; placement is refused until they split it.
+  const preorderMixedBlock =
+    schedulingBase && cartScope.mixed
+      ? `${
+          cartScope.itemIds.length === 1
+            ? preorderNameOf(cartScope.itemIds[0])
+            : cartScope.itemIds.map(preorderNameOf).join(" and ")
+        } ${cartScope.itemIds.length === 1 ? "has" : "have"} to be ordered ${
+          cartScope.itemIds.length === 1 ? "on its own" : "on their own"
+        }, because ${
+          cartScope.itemIds.length === 1 ? "it needs" : "they need"
+        } to be made in advance. Please remove ${
+          cartScope.itemIds.length === 1 ? "it" : "them"
+        }, or remove the other items, to continue.`
+      : null;
   const preorderDaysKey = cartScope.days === null ? null : cartScope.days.join(",");
   const preorderBanner = useMemo(() => {
     if (!preorderRequired) return null;
@@ -2803,6 +2819,7 @@ const PlaceOrderModal = ({
   /** Preorder gate — one function, called from both placement handlers. See the
    *  V2 twin for why this is not inlined at each site. */
   const preorderError = (): string | null => {
+    if (preorderMixedBlock) return preorderMixedBlock;
     // Inert when the partner offers no scheduling for this order kind.
     if (!preorderRequired) return null;
     if (preorderUnschedulable) return preorderUnschedulable;
@@ -4288,6 +4305,7 @@ const PlaceOrderModal = ({
     // reads as the button being broken.
     (preorderRequired && !prebookingArg) ||
     !!preorderUnschedulable ||
+    !!preorderMixedBlock ||
     // The picker's live typed-time error. With optional scheduling ON an invalid
     // typed time emits a null selection (reads as "ordering ASAP"), so this is the
     // only thing standing between the customer's red error and an unscheduled order.
@@ -4551,6 +4569,15 @@ const PlaceOrderModal = ({
                   <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
                     <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                     <p className="text-[13px] text-amber-800">{preorderBanner}</p>
+                  </div>
+                )}
+
+                {/* A preorder dish sharing the basket — the only explanation on
+                    screen for why Place Order is dead. */}
+                {preorderMixedBlock && (
+                  <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
+                    <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                    <p className="text-[13px] text-red-700">{preorderMixedBlock}</p>
                   </div>
                 )}
 
