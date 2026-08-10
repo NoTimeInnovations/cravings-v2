@@ -337,6 +337,11 @@ export function GeneralSettings() {
         menuInfoDeliveryTime,
         menuInfoCostForOne,
         menuInfoCuisines,
+        // Without this the effect never re-runs when the working hours change, so
+        // hasChanges stays false, the floating Save button never activates and the
+        // schedule lives and dies in local state — edits look applied until the
+        // page is reloaded and they are simply gone.
+        storeHours,
         userData,
         setHasChanges,
     ]);
