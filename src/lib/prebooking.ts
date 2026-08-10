@@ -5,6 +5,7 @@
 import {
     PrebookingSettings,
     PrebookingWindow,
+    ItemPreorderRule,
     OrderTypesEnabled,
     DEFAULT_ORDER_TYPES_ENABLED,
     DEFAULT_PREBOOKING_SETTINGS,
@@ -47,6 +48,327 @@ export function isOrderTypeAllowed(
     orderType: PrebookOrderType
 ): boolean {
     return (settings.allowed_order_types ?? []).includes(orderType);
+}
+
+// ── Per-item preorder ────────────────────────────────────────────────────────
+//
+// A dish can be marked "needs notice" (a cake needing 24h, a Sunday-only
+// biryani). The rules live in `prebooking_settings.item_preorder`, keyed by menu
+// item id — see ItemPreorderRule in src/store/orderStore.ts for why they are not
+// a column on `menu`.
+//
+// An order carries ONE schedule (orders.scheduled_date / scheduled_time), so a
+// mixed cart cannot be split: the STRICTEST item wins for the whole order. That
+// is the only behaviour the data model can express, and it is also the least
+// surprising — the customer is told which dish set the date.
+
+/** Defensive read of one rule. The checkout gets RAW parsed JSON (never
+ *  mergePrebookingConfig), so every field here may be absent or the wrong type. */
+function normalizeRule(raw: unknown): ItemPreorderRule | null {
+    if (!raw || typeof raw !== "object") return null;
+    const r = raw as any;
+    const lead = Number(r.lead_minutes);
+    // A rule with no notice and no day restriction still means "preorder": it
+    // forces a slot. Negative / NaN leads collapse to 0 rather than poisoning the
+    // Math.max below with NaN, which would make every date unselectable.
+    const lead_minutes = Number.isFinite(lead) && lead > 0 ? Math.floor(lead) : 0;
+    const days = Array.isArray(r.days)
+        ? Array.from(
+              new Set(
+                  r.days
+                      .map((d: unknown) => Number(d))
+                      .filter((d: number) => Number.isInteger(d) && d >= 0 && d <= 6),
+              ),
+          ).sort((a, b) => (a as number) - (b as number)) as number[]
+        : [];
+    return { lead_minutes, days };
+}
+
+/** Normalize the whole `item_preorder` map; drops malformed entries. */
+export function normalizeItemPreorder(raw: unknown): Record<string, ItemPreorderRule> {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out: Record<string, ItemPreorderRule> = {};
+    for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+        if (!id) continue;
+        const rule = normalizeRule(value);
+        if (rule) out[id] = rule;
+    }
+    return out;
+}
+
+/** Local "YYYY-MM-DD" in an IANA timezone, falling back to the device date when
+ *  no/invalid zone. en-CA formats as YYYY-MM-DD, which is the shape everything
+ *  else in this file speaks. */
+function ymdInTimezone(now: Date, timezone?: string | null): string {
+    if (!timezone) return ymd(now);
+    try {
+        return new Intl.DateTimeFormat("en-CA", {
+            timeZone: timezone,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(now);
+    } catch {
+        return ymd(now);
+    }
+}
+
+/** Whole days from one "YYYY-MM-DD" to another; null if either is malformed.
+ *  Calendar arithmetic on the date parts only — no clock, so no DST hazard. */
+function daysBetween(fromYmd: string, toYmd: string): number | null {
+    const a = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fromYmd);
+    const b = /^(\d{4})-(\d{2})-(\d{2})$/.exec(toYmd);
+    if (!a || !b) return null;
+    const ams = Date.UTC(Number(a[1]), Number(a[2]) - 1, Number(a[3]));
+    const bms = Date.UTC(Number(b[1]), Number(b[2]) - 1, Number(b[3]));
+    return Math.round((bms - ams) / 86_400_000);
+}
+
+/** The base menu id behind a cart line id ("<menuId>|<variant>", and POS's
+ *  "<menuId>_custom_…"). Centralised so no caller can forget it — V1's
+ *  incompatibleItems already skips the split and silently misses every variant. */
+export function baseMenuId(cartItemId: string): string {
+    return String(cartItemId || "").split("|")[0].split("_custom_")[0];
+}
+
+/** What a cart demands of the schedule, once every preorder item is considered. */
+export interface CartPreorderRequirement {
+    /** True when at least one cart line is a preorder item ⇒ a slot is mandatory. */
+    required: boolean;
+    /** The largest per-item notice in the cart, in minutes. */
+    leadMinutes: number;
+    /** Weekdays every preorder item in the cart allows (intersection).
+     *  `null` = unrestricted. `[]` = the items contradict each other. */
+    days: number[] | null;
+    /** Base menu ids of the preorder lines, so the UI can name them. */
+    itemIds: string[];
+    /** The item with the longest notice, for a message that names one dish rather
+     *  than five. Null when no item in the cart asks for notice at all. */
+    strictestItemId: string | null;
+    /** Every item that imposed a day restriction — NOT necessarily the notice
+     *  item, and often more than one. Kept separate because attributing the days
+     *  to `strictestItemId` produced a flatly false sentence: a 24h cake plus a
+     *  Sunday-only biryani read as "Chocolate Cake needs 24 hours notice and is
+     *  only made on Sundays". And naming just ONE of several is equally wrong —
+     *  with a Sat+Sun dish and a Sun-only dish the surviving day is Sunday, which
+     *  neither dish's own rule explains on its own. */
+    daysItemIds: string[];
+}
+
+const NO_PREORDER: CartPreorderRequirement = {
+    required: false,
+    leadMinutes: 0,
+    days: null,
+    itemIds: [],
+    strictestItemId: null,
+    daysItemIds: [],
+};
+
+/**
+ * Resolve the scheduling constraint a cart imposes.
+ *
+ * Accepts RAW cart line ids and does the base-id extraction itself. Duplicate
+ * lines of the same dish (two variants of one cake) collapse to one rule — leads
+ * are a MAX, never a sum.
+ */
+export function resolveCartPreorder(
+    settings: PrebookingSettings | null | undefined,
+    cartItemIds: Iterable<string> | null | undefined,
+): CartPreorderRequirement {
+    if (!settings || !cartItemIds) return NO_PREORDER;
+    const rules = normalizeItemPreorder((settings as any).item_preorder);
+    if (!Object.keys(rules).length) return NO_PREORDER;
+
+    const seen = new Set<string>();
+    let leadMinutes = 0;
+    let strictestItemId: string | null = null;
+    const daysItemIds: string[] = [];
+    let days: number[] | null = null;
+    for (const raw of cartItemIds) {
+        const id = baseMenuId(raw);
+        if (!id || seen.has(id)) continue;
+        const rule = rules[id];
+        if (!rule) continue;
+        seen.add(id);
+        if (rule.lead_minutes > leadMinutes) {
+            leadMinutes = rule.lead_minutes;
+            strictestItemId = id;
+        }
+        if (rule.days && rule.days.length) {
+            days = days === null ? [...rule.days] : days.filter((d) => rule.days!.includes(d));
+            daysItemIds.push(id);
+        }
+    }
+    if (!seen.size) return NO_PREORDER;
+    return {
+        required: true,
+        leadMinutes,
+        days,
+        itemIds: [...seen],
+        // Fall back to the first preorder line when nothing asks for notice, so a
+        // days-only or zero-notice cart still names a dish instead of "One of your
+        // items". Previously this fallback lived in the loop condition, where it
+        // let a 0-lead item claim the title before a 1440-lead one appeared.
+        strictestItemId: strictestItemId ?? daysItemIds[0] ?? [...seen][0] ?? null,
+        daysItemIds,
+    };
+}
+
+/** "1440" -> "24 hours"; "90" -> "1.5 hours"; "45" -> "45 minutes". */
+export function formatLeadTime(minutes: number): string {
+    if (minutes <= 0) return "advance notice";
+    if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+    const hours = minutes / 60;
+    if (hours < 48) {
+        const h = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, "");
+        return `${h} hour${hours === 1 ? "" : "s"}`;
+    }
+    const days = hours / 24;
+    const d = Number.isInteger(days) ? String(days) : days.toFixed(1).replace(/\.0$/, "");
+    return `${d} days`;
+}
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** "0,6" -> "Sundays and Saturdays" for customer-facing copy. */
+export function formatAllowedDays(days: number[]): string {
+    const names = days.filter((d) => d >= 0 && d <= 6).map((d) => `${DAY_NAMES[d]}s`);
+    if (!names.length) return "";
+    if (names.length === 1) return names[0];
+    return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * Why this cart cannot be placed with this selection — or null when it can.
+ *
+ * Called from EVERY placement handler in both checkout modals. It exists as one
+ * function rather than five inline conditions because that duplication has
+ * already failed once: V2's Razorpay handler shipped without the slot guard, and
+ * the post-failure "Try Again" button reaches it directly.
+ *
+ * Client-side only, and deliberately described as such: this app ships the Hasura
+ * admin secret to the browser, so nothing here is a security boundary. It stops
+ * accidents, not attackers.
+ */
+export function preorderBlockReason(
+    req: CartPreorderRequirement,
+    selection: { date: string; time: string } | null | undefined,
+    nameOf: (menuId: string) => string,
+    now: Date = new Date(),
+    /** Restaurant IANA timezone. Supply it whenever the caller has one: rolling
+     *  slots are generated as minute-of-day in THIS zone, so re-checking them on
+     *  the customer's device clock rejects perfectly good slots whenever the two
+     *  differ (a Qatar store's Indian customer is 2.5 hours out — every slot on
+     *  offer looks too soon). Omitted ⇒ device clock, i.e. exactly the basis the
+     *  windows-mode range clamp already uses. */
+    timezone?: string | null,
+): string | null {
+    if (!req.required) return null;
+    const dish = req.strictestItemId ? nameOf(req.strictestItemId) : "One of your items";
+
+    // Two preorder items whose allowed days don't overlap can never share an
+    // order. Say so instead of showing an empty date list.
+    if (req.days !== null && req.days.length === 0) {
+        // Only the day-restricted dishes — listing every preorder line dragged in
+        // items whose availability has nothing to do with the clash.
+        const names = req.daysItemIds.map(nameOf).filter(Boolean);
+        return `${names.join(" and ")} are available on different days, so they can't be ordered together. Please place them as separate orders.`;
+    }
+
+    if (!selection?.date || !selection?.time) {
+        return req.leadMinutes > 0
+            ? `${dish} needs ${formatLeadTime(req.leadMinutes)} notice — please pick a date and time.`
+            : `${dish} is a preorder item — please pick a date and time.`;
+    }
+
+    // Re-check the chosen slot. The picker should never emit a violating one, but
+    // a selection made minutes ago can go stale, and the payment-retry path
+    // re-submits a selection captured before the cart was edited.
+    //
+    // Compared in WALL-CLOCK MINUTES, not milliseconds, and on the restaurant's
+    // clock when one is known. Both details are load-bearing:
+    //
+    //  · minutes, because getPrebookingRanges clamps a range's start to whole
+    //    wall-clock minutes (`H*60+M+lead`) — at 14:00:30 it offers, and
+    //    auto-selects, 14:00 for a 24h dish. A millisecond comparison rejected
+    //    that very slot, leaving the order unplaceable 59 seconds in every 60
+    //    while the customer stared at the only slot on offer;
+    //  · the restaurant's clock, because rolling slots are emitted as
+    //    minute-of-day in that zone (getRollingSlots -> nowMinuteOfDay), so a
+    //    device-clock comparison is wrong by the whole UTC offset difference.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(selection.date) || !HHMM_RE.test(selection.time.slice(0, 5))) {
+        return "That date and time isn't valid — please pick again.";
+    }
+    const nowDate = ymdInTimezone(now, timezone);
+    const dayOffset = daysBetween(nowDate, selection.date);
+    if (dayOffset === null) return "That date and time isn't valid — please pick again.";
+    const slotMinutes = dayOffset * 1440 + toMinutes(selection.time.slice(0, 5));
+    const nowMinutes = nowMinuteOfDay(now, timezone);
+    // The picker recomputes its clamp on a 60-second tick, so the slot it is
+    // currently OFFERING can be up to a minute behind this live clock. Without a
+    // grace at least that wide, the customer is refused the only slot on screen
+    // for part of every minute — the failure this guard exists to prevent, in
+    // reverse. Two minutes clears the tick with room to spare and is far below
+    // any staleness worth catching: a payment retry or a cart edited to add a
+    // longer-notice dish misses by tens of minutes or hours, not by two.
+    const GRACE_MINUTES = 2;
+    if (req.leadMinutes > 0 && slotMinutes + GRACE_MINUTES < nowMinutes + req.leadMinutes) {
+        return `${dish} needs ${formatLeadTime(req.leadMinutes)} notice — please pick a later slot.`;
+    }
+    if (req.days !== null && req.days.length) {
+        const weekday = new Date(`${selection.date}T00:00:00`).getDay();
+        if (!req.days.includes(weekday)) {
+            // Name a dish only when exactly ONE imposed the restriction. With
+            // several, the surviving days are an intersection that no single
+            // dish's rule describes, so attributing them to one is false.
+            const subject =
+                req.daysItemIds.length === 1 ? nameOf(req.daysItemIds[0]) : "Your order";
+            return `${subject} ${req.daysItemIds.length === 1 ? "is" : "can"} only ${req.daysItemIds.length === 1 ? "available" : "be made"} on ${formatAllowedDays(req.days)} — please pick another date.`;
+        }
+    }
+    return null;
+}
+
+/**
+ * The extra constraint a preorder cart puts on the slot maths, threaded through
+ * every date/slot/validation entry point in this file.
+ *
+ * It has to reach ALL of them: the date list (getPrebookingSlots), the range list
+ * (getPrebookingRanges) and the typed-time validator (validateCustomPrebookTime)
+ * each read the lead time independently, and if only one learns about the per-item
+ * notice the other two keep offering slots it forbids.
+ */
+export interface PreorderConstraint {
+    /** Extra notice on top of the store's own min lead time, in minutes. */
+    extraLeadMinutes?: number;
+    /** Weekdays (0 = Sun … 6 = Sat) the cart permits. null/undefined = any. */
+    allowedDays?: number[] | null;
+    /** Skip the lead-time clamp entirely. For callers RESOLVING a slot that was
+     *  already booked rather than OFFERING one — formatPrebookSlotLabel looks up
+     *  the end time of an order placed weeks ago, and clamping against today's
+     *  clock filters every range away, leaving the label as a bare start time. */
+    ignoreLead?: boolean;
+}
+
+/** Store lead time and the cart's per-item notice combined. The item's notice is
+ *  a FLOOR, not a replacement — a store that already demands 2h keeps it. */
+function effectiveLead(
+    settings: PrebookingSettings,
+    opts: PreorderConstraint & { dineIn?: boolean },
+): number {
+    const base = opts.dineIn
+        ? (settings.dine_in_min_lead_time_minutes ?? settings.min_lead_time_minutes ?? 0)
+        : (settings.min_lead_time_minutes ?? 0);
+    const extra = opts.extraLeadMinutes ?? 0;
+    return Math.max(Number.isFinite(base) ? base : 0, Number.isFinite(extra) ? extra : 0);
+}
+
+function isDayAllowed(weekday: number, allowedDays: number[] | null | undefined): boolean {
+    // An EMPTY list means the cart's preorder items contradict each other, so no
+    // day works. Only null/undefined means "unrestricted" — conflating the two
+    // would silently offer every date for an impossible cart.
+    if (allowedDays === null || allowedDays === undefined) return true;
+    return allowedDays.includes(weekday);
 }
 
 function toMinutes(hhmm: string): number {
@@ -115,11 +437,15 @@ export function getPrebookingSlots(
     settings: PrebookingSettings,
     dateStr: string,
     now: Date = new Date(),
-    opts: { dineIn?: boolean } = {}
+    opts: PreorderConstraint & { dineIn?: boolean } = {}
 ): string[] {
     const date = new Date(`${dateStr}T00:00:00`);
     if (isNaN(date.getTime())) return [];
     const weekday = date.getDay();
+    // A preorder item may only be made on certain weekdays. Applied here so the
+    // date LIST loses the day (getPrebookingDates drops any date with no slots)
+    // rather than the customer picking a date and finding it empty.
+    if (!isDayAllowed(weekday, opts.allowedDays)) return [];
     // Dine-in reservations use their own slot set; fall back to `windows` for
     // legacy configs saved before dine_in_windows existed.
     const windows = opts.dineIn
@@ -128,9 +454,7 @@ export function getPrebookingSlots(
     const win = (windows ?? []).find((w) => w.day === weekday);
     if (!win || !win.enabled) return [];
 
-    const leadMinutes = opts.dineIn
-        ? (settings.dine_in_min_lead_time_minutes ?? settings.min_lead_time_minutes ?? 0)
-        : (settings.min_lead_time_minutes ?? 0);
+    const leadMinutes = effectiveLead(settings, opts);
     const earliestAbs = now.getTime() + leadMinutes * 60_000;
     return windowSlotTimes(win).filter(
         (hhmm) => new Date(`${dateStr}T${hhmm}:00`).getTime() >= earliestAbs
@@ -166,6 +490,10 @@ function withinWindow(m: number, window: ClampWindow): boolean {
  *  otherwise an out-of-timezone customer's browser time could clamp away every
  *  valid slot. Falls back to the device clock when no/invalid zone (same-tz
  *  markets, e.g. all-India, are unaffected). */
+export function restaurantMinuteOfDay(now: Date, timezone?: string | null): number {
+    return nowMinuteOfDay(now, timezone);
+}
+
 function nowMinuteOfDay(now: Date, timezone?: string | null): number {
     if (!timezone) return now.getHours() * 60 + now.getMinutes();
     try {
@@ -197,18 +525,40 @@ export function getRollingSlots(
     count: number,
     now: Date = new Date(),
     window: ClampWindow = null,
-    timezone?: string | null
+    timezone?: string | null,
+    /** Earliest minute-of-day a slot may fall on — how a preorder item's notice
+     *  reaches rolling mode. Read on the SAME clock as `base` (the restaurant's
+     *  timezone) so the two can't disagree. */
+    minMinuteOfDay: number = 0
 ): { from: string; to: string }[] {
     const base = nowMinuteOfDay(now, timezone);
     const out: { from: string; to: string }[] = [];
     for (let i = 1; i <= count; i++) {
         const m = base + intervalMin * i;
         if (m >= 24 * 60) break; // stay within today
+        if (m < minMinuteOfDay) continue; // per-item notice not met yet
         if (!withinWindow(m, window)) continue; // clamp to the operating window
         const t = fmt(m);
         out.push({ from: t, to: t });
     }
     return out;
+}
+
+/** The rolling-mode floor implied by a preorder notice, as a minute-of-day.
+ *  Rolling slots only ever exist today, so a notice longer than the rest of the
+ *  day legitimately yields nothing — the picker says so rather than pretending.
+ *
+ *  Uses ONLY the per-item notice, never `effectiveLead`. Rolling slots have never
+ *  honoured the store's own `min_lead_time_minutes` (the interval plays that role),
+ *  and folding it in here would empty the slot list for every existing partner
+ *  running rolling mode with a legacy non-zero lead — partners with no preorder
+ *  items at all. */
+function rollingFloor(
+    now: Date,
+    opts: PreorderConstraint & { timezone?: string | null },
+): number {
+    const lead = Math.max(0, opts.extraLeadMinutes ?? 0);
+    return lead > 0 ? nowMinuteOfDay(now, opts.timezone) + lead : 0;
 }
 
 /**
@@ -219,13 +569,23 @@ export function getRollingSlots(
 export function getPrebookingDates(
     settings: PrebookingSettings,
     now: Date = new Date(),
-    opts: { dineIn?: boolean; fromOffset?: number; throughDay?: number; clampWindow?: ClampWindow; timezone?: string | null } = {}
+    opts: PreorderConstraint & { dineIn?: boolean; fromOffset?: number; throughDay?: number; clampWindow?: ClampWindow; timezone?: string | null } = {}
 ): { value: string; label: string }[] {
     const rollingCfg = rollingConfig(settings, opts.dineIn);
     if (rollingCfg.rolling) {
         // Rolling slots are now-relative → offer only today (when it has slots
-        // inside the operating window).
-        return getRollingSlots(rollingCfg.interval, rollingCfg.count, now, opts.clampWindow, opts.timezone).length > 0
+        // inside the operating window). A preorder notice that runs past midnight
+        // therefore leaves nothing bookable at all — correct, and surfaced as its
+        // own message in the picker rather than a bare "no dates".
+        if (!isDayAllowed(now.getDay(), opts.allowedDays)) return [];
+        return getRollingSlots(
+            rollingCfg.interval,
+            rollingCfg.count,
+            now,
+            opts.clampWindow,
+            opts.timezone,
+            rollingFloor(now, opts),
+        ).length > 0
             ? [{ value: ymd(now), label: "Today" }]
             : [];
     }
@@ -288,7 +648,7 @@ export function getPrebookingDates(
 export function getPrebookingRanges(
     settings: PrebookingSettings,
     dateStr: string,
-    opts: { dineIn?: boolean; now?: Date; clampWindow?: ClampWindow; timezone?: string | null } = {}
+    opts: PreorderConstraint & { dineIn?: boolean; now?: Date; clampWindow?: ClampWindow; timezone?: string | null } = {}
 ): { from: string; to: string }[] {
     const rollingCfg = rollingConfig(settings, opts.dineIn);
     if (rollingCfg.rolling) {
@@ -296,11 +656,20 @@ export function getPrebookingRanges(
         // order type's operating window when one is provided.
         const rnow = opts.now ?? new Date();
         if (dateStr !== ymd(rnow)) return [];
-        return getRollingSlots(rollingCfg.interval, rollingCfg.count, rnow, opts.clampWindow, opts.timezone);
+        if (!isDayAllowed(rnow.getDay(), opts.allowedDays)) return [];
+        return getRollingSlots(
+            rollingCfg.interval,
+            rollingCfg.count,
+            rnow,
+            opts.clampWindow,
+            opts.timezone,
+            rollingFloor(rnow, opts),
+        );
     }
     const date = new Date(`${dateStr}T00:00:00`);
     if (isNaN(date.getTime())) return [];
     const weekday = date.getDay();
+    if (!isDayAllowed(weekday, opts.allowedDays)) return [];
     const windows = opts.dineIn ? (settings.dine_in_windows ?? settings.windows) : settings.windows;
     const win = (windows ?? []).find((w) => w.day === weekday);
     if (!win || !win.enabled) return [];
@@ -313,14 +682,28 @@ export function getPrebookingRanges(
         const times = windowSlotTimes(win); // legacy discrete slots → one collapsed range
         ranges = times.length ? [{ from: times[0], to: times[times.length - 1] }] : [];
     }
-    // For today, drop past ranges and clamp an in-progress range's start to the
-    // earliest valid time (now + lead) so we never offer / auto-default a past slot.
+    // Drop past ranges and clamp an in-progress range's start to the earliest
+    // valid time (now + lead) so we never offer / auto-default a slot that's too
+    // soon.
+    //
+    // This used to run only for today, which was harmless while the only lead was
+    // the store's own (never more than a few hours). A per-item notice can span
+    // days, so the clamp is now absolute: a 30-hour cake with a slot list for
+    // TOMORROW must still lose tomorrow morning. `earliest` is derived from the
+    // date being asked about, so for any date far enough out it goes negative and
+    // nothing is clamped — identical to the old behaviour.
     const now = opts.now ?? new Date();
-    if (dateStr === ymd(now)) {
-        const leadMin = opts.dineIn
-            ? (settings.dine_in_min_lead_time_minutes ?? settings.min_lead_time_minutes ?? 0)
-            : (settings.min_lead_time_minutes ?? 0);
-        const earliest = now.getHours() * 60 + now.getMinutes() + leadMin;
+    const leadMin = effectiveLead(settings, opts);
+    // Minute-of-day on THIS date at which the lead is satisfied, expressed by
+    // shifting the wall clock back a whole day per day of offset. Deliberately
+    // NOT (now + lead - midnightOf(dateStr)) in milliseconds: the range bounds
+    // below are WALL-CLOCK minutes, and across a DST transition those two are an
+    // hour apart. dayOffsetFrom is the file's existing DST-safe day difference,
+    // and at offset 0 this reduces to exactly the H*60+M+lead the today-only
+    // version used — so nothing moves for partners with no preorder items.
+    const dayOffset = dayOffsetFrom(now, dateStr) ?? 0;
+    const earliest = now.getHours() * 60 + now.getMinutes() + leadMin - dayOffset * 1440;
+    if (earliest > 0 && !opts.ignoreLead) {
         ranges = ranges
             .filter((r) => toMinutes(r.to) > earliest)
             .map((r) => (toMinutes(r.from) < earliest ? { from: fmt(earliest), to: r.to } : r));
@@ -354,7 +737,9 @@ function isTimeWithinWindow(hhmm: string, window: ClampWindow): boolean {
  *     Rolling slots are now-relative points, not ranges, so there is nothing to
  *     bound a typed time with beyond the operating window;
  *  4. rolling mode only — respects the min lead time (in windows mode the ranges
- *     from (3) are already lead-clamped for today, so this would be redundant).
+ *     from (3) are already lead-clamped, so this would be redundant — and with a
+ *     per-item preorder notice that clamp now covers future dates too, which is
+ *     what stops a 24h-notice cake being typed in for this evening).
  *
  * Only ever applied to typed times: preset slot picks keep their existing path.
  */
@@ -362,7 +747,7 @@ export function validateCustomPrebookTime(
     settings: PrebookingSettings,
     dateStr: string,
     hhmm: string,
-    opts: { dineIn?: boolean; now?: Date; clampWindow?: ClampWindow; timezone?: string | null } = {}
+    opts: PreorderConstraint & { dineIn?: boolean; now?: Date; clampWindow?: ClampWindow; timezone?: string | null } = {}
 ): string | null {
     const raw = (hhmm || "").trim();
     // HHMM_RE already bounds the value to 00:00–23:59, so no range re-check below.
@@ -372,6 +757,16 @@ export function validateCustomPrebookTime(
 
     const now = opts.now ?? new Date();
     const isRolling = rollingConfig(settings, opts.dineIn).rolling;
+
+    // A preorder item may restrict which weekdays it can be made for. Checked
+    // before anything time-shaped: in rolling mode the range check below never
+    // runs, so without this a Sunday-only dish could be typed in for a Tuesday.
+    const typedWeekday = new Date(`${dateStr}T00:00:00`).getDay();
+    if (!isDayAllowed(typedWeekday, opts.allowedDays)) {
+        return opts.allowedDays && opts.allowedDays.length
+            ? `Your order can only be made on ${formatAllowedDays(opts.allowedDays)}. Pick another date.`
+            : "Your items can't be scheduled for the same day. Please order them separately.";
+    }
 
     // The operating window is only the right bound in ROLLING mode, where the
     // offered slots are themselves clamped to it (getRollingSlots -> withinWindow).
@@ -398,9 +793,8 @@ export function validateCustomPrebookTime(
         return null;
     }
 
-    const leadMinutes = opts.dineIn
-        ? (settings.dine_in_min_lead_time_minutes ?? settings.min_lead_time_minutes ?? 0)
-        : (settings.min_lead_time_minutes ?? 0);
+    // Store lead time, raised by any per-item preorder notice in the cart.
+    const leadMinutes = effectiveLead(settings, opts);
     // Rolling slots only ever exist for today (getPrebookingRanges bails on any
     // other date), so the lead time is a minute-of-day comparison — and it must be
     // read on the SAME clock getRollingSlots uses, i.e. the restaurant's timezone.
@@ -409,7 +803,7 @@ export function validateCustomPrebookTime(
     const earliest = nowMinuteOfDay(now, opts.timezone) + leadMinutes;
     if (m < earliest) {
         return leadMinutes > 0
-            ? `Pick a time at least ${leadMinutes} minutes from now.`
+            ? `Pick a time at least ${formatLeadTime(leadMinutes)} from now.`
             : "Pick a time in the future.";
     }
     return null;
@@ -496,6 +890,11 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         // key missing here is dropped on the next save from either tab. Every new
         // setting MUST be listed or it silently erases itself.
         free_time_input: parsed.free_time_input === true,
+        // Per-item preorder rules. Listed here for the reason spelled out above:
+        // the Slot Booking tab saves {...mergePrebookingConfig(raw), ...dine-in
+        // fields}, so leaving this out would erase every partner's preorder setup
+        // the first time anyone opened that tab and pressed Save.
+        item_preorder: normalizeItemPreorder(parsed.item_preorder),
         dine_in_min_lead_time_minutes: num(
             parsed.dine_in_min_lead_time_minutes,
             num(parsed.min_lead_time_minutes, base.dine_in_min_lead_time_minutes)
@@ -563,7 +962,14 @@ export function formatPrebookSlotLabel(
     // partner's current settings; finally show just the start time.
     let to = opts.to ? fmt(toMinutes(opts.to.slice(0, 5))) : null;
     if (!to && settings) {
-        const r = getPrebookingRanges(settings, dateStr, opts).find((x) => x.from === from);
+        // ignoreLead: this is a lookup for an order that already exists, not an
+        // offer of a slot. Without it, any order whose date has passed loses its
+        // end time — the lead clamp filters every range away against today's
+        // clock — and "7:00 PM – 9:00 PM" silently degrades to "7:00 PM" in the
+        // dashboard order lists and on the customer's tracking page.
+        const r = getPrebookingRanges(settings, dateStr, { ...opts, ignoreLead: true }).find(
+            (x) => x.from === from,
+        );
         if (r) to = r.to;
     }
     return to && to !== from ? `${formatSlotLabel(from)} – ${formatSlotLabel(to)}` : formatSlotLabel(from);

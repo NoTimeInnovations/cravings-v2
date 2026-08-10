@@ -299,6 +299,26 @@ export interface PrebookingRange {
   to: string;
 }
 
+/**
+ * Per-item preorder rule ("this dish needs notice"), keyed by menu item id inside
+ * `PrebookingSettings.item_preorder`.
+ *
+ * Deliberately NOT a column on `menu`: the rule is read at checkout, where items
+ * added from an OFFER card carry a reduced menu selection (src/api/partners.ts
+ * offers { menu { … } }) and would report `undefined` for a menu column — the
+ * gate would then silently never fire for exactly the dishes most likely to be
+ * promoted. Keying by id against partner settings sidesteps that, and
+ * `prebooking_settings` is already selected by the storefront query and BOTH auth
+ * queries, so no query anywhere needs to learn a new field.
+ */
+export interface ItemPreorderRule {
+  /** Minimum notice for this dish, in minutes. Takes effect as max(store lead, this). */
+  lead_minutes: number;
+  /** Weekdays this dish may be scheduled for (0 = Sun … 6 = Sat). Empty = any day
+   *  the store already books. */
+  days?: number[];
+}
+
 export interface PrebookingWindow {
   day: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   enabled: boolean;
@@ -361,6 +381,11 @@ export interface PrebookingSettings {
    *  slots so the customer can type their own delivery/takeaway time. The typed time
    *  is validated against the operating window + the day's ranges. Default false. */
   free_time_input?: boolean;
+  /** Per-item preorder rules, keyed by menu item id. A cart holding any of these
+   *  dishes FORCES scheduling (even when `prebooking_optional` is on) and pushes
+   *  the earliest selectable slot out by the dish's lead time. Absent/empty = the
+   *  store has no preorder items and behaviour is exactly as before. */
+  item_preorder?: Record<string, ItemPreorderRule>;
 
   // ── Slot booking: dine-in table reservations (independent settings) ───────
   /** Minimum advance notice for a dine-in reservation, in minutes. */
@@ -413,6 +438,7 @@ export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
   allowed_order_types: ["delivery", "takeaway", "dine_in"],
   prebooking_optional: false,
   free_time_input: false,
+  item_preorder: {},
   dine_in_min_lead_time_minutes: 0,
   dine_in_max_advance_days: 7,
   dine_in_today_only: false,
