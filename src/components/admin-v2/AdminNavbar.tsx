@@ -3,7 +3,7 @@ import { Menu, Printer, RefreshCw } from "lucide-react";
 
 import { useState } from "react";
 import { SheetTrigger } from "@/components/ui/sheet";
-import { ModeToggle } from "@/components/mode-toggle";
+import { AdminThemeToggle } from "./AdminThemeToggle";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { OrderNotification } from "./OrderNotification";
 import { getFeatures } from "@/lib/getFeatures";
@@ -88,6 +88,15 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                {/* Light/dark, desktop only. On phones this sat in a very tight
+                    row next to notifications, refresh and the account switcher;
+                    the same control now lives among the dashboard quick actions,
+                    where it has room for a label. lg: matches the sidebar
+                    breakpoint used by the hamburger above, so exactly one of the
+                    two is reachable at any width. */}
+                <div data-tour="dark-mode" className="hidden lg:flex">
+                    <AdminThemeToggle label />
+                </div>
                 {userData?.role === 'partner' && !(userData as Partner).is_shop_open && (
                     <div className="hidden sm:flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-semibold rounded-full border border-red-200 dark:border-red-800 animate-pulse">
                         <span className="relative flex h-2 w-2 mr-2">
@@ -132,9 +141,6 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 >
                     <RefreshCw className={`h-5 w-5 text-gray-600 dark:text-gray-400 ${reloading ? "animate-spin" : ""}`} />
                 </Button>
-                <div data-tour="dark-mode">
-                    <ModeToggle />
-                </div>
                 {userData?.role === 'partner' && (
                     <div data-tour="account-switcher">
                         <AdminAccountSwitcher />
