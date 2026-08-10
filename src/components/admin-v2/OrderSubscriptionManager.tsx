@@ -21,29 +21,6 @@ function isJustCreated(order: Order) {
     return Number.isFinite(created) && Date.now() - created <= NEW_ORDER_WINDOW_MS;
 }
 
-/**
- * Drives the Android app's looping new-order alert.
- *
- * The native app rings until an order is accepted, but it has no idea what
- * "accepted" means — that state lives here, in the live order subscription.
- * These console lines are the bridge the WebView listens on, the same mechanism
- * as the existing "PRINTER SETTINGS OPEN" / "REFRESH LOCATION" signals. In a
- * plain browser they are just log lines and cost nothing.
- *
- * Belt and braces only: the app also polls the order's status itself, because
- * this bridge cannot reach it once the dashboard is closed. What this buys is
- * an instant stop while the dashboard IS open, rather than waiting for a poll.
- */
-let lastAlertSignal: "start" | "stop" | null = null;
-
-function signalOrderAlert(signal: "start" | "stop") {
-    // The subscription fires on every order change; only speak up on a real
-    // transition so the log (and the bridge) stays quiet.
-    if (lastAlertSignal === signal) return;
-    lastAlertSignal = signal;
-    console.log(signal === "start" ? "ORDER ALERT START" : "ORDER ALERT STOP");
-}
-
 export function OrderSubscriptionManager() {
     const { userData } = useAuthStore();
     const {
@@ -154,13 +131,6 @@ export function OrderSubscriptionManager() {
                     settleAlarm(paginatedOrders);
                     // Update store
                     setOrders(paginatedOrders);
-                    // Opening the dashboard silences an alert a push started, but
-                    // deliberately never starts one: a day-old unaccepted order
-                    // should not set the phone ringing just because someone
-                    // opened the app.
-                    if (!paginatedOrders.some((o) => o.status === "pending")) {
-                        signalOrderAlert("stop");
-                    }
                     return;
                 }
 
@@ -188,12 +158,6 @@ export function OrderSubscriptionManager() {
                     // Already looping for an earlier unaccepted order? Let it run —
                     // restarting would cut the tone off mid-loop.
                     if (!soundRef.current?.playing()) soundRef.current?.play();
-                    // Same trigger for the Android app's own looping alert. Rides
-                    // on isJustCreated above, so an old id resurfacing from a
-                    // pagination shift cannot set the phone ringing.
-                    if (genuinelyNewOrders.some((o) => o.status === "pending")) {
-                        signalOrderAlert("start");
-                    }
                     // Stable id → a fresh new-order alert replaces the previous
                     // one instead of stacking another toast on top.
                     toast.info(
@@ -205,15 +169,6 @@ export function OrderSubscriptionManager() {
                 }
 
                 settleAlarm(paginatedOrders);
-
-                // Tell the Android app to stop once nothing is pending. Keyed off
-                // the pending count rather than the accept click, so it settles
-                // just as well when the order is accepted on another device or
-                // cancelled. Not gated on alertingOrderIds: the phone may be
-                // ringing from a push this dashboard never saw arrive.
-                if (!paginatedOrders.some((o) => o.status === "pending")) {
-                    signalOrderAlert("stop");
-                }
 
                 setLoading(false);
                 // Update store
