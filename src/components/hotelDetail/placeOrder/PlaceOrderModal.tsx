@@ -2790,7 +2790,15 @@ const PlaceOrderModal = ({
    *  V2 twin for why this is not inlined at each site. */
   const preorderError = (): string | null => {
     if (preorderUnschedulable) return preorderUnschedulable;
-    return preorderBlockReason(cartPreorder, prebookingArg, preorderNameOf, new Date(), hotelTimezone);
+    // Rolling slot times are minute-of-day in the RESTAURANT's zone; windows-mode
+    // range starts are clamped on the DEVICE clock. The guard has to be told which,
+    // or it judges the slot against a clock the slot was never built on.
+    const slotClockTz =
+      (prebookingArg?.dineIn ? prebookingSettings?.dine_in_slot_mode : prebookingSettings?.slot_mode) ===
+      "rolling"
+        ? hotelTimezone
+        : null;
+    return preorderBlockReason(cartPreorder, prebookingArg, preorderNameOf, new Date(), slotClockTz);
   };
 
   // Order types that are both offered AND currently available (open), in the

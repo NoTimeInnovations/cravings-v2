@@ -255,13 +255,14 @@ export function preorderBlockReason(
     selection: { date: string; time: string } | null | undefined,
     nameOf: (menuId: string) => string,
     now: Date = new Date(),
-    /** Restaurant IANA timezone. Supply it whenever the caller has one: rolling
-     *  slots are generated as minute-of-day in THIS zone, so re-checking them on
-     *  the customer's device clock rejects perfectly good slots whenever the two
-     *  differ (a Qatar store's Indian customer is 2.5 hours out — every slot on
-     *  offer looks too soon). Omitted ⇒ device clock, i.e. exactly the basis the
-     *  windows-mode range clamp already uses. */
-    timezone?: string | null,
+    /** The clock the offered slot TIMES are expressed on — NOT simply "the
+     *  restaurant's timezone". Pass the restaurant zone in ROLLING mode, where
+     *  getRollingSlots builds times from nowMinuteOfDay(now, timezone); pass
+     *  nothing in windows mode, where the range clamp reads the device clock.
+     *  Getting this backwards is a live bug in both directions: supplying it in
+     *  windows mode refuses every slot for an out-of-timezone customer, omitting
+     *  it in rolling mode does the same. */
+    slotTimeTimezone?: string | null,
 ): string | null {
     if (!req.required) return null;
     const dish = req.strictestItemId ? nameOf(req.strictestItemId) : "One of your items";
@@ -285,25 +286,33 @@ export function preorderBlockReason(
     // a selection made minutes ago can go stale, and the payment-retry path
     // re-submits a selection captured before the cart was edited.
     //
-    // Compared in WALL-CLOCK MINUTES, not milliseconds, and on the restaurant's
-    // clock when one is known. Both details are load-bearing:
+    // Compared in WALL-CLOCK MINUTES, not milliseconds, and — critically — on the
+    // SAME CLOCK that produced the slot being judged. Both details are load-bearing:
     //
     //  · minutes, because getPrebookingRanges clamps a range's start to whole
     //    wall-clock minutes (`H*60+M+lead`) — at 14:00:30 it offers, and
     //    auto-selects, 14:00 for a 24h dish. A millisecond comparison rejected
     //    that very slot, leaving the order unplaceable 59 seconds in every 60
     //    while the customer stared at the only slot on offer;
-    //  · the restaurant's clock, because rolling slots are emitted as
-    //    minute-of-day in that zone (getRollingSlots -> nowMinuteOfDay), so a
-    //    device-clock comparison is wrong by the whole UTC offset difference.
+    //  · the matching clock, because the two slot modes do NOT share one. Rolling
+    //    slot times come from getRollingSlots -> nowMinuteOfDay(now, timezone), the
+    //    RESTAURANT's clock; windows-mode range starts come from the clamp in
+    //    getPrebookingRanges, which reads `now.getHours()`, the DEVICE's. Judging
+    //    windows-mode slots on the restaurant clock is wrong by the entire UTC
+    //    offset — a Dubai customer of an IST store was refused the only slot on
+    //    screen at every hour tested. Hence `slotTimeTimezone`, which callers set
+    //    ONLY in rolling mode.
+    //
+    // The DATE side is always device-local: both branches of getPrebookingDates
+    // emit `ymd(now)` / device-local calendar days, including the rolling branch,
+    // so the day offset must be measured on that same calendar.
     if (!/^\d{4}-\d{2}-\d{2}$/.test(selection.date) || !HHMM_RE.test(selection.time.slice(0, 5))) {
         return "That date and time isn't valid — please pick again.";
     }
-    const nowDate = ymdInTimezone(now, timezone);
-    const dayOffset = daysBetween(nowDate, selection.date);
+    const dayOffset = daysBetween(ymd(now), selection.date);
     if (dayOffset === null) return "That date and time isn't valid — please pick again.";
     const slotMinutes = dayOffset * 1440 + toMinutes(selection.time.slice(0, 5));
-    const nowMinutes = nowMinuteOfDay(now, timezone);
+    const nowMinutes = nowMinuteOfDay(now, slotTimeTimezone);
     // The picker recomputes its clamp on a 60-second tick, so the slot it is
     // currently OFFERING can be up to a minute behind this live clock. Without a
     // grace at least that wide, the customer is refused the only slot on screen

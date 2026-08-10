@@ -925,7 +925,15 @@ const PlaceOrderModalV2 = ({
   // added the cake is still sitting in state and would otherwise be accepted.
   const preorderError = (): string | null => {
     if (preorderUnschedulable) return preorderUnschedulable;
-    return preorderBlockReason(cartPreorder, prebookingArg, preorderNameOf, new Date(), hotelTimezone);
+    // Rolling slot times are minute-of-day in the RESTAURANT's zone; windows-mode
+    // range starts are clamped on the DEVICE clock. The guard has to be told which,
+    // or it judges the slot against a clock the slot was never built on.
+    const slotClockTz =
+      (prebookingArg?.dineIn ? prebookingSettings?.dine_in_slot_mode : prebookingSettings?.slot_mode) ===
+      "rolling"
+        ? hotelTimezone
+        : null;
+    return preorderBlockReason(cartPreorder, prebookingArg, preorderNameOf, new Date(), slotClockTz);
   };
   // HYBRID BOOKING — the partner has named ONE carrier for this drop's distance
   // band (own rider / instant third-party rider / Shiprocket), and whoever it is
