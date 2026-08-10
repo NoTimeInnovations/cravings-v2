@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
+import { StoreHoursCard } from "./StoreHoursCard";
+import { parseStoreHours, type StoreHours } from "@/lib/storeHours";
 import { isAutoProgressPartner } from "@/lib/demoPartner";
 import { MENU_LANGUAGES } from "@/lib/menuLanguages";
 import CustomDomainSettings from "@/components/admin/CustomDomainSettings";
@@ -26,6 +28,20 @@ import { CURRENCY_OPTIONS } from "@/lib/worldCurrencies";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import PartnerConnectionsCard from "@/components/PartnerConnectionsCard";
 
+/**
+ * The working-hours shape the EDITOR holds, which is not the same as the one the
+ * resolver applies: parseStoreHours drops a disabled schedule (correctly — the
+ * storefront must treat it as always open), but the settings screen has to keep
+ * those rows on screen so toggling the switch back on does not wipe the week the
+ * partner typed.
+ */
+function readStoreHoursState(sf: any): StoreHours | null {
+    const raw = sf?.store_hours;
+    if (!raw || typeof raw !== "object") return null;
+    const parsed = parseStoreHours({ ...raw, enabled: true });
+    if (!parsed) return null;
+    return { ...parsed, enabled: raw.enabled !== false };
+}
 export function GeneralSettings() {
     const { userData, setState } = useAuthStore();
     const router = useRouter();
@@ -60,6 +76,9 @@ export function GeneralSettings() {
     const [facebookLink, setFacebookLink] = useState("");
     const [isShopOpen, setIsShopOpen] = useState(true);
     const [timezone, setTimezone] = useState("Asia/Kolkata");
+    // Working hours — stored under storefront_settings.store_hours. null = no
+    // schedule, which the resolver treats as always open.
+    const [storeHours, setStoreHours] = useState<StoreHours | null>(null);
     const [currency, setCurrency] = useState("");
     const [languageSwitcher, setLanguageSwitcher] = useState(false);
     const [autoProgressOrders, setAutoProgressOrders] = useState(false);
@@ -103,6 +122,7 @@ export function GeneralSettings() {
                 setLanguageSwitcher(!!sf?.languageSwitcher);
                 setAutoProgressOrders(!!sf?.autoProgressOrders);
                 setMenuLanguages(Array.isArray(sf?.menuLanguages) ? sf.menuLanguages : []);
+                setStoreHours(readStoreHoursState(sf));
                 const mi = sf?.menuInfo || {};
                 setMenuInfoRating(mi.rating || "");
                 setMenuInfoRatingCount(mi.ratingCount || "");
@@ -111,6 +131,7 @@ export function GeneralSettings() {
                 setMenuInfoCuisines(mi.cuisines || "");
             } catch {
                 setLanguageSwitcher(false);
+                setStoreHours(null);
                 setAutoProgressOrders(false);
                 setMenuLanguages([]);
                 setMenuInfoRating("");
@@ -179,7 +200,16 @@ export function GeneralSettings() {
             if (menuInfoCostForOne.trim()) menuInfo.costForOne = menuInfoCostForOne.trim();
             if (menuInfoCuisines.trim()) menuInfo.cuisines = menuInfoCuisines.trim();
 
-            const nextStorefrontSettings = JSON.stringify({ ...sfObj, languageSwitcher, menuLanguages, autoProgressOrders, menuInfo });
+            // store_hours rides along in the same read-modify-write. Written even
+            // when disabled so the rows survive a partner toggling it off and on.
+            const nextStorefrontSettings = JSON.stringify({
+                ...sfObj,
+                languageSwitcher,
+                menuLanguages,
+                autoProgressOrders,
+                menuInfo,
+                ...(storeHours ? { store_hours: storeHours } : {}),
+            });
 
             const updates: any = {
                 store_name: storeName,
@@ -214,7 +244,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, currency, languageSwitcher, autoProgressOrders, menuLanguages, menuInfoRating, menuInfoRatingCount, menuInfoDeliveryTime, menuInfoCostForOne, menuInfoCuisines, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
+    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, currency, storeHours, languageSwitcher, autoProgressOrders, menuLanguages, menuInfoRating, menuInfoRatingCount, menuInfoDeliveryTime, menuInfoCostForOne, menuInfoCuisines, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -239,6 +269,7 @@ export function GeneralSettings() {
         let sfLangs: string[] = [];
         let sfAutoProgress = false;
         let sfMenuInfo: any = {};
+        let sfStoreHours: StoreHours | null = null;
         try {
             const sfRaw = data.storefront_settings;
             const sf = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
@@ -246,13 +277,16 @@ export function GeneralSettings() {
             sfLangs = Array.isArray(sf?.menuLanguages) ? sf.menuLanguages : [];
             sfAutoProgress = !!sf?.autoProgressOrders;
             sfMenuInfo = sf?.menuInfo || {};
+            sfStoreHours = readStoreHoursState(sf);
         } catch {
             sfLang = false;
             sfLangs = [];
             sfAutoProgress = false;
             sfMenuInfo = {};
+            sfStoreHours = null;
         }
         const hasChanges =
+            JSON.stringify(storeHours) !== JSON.stringify(sfStoreHours) ||
             storeName !== (data.store_name || "") ||
             storeTagline !== (data.store_tagline || "") ||
             description !== (data.description || "") ||
@@ -347,6 +381,10 @@ export function GeneralSettings() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Working hours sit directly under the manual switch: they are the
+                    same decision, one made once instead of twice a day. */}
+                <StoreHoursCard value={storeHours} onChange={setStoreHours} timezone={timezone} />
 
                 <PartnerConnectionsCard partnerId={userData?.id} />
 

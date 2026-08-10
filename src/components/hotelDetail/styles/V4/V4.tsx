@@ -490,6 +490,8 @@ const V4 = ({
         <ShopClosedModalWarning
           hotelId={hoteldata?.id}
           isShopOpen={hoteldata?.is_shop_open}
+          storefrontSettings={(hoteldata as any)?.storefront_settings}
+          timezone={(hoteldata as any)?.timezone}
           partnerPhone={hoteldata?.phone ?? null}
           partnerName={hoteldata?.store_name ?? null}
         />

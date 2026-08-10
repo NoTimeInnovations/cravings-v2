@@ -1,5 +1,13 @@
+"use client";
+
 import { useAuthStore } from "@/store/authStore";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import {
+  describeNextOpen,
+  isStoreOpen,
+  localNow,
+  storeHoursFromSettings,
+} from "@/lib/storeHours";
 import Link from "next/link";
 
 const formatOwnerLabel = (name?: string | null) => {
@@ -8,20 +16,59 @@ const formatOwnerLabel = (name?: string | null) => {
   return trimmed.endsWith("s") ? `${trimmed}'` : `${trimmed}'s`;
 };
 
+/**
+ * Two different ways a shop is shut, one sign.
+ *
+ * `isShopOpen` is the manual switch the partner flips. `storefrontSettings`
+ * carries the working-hours schedule, which closes the shop on its own outside
+ * business hours — evaluated in the STORE's timezone, and re-checked on a timer
+ * because a customer who opens the menu at 8:55 should watch it unlock at 9:00
+ * rather than sit behind a sign that is no longer true.
+ *
+ * The schedule is deliberately advisory-by-default: no schedule, or one that is
+ * switched off, leaves this entirely to the manual switch — which is how every
+ * store behaved before working hours existed.
+ */
 const ShopClosedModalWarning = ({
   isShopOpen,
   hotelId,
   partnerPhone,
   partnerName,
+  storefrontSettings,
+  timezone,
 }: {
   isShopOpen: boolean;
   hotelId: string;
   partnerPhone?: string | null;
   partnerName?: string | null;
+  /** The partner's storefront_settings blob; the schedule lives inside it. */
+  storefrontSettings?: unknown;
+  /** Store IANA timezone. Hours mean the shop's clock, not the visitor's. */
+  timezone?: string | null;
 }) => {
   const { userData } = useAuthStore();
+  const tz = timezone || "Asia/Kolkata";
 
-  if (isShopOpen) return null;
+  // Re-evaluated every 30s so the sign clears itself at opening time. Cheap: no
+  // network, just arithmetic on the stored schedule.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const hours = React.useMemo(
+    () => storeHoursFromSettings(storefrontSettings),
+    [storefrontSettings],
+  );
+  const schedule = React.useMemo(
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => isStoreOpen(hours, tz),
+    [hours, tz, tick],
+  );
+  const nextOpen = schedule.open ? null : describeNextOpen(schedule, localNow(tz).date);
+
+  if (isShopOpen && schedule.open) return null;
 
   const ownerLabel = formatOwnerLabel(partnerName);
 
@@ -55,6 +102,12 @@ const ShopClosedModalWarning = ({
                 <h3 className="text-xl font-bold text-center">SHOP CURRENTLY CLOSED</h3>
               </div>
               <p className="mt-2 text-center">This hotel is not accepting orders at the moment</p>
+              {/* Only shown when the SCHEDULE is what shut the shop. After a manual
+                  close there is no reopening time to promise, and inventing one is
+                  worse than saying nothing. */}
+              {isShopOpen && nextOpen && (
+                <p className="mt-1 text-center font-semibold">{nextOpen}</p>
+              )}
 
               {partnerPhone && (
                 <div className="mt-3 text-center">

@@ -8,6 +8,7 @@
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
+import { isStoreOpen, storeHoursFromSettings } from "@/lib/storeHours";
 import { buildOrderLink } from "@/lib/whatsappFlow/orderLink";
 import { findOrCreateUserByPhone, toLocalPhone, ensureCustomerAccount } from "@/lib/whatsappFlow/silentUser";
 import type {
@@ -125,7 +126,7 @@ const Q_DUE_SLEEPING = `
 `;
 const Q_PARTNER_INFO = `
   query PartnerInfo($id: uuid!) {
-    partners_by_pk(id: $id) { store_name username currency country_code custom_domain delivery_rules timezone wa_catalog_id is_shop_open }
+    partners_by_pk(id: $id) { store_name username currency country_code custom_domain delivery_rules timezone wa_catalog_id is_shop_open storefront_settings }
     # One currently-synced, available dish to use as the catalogue thumbnail.
     # It MUST be a product Meta actually holds — a stale retailer id renders a
     # blank card rather than an error.
@@ -1084,6 +1085,8 @@ export interface PartnerInfo {
    *  synced, available dish, used as the catalogue card's thumbnail. */
   catalog_thumbnail_id?: string | null;
   is_shop_open?: boolean | null;
+  /** Carries the working-hours schedule (store_hours). */
+  storefront_settings?: unknown;
 }
 
 // System variables available to every message-triggered run. Pure (no DB): the
@@ -1152,11 +1155,15 @@ export function buildMessageRunVars(
   const deliveryHours = fmtRange(dr?.delivery_time_allowed);
   const takeawayHours = fmtRange(dr?.takeaway_time_allowed);
 
-  // Manual open/closed switch (General settings → "Your store is open"). Distinct
-  // from the time-window flags below: a partner can be within delivery hours yet
-  // have flipped the store closed. Defaults to open when the column is
-  // null/undefined so an unset partner isn't treated as permanently shut.
-  const shopOpen = p.is_shop_open !== false;
+  // Manual open/closed switch (General settings → "Your store is open"), AND the
+  // working-hours schedule if the partner set one. Distinct from the time-window
+  // flags below: a partner can be within delivery hours yet have flipped the
+  // store closed, or be outside their own opening hours. Defaults to open when
+  // neither is set, so an unconfigured partner isn't treated as permanently shut
+  // — answering "we're closed" to a customer who asks is the expensive mistake.
+  const shopOpen =
+    p.is_shop_open !== false &&
+    isStoreOpen(storeHoursFromSettings(p.storefront_settings), tz).open;
 
   return {
     // "true" only when the store's open/closed switch is ON. A welcome flow can
