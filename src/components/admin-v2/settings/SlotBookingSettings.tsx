@@ -26,6 +26,12 @@ import {
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { TimePicker } from "./DeliverySettings";
 import { mergePrebookingConfig } from "@/lib/prebooking";
+import {
+    PreorderScopePicker,
+    PreorderScopeValue,
+    splitLead,
+    leadToMinutes,
+} from "./PreorderScopePicker";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -52,6 +58,13 @@ export function SlotBookingSettings() {
     const [askPeople, setAskPeople] = useState(false);
     const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
     const [ranges, setRanges] = useState<PrebookingRange[]>([{ from: "10:00", to: "22:00" }]);
+    const [scope, setScope] = useState<PreorderScopeValue>({
+        scope: "all",
+        itemIds: [],
+        leadValue: 0,
+        leadUnit: "hours",
+        days: [],
+    });
     const [initialLoaded, setInitialLoaded] = useState(false);
 
     useEffect(() => {
@@ -74,6 +87,14 @@ export function SlotBookingSettings() {
             merged.dine_in_windows.find((w) => w.enabled && w.ranges?.length) ||
             merged.dine_in_windows.find((w) => w.ranges?.length);
         setRanges(fe?.ranges?.length ? fe.ranges.map((r) => ({ ...r })) : [{ from: "10:00", to: "22:00" }]);
+        const lead = splitLead(merged.dine_in_preorder_lead_minutes ?? 0);
+        setScope({
+            scope: merged.dine_in_applies_to === "items" ? "items" : "all",
+            itemIds: merged.dine_in_preorder_item_ids ?? [],
+            leadValue: lead.value,
+            leadUnit: lead.unit,
+            days: merged.dine_in_preorder_days ?? [],
+        });
         setInitialLoaded(true);
     }, [userData]);
 
@@ -85,7 +106,7 @@ export function SlotBookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, slot_booking_optional: optional, dine_in_today_only: todayOnly, dine_in_start_date: startDate || undefined, dine_in_end_date: endDate || undefined, dine_in_picker_mode: pickerMode, dine_in_free_time_input: freeTime, dine_in_slot_mode: slotMode, dine_in_rolling_interval_minutes: rollingInterval, dine_in_rolling_slot_count: rollingCount, dine_in_ask_people_count: askPeople, dine_in_windows });
+            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, slot_booking_optional: optional, dine_in_today_only: todayOnly, dine_in_start_date: startDate || undefined, dine_in_end_date: endDate || undefined, dine_in_picker_mode: pickerMode, dine_in_free_time_input: freeTime, dine_in_slot_mode: slotMode, dine_in_rolling_interval_minutes: rollingInterval, dine_in_rolling_slot_count: rollingCount, dine_in_ask_people_count: askPeople, dine_in_windows, dine_in_applies_to: scope.scope, dine_in_preorder_item_ids: scope.itemIds, dine_in_preorder_lead_minutes: leadToMinutes(scope.leadValue, scope.leadUnit), dine_in_preorder_days: scope.days });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -95,7 +116,7 @@ export function SlotBookingSettings() {
             console.error("Error saving slot booking settings:", e);
             toast.error("Failed to save slot booking settings");
         }
-    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, scope, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -105,7 +126,7 @@ export function SlotBookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, askPeople, days, ranges, scope, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -159,6 +180,14 @@ export function SlotBookingSettings() {
                                 </div>
                                 <Switch checked={optional} onCheckedChange={setOptional} />
                             </div>
+
+                            <PreorderScopePicker
+                                partnerId={(userData as any)?.id}
+                                value={scope}
+                                onChange={setScope}
+                                kind="table"
+                                rolling={slotMode === "rolling"}
+                            />
 
                             <div className="flex items-center justify-between p-4 border rounded-lg">
                                 <div className="space-y-0.5">

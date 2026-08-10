@@ -300,24 +300,25 @@ export interface PrebookingRange {
 }
 
 /**
- * Per-item preorder rule ("this dish needs notice"), keyed by menu item id inside
- * `PrebookingSettings.item_preorder`.
+ * Who scheduling applies to.
  *
- * Deliberately NOT a column on `menu`: the rule is read at checkout, where items
- * added from an OFFER card carry a reduced menu selection (src/api/partners.ts
- * offers { menu { … } }) and would report `undefined` for a menu column — the
- * gate would then silently never fire for exactly the dishes most likely to be
- * promoted. Keying by id against partner settings sidesteps that, and
- * `prebooking_settings` is already selected by the storefront query and BOTH auth
- * queries, so no query anywhere needs to learn a new field.
+ *   "all"   — every basket can/must be scheduled (the original behaviour)
+ *   "items" — ONLY baskets containing one of the listed dishes. A basket without
+ *             any of them is an ordinary ASAP order and never sees the picker.
+ *
+ * This is how "preorder" is expressed: a cake that needs a day's notice is the
+ * store's only scheduled product, so scheduling is scoped to it rather than
+ * imposed on every order.
+ *
+ * The dish list is stored as menu ids in partner settings, deliberately NOT as a
+ * column on `menu`: the list is read at checkout, where items added from an OFFER
+ * card carry a reduced menu selection (src/api/partners.ts offers { menu { … } })
+ * and would report `undefined` for a menu column — the rule would then silently
+ * never fire for exactly the dishes most likely to be promoted. Settings are
+ * already selected by the storefront query and BOTH auth queries, so no query
+ * anywhere needs to learn a new field.
  */
-export interface ItemPreorderRule {
-  /** Minimum notice for this dish, in minutes. Takes effect as max(store lead, this). */
-  lead_minutes: number;
-  /** Weekdays this dish may be scheduled for (0 = Sun … 6 = Sat). Empty = any day
-   *  the store already books. */
-  days?: number[];
-}
+export type PrebookingScope = "all" | "items";
 
 export interface PrebookingWindow {
   day: 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -381,11 +382,19 @@ export interface PrebookingSettings {
    *  slots so the customer can type their own delivery/takeaway time. The typed time
    *  is validated against the operating window + the day's ranges. Default false. */
   free_time_input?: boolean;
-  /** Per-item preorder rules, keyed by menu item id. A cart holding any of these
-   *  dishes FORCES scheduling (even when `prebooking_optional` is on) and pushes
-   *  the earliest selectable slot out by the dish's lead time. Absent/empty = the
-   *  store has no preorder items and behaviour is exactly as before. */
-  item_preorder?: Record<string, ItemPreorderRule>;
+  /** Does delivery/takeaway scheduling apply to every basket, or only to baskets
+   *  containing `preorder_item_ids`? Default "all" — existing partners unchanged. */
+  applies_to?: PrebookingScope;
+  /** Menu ids that require scheduling when `applies_to` is "items". A basket
+   *  holding one of these FORCES a slot even when `prebooking_optional` is on. */
+  preorder_item_ids?: string[];
+  /** Advance notice for those dishes, in minutes, on top of the store's own lead
+   *  time. One value for the whole list — a per-dish notice is a level of detail
+   *  no partner has asked for and doubles the editor. */
+  preorder_lead_minutes?: number;
+  /** Weekdays those dishes are made (0 = Sun … 6 = Sat). Empty = any day the
+   *  store already takes bookings. */
+  preorder_days?: number[];
 
   // ── Slot booking: dine-in table reservations (independent settings) ───────
   /** Minimum advance notice for a dine-in reservation, in minutes. */
@@ -414,6 +423,13 @@ export interface PrebookingSettings {
   dine_in_free_time_input?: boolean;
   /** Explicit dine-in table slot times per weekday. */
   dine_in_windows: PrebookingWindow[];
+  /** The dine-in mirror of applies_to / preorder_item_ids / … . Separate because
+   *  the two order kinds are configured independently everywhere else in this
+   *  blob, and a dish that needs notice for delivery need not need a table. */
+  dine_in_applies_to?: PrebookingScope;
+  dine_in_preorder_item_ids?: string[];
+  dine_in_preorder_lead_minutes?: number;
+  dine_in_preorder_days?: number[];
 }
 
 const DEFAULT_FROM = "10:00";
@@ -438,7 +454,14 @@ export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
   allowed_order_types: ["delivery", "takeaway", "dine_in"],
   prebooking_optional: false,
   free_time_input: false,
-  item_preorder: {},
+  applies_to: "all",
+  preorder_item_ids: [],
+  preorder_lead_minutes: 0,
+  preorder_days: [],
+  dine_in_applies_to: "all",
+  dine_in_preorder_item_ids: [],
+  dine_in_preorder_lead_minutes: 0,
+  dine_in_preorder_days: [],
   dine_in_min_lead_time_minutes: 0,
   dine_in_max_advance_days: 7,
   dine_in_today_only: false,

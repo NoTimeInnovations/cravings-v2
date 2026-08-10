@@ -26,6 +26,12 @@ import {
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { TimePicker } from "./DeliverySettings";
 import { mergePrebookingConfig } from "@/lib/prebooking";
+import {
+    PreorderScopePicker,
+    PreorderScopeValue,
+    splitLead,
+    leadToMinutes,
+} from "./PreorderScopePicker";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -51,6 +57,15 @@ export function PrebookingSettings() {
     const [rollingCount, setRollingCount] = useState<number>(2);
     const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
     const [ranges, setRanges] = useState<PrebookingRange[]>([{ from: "10:00", to: "22:00" }]);
+    // Who scheduling applies to: every order, or only orders containing certain
+    // dishes ("preorder items").
+    const [scope, setScope] = useState<PreorderScopeValue>({
+        scope: "all",
+        itemIds: [],
+        leadValue: 0,
+        leadUnit: "hours",
+        days: [],
+    });
     const [initialLoaded, setInitialLoaded] = useState(false);
 
     useEffect(() => {
@@ -72,6 +87,14 @@ export function PrebookingSettings() {
             merged.windows.find((w) => w.enabled && w.ranges?.length) ||
             merged.windows.find((w) => w.ranges?.length);
         setRanges(fe?.ranges?.length ? fe.ranges.map((r) => ({ ...r })) : [{ from: "10:00", to: "22:00" }]);
+        const lead = splitLead(merged.preorder_lead_minutes ?? 0);
+        setScope({
+            scope: merged.applies_to === "items" ? "items" : "all",
+            itemIds: merged.preorder_item_ids ?? [],
+            leadValue: lead.value,
+            leadUnit: lead.unit,
+            days: merged.preorder_days ?? [],
+        });
         setInitialLoaded(true);
     }, [userData]);
 
@@ -83,7 +106,7 @@ export function PrebookingSettings() {
                 enabled: days.has(day),
                 ranges: ranges.map((r) => ({ ...r })),
             }));
-            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, prebooking_optional: optional, today_only: todayOnly, start_date: startDate || undefined, end_date: endDate || undefined, picker_mode: pickerMode, free_time_input: freeTime, slot_mode: slotMode, rolling_interval_minutes: rollingInterval, rolling_slot_count: rollingCount, windows });
+            const payload = JSON.stringify({ ...cfg, prebooking_enabled: enabled, prebooking_optional: optional, today_only: todayOnly, start_date: startDate || undefined, end_date: endDate || undefined, picker_mode: pickerMode, free_time_input: freeTime, slot_mode: slotMode, rolling_interval_minutes: rollingInterval, rolling_slot_count: rollingCount, windows, applies_to: scope.scope, preorder_item_ids: scope.itemIds, preorder_lead_minutes: leadToMinutes(scope.leadValue, scope.leadUnit), preorder_days: scope.days });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -93,7 +116,7 @@ export function PrebookingSettings() {
             console.error("Error saving prebooking settings:", e);
             toast.error("Failed to save prebooking settings");
         }
-    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, days, ranges, userData, setState, setHasChanges]);
+    }, [cfg, enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, days, ranges, scope, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -103,7 +126,7 @@ export function PrebookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, optional, todayOnly, startDate, endDate, pickerMode, freeTime, slotMode, rollingInterval, rollingCount, days, ranges, scope, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
     const toggleDay = (day: number) =>
         setDays((prev) => {
@@ -156,6 +179,14 @@ export function PrebookingSettings() {
                                 </div>
                                 <Switch checked={optional} onCheckedChange={setOptional} />
                             </div>
+
+                            <PreorderScopePicker
+                                partnerId={(userData as any)?.id}
+                                value={scope}
+                                onChange={setScope}
+                                kind="order"
+                                rolling={slotMode === "rolling"}
+                            />
 
                             <div className="flex items-center justify-between p-4 border rounded-lg">
                                 <div className="space-y-0.5">

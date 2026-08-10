@@ -2266,26 +2266,38 @@ const PlaceOrderModal = ({
   // Dine-in reservation: dine-in offered + slot booking on. Schedule-for-later
   // (delivery/takeaway) uses the prebooking toggle.
   const allowDineInReservation = slotBookingEnabled && !isQrScan && offered.dine_in;
-  const showPicker = !!prebookingSettings && (isDineIn ? allowDineInReservation : scheduleEnabled);
+  // ── Scoped scheduling ("preorder items") — mirror of PlaceOrderModalV2 ─────
+  // V1 is NOT dead code: OrderDrawer picks V2 only when the partner's theme sets
+  // checkoutStyle === "v2", so every other partner checks out through here.
+  //
+  // Three outcomes for a basket: unscoped -> old behaviour; scoped with no listed
+  // dish -> scheduling does not apply at all; scoped with one present -> a slot is
+  // mandatory, pushed out by the notice.
+  //
+  // Keyed on `isDineIn` — deliberately, not on prebookOrderTypeKey, which resolves
+  // to "dine_in" for a QR table order. At a QR table `allowDineInReservation` is
+  // false (table booking never applies there) and the picker is mounted with
+  // reservation={isDineIn}, so it reads the DELIVERY windows. Selecting the scope
+  // by prebookOrderTypeKey would read the dine-in dish list against delivery
+  // windows — a scope and a schedule from two different tabs. This keeps both on
+  // the same side of that pre-existing split. Consequence worth knowing: a dish
+  // scoped only under Slot Booking does not trigger for a QR table order.
+  const cartScope = useMemo(
+    () => resolveCartPreorder(prebookingSettings, isDineIn, (items || []).map((it) => it.id)),
+    [prebookingSettings, isDineIn, items],
+  );
+  const schedulingBase = !!prebookingSettings && (isDineIn ? allowDineInReservation : scheduleEnabled);
+  const showPicker = schedulingBase && cartScope.appliesToCart;
+  // Gated on scheduling being offered, so switching prebooking off makes the rule
+  // inert rather than making every scoped dish unsellable.
+  const preorderRequired = schedulingBase && cartScope.required;
+  // Mirror of the V2 twin: drop a captured slot once scheduling stops applying.
+  useEffect(() => {
+    if (!showPicker && prebooking) setPrebooking(null);
+  }, [showPicker, prebooking]);
   // Pass the picker's selection (already carries `dineIn` for reservations) so
   // order type follows the captured reservation, not live orderType at submit.
   const prebookingArg = showPicker && prebooking ? prebooking : null;
-
-  // ── Per-item preorder (mirror of PlaceOrderModalV2) ────────────────────────
-  // V1 is NOT dead code: OrderDrawer picks V2 only when the partner's theme sets
-  // checkoutStyle === "v2", so every other partner checks out through here. A
-  // rule enforced only in V2 would be invisible to most of them.
-  //
-  // Gated on `showPicker`: when the partner has scheduling switched off (feature
-  // flag revoked, master toggle off, or a QR table where reservations don't
-  // apply) the rule goes INERT rather than blocking. Leaving it armed made every
-  // dish marked preorder permanently unsellable the moment prebooking was turned
-  // off — silently, store-wide, with the partner given no hint why sales stopped.
-  // The Preorder Items tab warns them about exactly this state instead.
-  const cartPreorder = useMemo(
-    () => resolveCartPreorder(showPicker ? prebookingSettings : null, (items || []).map((it) => it.id)),
-    [showPicker, prebookingSettings, items],
-  );
   const preorderNameOf = useCallback(
     (menuId: string): string => {
       const m = allMenus.find((x: any) => x.id === menuId);
@@ -2293,53 +2305,55 @@ const PlaceOrderModal = ({
     },
     [allMenus, items],
   );
-  const preorderDaysKey = cartPreorder.days === null ? null : cartPreorder.days.join(",");
+  const preorderDaysKey = cartScope.days === null ? null : cartScope.days.join(",");
   const preorderBanner = useMemo(() => {
-    if (!cartPreorder.required) return null;
-    if (cartPreorder.days !== null && cartPreorder.days.length === 0) {
-      return `${cartPreorder.daysItemIds.map(preorderNameOf).join(" and ")} are available on different days, so they can't be ordered together.`;
-    }
-    // Two clauses, each naming ITS OWN dish: the longest-notice item and the
-    // day-restricting item are frequently different, and merging them under one
-    // name told the customer something simply untrue.
+    if (!preorderRequired) return null;
+    const dish =
+      cartScope.itemIds.length === 1 ? preorderNameOf(cartScope.itemIds[0]) : "Your order";
     const clauses: string[] = [];
-    if (cartPreorder.leadMinutes > 0) {
-      clauses.push(
-        `${preorderNameOf(cartPreorder.strictestItemId || "")} needs ${formatLeadTime(cartPreorder.leadMinutes)} notice`,
-      );
-    }
-    if (cartPreorder.days?.length && cartPreorder.daysItemIds.length) {
-      // One dish -> name it. Several -> the surviving days are an intersection no
-      // single dish's rule describes, so naming one would be false.
-      clauses.push(
-        cartPreorder.daysItemIds.length === 1
-          ? `${preorderNameOf(cartPreorder.daysItemIds[0])} is only made on ${formatAllowedDays(cartPreorder.days)}`
-          : `your order can only be made on ${formatAllowedDays(cartPreorder.days)}`,
-      );
-    }
+    if (cartScope.leadMinutes > 0) clauses.push(`needs ${formatLeadTime(cartScope.leadMinutes)} notice`);
+    if (cartScope.days?.length) clauses.push(`is only made on ${formatAllowedDays(cartScope.days)}`);
     return clauses.length
-      ? `${clauses.join(", and ")} — please choose when you'd like this order.`
-      : `${preorderNameOf(cartPreorder.strictestItemId || "")} is a preorder item — please choose when you'd like this order.`;
-  }, [cartPreorder, preorderNameOf]);
+      ? `${dish} ${clauses.join(" and ")}, so please choose when you'd like this order.`
+      : `${dish} has to be scheduled — please choose when you'd like it.`;
+  }, [preorderRequired, cartScope, preorderNameOf]);
+  // The dead-end line, built from the same parts as the banner rather than by
+  // string-surgery on it. It used to strip the banner's trailing clause with a
+  // regex; the banner's wording then changed and the regex stopped matching, so
+  // the note read "…please choose when you'd like this order.. We have no booking
+  // times that fit." — an instruction immediately contradicted.
+  const preorderNoDatesNote = useMemo(() => {
+    if (!preorderRequired) return null;
+    const dish =
+      cartScope.itemIds.length === 1 ? preorderNameOf(cartScope.itemIds[0]) : "Your order";
+    const why: string[] = [];
+    if (cartScope.leadMinutes > 0) why.push(`needs ${formatLeadTime(cartScope.leadMinutes)} notice`);
+    if (cartScope.days?.length) why.push(`is only made on ${formatAllowedDays(cartScope.days)}`);
+    return why.length
+      ? `${dish} ${why.join(" and ")}, and we have no booking times that fit. Please remove it or contact the restaurant.`
+      : `We have no booking times available for ${dish.toLowerCase() === "your order" ? "this order" : dish}. Please remove it or contact the restaurant.`;
+  }, [preorderRequired, cartScope, preorderNameOf]);
   // See the V2 twin: showPicker true does NOT mean the picker renders — it
   // self-hides for an order type the partner hasn't allow-listed, which would
-  // leave a preorder cart demanding a slot with no control to pick one.
+  // leave a scoped basket demanding a slot with no control to pick one.
   const pickerWillRender =
     showPicker && (isDineIn || isOrderTypeAllowed(prebookingSettings!, prebookOrderTypeKey));
   const preorderUnschedulable =
-    cartPreorder.required && !pickerWillRender
-      ? `${preorderNameOf(cartPreorder.strictestItemId || "")} needs to be ordered in advance, and scheduling isn't available for ${
+    preorderRequired && !pickerWillRender
+      ? `${
+          cartScope.itemIds.length === 1 ? preorderNameOf(cartScope.itemIds[0]) : "Your order"
+        } has to be ordered in advance, and scheduling isn't available for ${
           isDineIn ? "dine-in" : orderType === "takeaway" ? "takeaway" : "delivery"
         } right now. Please remove it or choose a different order type.`
       : null;
 
   // Optional scheduling ("make optional" toggle): when on for this order type,
   // checkout does NOT force a slot — the customer opts in and may order ASAP.
-  // A preorder item in the cart overrides it: notice can't be opt-in.
+  // A scoped dish overrides it: notice can't be opt-in.
   const slotOptional =
     (isDineIn
       ? prebookingSettings?.slot_booking_optional === true
-      : prebookingSettings?.prebooking_optional === true) && !cartPreorder.required;
+      : prebookingSettings?.prebooking_optional === true) && !preorderRequired;
   // Operating window to clamp rolling slots to (delivery/takeaway hours only).
   const slotClampWindow =
     prebookOrderTypeKey === "delivery"
@@ -2782,13 +2796,15 @@ const PlaceOrderModal = ({
       dineIn: !!prebookingArg.dineIn,
       clampWindow: slotClampWindow,
       timezone: hotelTimezone,
-      extraLeadMinutes: cartPreorder.leadMinutes,
-      allowedDays: cartPreorder.days,
+      extraLeadMinutes: cartScope.leadMinutes,
+      allowedDays: cartScope.days,
     });
   };
   /** Preorder gate — one function, called from both placement handlers. See the
    *  V2 twin for why this is not inlined at each site. */
   const preorderError = (): string | null => {
+    // Inert when the partner offers no scheduling for this order kind.
+    if (!preorderRequired) return null;
     if (preorderUnschedulable) return preorderUnschedulable;
     // Rolling slot times are minute-of-day in the RESTAURANT's zone; windows-mode
     // range starts are clamped on the DEVICE clock. The guard has to be told which,
@@ -2798,7 +2814,7 @@ const PlaceOrderModal = ({
       "rolling"
         ? hotelTimezone
         : null;
-    return preorderBlockReason(cartPreorder, prebookingArg, preorderNameOf, new Date(), slotClockTz);
+    return preorderBlockReason(cartScope, prebookingArg, preorderNameOf, new Date(), slotClockTz);
   };
 
   // Order types that are both offered AND currently available (open), in the
@@ -4270,7 +4286,7 @@ const PlaceOrderModal = ({
     // the two submit handlers — because V1 otherwise leaves the button looking
     // enabled and answers the tap with a toast, which for a mandatory schedule
     // reads as the button being broken.
-    (cartPreorder.required && !prebookingArg) ||
+    (preorderRequired && !prebookingArg) ||
     !!preorderUnschedulable ||
     // The picker's live typed-time error. With optional scheduling ON an invalid
     // typed time emits a null selection (reads as "ordering ASAP"), so this is the
@@ -4558,13 +4574,9 @@ const PlaceOrderModal = ({
                       optional={slotOptional}
                       clampWindow={slotClampWindow}
                       timezone={hotelTimezone}
-                      preorderLeadMinutes={cartPreorder.leadMinutes}
+                      preorderLeadMinutes={cartScope.leadMinutes}
                       preorderDaysKey={preorderDaysKey}
-                      preorderNote={
-                        cartPreorder.required
-                          ? `${preorderBanner ? preorderBanner.replace(/ — please choose.*$/, "") + ". " : ""}We have no booking times that fit. Please remove it or contact the restaurant.`
-                          : null
-                      }
+                      preorderNote={preorderNoDatesNote}
                     />
                   </div>
                 )}

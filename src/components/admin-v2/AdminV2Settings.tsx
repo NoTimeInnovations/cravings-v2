@@ -13,7 +13,6 @@ import { StorefrontSettings } from "./settings/StorefrontSettings";
 import { InfoPageSettings } from "./settings/InfoPageSettings";
 import { PrebookingSettings } from "./settings/PrebookingSettings";
 import { SlotBookingSettings } from "./settings/SlotBookingSettings";
-import { PreorderItemsSettings } from "./settings/PreorderItemsSettings";
 import { OrderTypesSettings } from "./settings/OrderTypesSettings";
 import { BrandingSettings } from "./settings/BrandingSettings";
 import { IntegrationsSettings } from "./settings/IntegrationsSettings";
@@ -157,7 +156,6 @@ export function AdminV2Settings() {
                 ? [
                       { key: "prebooking", label: "Prebooking", Component: PrebookingSettings },
                       { key: "slot-booking", label: "Slot Booking", Component: SlotBookingSettings },
-                      { key: "preorder-items", label: "Preorder Items", Component: PreorderItemsSettings },
                   ]
                 : [],
         },

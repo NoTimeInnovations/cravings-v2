@@ -5,7 +5,6 @@
 import {
     PrebookingSettings,
     PrebookingWindow,
-    ItemPreorderRule,
     OrderTypesEnabled,
     DEFAULT_ORDER_TYPES_ENABLED,
     DEFAULT_PREBOOKING_SETTINGS,
@@ -50,67 +49,53 @@ export function isOrderTypeAllowed(
     return (settings.allowed_order_types ?? []).includes(orderType);
 }
 
-// ── Per-item preorder ────────────────────────────────────────────────────────
+// ── Scoped scheduling ("preorder items") ─────────────────────────────────────
 //
-// A dish can be marked "needs notice" (a cake needing 24h, a Sunday-only
-// biryani). The rules live in `prebooking_settings.item_preorder`, keyed by menu
-// item id — see ItemPreorderRule in src/store/orderStore.ts for why they are not
-// a column on `menu`.
+// A store can scope scheduling to specific dishes instead of every order: a cake
+// that needs a day's notice is the only thing it makes sense to prebook, so the
+// picker appears for baskets containing it and nowhere else. See PrebookingScope
+// in src/store/orderStore.ts for why the dish list lives in partner settings
+// rather than as a column on `menu`.
 //
 // An order carries ONE schedule (orders.scheduled_date / scheduled_time), so a
-// mixed cart cannot be split: the STRICTEST item wins for the whole order. That
-// is the only behaviour the data model can express, and it is also the least
-// surprising — the customer is told which dish set the date.
+// mixed basket cannot be split: one listed dish schedules the whole order, and
+// the checkout says which dish did it.
 
-/** Defensive read of one rule. The checkout gets RAW parsed JSON (never
- *  mergePrebookingConfig), so every field here may be absent or the wrong type. */
-function normalizeRule(raw: unknown): ItemPreorderRule | null {
-    if (!raw || typeof raw !== "object") return null;
-    const r = raw as any;
-    const lead = Number(r.lead_minutes);
-    // A rule with no notice and no day restriction still means "preorder": it
-    // forces a slot. Negative / NaN leads collapse to 0 rather than poisoning the
-    // Math.max below with NaN, which would make every date unselectable.
-    const lead_minutes = Number.isFinite(lead) && lead > 0 ? Math.floor(lead) : 0;
-    const days = Array.isArray(r.days)
+/** One tab's scope config, read defensively: the checkout gets RAW parsed JSON
+ *  (never mergePrebookingConfig), so every field here may be absent or the wrong
+ *  type. */
+function readScope(
+    settings: PrebookingSettings,
+    dineIn: boolean,
+): { scoped: boolean; ids: Set<string>; leadMinutes: number; days: number[] } {
+    const s = settings as any;
+    const scope = dineIn ? s.dine_in_applies_to : s.applies_to;
+    const rawIds = dineIn ? s.dine_in_preorder_item_ids : s.preorder_item_ids;
+    const rawLead = Number(dineIn ? s.dine_in_preorder_lead_minutes : s.preorder_lead_minutes);
+    const rawDays = dineIn ? s.dine_in_preorder_days : s.preorder_days;
+    const ids = new Set<string>(
+        Array.isArray(rawIds) ? rawIds.filter((x: unknown) => typeof x === "string" && x) : [],
+    );
+    const days = Array.isArray(rawDays)
         ? Array.from(
               new Set(
-                  r.days
+                  rawDays
                       .map((d: unknown) => Number(d))
                       .filter((d: number) => Number.isInteger(d) && d >= 0 && d <= 6),
               ),
           ).sort((a, b) => (a as number) - (b as number)) as number[]
         : [];
-    return { lead_minutes, days };
-}
-
-/** Normalize the whole `item_preorder` map; drops malformed entries. */
-export function normalizeItemPreorder(raw: unknown): Record<string, ItemPreorderRule> {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-    const out: Record<string, ItemPreorderRule> = {};
-    for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
-        if (!id) continue;
-        const rule = normalizeRule(value);
-        if (rule) out[id] = rule;
-    }
-    return out;
-}
-
-/** Local "YYYY-MM-DD" in an IANA timezone, falling back to the device date when
- *  no/invalid zone. en-CA formats as YYYY-MM-DD, which is the shape everything
- *  else in this file speaks. */
-function ymdInTimezone(now: Date, timezone?: string | null): string {
-    if (!timezone) return ymd(now);
-    try {
-        return new Intl.DateTimeFormat("en-CA", {
-            timeZone: timezone,
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-        }).format(now);
-    } catch {
-        return ymd(now);
-    }
+    return {
+        // "items" with an EMPTY list would otherwise mean "scheduling applies to
+        // nothing", silently switching the store off. Treat it as unscoped until a
+        // dish is actually picked.
+        scoped: scope === "items" && ids.size > 0,
+        ids,
+        // NaN / negative would poison the Math.max downstream and make every date
+        // unselectable.
+        leadMinutes: Number.isFinite(rawLead) && rawLead > 0 ? Math.floor(rawLead) : 0,
+        days,
+    };
 }
 
 /** Whole days from one "YYYY-MM-DD" to another; null if either is malformed.
@@ -131,86 +116,69 @@ export function baseMenuId(cartItemId: string): string {
     return String(cartItemId || "").split("|")[0].split("_custom_")[0];
 }
 
-/** What a cart demands of the schedule, once every preorder item is considered. */
+/** What a basket demands of the schedule. */
 export interface CartPreorderRequirement {
-    /** True when at least one cart line is a preorder item ⇒ a slot is mandatory. */
+    /** True when this order kind is scoped to specific dishes at all. */
+    scoped: boolean;
+    /** True when the basket actually contains one of them. */
+    matched: boolean;
+    /** Does scheduling apply to THIS basket? Unscoped stores: always. Scoped:
+     *  only when a listed dish is present — otherwise there is no picker and the
+     *  order goes ASAP, which is the whole point of scoping. */
+    appliesToCart: boolean;
+    /** Scheduling is mandatory for this basket (a listed dish is in it). */
     required: boolean;
-    /** The largest per-item notice in the cart, in minutes. */
+    /** Extra notice in minutes. */
     leadMinutes: number;
-    /** Weekdays every preorder item in the cart allows (intersection).
-     *  `null` = unrestricted. `[]` = the items contradict each other. */
+    /** Weekdays the listed dishes are made; `null` = unrestricted. */
     days: number[] | null;
-    /** Base menu ids of the preorder lines, so the UI can name them. */
+    /** Base menu ids of the matching lines, so the UI can name them. */
     itemIds: string[];
-    /** The item with the longest notice, for a message that names one dish rather
-     *  than five. Null when no item in the cart asks for notice at all. */
-    strictestItemId: string | null;
-    /** Every item that imposed a day restriction — NOT necessarily the notice
-     *  item, and often more than one. Kept separate because attributing the days
-     *  to `strictestItemId` produced a flatly false sentence: a 24h cake plus a
-     *  Sunday-only biryani read as "Chocolate Cake needs 24 hours notice and is
-     *  only made on Sundays". And naming just ONE of several is equally wrong —
-     *  with a Sat+Sun dish and a Sun-only dish the surviving day is Sunday, which
-     *  neither dish's own rule explains on its own. */
-    daysItemIds: string[];
 }
 
-const NO_PREORDER: CartPreorderRequirement = {
+const NO_SCOPE: CartPreorderRequirement = {
+    scoped: false,
+    matched: false,
+    appliesToCart: true,
     required: false,
     leadMinutes: 0,
     days: null,
     itemIds: [],
-    strictestItemId: null,
-    daysItemIds: [],
 };
 
 /**
- * Resolve the scheduling constraint a cart imposes.
+ * Resolve the scheduling constraint a basket imposes.
  *
- * Accepts RAW cart line ids and does the base-id extraction itself. Duplicate
- * lines of the same dish (two variants of one cake) collapse to one rule — leads
- * are a MAX, never a sum.
+ * Accepts RAW cart line ids and does the base-id extraction itself, so no caller
+ * can forget the variant split. Duplicate lines of one dish collapse to one match.
+ *
+ * An order carries ONE schedule (orders.scheduled_date / scheduled_time), so a
+ * mixed basket cannot be split: if any listed dish is present, the whole order is
+ * scheduled to suit it, and the checkout says which dishes did it.
  */
 export function resolveCartPreorder(
     settings: PrebookingSettings | null | undefined,
+    dineIn: boolean,
     cartItemIds: Iterable<string> | null | undefined,
 ): CartPreorderRequirement {
-    if (!settings || !cartItemIds) return NO_PREORDER;
-    const rules = normalizeItemPreorder((settings as any).item_preorder);
-    if (!Object.keys(rules).length) return NO_PREORDER;
+    if (!settings) return NO_SCOPE;
+    const scope = readScope(settings, dineIn);
+    if (!scope.scoped) return NO_SCOPE;
 
     const seen = new Set<string>();
-    let leadMinutes = 0;
-    let strictestItemId: string | null = null;
-    const daysItemIds: string[] = [];
-    let days: number[] | null = null;
-    for (const raw of cartItemIds) {
+    for (const raw of cartItemIds ?? []) {
         const id = baseMenuId(raw);
-        if (!id || seen.has(id)) continue;
-        const rule = rules[id];
-        if (!rule) continue;
-        seen.add(id);
-        if (rule.lead_minutes > leadMinutes) {
-            leadMinutes = rule.lead_minutes;
-            strictestItemId = id;
-        }
-        if (rule.days && rule.days.length) {
-            days = days === null ? [...rule.days] : days.filter((d) => rule.days!.includes(d));
-            daysItemIds.push(id);
-        }
+        if (id && scope.ids.has(id)) seen.add(id);
     }
-    if (!seen.size) return NO_PREORDER;
+    const matched = seen.size > 0;
     return {
-        required: true,
-        leadMinutes,
-        days,
+        scoped: true,
+        matched,
+        appliesToCart: matched,
+        required: matched,
+        leadMinutes: matched ? scope.leadMinutes : 0,
+        days: matched && scope.days.length ? scope.days : null,
         itemIds: [...seen],
-        // Fall back to the first preorder line when nothing asks for notice, so a
-        // days-only or zero-notice cart still names a dish instead of "One of your
-        // items". Previously this fallback lived in the loop condition, where it
-        // let a 0-lead item claim the title before a 1440-lead one appeared.
-        strictestItemId: strictestItemId ?? daysItemIds[0] ?? [...seen][0] ?? null,
-        daysItemIds,
     };
 }
 
@@ -265,21 +233,16 @@ export function preorderBlockReason(
     slotTimeTimezone?: string | null,
 ): string | null {
     if (!req.required) return null;
-    const dish = req.strictestItemId ? nameOf(req.strictestItemId) : "One of your items";
-
-    // Two preorder items whose allowed days don't overlap can never share an
-    // order. Say so instead of showing an empty date list.
-    if (req.days !== null && req.days.length === 0) {
-        // Only the day-restricted dishes — listing every preorder line dragged in
-        // items whose availability has nothing to do with the clash.
-        const names = req.daysItemIds.map(nameOf).filter(Boolean);
-        return `${names.join(" and ")} are available on different days, so they can't be ordered together. Please place them as separate orders.`;
-    }
+    // One dish -> name it. Several -> "Your order", because listing four dishes in
+    // a toast reads as an error dump rather than an instruction.
+    const dish =
+        req.itemIds.length === 1 ? nameOf(req.itemIds[0]) : "Your order";
+    const verb = req.itemIds.length === 1 ? "needs" : "needs";
 
     if (!selection?.date || !selection?.time) {
         return req.leadMinutes > 0
-            ? `${dish} needs ${formatLeadTime(req.leadMinutes)} notice — please pick a date and time.`
-            : `${dish} is a preorder item — please pick a date and time.`;
+            ? `${dish} ${verb} ${formatLeadTime(req.leadMinutes)} notice — please pick a date and time.`
+            : `${dish} has to be scheduled — please pick a date and time.`;
     }
 
     // Re-check the chosen slot. The picker should never emit a violating one, but
@@ -327,12 +290,9 @@ export function preorderBlockReason(
     if (req.days !== null && req.days.length) {
         const weekday = new Date(`${selection.date}T00:00:00`).getDay();
         if (!req.days.includes(weekday)) {
-            // Name a dish only when exactly ONE imposed the restriction. With
-            // several, the surviving days are an intersection that no single
-            // dish's rule describes, so attributing them to one is false.
-            const subject =
-                req.daysItemIds.length === 1 ? nameOf(req.daysItemIds[0]) : "Your order";
-            return `${subject} ${req.daysItemIds.length === 1 ? "is" : "can"} only ${req.daysItemIds.length === 1 ? "available" : "be made"} on ${formatAllowedDays(req.days)} — please pick another date.`;
+            return req.itemIds.length === 1
+                ? `${dish} is only available on ${formatAllowedDays(req.days)} — please pick another date.`
+                : `Your order can only be made on ${formatAllowedDays(req.days)} — please pick another date.`;
         }
     }
     return null;
@@ -873,6 +833,64 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
     }
     if (!parsed || typeof parsed !== "object") return base;
     const num = (v: any, fallback: number) => (typeof v === "number" ? v : fallback);
+    /** Menu ids, deduped; anything not a non-empty string is dropped. */
+    const idList = (v: any): string[] =>
+        Array.isArray(v) ? Array.from(new Set(v.filter((x) => typeof x === "string" && x))) : [];
+    /**
+     * One-way migration off the short-lived per-dish shape.
+     *
+     * An earlier build stored `item_preorder: { <menuId>: { lead_minutes, days } }`
+     * with its own settings tab. That shipped, so a partner may have configured it
+     * before the tab was replaced by the scope model. Without this the rules would
+     * stop firing AND be dropped on the next save — silent data loss, and exactly
+     * the failure the whitelist comment in this function warns about.
+     *
+     * Only applies when the new keys are absent, so it can never overwrite a
+     * partner who has since used the new editor. The per-dish notices collapse to
+     * their maximum and the day sets to their intersection, matching how the old
+     * checkout combined a mixed basket.
+     */
+    const migrateLegacy = (): {
+        applies_to?: "items";
+        ids?: string[];
+        lead?: number;
+        days?: number[];
+    } => {
+        const raw = parsed.item_preorder;
+        if (parsed.applies_to !== undefined || !raw || typeof raw !== "object" || Array.isArray(raw)) {
+            return {};
+        }
+        const entries = Object.entries(raw as Record<string, any>).filter(
+            ([id, r]) => id && r && typeof r === "object",
+        );
+        if (!entries.length) return {};
+        let lead = 0;
+        let days: number[] | null = null;
+        for (const [, r] of entries) {
+            const l = Number(r.lead_minutes);
+            if (Number.isFinite(l) && l > lead) lead = Math.floor(l);
+            const d = dayList(r.days);
+            if (d.length) days = days === null ? d : days.filter((x) => d.includes(x));
+        }
+        return {
+            applies_to: "items",
+            ids: entries.map(([id]) => id),
+            lead,
+            // An empty intersection meant "these dishes clash"; there is no way to
+            // express that now, so fall back to unrestricted rather than emitting
+            // a list that would make every date unselectable.
+            days: days && days.length ? days : [],
+        };
+    };
+
+    /** Weekday numbers 0–6, deduped and sorted. */
+    const dayList = (v: any): number[] =>
+        Array.isArray(v)
+            ? Array.from(new Set(v.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))).sort(
+                  (a, b) => a - b,
+              )
+            : [];
+    const legacy = migrateLegacy();
     return {
         // Independent master toggles (default ON for back-compat with existing partners).
         prebooking_enabled: parsed.prebooking_enabled !== false,
@@ -899,11 +917,19 @@ export function mergePrebookingConfig(raw: unknown): PrebookingSettings {
         // key missing here is dropped on the next save from either tab. Every new
         // setting MUST be listed or it silently erases itself.
         free_time_input: parsed.free_time_input === true,
-        // Per-item preorder rules. Listed here for the reason spelled out above:
-        // the Slot Booking tab saves {...mergePrebookingConfig(raw), ...dine-in
-        // fields}, so leaving this out would erase every partner's preorder setup
-        // the first time anyone opened that tab and pressed Save.
-        item_preorder: normalizeItemPreorder(parsed.item_preorder),
+        // Scoped scheduling. Listed here for the reason spelled out above: each
+        // tab saves {...mergePrebookingConfig(raw), ...its own fields}, so a key
+        // missing from this whitelist is erased the first time anyone opens the
+        // OTHER tab and presses Save. Both tabs now own a scope, so all eight
+        // fields have to survive a save from either.
+        applies_to: legacy.applies_to ?? (parsed.applies_to === "items" ? "items" : "all"),
+        preorder_item_ids: legacy.ids ?? idList(parsed.preorder_item_ids),
+        preorder_lead_minutes: legacy.lead ?? num(parsed.preorder_lead_minutes, 0),
+        preorder_days: legacy.days ?? dayList(parsed.preorder_days),
+        dine_in_applies_to: parsed.dine_in_applies_to === "items" ? "items" : "all",
+        dine_in_preorder_item_ids: idList(parsed.dine_in_preorder_item_ids),
+        dine_in_preorder_lead_minutes: num(parsed.dine_in_preorder_lead_minutes, 0),
+        dine_in_preorder_days: dayList(parsed.dine_in_preorder_days),
         dine_in_min_lead_time_minutes: num(
             parsed.dine_in_min_lead_time_minutes,
             num(parsed.min_lead_time_minutes, base.dine_in_min_lead_time_minutes)
