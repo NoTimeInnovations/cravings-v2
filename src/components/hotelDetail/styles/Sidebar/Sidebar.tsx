@@ -822,7 +822,7 @@ const Sidebar = ({
           {/* Discount Banner */}
           <DiscountBanner
             partnerId={hoteldata?.id || ""}
-            currency={hoteldata?.currency || "₹"}
+            visibleMenuIds={(hoteldata as any)?.visibleMenuIds ?? null}            currency={hoteldata?.currency || "₹"}
             accent={styles?.accent || "#ea580c"}
           />
 

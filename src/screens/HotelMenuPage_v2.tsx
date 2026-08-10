@@ -428,12 +428,28 @@ const HotelMenuPage = ({
       .filter(Boolean) as any[];
   }, [hoteldata?.menus, orderType, lockedCategory, hiddenCategoryNames, hotelTimezone]);
 
+  // Offers carry their own nested `menu` object, so an offer strip that renders
+  // `offer.menu` directly bypasses the category filter entirely — a locked
+  // "beverages" menu still advertised discounted biryani. Filter once here and
+  // hand the layouts the narrowed list; every layout takes `offers` from
+  // defaultProps, so this fixes all seven at the source rather than in each.
+  const visibleMenuIds = useMemo(
+    () => new Set(filteredMenus.map((m: any) => m.id).filter(Boolean)),
+    [filteredMenus],
+  );
+  const visibleOffers = useMemo(() => {
+    // No category filter in play → hand back the original array (identity kept,
+    // so nothing downstream re-renders for stores that don't use the feature).
+    if (!lockedCategory && !hiddenCategoryNames) return offers;
+    return (offers || []).filter((o: any) => o?.menu?.id && visibleMenuIds.has(o.menu.id));
+  }, [offers, visibleMenuIds, lockedCategory, hiddenCategoryNames]);
+
   // ✅ Memoize offeredItems to avoid recalculating on every render
   const offeredItems = useMemo(() => {
-    if (!filteredMenus || !offers) return [];
-    const activeOfferMenuIds = new Set(offers.map((offer) => offer.menu?.id));
+    if (!filteredMenus || !visibleOffers) return [];
+    const activeOfferMenuIds = new Set(visibleOffers.map((offer: any) => offer.menu?.id));
     return filteredMenus.filter((item) => activeOfferMenuIds.has(item.id || ""));
-  }, [filteredMenus, offers]);
+  }, [filteredMenus, visibleOffers]);
 
   // ✅ Memoize categories to prevent recalculating unless the menu changes
   const categories = useMemo(() => {
@@ -545,6 +561,10 @@ const HotelMenuPage = ({
     currency: shortCurrencySymbol((hoteldata as any)?.currency),
     menus: filteredMenus,
     allMenus: hoteldata?.menus || [],
+    // Non-null ONLY while a ?category=/?hide= filter is active. Children that
+    // fetch menu rows themselves (DiscountBanner) use it to stay inside the
+    // filter; when it is null they behave exactly as before.
+    visibleMenuIds: lockedCategory || hiddenCategoryNames ? visibleMenuIds : null,
   }), [hoteldata, filteredMenus, effectiveFeatureFlags]);
 
   // Same native-symbol currency for the cart drawer + checkout modals, but keep
@@ -567,7 +587,21 @@ const HotelMenuPage = ({
       // For brand parents, keep ?pickOutlet=1 so OnboardingFlow forces the
       // picker step and bypasses the single-outlet auto-skip (which would
       // otherwise instantly bounce the user back to the only active outlet).
-      const targetSearch = branchContext ? "?pickOutlet=1" : "";
+      //
+      // The category params are CARRIED OVER. The URL is the source of truth for
+      // the filter (see the top of this file), so rewriting it to "" silently
+      // unlocked a pinned menu: a customer on ?category=beverages&hide=others who
+      // tapped the back arrow, then dismissed the overlay, landed on the full menu
+      // with no way back. Every layout's back arrow and outlet "Change" control
+      // routes through here, so preserving them here covers all seven.
+      const kept = new URLSearchParams();
+      for (const key of ["category", "cat", "hide"]) {
+        const v = searchParams?.get(key);
+        if (v) kept.set(key, v);
+      }
+      if (branchContext) kept.set("pickOutlet", "1");
+      const qs = kept.toString();
+      const targetSearch = qs ? `?${qs}` : "";
       if (window.location.search !== targetSearch) {
         window.history.replaceState(null, "", pathname + targetSearch);
       }
@@ -575,7 +609,7 @@ const HotelMenuPage = ({
     setForceStorefront(true);
     setOnboardingDismissed(false);
     setOnboardingKey((k) => k + 1);
-  }, [pathname, branchContext]);
+  }, [pathname, branchContext, searchParams]);
 
   const brandHeader = useMemo(() => {
     // Child outlet: Change → brand parent with ?pickOutlet=1 so the picker
@@ -607,7 +641,7 @@ const HotelMenuPage = ({
   }, [brandLink, branchContext, hoteldata, router, reopenOutletPicker]);
 
   const defaultProps = {
-    offers,
+    offers: visibleOffers,
     hoteldata: filteredHotelData,
     auth,
     theme,
@@ -720,7 +754,10 @@ const HotelMenuPage = ({
               roomy layouts show them inline via <PairingRecommendations>. */}
           {(theme?.menuStyle === "sidebar" || theme?.menuStyle === "v6") && (
             <AddedRecommendationsSheet
-              hoteldata={hoteldata}
+              // filteredHotelData, not hoteldata: this was the only child in this
+              // file handed the unfiltered menu, so a curated pairing could
+              // surface a dish from a hidden category seconds after an add.
+              hoteldata={filteredHotelData}
               accent={styles.accent}
               feature_flags={effectiveFeatureFlags}
               tableNumber={tableNumber}
