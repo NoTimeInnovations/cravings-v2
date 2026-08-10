@@ -9,20 +9,39 @@ import {
 } from "@/lib/subscriptionAccess";
 import { TRIAL_ORDER_LIMIT, isGatedPlan, isTrialPlan } from "@/lib/subscriptionConfig";
 
+/**
+ * Statuses that must NOT spend a free trial order.
+ *
+ * `cancelled` is obvious. The other two are the ones that quietly ate a third of
+ * a real partner's trial: an online-payment order is INSERTED at
+ * `pending_payment` before the customer pays, and sits there forever if they
+ * abandon the payment page — `expired` is the same draft after it times out.
+ * Neither is an order the store ever cooked, and the rest of the system already
+ * says so: the WhatsApp order-event trigger refuses to fire "placed" for a
+ * pending_payment row precisely because the order has not happened yet. Billing
+ * was the one place treating a dead cart as a sale.
+ *
+ * `pending` deliberately still counts — that is a real placed order waiting to be
+ * accepted, not a draft.
+ */
+const NON_BILLABLE_STATUSES = ["cancelled", "pending_payment", "expired"];
+
 const ORDER_USAGE_QUERY = `
-  query TrialOrderUsage($pid: uuid!) {
-    orders_aggregate(where: { partner_id: { _eq: $pid }, status: { _neq: "cancelled" } }) {
+  query TrialOrderUsage($pid: uuid!, $skip: [String!]!) {
+    orders_aggregate(where: { partner_id: { _eq: $pid }, status: { _nin: $skip } }) {
       aggregate { count }
     }
   }
 `;
 
-// created_at of the Nth non-cancelled order (offset = limit - 1) — anchors the
-// 24h grace window deterministically once the cap is reached.
+// created_at of the Nth billable order (offset = limit - 1) — anchors the
+// 24h grace window deterministically once the cap is reached. Must use the SAME
+// filter as the count above, or the window is anchored to an order that was
+// never counted and the partner gets a grace period measured from the wrong day.
 const NTH_ORDER_QUERY = `
-  query NthOrder($pid: uuid!, $offset: Int!) {
+  query NthOrder($pid: uuid!, $offset: Int!, $skip: [String!]!) {
     orders(
-      where: { partner_id: { _eq: $pid }, status: { _neq: "cancelled" } }
+      where: { partner_id: { _eq: $pid }, status: { _nin: $skip } }
       order_by: { created_at: asc }
       limit: 1
       offset: $offset
@@ -47,7 +66,10 @@ async function fetchUsage(
   partnerId: string,
   limit: number,
 ): Promise<UsageData> {
-  const agg = await fetchFromHasura(ORDER_USAGE_QUERY, { pid: partnerId });
+  const agg = await fetchFromHasura(ORDER_USAGE_QUERY, {
+    pid: partnerId,
+    skip: NON_BILLABLE_STATUSES,
+  });
   const usage = agg?.orders_aggregate?.aggregate?.count ?? 0;
 
   let hundredthOrderAt: string | null = null;
@@ -55,6 +77,7 @@ async function fetchUsage(
     const nth = await fetchFromHasura(NTH_ORDER_QUERY, {
       pid: partnerId,
       offset: limit - 1,
+      skip: NON_BILLABLE_STATUSES,
     });
     hundredthOrderAt = nth?.orders?.[0]?.created_at ?? null;
   }
