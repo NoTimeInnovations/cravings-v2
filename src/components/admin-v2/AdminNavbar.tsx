@@ -4,6 +4,7 @@ import { Menu, Printer, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { SheetTrigger } from "@/components/ui/sheet";
 import { AdminThemeToggle } from "./AdminThemeToggle";
+import { AdminShopToggle } from "./AdminShopToggle";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { OrderNotification } from "./OrderNotification";
 import { getFeatures } from "@/lib/getFeatures";
@@ -88,6 +89,12 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                {/* Open / close the store. Both breakpoints on purpose: it is a
+                    twice-a-day action and burying it in Settings on a phone is
+                    exactly the trip this is meant to save. Replaces the old
+                    read-only "Store Closed" badge, which showed the same state
+                    without being able to change it. */}
+                <AdminShopToggle />
                 {/* Light/dark, desktop only. On phones this sat in a very tight
                     row next to notifications, refresh and the account switcher;
                     the same control now lives among the dashboard quick actions,
@@ -97,15 +104,6 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 <div data-tour="dark-mode" className="hidden lg:flex">
                     <AdminThemeToggle label />
                 </div>
-                {userData?.role === 'partner' && !(userData as Partner).is_shop_open && (
-                    <div className="hidden sm:flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-semibold rounded-full border border-red-200 dark:border-red-800 animate-pulse">
-                        <span className="relative flex h-2 w-2 mr-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                        </span>
-                        Store Closed
-                    </div>
-                )}
                 {userData?.role === 'partner' && (() => {
                     const features = getFeatures((userData as Partner).feature_flags || "");
                     const hasPrintingFeatures = features.ordering.access || features.delivery.access || features.pos.access;
