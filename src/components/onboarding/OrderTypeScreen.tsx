@@ -37,6 +37,14 @@ interface OrderTypeScreenProps {
   /** Compact 2-column grid layout where tapping an order type selects it
    *  immediately (no "Continue" button). Off = the default vertical list. */
   gridSelect?: boolean;
+  /** The whole shop is shut — the manual switch, or outside working hours.
+   *  Every order type goes unavailable together, because none of them can be
+   *  fulfilled, and the screen says so instead of asking a question the
+   *  customer cannot usefully answer. */
+  storeClosed?: boolean;
+  /** "Opens tomorrow at 9:00 AM" when the schedule is what closed it. Null
+   *  after a manual close — there is no reopening time to promise. */
+  storeClosedNote?: string | null;
 }
 
 // Compact grid tile used when `gridSelect` is on — tapping it selects that
@@ -112,6 +120,8 @@ export default function OrderTypeScreen({
   mapHref,
   logoFullScreen = false,
   gridSelect = false,
+  storeClosed = false,
+  storeClosedNote = null,
 }: OrderTypeScreenProps) {
   const phoneHref = socialLinks?.phone ? `tel:${socialLinks.phone}` : null;
   const whatsappHref = socialLinks?.whatsapp || null;
@@ -157,10 +167,24 @@ export default function OrderTypeScreen({
     });
   }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive, hotelTimezone, hasDelivery, hasOrdering, hasDineIn]);
 
+  // A shut shop closes every lane at once. Applied HERE rather than at each
+  // option so the per-type windows below cannot contradict it: a delivery
+  // window that says "open till 11pm" means nothing on a day the shop never
+  // opened, and offering the option would take an order nobody can cook.
+  const deliveryOpenNow = isDeliveryOpen && !storeClosed;
+  const takeawayOpenNow = isTakeawayOpen && !storeClosed;
+  const dineInOpenNow = hasDineIn && !storeClosed;
+
   // No order type is currently selectable (all closed / none offered) — the
   // screen falls back to an "Explore Menu" CTA in every layout.
   const noTypesOpen =
-    (!isDeliveryOpen || !hasDelivery) && (!isTakeawayOpen || !hasOrdering) && !hasDineIn;
+    (!deliveryOpenNow || !hasDelivery) && (!takeawayOpenNow || !hasOrdering) && !dineInOpenNow;
+
+  /** What a closed tile says. The shop-level reason outranks the per-type
+   *  window: "Opens tomorrow at 9:00 AM" is the useful sentence, not
+   *  "Available 9:00 AM - 11:00 PM" on a day that never opens. */
+  const closedNoteFor = (windowNote: string | null): string | null =>
+    storeClosed ? storeClosedNote ?? "Closed right now" : windowNote;
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden mx-auto w-full md:max-w-md" style={{ fontFamily: "'Inter', system-ui, sans-serif", background: heroGradient }}>
@@ -239,12 +263,38 @@ export default function OrderTypeScreen({
           content in the rare case it overflows (e.g. 3 order types + a
           closed-hours notice), so the sticky CTA below is always on screen. */}
       <div className={`relative z-[1] -mt-5 flex-1 min-h-0 overflow-y-auto rounded-t-[28px] bg-white px-6 pt-5 ${gridSelect && !noTypesOpen ? "pb-6" : "pb-[112px]"} shadow-[0_-10px_30px_rgba(0,0,0,0.08)]`}>
-        <h1 className="text-xl lg:text-2xl font-semibold tracking-tight text-gray-900">
-          How would you like your order?
-        </h1>
-        <p className="mt-1.5 text-[13px] text-gray-500">
-          You can change this anytime.
-        </p>
+        {/* Closed shops get a statement, not a question. One quiet line, the
+            reopening time, and the menu still one tap away — the alarming red
+            banner belongs to something actually going wrong, not to a shop that
+            is simply shut for the night. */}
+        {storeClosed ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-gray-500" />
+              </span>
+              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-gray-500">
+                Closed right now
+              </span>
+            </div>
+            <h1 className="mt-2 text-xl lg:text-2xl font-semibold tracking-tight text-gray-900">
+              {storeClosedNote ?? "We’re not taking orders right now"}
+            </h1>
+            <p className="mt-1.5 text-[13px] text-gray-500">
+              Have a look around — you can order as soon as we open.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl lg:text-2xl font-semibold tracking-tight text-gray-900">
+              How would you like your order?
+            </h1>
+            <p className="mt-1.5 text-[13px] text-gray-500">
+              You can change this anytime.
+            </p>
+          </>
+)}
 
         {gridSelect ? (
           <div className="mt-4 grid grid-cols-2 gap-2.5">
@@ -253,15 +303,15 @@ export default function OrderTypeScreen({
                 Icon={Bike}
                 label="Delivery"
                 sub="To your doorstep"
-                open={isDeliveryOpen}
+                open={deliveryOpenNow}
                 accent={accent}
-                closedNote={
+                closedNote={closedNoteFor(
                   !isDeliveryActive
                     ? "Currently unavailable"
                     : deliveryTimeAllowed
                       ? `Available ${formatTime12h(deliveryTimeAllowed.from)} - ${formatTime12h(deliveryTimeAllowed.to)}`
-                      : "Currently unavailable"
-                }
+                      : "Currently unavailable",
+                )}
                 onSelect={() => onSelect("delivery")}
               />
             )}
@@ -270,13 +320,13 @@ export default function OrderTypeScreen({
                 Icon={Store}
                 label="Takeaway"
                 sub="Pick up from an outlet"
-                open={isTakeawayOpen}
+                open={takeawayOpenNow}
                 accent={accent}
-                closedNote={
+                closedNote={closedNoteFor(
                   takeawayTimeAllowed
                     ? `Available ${formatTime12h(takeawayTimeAllowed.from)} - ${formatTime12h(takeawayTimeAllowed.to)}`
-                    : null
-                }
+                    : null,
+                )}
                 onSelect={() => onSelect("takeaway")}
               />
             )}
@@ -285,7 +335,7 @@ export default function OrderTypeScreen({
                 Icon={Utensils}
                 label="Dine-in"
                 sub="Book a table for later"
-                open={true}
+                open={dineInOpenNow}
                 accent={accent}
                 onSelect={() => onSelect("dine_in")}
               />
@@ -297,42 +347,44 @@ export default function OrderTypeScreen({
           {hasDelivery && (
             <button
               onClick={() => {
-                if (!isDeliveryOpen) return;
+                if (!deliveryOpenNow) return;
                 setMode("delivery");
               }}
-              disabled={!isDeliveryOpen}
+              disabled={!deliveryOpenNow}
               className={`w-full p-3.5 rounded-2xl cursor-pointer bg-white flex items-center gap-3 transition-all duration-150 ${
-                !isDeliveryOpen
+                !deliveryOpenNow
                   ? "opacity-50 cursor-not-allowed border-[1.5px] border-gray-200"
                   : mode === "delivery"
                     ? "border-[1.5px] shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
                     : "border-[1.5px] border-gray-200 shadow-sm"
               }`}
-              style={mode === "delivery" && isDeliveryOpen ? { borderColor: accent } : undefined}
+              style={mode === "delivery" && deliveryOpenNow ? { borderColor: accent } : undefined}
             >
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                !isDeliveryOpen ? "bg-gray-200" : mode === "delivery" ? "" : "bg-gray-100"
-              }`} style={mode === "delivery" && isDeliveryOpen ? { backgroundColor: accent } : undefined}>
-                <Bike className="w-5 h-5" style={{ color: mode === "delivery" && isDeliveryOpen ? "#fff" : "#111827" }} />
+                !deliveryOpenNow ? "bg-gray-200" : mode === "delivery" ? "" : "bg-gray-100"
+              }`} style={mode === "delivery" && deliveryOpenNow ? { backgroundColor: accent } : undefined}>
+                <Bike className="w-5 h-5" style={{ color: mode === "delivery" && deliveryOpenNow ? "#fff" : "#111827" }} />
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-semibold text-gray-900 tracking-tight">Delivery</p>
                 <p className="text-[13px] text-gray-500 mt-0.5">Delivered to your doorstep</p>
-                {!isDeliveryOpen && (
-                  <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                {!deliveryOpenNow && (
+                  <p className={`text-xs mt-1.5 flex items-center gap-1 ${storeClosed ? "text-gray-400" : "text-red-500"}`}>
                     <Clock className="w-3 h-3" />
-                    {!isDeliveryActive
-                      ? "Currently unavailable"
-                      : deliveryTimeAllowed
-                        ? `Available ${formatTime12h(deliveryTimeAllowed.from)} - ${formatTime12h(deliveryTimeAllowed.to)}`
-                        : "Currently unavailable"}
+                    {closedNoteFor(
+                      !isDeliveryActive
+                        ? "Currently unavailable"
+                        : deliveryTimeAllowed
+                          ? `Available ${formatTime12h(deliveryTimeAllowed.from)} - ${formatTime12h(deliveryTimeAllowed.to)}`
+                          : "Currently unavailable",
+                    )}
                   </p>
                 )}
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center bg-white shrink-0 ${
-                mode === "delivery" && isDeliveryOpen ? "" : "border-gray-300"
-              }`} style={mode === "delivery" && isDeliveryOpen ? { borderColor: accent } : undefined}>
-                {mode === "delivery" && isDeliveryOpen && (
+                mode === "delivery" && deliveryOpenNow ? "" : "border-gray-300"
+              }`} style={mode === "delivery" && deliveryOpenNow ? { borderColor: accent } : undefined}>
+                {mode === "delivery" && deliveryOpenNow && (
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accent }} />
                 )}
               </div>
@@ -343,38 +395,40 @@ export default function OrderTypeScreen({
           {hasOrdering && (
             <button
               onClick={() => {
-                if (!isTakeawayOpen) return;
+                if (!takeawayOpenNow) return;
                 setMode("takeaway");
               }}
-              disabled={!isTakeawayOpen}
+              disabled={!takeawayOpenNow}
               className={`w-full p-3.5 rounded-2xl cursor-pointer bg-white flex items-center gap-3 transition-all duration-150 ${
-                !isTakeawayOpen
+                !takeawayOpenNow
                   ? "opacity-50 cursor-not-allowed border-[1.5px] border-gray-200"
                   : mode === "takeaway"
                     ? "border-[1.5px] shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
                     : "border-[1.5px] border-gray-200 shadow-sm"
               }`}
-              style={mode === "takeaway" && isTakeawayOpen ? { borderColor: accent } : undefined}
+              style={mode === "takeaway" && takeawayOpenNow ? { borderColor: accent } : undefined}
             >
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                !isTakeawayOpen ? "bg-gray-200" : mode === "takeaway" ? "" : "bg-gray-100"
-              }`} style={mode === "takeaway" && isTakeawayOpen ? { backgroundColor: accent } : undefined}>
-                <Store className="w-5 h-5" style={{ color: mode === "takeaway" && isTakeawayOpen ? "#fff" : "#111827" }} />
+                !takeawayOpenNow ? "bg-gray-200" : mode === "takeaway" ? "" : "bg-gray-100"
+              }`} style={mode === "takeaway" && takeawayOpenNow ? { backgroundColor: accent } : undefined}>
+                <Store className="w-5 h-5" style={{ color: mode === "takeaway" && takeawayOpenNow ? "#fff" : "#111827" }} />
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-semibold text-gray-900 tracking-tight">Takeaway</p>
                 <p className="text-[13px] text-gray-500 mt-0.5">Pick up from an outlet</p>
-                {!isTakeawayOpen && takeawayTimeAllowed && (
-                  <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                {!takeawayOpenNow && (storeClosed || takeawayTimeAllowed) && (
+                  <p className={`text-xs mt-1.5 flex items-center gap-1 ${storeClosed ? "text-gray-400" : "text-red-500"}`}>
                     <Clock className="w-3 h-3" />
-                    Available {formatTime12h(takeawayTimeAllowed.from)} - {formatTime12h(takeawayTimeAllowed.to)}
+                    {storeClosed
+                      ? storeClosedNote ?? "Closed right now"
+                      : `Available ${formatTime12h(takeawayTimeAllowed!.from)} - ${formatTime12h(takeawayTimeAllowed!.to)}`}
                   </p>
                 )}
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center bg-white shrink-0 ${
-                mode === "takeaway" && isTakeawayOpen ? "" : "border-gray-300"
-              }`} style={mode === "takeaway" && isTakeawayOpen ? { borderColor: accent } : undefined}>
-                {mode === "takeaway" && isTakeawayOpen && (
+                mode === "takeaway" && takeawayOpenNow ? "" : "border-gray-300"
+              }`} style={mode === "takeaway" && takeawayOpenNow ? { borderColor: accent } : undefined}>
+                {mode === "takeaway" && takeawayOpenNow && (
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accent }} />
                 )}
               </div>
@@ -384,9 +438,12 @@ export default function OrderTypeScreen({
           {/* Dine-in (table reservation) */}
           {hasDineIn && (
             <button
-              onClick={() => setMode("dine_in")}
+              onClick={() => { if (!dineInOpenNow) return; setMode("dine_in"); }}
+              disabled={!dineInOpenNow}
               className={`w-full p-3.5 rounded-2xl cursor-pointer bg-white flex items-center gap-3 transition-all duration-150 ${
-                mode === "dine_in"
+                !dineInOpenNow
+                  ? "opacity-50 cursor-not-allowed border-[1.5px] border-gray-200"
+                  : mode === "dine_in"
                   ? "border-[1.5px] shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
                   : "border-[1.5px] border-gray-200 shadow-sm"
               }`}
@@ -435,14 +492,14 @@ export default function OrderTypeScreen({
               className="w-full h-[48px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98]"
               style={{ backgroundColor: accent }}
             >
-              Explore Menu
+              {storeClosed ? "Browse the menu" : "Explore Menu"}
             </button>
           ) : (
             <button
               onClick={() => onSelect(mode)}
               disabled={
-                (mode === "delivery" && !isDeliveryOpen) ||
-                (mode === "takeaway" && !isTakeawayOpen)
+                (mode === "delivery" && !deliveryOpenNow) ||
+                (mode === "takeaway" && !takeawayOpenNow)
               }
               className="w-full h-[48px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
               style={{ backgroundColor: accent }}

@@ -55,6 +55,7 @@ import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import { quoteShiprocketCharge } from "@/app/actions/shiprocketQuote";
 import { hybridCarrierFor } from "@/lib/hybridDelivery";
+import { isStoreOpen, storeHoursFromSettings } from "@/lib/storeHours";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
@@ -999,6 +1000,18 @@ const PlaceOrderModalV2 = ({
   const instantLaneEnabled =
     (partnerFeatures.porter_bridge.access && partnerFeatures.porter_bridge.enabled) ||
     (partnerFeatures.delivery_agent.access && partnerFeatures.delivery_agent.enabled);
+  // A shut shop takes no orders. The closed sheet on the menu can be dismissed
+  // so a customer can still read the menu — which makes this the real guard,
+  // not a second opinion. Recomputed each render (pure arithmetic on the
+  // stored schedule) so sitting on the checkout across the closing time cannot
+  // leave a stale "open" behind.
+  const storeIsClosedNow =
+    (hotelData as any)?.is_shop_open === false ||
+    !isStoreOpen(
+      storeHoursFromSettings((hotelData as any)?.storefront_settings),
+      (hotelData as any)?.timezone || "Asia/Kolkata",
+    ).open;
+
   const hybridCarrier = instantLaneEnabled
     ? hybridCarrierFor(hotelData?.delivery_rules as any, deliveryInfo?.distance)
     : null;
@@ -2416,6 +2429,10 @@ const PlaceOrderModalV2 = ({
       toast.error(`Minimum order of ${currency}${minimumOrderAmount} required for delivery.`);
       return;
     }
+    if (storeIsClosedNow) {
+      toast.error("This store is closed right now and cannot take the order.");
+      return;
+    }
     if (orderType === "delivery") {
       if (!address?.trim()) {
         toast.error("Please set a delivery address.");
@@ -2872,6 +2889,10 @@ const PlaceOrderModalV2 = ({
     }
     if (isBelowMinimum) {
       toast.error(`Minimum order of ${currency}${minimumOrderAmount} required for delivery.`);
+      return;
+    }
+    if (storeIsClosedNow) {
+      toast.error("This store is closed right now and cannot take the order.");
       return;
     }
     if (orderType === "delivery") {
@@ -3493,7 +3514,8 @@ const PlaceOrderModalV2 = ({
     (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) ||
     incompatibleItems.length > 0 ||
     stockBlocked ||
-    isBelowMinimum;
+    isBelowMinimum ||
+    storeIsClosedNow;
 
   return (
     <>

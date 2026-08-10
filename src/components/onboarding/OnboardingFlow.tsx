@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  describeNextOpen,
+  isStoreOpen,
+  localNow,
+  storeHoursFromSettings,
+} from "@/lib/storeHours";
 import { useRouter, useSearchParams } from "next/navigation";
 import useOrderStore from "@/store/orderStore";
 import { useLocationStore } from "@/store/geolocationStore";
@@ -515,6 +521,29 @@ export default function OnboardingFlow({
     );
   }
 
+  // Is the shop shut right now — manually, or by its working hours? Computed
+  // here because this component already holds the partner row, the timezone and
+  // storefront_settings, and it decides whether the order-type question is worth
+  // asking at all. Re-checked on a timer so a customer sitting on this screen at
+  // 8:59 watches it come alive rather than being told to come back tomorrow.
+  const [storeClockTick, setStoreClockTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStoreClockTick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const storeSchedule = useMemo(
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => isStoreOpen(storeHoursFromSettings(storefrontSettings), hotelTimezone || "Asia/Kolkata"),
+    [storefrontSettings, hotelTimezone, storeClockTick],
+  );
+  const manuallyClosed = (hotelData as any)?.is_shop_open === false;
+  const storeClosed = manuallyClosed || !storeSchedule.open;
+  // Only the SCHEDULE knows when the doors open again; a manual close has no
+  // reopening time and must not be given an invented one.
+  const storeClosedNote = manuallyClosed
+    ? null
+    : describeNextOpen(storeSchedule, localNow(hotelTimezone || "Asia/Kolkata").date);
+
   return (
     <div
       className={`fixed inset-0 overflow-y-auto scrollbar-hidden transition-all duration-300 ${closing ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
@@ -574,6 +603,8 @@ export default function OnboardingFlow({
             mapHref={getPartnerMapsUrl(hotelData)}
             logoFullScreen={onboardingLogoFullScreen}
             gridSelect={orderTypeGridSelect}
+            storeClosed={storeClosed}
+            storeClosedNote={storeClosedNote}
           />
         )}
 

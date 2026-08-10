@@ -79,6 +79,7 @@ import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import { quoteShiprocketCharge } from "@/app/actions/shiprocketQuote";
 import { clearSessionOrderType } from "@/lib/onboardingSession";
 import { hybridCarrierFor } from "@/lib/hybridDelivery";
+import { isStoreOpen, storeHoursFromSettings } from "@/lib/storeHours";
 
 const DELIVERY_AGENT_PRICE_MARKUP = 10;
 
@@ -2391,6 +2392,18 @@ const PlaceOrderModal = ({
   const instantLaneEnabled =
     (!!hotelFeatures?.porter_bridge?.access && !!hotelFeatures?.porter_bridge?.enabled) ||
     (!!hotelFeatures?.delivery_agent?.access && !!hotelFeatures?.delivery_agent?.enabled);
+  // A shut shop takes no orders. The closed sheet on the menu can be dismissed
+  // so a customer can still read the menu — which makes this the real guard,
+  // not a second opinion. Recomputed each render (pure arithmetic on the
+  // stored schedule) so sitting on the checkout across the closing time cannot
+  // leave a stale "open" behind.
+  const storeIsClosedNow =
+    (hotelData as any)?.is_shop_open === false ||
+    !isStoreOpen(
+      storeHoursFromSettings((hotelData as any)?.storefront_settings),
+      (hotelData as any)?.timezone || "Asia/Kolkata",
+    ).open;
+
   const hybridCarrier = instantLaneEnabled
     ? hybridCarrierFor(hotelData?.delivery_rules as any, deliveryInfo?.distance)
     : null;
@@ -3571,6 +3584,11 @@ const PlaceOrderModal = ({
   const handlePlaceOrder = async (onSuccessCallback?: () => void) => {
     if (tableNumber === 0 && !orderType) {
       toast.error("Please select an order type");
+      return;
+    }
+
+    if (storeIsClosedNow) {
+      toast.error("This store is closed right now and cannot take the order.");
       return;
     }
 
