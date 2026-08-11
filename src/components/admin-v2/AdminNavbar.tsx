@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Menu, Printer, RefreshCw, MoreVertical, Globe, Check } from "lucide-react";
+import { Menu, Printer, RefreshCw, MoreVertical, Globe, Check, Bell, ChevronDown } from "lucide-react";
 
 import { useState } from "react";
 import { SheetTrigger } from "@/components/ui/sheet";
@@ -11,13 +11,11 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { OrderNotification } from "./OrderNotification";
+import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { getFeatures } from "@/lib/getFeatures";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { AdminAccountSwitcher } from "./AdminAccountSwitcher";
@@ -38,6 +36,17 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
     // widget loads with the navbar and the language list can live in the
     // overflow menu below.
     const { current: currentLang, setLang } = useAdminTranslate();
+    const showNotifications = !isFreePlan((userData as Partner)?.subscription_details?.plan?.id);
+    // The bell now lives in the overflow menu, so the sheet is opened from a
+    // menu item and its state has to live out here.
+    const [notifOpen, setNotifOpen] = useState(false);
+    const [langOpen, setLangOpen] = useState(false);
+    // Pending count is mirrored onto the menu button. Burying a live order alert
+    // behind a menu would otherwise mean a new order is invisible until someone
+    // opens it — the badge keeps the glanceable part on the row.
+    const pendingCount = useOrderSubscriptionStore((st) =>
+        st.orders.filter((o) => o.status === "pending").length,
+    );
     // Printer settings only exist inside the wrapped app, and only for partners
     // whose plan includes an order surface to print from.
     const showPrinter =
@@ -147,11 +156,6 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 <div data-tour="dark-mode" className="hidden lg:flex">
                     <AdminThemeToggle label />
                 </div>
-                {!isFreePlan((userData as Partner)?.subscription_details?.plan?.id) && (
-                    <div data-tour="notifications">
-                        <OrderNotification />
-                    </div>
-                )}
                 {/* Overflow: language and printer settings. Both are set-once
                     preferences, so a tap to reach them costs nothing.
                     Deliberately NOT in here: the notification bell, which carries a
@@ -159,35 +163,71 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                     difference between seeing a new order and missing it. */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label="More options" title="More">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="relative"
+                            aria-label={pendingCount > 0 ? `More options (${pendingCount} pending orders)` : "More options"}
+                            title="More"
+                        >
                             <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                            {showNotifications && pendingCount > 0 && (
+                                <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                                    {pendingCount}
+                                </span>
+                            )}
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-52">
-                        <DropdownMenuSub>
-                            <DropdownMenuSubTrigger>
-                                <Globe className="mr-2 h-4 w-4" />
-                                Language
-                                <span className="ml-auto text-xs font-semibold uppercase text-muted-foreground">
-                                    {currentLang}
-                                </span>
-                            </DropdownMenuSubTrigger>
-                            {/* notranslate: a language list rendered in the language
-                                you are trying to leave is a one-way door. */}
-                            <DropdownMenuSubContent
-                                translate="no"
-                                className="notranslate max-h-[60vh] overflow-y-auto"
-                            >
+                    <DropdownMenuContent align="end" sideOffset={6} collisionPadding={8} className="max-h-[75vh] w-56 overflow-y-auto">
+                        {showNotifications && (
+                            <DropdownMenuItem onClick={() => setNotifOpen(true)}>
+                                <Bell className="mr-2 h-4 w-4" />
+                                Pending orders
+                                {pendingCount > 0 && (
+                                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                                        {pendingCount}
+                                    </span>
+                                )}
+                            </DropdownMenuItem>
+                        )}
+                        {/* Inline expander, not a Radix submenu: a submenu is a side
+                            flyout, and on a phone there is no side to fly out to —
+                            the language list rendered half off the left edge.
+                            onSelect is prevented so picking "Language" expands the
+                            list instead of closing the whole menu. */}
+                        <DropdownMenuItem
+                            onSelect={(e) => {
+                                e.preventDefault();
+                                setLangOpen((o) => !o);
+                            }}
+                        >
+                            <Globe className="mr-2 h-4 w-4" />
+                            Language
+                            <span className="ml-auto flex items-center gap-1 text-xs font-semibold uppercase text-muted-foreground">
+                                {currentLang}
+                                <ChevronDown
+                                    className={`h-3.5 w-3.5 transition-transform ${langOpen ? "rotate-180" : ""}`}
+                                />
+                            </span>
+                        </DropdownMenuItem>
+                        {langOpen && (
+                            /* notranslate: a language list rendered in the language
+                               you are trying to leave is a one-way door. */
+                            <div translate="no" className="notranslate max-h-56 overflow-y-auto">
                                 {MENU_LANGUAGES.map((l) => (
-                                    <DropdownMenuItem key={l.code} onClick={() => setLang(l.code)}>
+                                    <DropdownMenuItem
+                                        key={l.code}
+                                        className="pl-8"
+                                        onClick={() => setLang(l.code)}
+                                    >
                                         {l.label}
                                         {currentLang === l.code && (
                                             <Check className="ml-auto h-4 w-4 text-orange-600" />
                                         )}
                                     </DropdownMenuItem>
                                 ))}
-                            </DropdownMenuSubContent>
-                        </DropdownMenuSub>
+                            </div>
+                        )}
                         {showPrinter && (
                             <DropdownMenuItem onClick={() => console.log("PRINTER SETTINGS OPEN")}>
                                 <Printer className="mr-2 h-4 w-4" />
@@ -196,6 +236,11 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                         )}
                     </DropdownMenuContent>
                 </DropdownMenu>
+                {showNotifications && (
+                    <div data-tour="notifications">
+                        <OrderNotification open={notifOpen} onOpenChange={setNotifOpen} hideTrigger />
+                    </div>
+                )}
                 {userData?.role === 'partner' && (
                     <div data-tour="account-switcher">
                         <AdminAccountSwitcher />
