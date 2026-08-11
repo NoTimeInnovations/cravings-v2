@@ -24,6 +24,11 @@ interface HistItem {
   /** Null means a rider was never assigned. */
   assignedAt?: number | null;
   createdAt: number;
+  /** Porter said cancelled for a booking that HAD a rider, with no reallocation
+   *  to follow — its app may still show that rider en route. Uncertain, not dead. */
+  cancelSuspect?: boolean;
+  /** Set when we followed a Porter reallocation onto a new CRN — the old one. */
+  reallocatedFrom?: string | null;
 }
 interface Progress {
   status: string;
@@ -65,6 +70,7 @@ const STATUS_LABEL: Record<string, string> = {
  * search timed out. They need different responses from whoever is reading this.
  */
 function cancelLabel(h: HistItem): string {
+  if (h.cancelSuspect) return "Cancelled? — check Porter app";
   if (h.cancelledBy) {
     const who =
       h.cancelledBy === "partner" ? "partner"
@@ -109,6 +115,10 @@ function RiderHistoryBlock({
         {history.map((h) => {
           const st = histStatus(h.status);
           const label = h.status === "cancelled" ? cancelLabel(h) : st.label;
+          // Uncertain is not failed: amber reads as "needs a look", not "dead".
+          const cls = h.cancelSuspect
+            ? "border-amber-300 bg-amber-50 text-amber-700"
+            : st.cls;
           return (
             <div key={h.bookingId} className="flex items-center gap-2 rounded-md border bg-white px-3 py-1.5 text-sm">
               <span className="min-w-0 flex-1 truncate">
@@ -116,13 +126,18 @@ function RiderHistoryBlock({
                 {h.driver?.name ? <span className="text-muted-foreground"> · {h.driver.name}</span> : null}
                 {h.driver?.vehicleNumber ? <span className="text-muted-foreground"> · {h.driver.vehicleNumber}</span> : null}
                 {h.crn ? <span className="text-muted-foreground"> · {h.crn}</span> : null}
+                {h.reallocatedFrom ? (
+                  <span className="block truncate text-xs text-muted-foreground">
+                    Porter reassigned this from {h.reallocatedFrom}
+                  </span>
+                ) : null}
                 {h.status === "cancelled" && h.cancelReason ? (
                   <span className="block truncate text-xs text-muted-foreground">
                     {h.cancelReason}
                   </span>
                 ) : null}
               </span>
-              <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium ${st.cls}`}>
+              <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium ${cls}`}>
                 {label}
               </span>
             </div>
