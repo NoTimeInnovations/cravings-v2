@@ -36,6 +36,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { fillOneItemFromGoogle } from "@/app/actions/googleImageFallback";
 import { runPool } from "@/lib/runPool";
 import { extractMenuFromFiles } from "@/lib/menu/menuExtraction";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 interface AdminV2AddCategoryProps {
     onBack: () => void;
@@ -117,12 +118,16 @@ export function AdminV2AddCategory({ onBack }: AdminV2AddCategoryProps) {
     }, [menuImageFiles]);
 
     // ─── Variant Handlers ───
-    const addVariantToForm = () => {
+    const addVariantToForm = async () => {
         if (!newVariant.name) {
             toast.error("Please fill the option name");
             return;
         }
-        if (!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
+        if (!newVariant.price && (await confirmDialog({
+            title: "Price is zero",
+            description: "This option has no price. Do you want to proceed?",
+            confirmText: "Save option",
+        })) === false) {
             return;
         }
         if (editingVariantIndex !== null) {

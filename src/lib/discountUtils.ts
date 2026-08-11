@@ -28,16 +28,29 @@ export type OrderDiscountLike = {
  */
 export function computeDiscountAmount(
   discount: OrderDiscountLike | null | undefined,
-  subtotal: number
+  subtotal: number,
+  /**
+   * The worth of just the items an item-scoped discount names, when the caller
+   * has the lines to work it out (see discountStack.scopedBaseFor). NULL or
+   * omitted keeps the whole-cart behaviour.
+   *
+   * A caller that has the lines MUST pass this. Recomputing a scoped discount
+   * against the full subtotal re-expands it to the whole bill and then persists
+   * that as the order's total — the customer was charged the scoped amount.
+   */
+  scopedBase?: number | null
 ): number {
   if (!discount) return 0;
   if (discount.type === "percentage") {
-    let amount = (subtotal * (Number(discount.value) || 0)) / 100;
+    const base = scopedBase == null ? subtotal : scopedBase;
+    let amount = (base * (Number(discount.value) || 0)) / 100;
     const cap = Number(discount.max_discount_amount);
     if (Number.isFinite(cap) && cap > 0) amount = Math.min(amount, cap);
     return amount;
   }
-  return Number(discount.value) || 0;
+  // A scoped flat discount cannot exceed the items it names.
+  const flat = Number(discount.value) || 0;
+  return scopedBase == null ? flat : Math.min(flat, scopedBase);
 }
 
 /**
@@ -142,6 +155,40 @@ export function isLineOnOffer(
  * discountable base, which made the discount qualify and be ineligible at the
  * same time, and the checkout oscillated between the two.
  */
+/**
+ * Whether this partner refuses discounts outright on any cart that contains an
+ * offer item — "discounts OR offers, never both".
+ *
+ * Distinct from the default behaviour, which is softer: normally an offer line
+ * is merely excluded from the discount base, so a mixed cart still gets the
+ * discount on its full-price items. Partners running thin margins want the
+ * harder rule, because a customer combining a coupon with an already-marked-down
+ * item is exactly the stacking they meant to prevent.
+ *
+ * Defaults to false — existing partners keep the softer behaviour.
+ */
+export function isDiscountBlockedWithOffers(deliveryRules: any): boolean {
+  return !!deliveryRules?.discount_excludes_offers;
+}
+
+/**
+ * True when a discount must be REFUSED for this cart: the partner opted into the
+ * hard rule and at least one line is sold at an offer price.
+ *
+ * Deliberately checks the cart, not the discount: it is the presence of an offer
+ * item that disqualifies the bill, whichever coupon is being applied.
+ */
+export function isDiscountRefusedForCart(
+  lines: DiscountCartLine[] | null | undefined,
+  offers: OfferLike[] | null | undefined,
+  deliveryRules: any,
+  now: number = Date.now(),
+): boolean {
+  if (!isDiscountBlockedWithOffers(deliveryRules)) return false;
+  if (!lines?.length || !offers?.length) return false;
+  return lines.some((line) => isLineOnOffer(line, offers, now));
+}
+
 export function discountableLines<T extends DiscountCartLine>(
   lines: T[] | null | undefined,
   offers: OfferLike[] | null | undefined,

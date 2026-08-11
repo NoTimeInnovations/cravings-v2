@@ -76,6 +76,7 @@ import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch, isRealDeliveryOrder } from "@/lib/ownDriverDispatch";
 import ManualPorterBookButton from "./ManualPorterBookButton";
 import ManualPoolBookButton from "./ManualPoolBookButton";
+import ShiprocketOrderPanel from "./ShiprocketOrderPanel";
 import PorterDispatchCountdown from "./PorterDispatchCountdown";
 import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
 import PoolRiderPanel from "@/components/PoolRiderPanel";
@@ -750,6 +751,18 @@ export function OrderDetails({ order, onBack, onEdit, lookupOrders, onOrdersChan
                                 (order as any).delivery_provider === "menuthere_pool"
                             }
                         />
+                    )}
+
+                {/* Shiprocket. Gated only on the flag and a delivery address —
+                    deliberately NOT on delivery_location coordinates like the
+                    rider buttons above: parcel mode routes on the PIN code in the
+                    address text, so an order with no map pin is still shippable.
+                    The panel itself shows why a mode that DOES need coordinates
+                    (Shiprocket Quick) refused. */}
+                {getFeatures((userData as Partner)?.feature_flags || null).shiprocket.enabled &&
+                    order.type === "delivery" &&
+                    !!order.deliveryAddress?.trim() && (
+                        <ShiprocketOrderPanel orderId={order.id} orderStatus={order.status} />
                     )}
             </div>
 

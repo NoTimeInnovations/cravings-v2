@@ -28,6 +28,7 @@ import {
   Store,
   Wallet,
   CreditCard,
+  CalendarClock,
 } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
@@ -49,10 +50,12 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
-import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd, validateCustomPrebookTime } from "@/lib/prebooking";
+import { useQrDataStore } from "@/store/qrDataStore";
+import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd, validateCustomPrebookTime, resolveCartPreorder, preorderBlockReason, formatLeadTime, formatAllowedDays, isOrderTypeAllowed } from "@/lib/prebooking";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
-import { isBeyondThirdPartyRadius } from "@/lib/hybridDelivery";
+import { quoteShiprocketCharge } from "@/app/actions/shiprocketQuote";
+import { hybridCarrierFor } from "@/lib/hybridDelivery";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
@@ -93,9 +96,9 @@ import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
 import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
 import { computeMaxRedeemable } from "@/lib/loyalty/config";
-import { discountableSubtotal, isDiscountStackingEnabled } from "@/lib/discountUtils";
-import { valueStack, canStack, givesGift, type StackableDiscount } from "@/lib/discountStack";
-import { bxgyFreebieUnits, bxgyGivesFreeItem, bxgyRepeatCount, bxgyRewardAmount, describeBxgy } from "@/lib/bxgy";
+import { discountableLines, discountableSubtotal, isDiscountRefusedForCart, isDiscountStackingEnabled } from "@/lib/discountUtils";
+import { valueStack, canStack, givesGift, scopedBaseFor, type StackableDiscount } from "@/lib/discountStack";
+import { bxgyFreebieUnits, bxgyGivesFreeItem, bxgyRepeatCount, bxgyRewardAmount, describeBxgy, parseIdList } from "@/lib/bxgy";
 import { fireGiftConfetti, originOf } from "@/lib/giftConfetti";
 import { GiftEarnedModal } from "@/components/hotelDetail/GiftEarnedModal";
 import { computeDeliveryBenefit, resolveDeliveryBenefit } from "@/lib/freeDelivery";
@@ -118,6 +121,10 @@ type AppliedDiscount = {
   discount_order_types?: string;
   valid_days?: string;
   applicable_on?: string;
+  /** Must travel WITH applicable_on: the money path reads this object, not the
+   *  raw row, so dropping it silently turns a scoped discount back into a
+   *  whole-cart one. */
+  category_item_ids?: string;
   rank?: number;
   pp_discount_id?: string;
   freebie_item_count?: number;
@@ -180,6 +187,7 @@ function toAppliedDiscount(
     discount_order_types: row.discount_order_types || undefined,
     valid_days: row.valid_days || undefined,
     applicable_on: row.applicable_on || undefined,
+    category_item_ids: row.category_item_ids || undefined,
     has_coupon: row.has_coupon,
     rank: optNum(row.rank),
     pp_discount_id: row.pp_discount_id || undefined,
@@ -508,6 +516,13 @@ const PlaceOrderModalV2 = ({
   }, [findSavedAddress, address, userCoordinates]);
 
   const isQrScan = qrId !== null && tableNumber !== 0;
+  // What the customer is sitting at. Prefer the partner's own label for the QR
+  // ("T3", "Balcony 2") and fall back to the raw number. One partner uses rooms
+  // rather than tables — same id check V1's TableNumberCard makes.
+  const { qrData } = useQrDataStore();
+  const seatNoun =
+    hotelData?.id === "33f5474e-4644-4e47-a327-94684c71b170" ? "Room" : "Table";
+  const seatLabel = qrData?.table_name || (tableNumber ? String(tableNumber) : "");
 
   const isDeliveryActive = hotelData?.delivery_rules?.isDeliveryActive ?? true;
   const deliveryTimeAllowed = hotelData?.delivery_rules?.delivery_time_allowed;
@@ -681,9 +696,38 @@ const PlaceOrderModalV2 = ({
   // Discounts never apply to an item that is already sold at an OFFER price —
   // that line's price is the offer price, so discounting it again would mark it
   // down twice. Everything else in the cart stays discountable.
+  // …and when the partner turns on "don't allow discounts with offers", a single
+  // offer item disqualifies the WHOLE bill rather than just its own line.
+  // Enforced by zeroing the base, not by hiding a button: eligibility and the
+  // savings both derive from it, so a discount that must be refused cannot
+  // qualify, cannot subtract, and cannot be persisted with a stale client.
+  const discountRefused = useMemo(
+    () =>
+      isDiscountRefusedForCart(
+        items || [],
+        (hotelData as any)?.offers,
+        (hotelData as any)?.delivery_rules,
+      ),
+    [items, (hotelData as any)?.offers, (hotelData as any)?.delivery_rules],
+  );
+
   const discountBase = useMemo(
-    () => discountableSubtotal(items || [], (hotelData as any)?.offers),
-    [items, (hotelData as any)?.offers],
+    () =>
+      discountRefused
+        ? 0
+        : discountableSubtotal(items || [], (hotelData as any)?.offers),
+    [discountRefused, items, (hotelData as any)?.offers],
+  );
+
+  // The same slice as discountBase, kept as LINES: an item scope is a
+  // membership test, not a subtotal. Empty when the partner refuses discounts
+  // on offer carts, so a scoped discount is refused there for the same reason.
+  const discountLines = useMemo(
+    () =>
+      discountRefused
+        ? []
+        : discountableLines(items || [], (hotelData as any)?.offers),
+    [discountRefused, items, (hotelData as any)?.offers],
   );
 
   // Per-item takeaway surcharge, baked into prices only when the takeaway order
@@ -712,6 +756,7 @@ const PlaceOrderModalV2 = ({
     [(hotelData as any)?.prebooking_settings],
   );
   const prebookingFeatureOn = !!(partnerFeatures?.prebooking?.enabled && prebookingSettings);
+
   // Independent master toggles (Prebooking tab / Slot Booking tab).
   const scheduleEnabled = prebookingFeatureOn && prebookingSettings?.prebooking_enabled !== false;
   const slotBookingEnabled = prebookingFeatureOn && prebookingSettings?.slot_booking_enabled !== false;
@@ -764,8 +809,119 @@ const PlaceOrderModalV2 = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open_place_order_modal, isQrScan, orderType, userCoordinates?.lat, userCoordinates?.lng, hotelData?.id]);
 
-  // Picker visibility: dine-in uses slot booking; delivery/takeaway use prebooking.
-  const showPicker = !!prebookingSettings && (isDineIn ? allowDineInReservation : scheduleEnabled);
+  // ── Scoped scheduling ("preorder items") ───────────────────────────────────
+  // The partner can scope scheduling to specific dishes instead of every order.
+  // Three outcomes for a basket:
+  //   unscoped              -> exactly the old behaviour
+  //   scoped, no match      -> scheduling does not apply at all; ordinary ASAP order
+  //   scoped, dish present  -> a slot is MANDATORY, pushed out by the notice
+  //
+  // Resolved from the RAW settings, before `showPicker`, because showPicker now
+  // depends on it. `schedulingBase` below carries the gate that used to be here:
+  // when the partner has scheduling switched off entirely, a scoped basket goes
+  // inert rather than becoming unsellable.
+  //
+  // Keyed on `isDineIn` — deliberately, not on prebookOrderTypeKey, which resolves
+  // to "dine_in" for a QR table order. At a QR table `allowDineInReservation` is
+  // false (table booking never applies there) and the picker is mounted with
+  // reservation={isDineIn}, so it reads the DELIVERY windows. Selecting the scope
+  // by prebookOrderTypeKey would read the dine-in dish list against delivery
+  // windows — a scope and a schedule from two different tabs. This keeps both on
+  // the same side of that pre-existing split. Consequence worth knowing: a dish
+  // scoped only under Slot Booking does not trigger for a QR table order.
+  const cartScope = useMemo(
+    () => resolveCartPreorder(prebookingSettings, isDineIn, (items || []).map((it) => it.id)),
+    [prebookingSettings, isDineIn, items],
+  );
+  // Is scheduling offered for this order kind at all?
+  const schedulingBase = !!prebookingSettings && (isDineIn ? allowDineInReservation : scheduleEnabled);
+  // Picker visibility. A scoped basket with none of the listed dishes must NOT see
+  // the picker — that is the entire point of scoping.
+  const showPicker = schedulingBase && cartScope.appliesToCart;
+  // Mandatory-slot flag, gated on scheduling being available so that turning
+  // prebooking off makes the rule inert instead of making dishes unsellable.
+  const preorderRequired = schedulingBase && cartScope.required;
+  // Drop a captured slot the moment scheduling stops applying — the basket no
+  // longer matches a scoped dish, or the order type changed. `prebooking` is raw
+  // picker state that outlives the picker being hidden, and it feeds the live
+  // stock query's date (selectedStockDate above), so leaving it set checks stock
+  // for a day the order will never carry.
+  useEffect(() => {
+    if (!showPicker && prebooking) setPrebooking(null);
+  }, [showPicker, prebooking]);
+  // Name lookup for the messages. Falls back to a generic noun rather than an
+  // empty string — a dish can be in the basket but missing from the 60s-stale
+  // menu snapshot, and "" needs 24 hours notice reads as a bug.
+  const preorderNameOf = useCallback(
+    (menuId: string): string => {
+      const m = allMenus.find((x: any) => x.id === menuId);
+      return m?.name || items?.find((it) => it.id.split("|")[0] === menuId)?.name || "One of your items";
+    },
+    [allMenus, items],
+  );
+  // A listed dish sharing the basket with something else. The customer is told
+  // which dish and what to do; placement is refused until they split it.
+  const preorderMixedBlock =
+    schedulingBase && cartScope.mixed
+      ? `${
+          cartScope.itemIds.length === 1
+            ? preorderNameOf(cartScope.itemIds[0])
+            : cartScope.itemIds.map(preorderNameOf).join(" and ")
+        } ${cartScope.itemIds.length === 1 ? "has" : "have"} to be ordered ${
+          cartScope.itemIds.length === 1 ? "on its own" : "on their own"
+        }, because ${
+          cartScope.itemIds.length === 1 ? "it needs" : "they need"
+        } to be made in advance. Please remove ${
+          cartScope.itemIds.length === 1 ? "it" : "them"
+        }, or remove the other items, to continue.`
+      : null;
+  // Stable primitive for the picker's memo deps — see preorderDaysKey there.
+  const preorderDaysKey = cartScope.days === null ? null : cartScope.days.join(",");
+  const preorderBanner = useMemo(() => {
+    if (!preorderRequired) return null;
+    const dish =
+      cartScope.itemIds.length === 1 ? preorderNameOf(cartScope.itemIds[0]) : "Your order";
+    const clauses: string[] = [];
+    if (cartScope.leadMinutes > 0) clauses.push(`needs ${formatLeadTime(cartScope.leadMinutes)} notice`);
+    if (cartScope.days?.length) clauses.push(`is only made on ${formatAllowedDays(cartScope.days)}`);
+    return clauses.length
+      ? `${dish} ${clauses.join(" and ")}, so please choose when you'd like this order.`
+      : `${dish} has to be scheduled — please choose when you'd like it.`;
+  }, [preorderRequired, cartScope, preorderNameOf]);
+  // The dead-end line, built from the same parts as the banner rather than by
+  // string-surgery on it. It used to strip the banner's trailing clause with a
+  // regex; the banner's wording then changed and the regex stopped matching, so
+  // the note read "…please choose when you'd like this order.. We have no booking
+  // times that fit." — an instruction immediately contradicted.
+  const preorderNoDatesNote = useMemo(() => {
+    if (!preorderRequired) return null;
+    const dish =
+      cartScope.itemIds.length === 1 ? preorderNameOf(cartScope.itemIds[0]) : "Your order";
+    const why: string[] = [];
+    if (cartScope.leadMinutes > 0) why.push(`needs ${formatLeadTime(cartScope.leadMinutes)} notice`);
+    if (cartScope.days?.length) why.push(`is only made on ${formatAllowedDays(cartScope.days)}`);
+    return why.length
+      ? `${dish} ${why.join(" and ")}, and we have no booking times that fit. Please remove it or contact the restaurant.`
+      : `We have no booking times available for ${dish.toLowerCase() === "your order" ? "this order" : dish}. Please remove it or contact the restaurant.`;
+  }, [preorderRequired, cartScope, preorderNameOf]);
+
+  // Whether the picker will actually RENDER, which is not the same as showPicker:
+  // PrebookingPicker returns null when the partner hasn't allow-listed this order
+  // type for scheduling. Without this distinction a scoped basket could demand a
+  // slot while no control exists to choose one — the Place Order button would sit
+  // disabled forever with nothing on screen explaining why.
+  const pickerWillRender =
+    showPicker && (isDineIn || isOrderTypeAllowed(prebookingSettings!, prebookOrderTypeKey));
+  // A scoped dish the customer cannot possibly schedule here. Actionable on
+  // purpose: it says which dish and what to do, instead of silently disabling.
+  const preorderUnschedulable =
+    preorderRequired && !pickerWillRender
+      ? `${
+          cartScope.itemIds.length === 1 ? preorderNameOf(cartScope.itemIds[0]) : "Your order"
+        } has to be ordered in advance, and scheduling isn't available for ${
+          isDineIn ? "dine-in" : orderType === "takeaway" ? "takeaway" : "delivery"
+        } right now. Please remove it or choose a different order type.`
+      : null;
   // What we hand to placeOrder: the picker's selection (which already carries
   // `dineIn` for reservations) — so order type follows the captured reservation,
   // not the live orderType at submit.
@@ -773,9 +929,13 @@ const PlaceOrderModalV2 = ({
   // Optional scheduling ("make optional" toggle, per Prebooking / Slot Booking
   // tab): when on for this order type, checkout does NOT force a slot — the
   // customer opts in via a checkbox and may order ASAP with no slot.
-  const slotOptional = isDineIn
-    ? prebookingSettings?.slot_booking_optional === true
-    : prebookingSettings?.prebooking_optional === true;
+  // A scoped dish overrides it: a cake that needs a day's notice cannot be an
+  // opt-in checkbox. This one value drives the picker's checkbox AND every
+  // placement guard below.
+  const slotOptional =
+    (isDineIn
+      ? prebookingSettings?.slot_booking_optional === true
+      : prebookingSettings?.prebooking_optional === true) && !preorderRequired;
   // Operating window used to clamp rolling slots so they never fall outside the
   // delivery/takeaway open hours. Dine-in has no per-type operating window.
   const slotClampWindow =
@@ -801,31 +961,71 @@ const PlaceOrderModalV2 = ({
       dineIn: !!prebookingArg.dineIn,
       clampWindow: slotClampWindow,
       timezone: hotelTimezone,
+      extraLeadMinutes: cartScope.leadMinutes,
+      allowedDays: cartScope.days,
     });
   };
-  // Default-on: when delivery_agent is enabled and the partner has NOT
-  // explicitly set `use_delivery_agent_charge = false`, treat as on.
-  // HYBRID BOOKING: past the partner's third-party radius the restaurant
-  // delivers it themselves, so EVERY third party is off — not just Porter.
-  // Adloggs (delivery_agent) is an independent feature flag, so gating only the
-  // bridge would hand the order to the other third party; worse, agentBlocksOrder
-  // then makes placement impossible outright when Adloggs answers
-  // DISTANCE_TOO_LONG on exactly the long trips this feature exists to take
-  // in-house.
+  // Everything that must block placement because of a PREORDER item in the cart.
+  // Called from every submit handler, for the same reason typedPrebookTimeError
+  // is: the slot guard was duplicated inline at each one and the Razorpay handler
+  // shipped without it, so the post-failure "Try Again" button skipped the check
+  // entirely. One function, called five times, cannot drift like that.
+  //
+  // It also RE-CHECKS an already-made selection at submit time, which is the part
+  // that matters on the payment-retry path — a slot chosen before the customer
+  // added the cake is still sitting in state and would otherwise be accepted.
+  const preorderError = (): string | null => {
+    if (preorderMixedBlock) return preorderMixedBlock;
+    // Inert when the partner offers no scheduling for this order kind — otherwise
+    // switching prebooking off would make every scoped dish unplaceable.
+    if (!preorderRequired) return null;
+    if (preorderUnschedulable) return preorderUnschedulable;
+    // Rolling slot times are minute-of-day in the RESTAURANT's zone; windows-mode
+    // range starts are clamped on the DEVICE clock. The guard has to be told which,
+    // or it judges the slot against a clock the slot was never built on.
+    const slotClockTz =
+      (prebookingArg?.dineIn ? prebookingSettings?.dine_in_slot_mode : prebookingSettings?.slot_mode) ===
+      "rolling"
+        ? hotelTimezone
+        : null;
+    return preorderBlockReason(cartScope, prebookingArg, preorderNameOf, new Date(), slotClockTz);
+  };
+  // HYBRID BOOKING — the partner has named ONE carrier for this drop's distance
+  // band (own rider / instant third-party rider / Shiprocket), and whoever it is
+  // sets the price. Resolved once here so the three quote branches below cannot
+  // each reach a different conclusion and charge for a carrier that never comes.
+  //
+  // Adloggs (delivery_agent) and the bridge are separate feature flags but one
+  // "instant rider" lane: gating only one hands the order to the other, and
+  // agentBlocksOrder then makes placement impossible outright when Adloggs
+  // answers DISTANCE_TOO_LONG on exactly the long trips a split exists to route
+  // elsewhere.
+  //
+  // Only consulted when that instant lane is actually enabled — the split is
+  // configured from inside the bridge settings, so a store that has since lost
+  // the flag is left with bands naming a carrier it no longer has, and honouring
+  // those would strand orders with nobody.
   //
   // deliveryInfo.distance is the SAME road distance the fee was computed from
   // (OrderDrawer), so the price and the routing decision can never be taken from
   // two different measurements.
-  const beyondThirdPartyRadius = isBeyondThirdPartyRadius(
-    hotelData?.delivery_rules as any,
-    deliveryInfo?.distance,
-  );
+  const instantLaneEnabled =
+    (partnerFeatures.porter_bridge.access && partnerFeatures.porter_bridge.enabled) ||
+    (partnerFeatures.delivery_agent.access && partnerFeatures.delivery_agent.enabled);
+  const hybridCarrier = instantLaneEnabled
+    ? hybridCarrierFor(hotelData?.delivery_rules as any, deliveryInfo?.distance)
+    : null;
+  /** null = no split configured; every lane behaves exactly as it did before. */
+  const hybridAllows = (carrier: "own" | "bridge" | "shiprocket") =>
+    hybridCarrier == null || hybridCarrier === carrier;
 
+  // Default-on: when delivery_agent is enabled and the partner has NOT
+  // explicitly set `use_delivery_agent_charge = false`, treat as on.
   const useAgentForCharge =
     partnerFeatures.delivery_agent.access &&
     partnerFeatures.delivery_agent.enabled &&
     hotelData?.delivery_rules?.use_delivery_agent_charge !== false &&
-    !beyondThirdPartyRadius;
+    hybridAllows("bridge");
 
   const partnerCoords = useMemo(() => {
     const geo: any = hotelData?.geo_location;
@@ -912,12 +1112,12 @@ const PlaceOrderModalV2 = ({
   // delivery charge. If they chose "custom", we skip the quote and fall through
   // to their own delivery_rules pricing (deliveryInfo.cost). Mirrors the
   // delivery_agent flow; Porter takes precedence over delivery_agent if both on.
-  // Beyond the third-party radius the bridge is skipped outright — no quote is
-  // requested and no fare is shown, so the price falls through to
+  // In a band the split gave to someone else the bridge is skipped outright — no
+  // quote is requested and no fare is shown, so the price falls through to
   // deliveryInfo.cost (the partner's own pricing) exactly as it already does
   // when no rider is available. Quoting a Porter fare for a trip Porter will not
   // make is the one outcome to avoid: the customer would be billed a
-  // third-party price for the restaurant's own rider.
+  // third-party price for a rider nobody booked.
   //
   // Gated on the FLAG, never by early-returning from the quote effect: the bill
   // row's first branch renders "Calculating…" on `!porterQuote`, so suppressing
@@ -926,7 +1126,86 @@ const PlaceOrderModalV2 = ({
     partnerFeatures.porter_bridge.access &&
     partnerFeatures.porter_bridge.enabled &&
     (hotelData?.delivery_rules as any)?.porter_pricing_mode !== "custom" &&
-    !beyondThirdPartyRadius;
+    hybridAllows("bridge");
+
+  // Shiprocket prices the delivery when the store ships through its own Shiprocket
+  // account. Lowest precedence of the three third parties: a store with Porter or
+  // an own-rider network configured is using those to MOVE the order, so their
+  // quote is the one that matches reality.
+  //
+  // The quote is advisory. Shiprocket's rate endpoint and the bill on a created
+  // order do not always agree, so this is what the customer pays, not what the
+  // merchant is charged.
+  //
+  // HYBRID BOOKING overrides that precedence, because under a split the carrier is
+  // decided by distance rather than by which integration outranks which. In a band
+  // that is not Shiprocket's it must not price the order — otherwise a store on
+  // "custom" porter pricing (which turns usePorterForCharge off) would quote a
+  // courier rate for a trip a bike rider makes, and the dispatcher would still
+  // send the bike.
+  const useShiprocketForCharge =
+    partnerFeatures.shiprocket.access &&
+    partnerFeatures.shiprocket.enabled &&
+    !usePorterForCharge &&
+    !useAgentForCharge &&
+    hybridAllows("shiprocket");
+
+  const [shiprocketQuote, setShiprocketQuote] = useState<{
+    available: boolean;
+    rate?: number;
+    courier?: string | null;
+  } | null>(null);
+  const [shiprocketQuoteLoading, setShiprocketQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!useShiprocketForCharge || orderType !== "delivery" || isQrScan) {
+      setShiprocketQuote(null);
+      return;
+    }
+    if (!userCoordinates) {
+      setShiprocketQuote(null);
+      return;
+    }
+    let cancelled = false;
+    // Drop the previous address's price immediately. Keeping it would show — and
+    // charge — a number computed for somewhere the customer has already moved
+    // away from, for as long as the debounce plus the round trip takes.
+    setShiprocketQuote(null);
+    setShiprocketQuoteLoading(true);
+    // Debounced like the Porter quote: an address picker fires on every drag of
+    // the pin, and each call costs the merchant a Shiprocket request.
+    const t = setTimeout(async () => {
+      const res = await quoteShiprocketCharge({
+        partnerId: (hotelData as any)?.id,
+        drop: { lat: userCoordinates.lat, lng: userCoordinates.lng },
+        address: address || null,
+        // Shiprocket charges a collection fee on COD, so the quote has to know
+        // which one the customer is about to choose.
+        cod: paymentMethod !== "online",
+      });
+      if (cancelled) return;
+      setShiprocketQuoteLoading(false);
+      setShiprocketQuote(
+        res.ok
+          ? { available: true, rate: res.rate, courier: res.courier }
+          : { available: false },
+      );
+    }, 500);
+    return () => {
+      cancelled = true;
+      setShiprocketQuoteLoading(false);
+      clearTimeout(t);
+    };
+  }, [
+    useShiprocketForCharge,
+    orderType,
+    isQrScan,
+    (hotelData as any)?.id,
+    userCoordinates?.lat,
+    userCoordinates?.lng,
+    address,
+    paymentMethod,
+  ]);
 
   const [porterQuote, setPorterQuote] = useState<{
     available: boolean;
@@ -988,7 +1267,11 @@ const PlaceOrderModalV2 = ({
   const effectiveHideDeliveryCharge =
     !!hotelData?.delivery_rules?.hide_delivery_charge &&
     !useAgentForCharge &&
-    !usePorterForCharge;
+    !usePorterForCharge &&
+    // Same reasoning as the two above: when a live quote IS the price, "informed
+    // at delivery" is a lie — the amount is already in the total the customer is
+    // about to pay, and hiding the line makes it an unexplained difference.
+    !useShiprocketForCharge;
 
   // Base delivery fare from whichever source applies (Porter → agent → own),
   // then the free/reduced-delivery perk is layered on top via computeDeliveryBenefit
@@ -1011,6 +1294,15 @@ const PlaceOrderModalV2 = ({
     } else if (useAgentForCharge) {
       if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
         baseFare = agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP;
+      }
+    } else if (useShiprocketForCharge) {
+      if (shiprocketQuote?.available && typeof shiprocketQuote.rate === "number") {
+        baseFare = shiprocketQuote.rate;
+      } else if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) {
+        // Unquotable is not unshippable — an unserviceable PIN or a Shiprocket
+        // outage falls back to the store's own pricing and the order still goes
+        // through, exactly as the porter branch does above.
+        baseFare = deliveryInfo.cost;
       }
     } else if (hotelData?.delivery_rules?.hide_delivery_charge) {
       baseFare = 0;
@@ -1036,6 +1328,8 @@ const PlaceOrderModalV2 = ({
     agentQuote,
     usePorterForCharge,
     porterQuote,
+    useShiprocketForCharge,
+    shiprocketQuote,
     subtotal,
   ]);
 
@@ -1044,6 +1338,13 @@ const PlaceOrderModalV2 = ({
   // Block placement until we have an `available: true` quote. The
   // missing-coords case is already covered by other guards; this enforces
   // "must have a successful serviceability check before placing".
+  // Placing while the quote is in flight would bill the delivery_rules fallback
+  // for a shipment about to be priced by Shiprocket. Bounded by the 500ms debounce
+  // plus one request, and it never blocks when the quote simply failed — that case
+  // legitimately falls back.
+  const shiprocketQuotePending =
+    useShiprocketForCharge && orderType === "delivery" && !!userCoordinates && shiprocketQuoteLoading;
+
   const agentBlocksOrder =
     useAgentForCharge &&
     orderType === "delivery" &&
@@ -1096,6 +1397,25 @@ const PlaceOrderModalV2 = ({
   const menuPriceOf = (id: string) =>
     Number(hotelData?.menus?.find((m) => m.id === id.trim())?.price) || 0;
 
+  // Resolves a menu item to its category, so an id in category_item_ids that
+  // names a CATEGORY scopes the discount to every item under it — the admin
+  // field offers "Specific Categories/Items", so both spaces must resolve.
+  // Human names for whatever a scope names — an id may be an ITEM or a
+  // CATEGORY, and "Only valid on …" must not go blank for the latter.
+  const scopeNamesOf = (csv: string | null | undefined) =>
+    parseIdList(csv)
+      .map(
+        (id) =>
+          hotelData?.menus?.find((m) => m.id === id)?.name ??
+          (hotelData?.menus?.find((m: any) => m?.category?.id === id) as any)?.category?.name,
+      )
+      .filter(Boolean) as string[];
+
+  const categoryOf = (id: string) =>
+    (hotelData?.menus?.find((m) => m.id === id.trim()) as any)?.category?.id as
+      | string
+      | undefined;
+
   const getFreebieItemsTotal = (disc: AppliedDiscount | null) => {
     if (!disc || disc.type !== "freebie" || !disc.freebie_item_ids) return 0;
     const count = disc.freebie_item_count || 1;
@@ -1123,12 +1443,19 @@ const PlaceOrderModalV2 = ({
   const reasonFor = useCallback(
     (
       d: AppliedDiscount | null | undefined,
-    ): null | "min" | "ordertype" | "day" | "empty" | "alloffer" | "bxgy" => {
+    ): null | "min" | "ordertype" | "day" | "empty" | "alloffer" | "bxgy" | "noitems" => {
       if (!d) return null;
       if (!items || items.length === 0 || subtotal <= 0) return "empty";
       // A gift is a separate item, not a markdown of the lines that earned it,
       // so an all-offer cart can still earn one. Money off cannot.
       if (discountBase <= 0 && !givesGift(d as StackableDiscount)) return "alloffer";
+      // Scoped to items the cart does not hold ⇒ worth ₹0. Same exemption for
+      // gifts, whose worth comes from freebie_item_ids rather than these lines.
+      if (
+        !givesGift(d as StackableDiscount) &&
+        scopedBaseFor(d as StackableDiscount, discountLines, categoryOf) === 0
+      )
+        return "noitems";
       if (d.min_order_value && subtotal < Number(d.min_order_value)) return "min";
       // The buy condition is a live cart check: removing the second pizza has to
       // take the free coke away again.
@@ -1144,7 +1471,7 @@ const PlaceOrderModalV2 = ({
       }
       return null;
     },
-    [items, subtotal, discountBase, orderType, isQrScan],
+    [items, subtotal, discountBase, discountLines, orderType, isQrScan, hotelData?.menus],
   );
 
   const discountIneligibleReason = useMemo(
@@ -1207,8 +1534,10 @@ const PlaceOrderModalV2 = ({
         lines: items || [],
         base: discountBase,
         priceOf: menuPriceOf,
+        moneyLines: discountLines,
+        categoryOf,
       }),
-    [eligibleDiscounts, items, discountBase, hotelData?.menus],
+    [eligibleDiscounts, items, discountBase, discountLines, hotelData?.menus],
   );
 
   const discountSavings = stackResult.savings;
@@ -1335,6 +1664,10 @@ const PlaceOrderModalV2 = ({
           if (disc.starts_at && new Date(disc.starts_at) > now) return false;
           if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) return false;
           if (disc.min_order_value && subtotal < Number(disc.min_order_value)) return false;
+          // Same flicker trap for an item-scoped discount: worth nothing while
+          // its items are absent, so it must be refused here exactly as
+          // discountIneligibleReason's "noitems" refuses it.
+          if (!givesGift(disc as StackableDiscount) && scopedBaseFor(disc, discountLines, categoryOf) === 0) return false;
           // Nothing in the cart can carry a discount — every line is already on
           // an offer. Auto-applying here would be cleared on the very next
           // render by the ineligibility effect, which would re-run this filter
@@ -1441,6 +1774,16 @@ const PlaceOrderModalV2 = ({
         setDiscountError(`Minimum order of ${currency}${disc.min_order_value} required.`);
         return;
       }
+      // Name the items instead of applying the code for ₹0.
+      if (!givesGift(disc as StackableDiscount) && scopedBaseFor(disc, discountLines, categoryOf) === 0) {
+        const names = scopeNamesOf(disc.category_item_ids);
+        setDiscountError(
+          names.length
+            ? `Only valid on ${names.slice(0, 3).join(", ")}${names.length > 3 ? " and more" : ""}.`
+            : "Not valid for the items in your cart.",
+        );
+        return;
+      }
       // Say WHY a BXGY code bounced — "Buy 2 of Pizza, get a free Coke" is far
       // more useful than applying it for ₹0 and leaving the customer guessing.
       if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, items, discountBase)) {
@@ -1517,6 +1860,15 @@ const PlaceOrderModalV2 = ({
     // the revalidation memo can also drop it later if the cart/order-type changes.
     if (d.min_order_value && subtotal < Number(d.min_order_value)) {
       toast.error(`Minimum order of ${currency}${d.min_order_value} required.`);
+      return;
+    }
+    if (!givesGift(d as StackableDiscount) && scopedBaseFor(d as any, discountLines, categoryOf) === 0) {
+      const names = scopeNamesOf((d as any).category_item_ids);
+      toast.error(
+        names.length
+          ? `Only valid on ${names.slice(0, 3).join(", ")}${names.length > 3 ? " and more" : ""}.`
+          : "Not valid for the items in your cart.",
+      );
       return;
     }
     if (d.discount_type === "bxgy" && !bxgyRepeatCount(d, items, discountBase)) {
@@ -2009,6 +2361,7 @@ const PlaceOrderModalV2 = ({
         discount_order_types: d.discount_order_types,
         valid_days: d.valid_days,
         applicable_on: d.applicable_on,
+        category_item_ids: d.category_item_ids,
         rank: d.rank,
         // The units actually EARNED, not the rule's per-reward count — the order
         // records what was given, and orderStore reads this straight through as
@@ -2073,6 +2426,13 @@ const PlaceOrderModalV2 = ({
     }
     if (needUserName && !customerName.trim()) {
       flagMissingName();
+      return;
+    }
+    // Before the generic slot guard: a preorder cart gets a message naming the
+    // dish and its notice, which the generic wording cannot give.
+    const cfPreorderError = preorderError();
+    if (cfPreorderError) {
+      toast.error(cfPreorderError);
       return;
     }
     if (showPicker && !slotOptional && !prebookingArg) {
@@ -2320,6 +2680,25 @@ const PlaceOrderModalV2 = ({
       setOrderStatus("idle");
       return;
     }
+    // Same bypass, third time: this handler never had the slot-required guard at
+    // all, so "Try Again" could place an unscheduled order for a dish that needs
+    // notice. preorderError() also re-checks a selection made before the cart was
+    // edited, which is the realistic failure on a retry.
+    const rzpPreorderError = preorderError();
+    if (rzpPreorderError) {
+      toast.error(rzpPreorderError);
+      setOrderStatus("idle");
+      return;
+    }
+    if (showPicker && !slotOptional && !prebookingArg) {
+      toast.error(
+        isDineIn
+          ? "Please choose a date, time and number of guests for your table."
+          : "Please select a date and time slot for your order.",
+      );
+      setOrderStatus("idle");
+      return;
+    }
     setOrderStatus("loading");
     try {
       const rzpExtraCharges = buildCheckoutExtraCharges();
@@ -2506,6 +2885,11 @@ const PlaceOrderModalV2 = ({
       flagMissingName();
       return;
     }
+    const payPreorderError = preorderError();
+    if (payPreorderError) {
+      toast.error(payPreorderError);
+      return;
+    }
     if (showPicker && !slotOptional && !prebookingArg) {
       toast.error(
         isDineIn
@@ -2574,7 +2958,11 @@ const PlaceOrderModalV2 = ({
             );
             return;
           }
-        } else if (!usePorterForCharge && deliveryInfo?.isOutOfRange) {
+        } else if (
+          !usePorterForCharge &&
+          !(useShiprocketForCharge && shiprocketQuote?.available) &&
+          deliveryInfo?.isOutOfRange
+        ) {
           toast.error("Delivery is not available to your location.");
           return;
         }
@@ -3130,6 +3518,12 @@ const PlaceOrderModalV2 = ({
     !items ||
     items.length === 0 ||
     (showPicker && !slotOptional && !prebookingArg) ||
+    // A preorder item with no usable slot. Covers the case the clause above
+    // cannot: when the picker isn't rendering at all (order type not schedulable),
+    // showPicker is false and that term passes.
+    !!preorderUnschedulable ||
+    // A basket mixing a preorder dish with anything else can't be placed at all.
+    !!preorderMixedBlock ||
     // The picker's live typed-time error. Needed on top of the guard above: with
     // optional scheduling ON that one passes (an invalid typed time emits a null
     // selection, which reads as "ordering ASAP"), so this is the only thing
@@ -3138,8 +3532,14 @@ const PlaceOrderModalV2 = ({
     (orderType === "delivery" &&
       !useAgentForCharge &&
       !usePorterForCharge &&
+      // A successful Shiprocket quote IS the serviceability answer for that
+      // address. delivery_radius describes how far the store's own riders go; a
+      // parcel courier is not bound by it, and blocking here charged the customer
+      // the quote and then refused to take the order.
+      !(useShiprocketForCharge && shiprocketQuote?.available) &&
       deliveryInfo?.isOutOfRange) ||
     agentBlocksOrder ||
+    shiprocketQuotePending ||
     (!isQrScan && !orderType) ||
     (!isQrScan && orderType === "delivery" && !isDeliveryOpen) ||
     (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) ||
@@ -3200,6 +3600,22 @@ const PlaceOrderModalV2 = ({
                 </div>
                 <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
               </button>
+            ) : isQrScan ? (
+              // A table order is neither delivery nor pickup. It used to fall
+              // through to "Pickup from <store>", which told the customer the
+              // wrong thing and hid the one detail the kitchen routes by — so a
+              // mis-scanned table was invisible until the food went elsewhere.
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
+                <div className="min-w-0 leading-tight">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    {seatNoun} order
+                  </p>
+                  <p translate="no" className="truncate text-sm font-bold notranslate" style={{ color: accent }}>
+                    {seatLabel ? `${seatNoun} ${seatLabel}` : restaurantName || "Checkout"}
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="flex-1 min-w-0 flex items-center gap-2">
                 <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
@@ -3217,6 +3633,19 @@ const PlaceOrderModalV2 = ({
           </div>
 
           <div className="p-4 space-y-4 pb-40">
+            {/* Which table this order is for. The header carries it too, but that
+                bar is compact and scrolls under on some devices — and this is the
+                field the customer needs to check BEFORE paying, since a wrong
+                table sends the food to someone else. */}
+            {isQrScan && seatLabel && (
+              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between">
+                <span className="text-sm text-gray-500">{seatNoun}</span>
+                <span translate="no" className="notranslate text-sm font-bold text-gray-900">
+                  {seatLabel}
+                </span>
+              </div>
+            )}
+
             {/* Order Type Switcher */}
             {!isQrScan && (
               <div className="bg-white rounded-2xl p-4 shadow-sm">
@@ -3402,6 +3831,35 @@ const PlaceOrderModalV2 = ({
               />
             )}
 
+            {/* Why the scheduler appeared. Without this the picker just shows up
+                (and the earliest date is days out) with no stated cause — the
+                customer has no way to connect it to the cake they added. Sits in
+                the same slot as the incompatible-items and out-of-stock cards. */}
+            {preorderBanner && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                <CalendarClock className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800">{preorderBanner}</p>
+              </div>
+            )}
+
+            {/* A preorder dish sharing the basket. No picker is on screen, so this
+                card is the only thing explaining why Place Order is dead. */}
+            {preorderMixedBlock && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                <CalendarClock className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{preorderMixedBlock}</p>
+              </div>
+            )}
+
+            {/* A preorder item that cannot be scheduled for this order type. Its
+                own card because the picker is not on screen to carry the message. */}
+            {preorderUnschedulable && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                <CalendarClock className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{preorderUnschedulable}</p>
+              </div>
+            )}
+
             {/* Prebooking (scheduled orders) / dine-in slot booking */}
             {showPicker && prebookingSettings && (
               <PrebookingPicker
@@ -3415,6 +3873,13 @@ const PlaceOrderModalV2 = ({
                 optional={slotOptional}
                 clampWindow={slotClampWindow}
                 timezone={hotelTimezone}
+                preorderLeadMinutes={cartScope.leadMinutes}
+                preorderDaysKey={preorderDaysKey}
+                // The dead-end note. Reuses the banner's wording so the two can't
+                // contradict each other — the note used to blame the longest-notice
+                // dish even when an entirely different dish's day rule was what
+                // emptied the date list.
+                preorderNote={preorderNoDatesNote}
               />
             )}
 
@@ -3817,6 +4282,11 @@ const PlaceOrderModalV2 = ({
                     !effectiveHideDeliveryCharge &&
                     !useAgentForCharge &&
                     !usePorterForCharge &&
+                    // Shiprocket has its own row below. Without this the bill listed
+                    // "Delivery Charges" twice, both showing the same amount — the
+                    // total was right, but a customer reading two identical lines
+                    // reasonably assumes they are being charged twice.
+                    !useShiprocketForCharge &&
                     !deliveryInfo?.isOutOfRange &&
                     deliveryInfo?.distance != null && (
                       <div>
@@ -3862,6 +4332,33 @@ const PlaceOrderModalV2 = ({
                       {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
                         <div className="text-xs text-gray-400 mt-0.5">
                           ETA {porterQuote.etaMins} min
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Shiprocket: same dedicated row + loading state as porter, so the
+                      customer never sees a delivery_rules amount that the live quote
+                      is about to replace. */}
+                  {orderType === "delivery" && useShiprocketForCharge && (
+                    <div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Delivery Charges</span>
+                        {shiprocketQuoteLoading || !shiprocketQuote ? (
+                          <span className="text-gray-400 inline-flex items-center gap-1.5">
+                            <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+                            Calculating…
+                          </span>
+                        ) : deliveryCharge > 0 ? (
+                          <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
+                        ) : (
+                          <span className="font-semibold" style={{ color: accent }}>Free</span>
+                        )}
+                      </div>
+                      {!shiprocketQuoteLoading && (
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {deliveryInfo?.distance != null && deliveryInfo.distance > 0
+                            ? `${deliveryInfo.distance.toFixed(1)} kms · by Shiprocket`
+                            : "by Shiprocket"}
                         </div>
                       )}
                     </div>

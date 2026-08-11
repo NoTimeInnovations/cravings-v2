@@ -4,17 +4,22 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  BarChart3,
   Bell,
   Loader2,
   MapPin,
+  ImagePlus,
   Plus,
   Search,
   Send,
+  RefreshCw,
   Store,
   X,
 } from "lucide-react";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { processImage } from "@/lib/processImage";
+import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +54,11 @@ import {
   upsertDuListingMutation,
 } from "@/api/deliveryUndo";
 import {
+  getDeliveryUndoAnalytics,
+  getDeliveryUndoHealth,
+  resyncDeliveryUndo,
   sendDuNotification,
+  type DuAnalytics,
   type DuAudience,
 } from "@/app/actions/deliveryUndo";
 
@@ -86,7 +95,15 @@ interface DuPartner {
   du_listing: DuListing | null;
 }
 
+/** A home-screen category pill. `image` also fills the search-grid tile. */
+interface DuCuisine {
+  name: string;
+  image?: string;
+}
+
 interface DuConfig {
+  cuisines?: DuCuisine[];
+  /** Legacy plain-string form, still written on every save for old app builds. */
   cuisineChips?: string[];
   trendingSearches?: string[];
   defaultRadiusKm?: number;
@@ -153,6 +170,30 @@ function blockers(p: DuPartner): string[] {
   return out;
 }
 
+/**
+ * Pushes the current Hasura state to Cloudflare D1.
+ *
+ * Every save must be followed by this — Hasura records the decision, but the
+ * app reads D1, so an unsynced save is invisible to users. Surfaced as a
+ * toast rather than done silently so a failure is never mistaken for success.
+ */
+async function pushToApp() {
+  const res = await resyncDeliveryUndo();
+  if (res.ok) {
+    const skipped = res.skipped?.length ?? 0;
+    toast.success(
+      `Live in the app — ${res.listings} kitchens, ${res.dishes} dishes` +
+        (skipped ? ` (${skipped} skipped)` : ""),
+    );
+    res.skipped?.forEach((s) =>
+      toast.warning(`${s.name}: ${s.reason}`, { duration: 6000 }),
+    );
+  } else {
+    toast.error(`Saved, but not live yet: ${res.error}`, { duration: 8000 });
+  }
+  return res;
+}
+
 /* ───────────────────────── component ───────────────────────── */
 
 const DeliveryUndoManagement = () => {
@@ -168,6 +209,8 @@ const DeliveryUndoManagement = () => {
         </p>
       </div>
 
+      <HealthStrip />
+
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4">
           <TabsTrigger value="listings">
@@ -178,6 +221,9 @@ const DeliveryUndoManagement = () => {
           </TabsTrigger>
           <TabsTrigger value="notify">
             <Bell className="w-4 h-4 mr-2" /> Notifications
+          </TabsTrigger>
+          <TabsTrigger value="analytics">
+            <BarChart3 className="w-4 h-4 mr-2" /> Analytics
           </TabsTrigger>
         </TabsList>
 
@@ -190,7 +236,65 @@ const DeliveryUndoManagement = () => {
         <TabsContent value="notify">
           <NotifyTab />
         </TabsContent>
+        <TabsContent value="analytics">
+          <AnalyticsTab />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+};
+
+/** Shows whether what's in the app matches what's in Hasura. */
+const HealthStrip = () => {
+  const [health, setHealth] = useState<Awaited<
+    ReturnType<typeof getDeliveryUndoHealth>
+  > | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setHealth(await getDeliveryUndoHealth());
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const stale = (health?.staleHours ?? 0) > 24;
+
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm">
+      <span className="font-medium">App data</span>
+      {health?.ok ? (
+        <>
+          <Badge variant="secondary">{health.listings} kitchens</Badge>
+          <Badge variant="secondary">{health.dishes} dishes</Badge>
+          <span className="text-xs text-muted-foreground">
+            {health.lastReconcileAt
+              ? `synced ${new Date(health.lastReconcileAt).toLocaleString()}`
+              : "never synced"}
+            {stale && " · stale"}
+          </span>
+        </>
+      ) : (
+        <span className="text-xs text-destructive">
+          {health?.error ?? "checking…"}
+        </span>
+      )}
+      <Button
+        size="sm"
+        variant="outline"
+        className="ml-auto"
+        disabled={syncing}
+        onClick={async () => {
+          setSyncing(true);
+          await pushToApp();
+          await refresh();
+          setSyncing(false);
+        }}
+      >
+        <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+        Force resync
+      </Button>
     </div>
   );
 };
@@ -257,6 +361,7 @@ const ListingsTab = () => {
       });
       toast.success(next ? `${p.store_name} listed` : `${p.store_name} removed`);
       load();
+      await pushToApp();
     } catch (e) {
       console.error(e);
       toast.error("Update failed");
@@ -425,6 +530,7 @@ const ListingEditor = ({
         },
       });
       toast.success("Listing saved");
+      await pushToApp();
       onSaved();
     } catch (e) {
       console.error(e);
@@ -587,11 +693,17 @@ const Field = ({
 
 /* ─────────────────────── app config ─────────────────────── */
 
+/** S3 keys have to survive a cuisine name like "Kerala / Malabar". */
+const slugify = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "cuisine";
+
 const ConfigTab = () => {
   const [config, setConfig] = useState<DuConfig>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newChip, setNewChip] = useState("");
+  /** Name of the cuisine whose image is mid-upload, or null. */
+  const [uploading, setUploading] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -612,7 +724,8 @@ const ConfigTab = () => {
     try {
       await fetchFromHasura(updateDuAppConfigMutation, { config: next });
       setConfig(next);
-      toast.success("Saved — live in the app on next launch");
+      toast.success("Config saved");
+      await pushToApp();
     } catch (e) {
       console.error(e);
       toast.error("Save failed");
@@ -621,7 +734,42 @@ const ConfigTab = () => {
     }
   };
 
-  const chips = config.cuisineChips ?? [];
+  // `cuisines` is the rich list the app prefers; `cuisineChips` is the older
+  // plain-string field. Older configs only have the latter, so fall back to it
+  // and let the first save promote them.
+  const cuisines: DuCuisine[] =
+    config.cuisines ?? (config.cuisineChips ?? []).map((name) => ({ name }));
+
+  /**
+   * Writes both shapes. Keeping `cuisineChips` in sync means an app build that
+   * predates cuisine images still renders its filter row.
+   */
+  const saveCuisines = (next: DuCuisine[]) =>
+    save({ ...config, cuisines: next, cuisineChips: next.map((c) => c.name) });
+
+  const pickImage = async (index: number, file: File) => {
+    setUploading(cuisines[index].name);
+    const blobUrl = URL.createObjectURL(file);
+    try {
+      // Same pipeline as menu images: centre-crop to a square and re-encode
+      // before it ever reaches S3, so a 6 MB phone photo doesn't become the
+      // tile the app downloads.
+      const processed = await processImage(blobUrl, "upload");
+      const url = await uploadFileToS3(
+        processed,
+        `delivery-undo/cuisines/${slugify(cuisines[index].name)}-${Date.now()}.webp`,
+      );
+      await saveCuisines(
+        cuisines.map((c, i) => (i === index ? { ...c, image: url } : c)),
+      );
+    } catch (e) {
+      console.error(e);
+      toast.error("Image upload failed");
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+      setUploading(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -636,39 +784,96 @@ const ConfigTab = () => {
       <Card>
         <CardContent className="p-4 space-y-3">
           <div>
-            <h3 className="font-medium">Home screen category pills</h3>
+            <h3 className="font-medium">Cuisine categories</h3>
             <p className="text-xs text-muted-foreground">
-              The filter row under the search bar. Order here is the order in
-              the app. A pill only matches restaurants whose cuisines include
-              exactly this word.
+              The filter row under the search bar, and the &ldquo;Browse by
+              cuisine&rdquo; grid in search. Order here is the order in the app.
+              A pill only matches restaurants whose cuisines include exactly
+              this word. Images show in the search grid; without one the app
+              falls back to a coloured tile.
             </p>
           </div>
 
-          <div className="flex gap-2 flex-wrap">
-            {chips.map((chip, i) => (
-              <Badge
-                key={chip}
-                variant="secondary"
-                className="pl-3 pr-1 py-1 text-sm flex items-center gap-1"
+          <div className="space-y-2">
+            {cuisines.map((cuisine, i) => (
+              <div
+                key={cuisine.name}
+                className="flex items-center gap-3 border rounded-lg p-2"
               >
-                {chip}
-                <button
-                  className="hover:text-destructive p-0.5"
-                  onClick={() =>
-                    save({
-                      ...config,
-                      cuisineChips: chips.filter((_, x) => x !== i),
-                    })
-                  }
-                  aria-label={`Remove ${chip}`}
+                <label
+                  className="relative w-14 h-14 shrink-0 rounded-md overflow-hidden bg-muted grid place-items-center cursor-pointer group"
+                  title={cuisine.image ? "Change image" : "Add image"}
                 >
-                  <X className="w-3 h-3" />
-                </button>
-              </Badge>
+                  {cuisine.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={cuisine.image}
+                      alt={cuisine.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ImagePlus className="w-5 h-5 text-muted-foreground" />
+                  )}
+                  <span className="absolute inset-0 bg-black/50 text-white text-[10px] font-medium grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {cuisine.image ? "Change" : "Add"}
+                  </span>
+                  {uploading === cuisine.name && (
+                    <span className="absolute inset-0 bg-black/60 grid place-items-center">
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    </span>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={saving || uploading !== null}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      // Reset first: picking the same file twice in a row
+                      // fires no change event otherwise.
+                      e.target.value = "";
+                      if (file) pickImage(i, file);
+                    }}
+                  />
+                </label>
+
+                <span className="flex-1 text-sm font-medium">
+                  {cuisine.name}
+                </span>
+
+                {cuisine.image && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={saving}
+                    onClick={() =>
+                      saveCuisines(
+                        cuisines.map((c, x) =>
+                          x === i ? { name: c.name } : c,
+                        ),
+                      )
+                    }
+                  >
+                    Remove image
+                  </Button>
+                )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="hover:text-destructive"
+                  disabled={saving}
+                  aria-label={`Remove ${cuisine.name}`}
+                  onClick={() =>
+                    saveCuisines(cuisines.filter((_, x) => x !== i))
+                  }
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
             ))}
-            {chips.length === 0 && (
+            {cuisines.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No pills — the app hides the filter row entirely.
+                No cuisines — the app hides the filter row entirely.
               </p>
             )}
           </div>
@@ -680,10 +885,7 @@ const ConfigTab = () => {
               onChange={(e) => setNewChip(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && newChip.trim()) {
-                  save({
-                    ...config,
-                    cuisineChips: [...chips, newChip.trim()],
-                  });
+                  saveCuisines([...cuisines, { name: newChip.trim() }]);
                   setNewChip("");
                 }
               }}
@@ -691,7 +893,7 @@ const ConfigTab = () => {
             <Button
               disabled={!newChip.trim() || saving}
               onClick={() => {
-                save({ ...config, cuisineChips: [...chips, newChip.trim()] });
+                saveCuisines([...cuisines, { name: newChip.trim() }]);
                 setNewChip("");
               }}
             >
@@ -1026,3 +1228,204 @@ const NotifyTab = () => {
 };
 
 export default DeliveryUndoManagement;
+
+/* ─────────────────────── analytics ─────────────────────── */
+
+const RANGES = [7, 30, 90] as const;
+
+/**
+ * Traffic for the app and the website.
+ *
+ * Deliberately not a charting library: four numbers, a sparkline and one table
+ * is the whole story, and pulling in a chart package for it would cost more
+ * than it explains.
+ */
+const AnalyticsTab = () => {
+  const [days, setDays] = useState<number>(30);
+  const [data, setData] = useState<DuAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async (d: number) => {
+    setLoading(true);
+    try {
+      setData(await getDeliveryUndoAnalytics(d));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load(days);
+  }, [days, load]);
+
+  if (loading && !data) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground py-10 justify-center">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+      </div>
+    );
+  }
+
+  if (!data?.ok) {
+    return (
+      <Card>
+        <CardContent className="p-4 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 mt-0.5 text-destructive shrink-0" />
+          <div>
+            <p className="font-medium">Couldn&apos;t load analytics</p>
+            <p className="text-sm text-muted-foreground">{data?.error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const t = data.totals ?? {};
+  const peakDay = Math.max(
+    1,
+    ...(data.daily ?? []).map((d) => d.app + d.site),
+  );
+
+  return (
+    <div className="space-y-6 max-w-5xl">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          Since {data.since}
+          {loading && " · refreshing…"}
+        </p>
+        <div className="flex gap-2">
+          {RANGES.map((r) => (
+            <Button
+              key={r}
+              size="sm"
+              variant={days === r ? "default" : "outline"}
+              onClick={() => setDays(r)}
+            >
+              {r}d
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="Website views" value={data.site?.pageViews ?? 0} />
+        <Stat label="Menu views" value={t.restaurant_view ?? 0} />
+        <Stat label="Order Now taps" value={t.wa_tap ?? 0} />
+        <Stat label="Searches" value={t.search_performed ?? 0} />
+      </div>
+
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div>
+            <h3 className="font-medium">Per restaurant</h3>
+            <p className="text-xs text-muted-foreground">
+              Taps ÷ views. A high view count with a low rate usually means the
+              menu is browsable but something about it stops people ordering.
+            </p>
+          </div>
+          {data.restaurants?.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground">
+                    <th className="py-2 font-medium">Restaurant</th>
+                    <th className="py-2 font-medium text-right">Menu views</th>
+                    <th className="py-2 font-medium text-right">Order taps</th>
+                    <th className="py-2 font-medium text-right">Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.restaurants.map((r) => (
+                    <tr key={r.listingId} className="border-t">
+                      <td className="py-2 pr-3">{r.name}</td>
+                      <td className="py-2 text-right tabular-nums">
+                        {r.menuViews}
+                      </td>
+                      <td className="py-2 text-right tabular-nums">
+                        {r.orderTaps}
+                      </td>
+                      <td className="py-2 text-right tabular-nums">
+                        {r.tapRate}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No restaurant traffic in this window yet.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="font-medium">Daily</h3>
+            {data.daily?.length ? (
+              <div className="flex items-end gap-1 h-28">
+                {data.daily.map((d) => (
+                  <div
+                    key={d.day}
+                    className="flex-1 flex flex-col justify-end gap-0.5 min-w-1"
+                    title={`${d.day} · app ${d.app} · site ${d.site}`}
+                  >
+                    <div
+                      className="bg-primary/80 rounded-sm"
+                      style={{ height: `${(d.app / peakDay) * 100}%` }}
+                    />
+                    <div
+                      className="bg-muted-foreground/40 rounded-sm"
+                      style={{ height: `${(d.site / peakDay) * 100}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nothing yet.</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Solid = app, grey = website.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="font-medium">Website pages</h3>
+            {data.site?.byPath.length ? (
+              <div className="space-y-1.5">
+                {data.site.byPath.map((p) => (
+                  <div
+                    key={p.path}
+                    className="flex justify-between gap-3 text-sm"
+                  >
+                    <span className="truncate text-muted-foreground">
+                      {p.path}
+                    </span>
+                    <span className="tabular-nums">{p.views}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No visits yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const Stat = ({ label, value }: { label: string; value: number }) => (
+  <Card>
+    <CardContent className="p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-2xl font-semibold tabular-nums mt-1">
+        {value.toLocaleString()}
+      </p>
+    </CardContent>
+  </Card>
+);

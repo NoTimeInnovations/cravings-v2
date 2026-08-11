@@ -31,6 +31,7 @@ import {
   type CatalogStatus,
   type CatalogItemStatus,
 } from "@/app/actions/whatsappCatalogProvision";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 /**
  * WhatsApp Catalogue — what is published to WhatsApp, what is not, and why.
@@ -565,14 +566,18 @@ export function AdminV2WhatsAppCatalogue() {
                     : `${item.name} removed from WhatsApp. It's still on your menu.`,
                 )
               }
-              onDelete={() => {
+              onDelete={async () => {
                 // Deleting reaches OUTSIDE this screen — storefront, QR menu and
                 // POS all lose the dish — so it gets an explicit confirmation
                 // that says so.
                 if (
-                  !window.confirm(
-                    `Delete "${item.name}"?\n\nThis removes it from WhatsApp AND from your menu, so it disappears from your storefront, QR menu and POS too.`,
-                  )
+                  !(await confirmDialog({
+                    title: `Delete "${item.name}"?`,
+                    description:
+                      "This removes it from WhatsApp AND from your menu, so it disappears from your storefront, QR menu and POS too.",
+                    confirmText: "Delete",
+                    destructive: true,
+                  }))
                 )
                   return;
                 void runItemAction(

@@ -31,6 +31,8 @@
 export interface DeliveryPriceSource {
   price?: number | string | null;
   delivery_price?: number | string | null;
+  /** Absent on variants, which never carry their own delivery visibility. */
+  show_on_delivery?: boolean | null;
 }
 
 /** A finite, positive number, or null. Tolerates numeric strings, which is how
@@ -44,9 +46,17 @@ function positive(value: unknown): number | null {
 /**
  * The delivery-mode base price, BEFORE any offer discount or partner price
  * adjustment. Returns 0 only when neither field holds a positive number.
+ *
+ * An item the partner has switched OFF for delivery keeps its ordinary price:
+ * a delivery_price left behind on such a row is stale config, and using it made
+ * the item quote a delivery figure on menus it is not even sold through — e.g.
+ * a 89 item with a leftover delivery_price of 100 showed as 100. Only an
+ * explicit false disables it, so variants (which carry no flag) are unaffected.
  */
 export function deliveryBasePrice(source: DeliveryPriceSource | null | undefined): number {
-  return positive(source?.delivery_price) ?? positive(source?.price) ?? 0;
+  const deliveryPrice =
+    source?.show_on_delivery === false ? null : positive(source?.delivery_price);
+  return deliveryPrice ?? positive(source?.price) ?? 0;
 }
 
 /**

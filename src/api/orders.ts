@@ -355,6 +355,7 @@ export const getOrderByIdQuery = `
       scheduled_time
       scheduled_time_to
       booking_persons
+      payment_method
       delivery_address
       status
       phone
@@ -381,6 +382,10 @@ export const getOrderByIdQuery = `
           # a tax-inclusive price. The item snapshot above may also carry it.
           tax_inclusive
           category {
+            # id as well as name: an item-scoped discount may name a CATEGORY,
+            # and the order editor recomputes discounts on save — without this
+            # it cannot tell which lines such a discount covers.
+            id
             name
           }
         }

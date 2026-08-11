@@ -5,6 +5,7 @@ import { toWhatsAppNumber } from "@/lib/countryPhoneMap";
 import { runOrderTriggeredFlows } from "@/lib/whatsappFlow/engine";
 import { isWhatsappEnabled } from "@/lib/whatsapp-features";
 import { displayChargeName } from "@/lib/chargeLabel";
+import { customerOrderRef } from "@/lib/customerOrderRef";
 
 // Receives the Hasura event trigger on `orders` (INSERT/UPDATE). On a new order
 // or a status change it fires the partner's matching order-triggered WhatsApp
@@ -14,7 +15,7 @@ export const maxDuration = 30;
 const Q_ORDER = `
   query OrderForFlow($id: uuid!) {
     orders_by_pk(id: $id) {
-      id display_id short_id status total_price type table_name phone orderedby partner_id
+      id short_id status total_price type table_name phone orderedby partner_id
       gst_included extra_charges discounts loyalty_redeem_value loyalty_points_redeemed
       delivery_agent delivery_provider_meta
       delivery_boy { name phone }
@@ -214,7 +215,10 @@ export async function POST(req: NextRequest) {
 
     const variables = {
       store_name: order.partner?.store_name || "",
-      order_id: order.display_id || order.short_id || String(order.id).slice(0, 8),
+      // NOT display_id — see customerOrderRef. Every flow message a customer gets
+      // renders this one variable, so the store's order count leaked through all
+      // of them at once.
+      order_id: customerOrderRef(order),
       order_status: fireStatus,
       customer_name: order.user?.full_name || order.orderedby || "Customer",
       items,

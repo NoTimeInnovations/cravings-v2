@@ -74,6 +74,7 @@ import { isCompletedOrderLockEnabled, isCancelledOrderFrozen, isOrderCompleted }
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 // Payment label for the orders list. POS orders show their chosen method
 // (Cash / UPI / Card / "Not selected"); customer orders show "Prepaid" (paid
@@ -231,9 +232,13 @@ export function AdminV2Orders() {
   const handleClearDrafts = async () => {
     if (!drafts.length || clearingDrafts) return;
     if (
-      !window.confirm(
-        `Clear ${drafts.length} draft order${drafts.length > 1 ? "s" : ""}? These are unpaid online orders that were never completed.`,
-      )
+      !(await confirmDialog({
+        title: `Clear ${drafts.length} draft order${drafts.length > 1 ? "s" : ""}?`,
+        description:
+          "These are unpaid online orders that were never completed.",
+        confirmText: "Clear drafts",
+        destructive: true,
+      }))
     )
       return;
     setClearingDrafts(true);
@@ -400,7 +405,14 @@ export function AdminV2Orders() {
   const handleDeleteOrder = async (order: Order) => {
     if (order.status === "completed") {
       setPendingAction(() => async () => {
-        if (confirm("Are you sure you want to delete this order?")) {
+        if (
+          await confirmDialog({
+            title: "Delete this order?",
+            description: "Are you sure you want to delete this order?",
+            confirmText: "Delete order",
+            destructive: true,
+          })
+        ) {
           const success = await deleteOrder(order.id);
           if (success) {
             removeOrder(order.id);
@@ -415,7 +427,14 @@ export function AdminV2Orders() {
       return;
     }
 
-    if (confirm("Are you sure you want to delete this order?")) {
+    if (
+      await confirmDialog({
+        title: "Delete this order?",
+        description: "Are you sure you want to delete this order?",
+        confirmText: "Delete order",
+        destructive: true,
+      })
+    ) {
       const success = await deleteOrder(order.id);
       if (success) {
         removeOrder(order.id);

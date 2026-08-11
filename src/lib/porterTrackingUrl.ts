@@ -47,6 +47,13 @@ export function porterStatusDisplay(
       return { label: "Cancelled", tone: "error" };
     case "failed":
       return { label: "Dispatch failed", tone: "error" };
+    // Hybrid booking: no rider was booked because this drop is past the store's
+    // third-party radius. Which of the two it is comes from the partner's setting,
+    // and the raw state string ("own_delivery") was previously shown as-is.
+    case "own_delivery":
+      return { label: "You deliver this one", tone: "active" };
+    case "shiprocket":
+      return { label: "Shipping with Shiprocket", tone: "active" };
     default:
       return { label: state || "Pending dispatch", tone: "pending" };
   }

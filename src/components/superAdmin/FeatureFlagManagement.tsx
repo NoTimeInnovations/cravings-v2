@@ -86,6 +86,8 @@ const FeatureFlagManagement = () => {
       "Publishes the menu as a WhatsApp Business Catalogue so customers browse and build a basket in chat; checkout still happens on the storefront. Needs every listed item to have a photo. NOT available to partners sharing a WhatsApp number with other merchants — the catalogue binds to a WABA, so it cannot be scoped to one of them. After granting, the partner clicks Sync in WhatsApp → Catalogue, then the catalogue must be connected to the number BY HAND in WhatsApp Manager.",
     loyalty_points:
       "Customers earn and redeem points; the earn rate is configured in Loyalty settings.",
+    shiprocket:
+      "Ships orders through the partner's OWN Shiprocket account (parcel courier or Shiprocket Quick hyperlocal). Grant ACCESS to reveal Settings → Integrations → Shiprocket, where the partner enters the API user they create at app.shiprocket.in → Settings → API. ENABLED starts dispatching, and the partner cannot switch it on until their credentials pass a connection test. Each dispatch spends the partner's own Shiprocket wallet.",
   };
 
   const getAllPartners = async () => {

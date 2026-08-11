@@ -84,6 +84,8 @@ const FEATURE_DESCRIPTIONS: Record<string, string> = {
     "Publishes the menu as a WhatsApp Catalogue. Needs the partner's OWN WABA (not a shared number) and an image on every item.",
   prebooking: "Scheduled / prebooked orders for a future date & time.",
   loyalty_points: "Partner-scoped loyalty points.",
+  shiprocket:
+    "Shipping through the partner's own Shiprocket account (they supply their API user).",
 };
 
 interface DeleteStats {

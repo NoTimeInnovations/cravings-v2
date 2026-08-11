@@ -15,6 +15,7 @@ import { useAuthStore, Partner } from "@/store/authStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { UpgradePlanDialog } from "./UpgradePlanDialog";
 import { FreePlanBanner } from "./FreePlanBanner";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 interface AdminV2PriorityChangerProps {
     onBack: () => void;
@@ -210,9 +211,18 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
 
     // Switch between the "Menu order" and "Recommendations" tabs, resetting any
     // drill-down and guarding unsaved changes.
-    const switchMode = (next: "menu" | "recs") => {
+    const switchMode = async (next: "menu" | "recs") => {
         if (next === mode) return;
-        if (hasChanges && !confirm("You have unsaved changes. Discard them?")) return;
+        if (
+            hasChanges &&
+            !(await confirmDialog({
+                title: "Discard unsaved changes?",
+                description: "You have unsaved changes. They will be lost if you switch tabs.",
+                confirmText: "Discard",
+                destructive: true,
+            }))
+        )
+            return;
         setHasChanges(false);
         setSelectedCategory(null);
         setRecItem(null);
@@ -239,9 +249,14 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
             )}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-4 gap-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => {
+                    <Button variant="ghost" size="icon" onClick={async () => {
                         if (hasChanges) {
-                            if (!confirm("You have unsaved changes. Discard them?")) return;
+                            if (!(await confirmDialog({
+                                title: "Discard unsaved changes?",
+                                description: "You have unsaved changes. They will be lost if you leave this screen.",
+                                confirmText: "Discard",
+                                destructive: true,
+                            }))) return;
                             setHasChanges(false);
                         }
                         if (mode === "recs") {
