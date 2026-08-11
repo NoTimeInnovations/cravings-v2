@@ -15,10 +15,32 @@ import { OrderNotificationCard } from "./OrderNotificationCard";
 import { Order } from "@/store/orderStore";
 import { useAdminStore } from "@/store/adminStore";
 
-export function OrderNotification() {
+/**
+ * Pending-order sheet.
+ *
+ * `open`/`onOpenChange` make it controllable so the navbar can drive it from a
+ * dropdown item, and `hideTrigger` drops its own bell button in that case — a
+ * SheetTrigger nested inside a DropdownMenuItem does not survive the menu
+ * closing on click, so the parent owns the open state instead.
+ */
+export function OrderNotification({
+    open,
+    onOpenChange,
+    hideTrigger = false,
+}: {
+    open?: boolean;
+    onOpenChange?: (v: boolean) => void;
+    hideTrigger?: boolean;
+} = {}) {
     const { orders } = useOrderSubscriptionStore();
     const { setActiveView, setSelectedOrderId } = useAdminStore();
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
+    const controlled = open !== undefined;
+    const isSheetOpen = controlled ? open : internalOpen;
+    const setIsSheetOpen = (v: boolean) => {
+        if (!controlled) setInternalOpen(v);
+        onOpenChange?.(v);
+    };
 
     // Filter pending orders
     const pendingOrders = orders.filter(order => order.status === "pending");
@@ -31,6 +53,7 @@ export function OrderNotification() {
 
     return (
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            {!hideTrigger && (
             <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400" />
@@ -44,6 +67,7 @@ export function OrderNotification() {
                     )}
                 </Button>
             </SheetTrigger>
+            )}
             <SheetContent className="w-[85vw] sm:max-w-md overflow-y-auto">
                 <SheetHeader className="mb-4">
                     <SheetTitle>Pending Orders ({pendingOrders.length})</SheetTitle>

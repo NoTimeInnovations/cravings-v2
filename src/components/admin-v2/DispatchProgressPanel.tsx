@@ -7,6 +7,7 @@ import {
   cancelDispatch,
   dispatchViaDeliveryBridge,
 } from "@/app/actions/porterBridge";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 type ProviderState = "won" | "checking" | "tried" | "pending";
 interface HistItem {
@@ -23,6 +24,11 @@ interface HistItem {
   /** Null means a rider was never assigned. */
   assignedAt?: number | null;
   createdAt: number;
+  /** Porter said cancelled for a booking that HAD a rider, with no reallocation
+   *  to follow — its app may still show that rider en route. Uncertain, not dead. */
+  cancelSuspect?: boolean;
+  /** Set when we followed a Porter reallocation onto a new CRN — the old one. */
+  reallocatedFrom?: string | null;
 }
 interface Progress {
   status: string;
@@ -64,6 +70,7 @@ const STATUS_LABEL: Record<string, string> = {
  * search timed out. They need different responses from whoever is reading this.
  */
 function cancelLabel(h: HistItem): string {
+  if (h.cancelSuspect) return "Cancelled? — check Porter app";
   if (h.cancelledBy) {
     const who =
       h.cancelledBy === "partner" ? "partner"
@@ -108,6 +115,10 @@ function RiderHistoryBlock({
         {history.map((h) => {
           const st = histStatus(h.status);
           const label = h.status === "cancelled" ? cancelLabel(h) : st.label;
+          // Uncertain is not failed: amber reads as "needs a look", not "dead".
+          const cls = h.cancelSuspect
+            ? "border-amber-300 bg-amber-50 text-amber-700"
+            : st.cls;
           return (
             <div key={h.bookingId} className="flex items-center gap-2 rounded-md border bg-white px-3 py-1.5 text-sm">
               <span className="min-w-0 flex-1 truncate">
@@ -115,13 +126,18 @@ function RiderHistoryBlock({
                 {h.driver?.name ? <span className="text-muted-foreground"> · {h.driver.name}</span> : null}
                 {h.driver?.vehicleNumber ? <span className="text-muted-foreground"> · {h.driver.vehicleNumber}</span> : null}
                 {h.crn ? <span className="text-muted-foreground"> · {h.crn}</span> : null}
+                {h.reallocatedFrom ? (
+                  <span className="block truncate text-xs text-muted-foreground">
+                    Porter reassigned this from {h.reallocatedFrom}
+                  </span>
+                ) : null}
                 {h.status === "cancelled" && h.cancelReason ? (
                   <span className="block truncate text-xs text-muted-foreground">
                     {h.cancelReason}
                   </span>
                 ) : null}
               </span>
-              <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium ${st.cls}`}>
+              <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-medium ${cls}`}>
                 {label}
               </span>
             </div>
@@ -183,7 +199,16 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
   // checking providers and hasn't already been cancelled).
   const handleCancel = async () => {
     if (cancelling || cancelled) return;
-    if (!window.confirm("Cancel this delivery dispatch? The provider search will stop.")) return;
+    if (
+      !(await confirmDialog({
+        title: "Cancel this delivery dispatch?",
+        description: "The provider search will stop.",
+        confirmText: "Cancel dispatch",
+        cancelText: "Keep searching",
+        destructive: true,
+      }))
+    )
+      return;
     setCancelling(true);
     setCancelError(null);
     const r = await cancelDispatch(orderId, undefined, "partner");
@@ -210,9 +235,14 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
   const handleCancelAndRebook = async () => {
     if (cancelling || rebooking) return;
     if (
-      !window.confirm(
-        "Cancel the current search and book again?\n\nThe current provider search stops and a fresh rider hunt starts. This books a real delivery.",
-      )
+      !(await confirmDialog({
+        title: "Cancel the current search and book again?",
+        description:
+          "The current provider search stops and a fresh rider hunt starts. This books a real delivery.",
+        confirmText: "Cancel & book again",
+        cancelText: "Keep searching",
+        destructive: true,
+      }))
     )
       return;
     setRebooking(true);

@@ -138,6 +138,26 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  /**
+   * Ships orders through the partner's OWN Shiprocket account. Two modes,
+   * chosen per store in Settings → Integrations → Shiprocket:
+   *   - "parcel"     — standard courier (Delhivery/Bluedart/…). Needs package
+   *                    weight + L/B/H and a destination pincode.
+   *   - "hyperlocal" — Shiprocket Quick, same-city rider. Needs pickup and drop
+   *                    coordinates instead of dimensions.
+   *
+   * `access` alone reveals the credentials panel so the partner can enter their
+   * API user and test it; `enabled` is what actually dispatches. The partner-facing
+   * toggle refuses to turn `enabled` on until a connection test has passed, so a
+   * store can never be dispatching against credentials nobody has verified.
+   *
+   * Credentials live encrypted in partner_shiprocket_credentials, never on the
+   * partners row — see migrations/2026-08-06-shiprocket.sql for why.
+   */
+  shiprocket: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -217,6 +237,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.loyalty_points.access) {
     parts.push(`loyalty_points-${features.loyalty_points.enabled}`);
+  }
+
+  if (features.shiprocket.access) {
+    parts.push(`shiprocket-${features.shiprocket.enabled}`);
   }
 
   return parts.join(",");
@@ -300,6 +324,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    shiprocket: {
+      access: false,
+      enabled: false,
+    },
   };
 
   if (!perm) {
@@ -369,6 +397,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "loyalty_points") {
         permissions.loyalty_points.access = true;
         permissions.loyalty_points.enabled = value === "true";
+      } else if (key === "shiprocket") {
+        permissions.shiprocket.access = true;
+        permissions.shiprocket.enabled = value === "true";
       }
     }
   }

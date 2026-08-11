@@ -18,6 +18,7 @@ import { BrandingSettings } from "./settings/BrandingSettings";
 import { IntegrationsSettings } from "./settings/IntegrationsSettings";
 import { LoyaltyPointsSettings } from "./settings/LoyaltyPointsSettings";
 import { ThirdPartyChargesSettings } from "./settings/ThirdPartyChargesSettings";
+import { ShiprocketSettings } from "./settings/ShiprocketSettings";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -87,6 +88,12 @@ export function AdminV2Settings() {
     const showPrebookingGroup = features?.prebooking?.access && features?.prebooking?.enabled;
     const showStorefront = features?.storefront?.access && features?.storefront?.enabled;
     const showLoyalty = features?.loyalty_points?.access;
+    // Gated on ACCESS alone, not access && enabled. The Features toggle refuses to
+    // switch Shiprocket on until its credentials have passed a connection test, so
+    // gating the credentials panel on `enabled` would be a deadlock: no panel, no
+    // test, no way to enable. Superadmin grants access → the panel appears → the
+    // partner configures and tests → the partner flips the switch.
+    const showShiprocket = !!features?.shiprocket?.access;
 
     const username = (userData as any)?.username;
     const firstQrCodeId = (userData as any)?.qr_codes?.[0]?.id;
@@ -169,7 +176,12 @@ export function AdminV2Settings() {
             label: "Integrations",
             desc: "Google Business, WhatsApp, Google Tag Manager & delivery platforms",
             icon: Plug,
-            sections: [{ key: "integrations", label: "Integrations", Component: IntegrationsSettings }],
+            sections: [
+                { key: "integrations", label: "Integrations", Component: IntegrationsSettings },
+                ...(showShiprocket
+                    ? [{ key: "shiprocket", label: "Shiprocket", Component: ShiprocketSettings }]
+                    : []),
+            ],
         },
         {
             key: "loyalty",

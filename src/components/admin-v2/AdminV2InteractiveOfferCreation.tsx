@@ -93,6 +93,10 @@ export function AdminV2InteractiveOfferCreation({ onNext, onCancel, onSelectionC
     const [selectedItems, setSelectedItems] = useState<Record<string, SelectedItem>>({});
     const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);
     const [showSelectedSheet, setShowSelectedSheet] = useState(false);
+    // 10 per page. A partner with a few hundred dishes previously got one
+    // unbroken list, which pushed the (md:absolute) Next Step bar below the fold
+    // and made it a scroll hunt to finish the offer.
+    const [page, setPage] = useState(1);
 
     useEffect(() => {
         (async () => {
@@ -137,6 +141,23 @@ export function AdminV2InteractiveOfferCreation({ onNext, onCancel, onSelectionC
             ? pool
             : pool.filter((mi) => mi.name.toLowerCase().includes(q));
     }, [items, groupedItems, activeCategory, search]);
+
+    const PAGE_SIZE = 10;
+    const pageCount = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
+    // Filtering shrinks the list under the cursor, so a page number from the
+    // previous filter can point past the end and render an empty list that looks
+    // like "no items". Clamp instead of trusting the stored page.
+    const safePage = Math.min(page, pageCount);
+    const pagedItems = useMemo(
+        () => visibleItems.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+        [visibleItems, safePage],
+    );
+
+    // Back to page 1 whenever the filter changes — staying on page 4 of a new,
+    // shorter result set is never what the user meant.
+    useEffect(() => {
+        setPage(1);
+    }, [activeCategory, search]);
 
     const isAllVisibleSelected = useMemo(() => {
         if (!visibleItems || visibleItems.length === 0) return false;
@@ -257,13 +278,28 @@ export function AdminV2InteractiveOfferCreation({ onNext, onCancel, onSelectionC
                         </svg>
                     </div>
 
-                    <Button
-                        variant="ghost"
-                        onClick={handleSelectAllToggle}
-                        className="text-sm font-medium text-foreground hover:bg-muted"
-                    >
-                        {isAllVisibleSelected ? "Clear All" : "Select All"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            onClick={handleSelectAllToggle}
+                            className="text-sm font-medium text-foreground hover:bg-muted"
+                        >
+                            {isAllVisibleSelected
+                                ? "Clear All"
+                                : `Select All${visibleItems.length > PAGE_SIZE ? ` (${visibleItems.length})` : ""}`}
+                        </Button>
+                        {/* Next Step is here as well as in the bottom bar. The bottom
+                            bar is md:absolute, so on a long list it sits below the fold
+                            and finishing the offer became a scroll hunt. */}
+                        {selectedCount > 0 && (
+                            <Button
+                                onClick={() => onNext(Object.values(selectedItems))}
+                                className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 rounded-full px-5"
+                            >
+                                Next Step ({selectedCount})
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -279,7 +315,7 @@ export function AdminV2InteractiveOfferCreation({ onNext, onCancel, onSelectionC
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                            {visibleItems.map((mi) => {
+                            {pagedItems.map((mi) => {
                                 const isSelected = Boolean(selectedItems[mi.id as string]);
                                 const hasVariants = mi.variants && mi.variants.length > 0;
 
@@ -336,7 +372,7 @@ export function AdminV2InteractiveOfferCreation({ onNext, onCancel, onSelectionC
 
                 {/* Mobile Card View */}
                 <div className="md:hidden grid grid-cols-1 gap-3 pb-20">
-                    {visibleItems.map((mi) => {
+                    {pagedItems.map((mi) => {
                         const isSelected = Boolean(selectedItems[mi.id as string]);
                         return (
                             <div
@@ -376,6 +412,37 @@ export function AdminV2InteractiveOfferCreation({ onNext, onCancel, onSelectionC
                         <div className="py-12 text-center text-muted-foreground">No items found matching your search.</div>
                     )}
                 </div>
+
+                {pageCount > 1 && (
+                    <div className="flex items-center justify-between gap-3 py-4">
+                        <p className="text-xs text-muted-foreground">
+                            {(safePage - 1) * PAGE_SIZE + 1}–
+                            {Math.min(safePage * PAGE_SIZE, visibleItems.length)} of{" "}
+                            {visibleItems.length}
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={safePage <= 1}
+                                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            >
+                                Previous
+                            </Button>
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                                {safePage} / {pageCount}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={safePage >= pageCount}
+                                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </ScrollArea>
 
             {/* Selected Items Summary Bar */}

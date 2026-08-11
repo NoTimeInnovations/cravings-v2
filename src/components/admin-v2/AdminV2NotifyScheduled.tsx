@@ -24,6 +24,7 @@ import {
   type ScheduleRow,
 } from "@/app/actions/scheduledNotifications";
 import { EditScheduleDialog } from "@/components/admin-v2/EditScheduleDialog";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 function fmt(iso: string | null, tz?: string): string {
   if (!iso) return "—";
@@ -205,11 +206,14 @@ export function AdminV2NotifyScheduled({
                     variant="ghost"
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     disabled={busy}
-                    onClick={() => {
+                    onClick={async () => {
                       if (
-                        !confirm(
-                          "Delete this scheduled notification? This can't be undone."
-                        )
+                        !(await confirmDialog({
+                          title: "Delete this scheduled notification?",
+                          description: "This can't be undone.",
+                          confirmText: "Delete",
+                          destructive: true,
+                        }))
                       )
                         return;
                       runAction(

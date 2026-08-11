@@ -20,6 +20,7 @@ import { brandColorToHex, DEFAULT_BRAND_COLOR_HEX } from "@/lib/brandColor";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { ExternalLink, Upload, Loader2, RotateCcw } from "lucide-react";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 const TAG_KEYS = ["direct-order", "dine-in", "takeaway", "delivery", "no-fees"] as const;
 type TagKey = typeof TAG_KEYS[number];
@@ -308,11 +309,15 @@ export function InfoPageSettings() {
                         <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => {
+                            onClick={async () => {
                                 if (
-                                    confirm(
-                                        "Reset info page settings to defaults? Your toggles and copy will be lost."
-                                    )
+                                    await confirmDialog({
+                                        title: "Reset info page settings to defaults?",
+                                        description:
+                                            "Your toggles and copy will be lost.",
+                                        confirmText: "Reset",
+                                        destructive: true,
+                                    })
                                 )
                                     setInfo({ ...DEFAULT_INFO });
                             }}

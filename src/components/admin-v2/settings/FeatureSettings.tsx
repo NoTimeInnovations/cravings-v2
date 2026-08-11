@@ -11,6 +11,7 @@ import { getFeatures, revertFeatureToString } from "@/lib/getFeatures";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import plans from "@/data/plans.json";
+import { canEnableShiprocket } from "@/app/actions/shiprocketPartner";
 
 export function FeatureSettings() {
     const { userData, setState } = useAuthStore();
@@ -118,6 +119,23 @@ export function FeatureSettings() {
                 !(coords[0] === 0 && coords[1] === 0);
             if (!valid) {
                 toast.error("Set your store coordinates before enabling Growjet delivery.");
+                return;
+            }
+        }
+
+        // Shiprocket is the one flag where "on" immediately starts spending the
+        // partner's own money, so it refuses to switch on against credentials that
+        // have never been tested. Without this a store reads "Enabled" while every
+        // order silently fails at dispatch — the trap porter_bridge already has.
+        if (key === "shiprocket" && enabled) {
+            try {
+                const gate = await canEnableShiprocket(userData.id);
+                if (!gate.ok) {
+                    toast.error(gate.reason || "Set up Shiprocket before enabling it.");
+                    return;
+                }
+            } catch {
+                toast.error("Could not verify your Shiprocket setup. Try again.");
                 return;
             }
         }
@@ -459,6 +477,23 @@ export function FeatureSettings() {
                                     <Switch
                                         checked={features.loyalty_points.enabled}
                                         onCheckedChange={(checked) => handleFeatureToggle("loyalty_points", checked)}
+                                    />
+                                </div>
+                            )}
+
+                            {features.shiprocket?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5 pr-4">
+                                        <div className="font-medium">Shiprocket Shipping</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.shiprocket.enabled
+                                                ? "Enabled — orders ship through your Shiprocket account. Mode, pickup location and package size are set in Settings → Integrations → Shiprocket."
+                                                : "Disabled — add and test your Shiprocket credentials under Settings → Integrations → Shiprocket, then turn this on."}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.shiprocket.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("shiprocket", checked)}
                                     />
                                 </div>
                             )}

@@ -10,6 +10,7 @@ import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { createCaptainMutation, getCaptainsQuery, deleteCaptainMutation } from "@/api/captains";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { Loader2, Plus, Trash2, UserCog, Copy, ExternalLink, ArrowLeft } from "lucide-react";
 import { getFeatures } from "@/lib/getFeatures";
 
@@ -105,7 +106,12 @@ export function AdminV2CaptainSettings() {
     };
 
     const handleDeleteCaptain = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this captain?")) return;
+        if (!(await confirmDialog({
+            title: "Delete this captain?",
+            description: "The captain will lose access and will be removed from their past orders. This action cannot be undone.",
+            confirmText: "Delete",
+            destructive: true,
+        }))) return;
 
         setIsDeleting(id);
         try {

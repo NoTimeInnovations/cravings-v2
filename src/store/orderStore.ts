@@ -60,6 +60,7 @@ import { Notification } from "@/app/actions/notification";
 import { dispatchDeliveryAgent, cancelDeliveryAgent } from "@/app/actions/deliveryAgent";
 import { dispatchViaDeliveryBridge, cancelDispatch, scheduleDelayedDispatch, clearDelayedDispatch } from "@/app/actions/porterBridge";
 import { dispatchDeliveryPool, cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
+import { dispatchShiprocketOnStatus, cancelShiprocketShipment } from "@/app/actions/shiprocketDispatch";
 import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 import { linkMapsUsageToOrder } from "@/app/actions/trackGoogleApi";
 import { peekMapsSessionId, resetMapsSession } from "@/lib/mapsUsage";
@@ -90,6 +91,7 @@ export type OrderDiscountArg = {
   discount_order_types?: string;
   valid_days?: string;
   applicable_on?: string;
+  category_item_ids?: string;
   rank?: number;
   freebie_item_count?: number;
   freebie_item_ids?: string;
@@ -249,19 +251,35 @@ export interface DeliveryRules {
    *  porter_bridge partners) or "custom" (the partner's own delivery_rules
    *  pricing). Absent = "porter". */
   porter_pricing_mode?: "custom" | "porter";
-  /** HYBRID BOOKING — third party near, the restaurant's own rider far.
+  /** HYBRID BOOKING — route each delivery by distance.
    *
-   *  When on, only orders within `third_party_max_km` are quoted and booked
-   *  through the delivery bridge. Beyond it the bridge is skipped entirely: the
-   *  order is priced with the partner's own delivery pricing and they deliver it
-   *  themselves. Off/absent = today's behaviour, every order goes to the bridge.
+   *  When on, `hybrid_bands` is a ladder of distance bands, each naming ONE
+   *  carrier: "own" (the restaurant's own rider, priced with the pricing below),
+   *  "bridge" (an instant third-party rider — Porter / Rapido / Uber / Adloggs,
+   *  priced live) or "shiprocket" (the store's own Shiprocket account, priced by
+   *  its quote and sent by the Shiprocket auto-dispatch). e.g.
    *
-   *  `third_party_max_km` must be LESS than delivery_radius or the own-delivery
-   *  band is empty and the setting can never fire. 0/absent is treated as "not
-   *  configured" and leaves the split disabled, so switching the toggle on
-   *  without entering a number can never silently strand every order. */
+   *    [{upto: 1, carrier: "own"}, {upto: 10, carrier: "bridge"},
+   *     {upto: null, carrier: "shiprocket"}]
+   *
+   *  `upto` is the band's INCLUSIVE upper edge in km; exactly one row carries
+   *  `upto: null` and covers everything beyond. Rows are normalised (sorted,
+   *  de-duplicated, unusable ones dropped) on read by hybridBands — never trust
+   *  the stored order. Fewer than two usable bands leaves the split off, so a
+   *  half-finished edit can never strand every order.
+   *
+   *  Every side of the system resolves the band through hybridCarrierFor, because
+   *  two carriers each thinking an order is theirs means two vehicles and two
+   *  bills. A band naming a carrier whose feature is off simply never books, and
+   *  the checkout falls back to the store's own pricing. */
   hybrid_booking?: boolean;
+  hybrid_bands?: Array<{ upto: number | null; carrier: "own" | "bridge" | "shiprocket" }>;
+  /** LEGACY single-boundary shape, still read (and mirrored on save) for partners
+   *  configured before the ladder existed: one limit, a carrier on each side.
+   *  `hybrid_bands` wins whenever it is present. */
   third_party_max_km?: number;
+  hybrid_near_provider?: "own" | "bridge" | "shiprocket";
+  hybrid_far_provider?: "own" | "bridge" | "shiprocket";
   /** Menuthere Delivery Pool per-restaurant OTP toggles — rider must enter a
    *  code to confirm pickup (shown to the restaurant) / delivery (sent to the
    *  customer). Read by deliveryPoolDispatch at hand-off. */
@@ -280,6 +298,27 @@ export interface PrebookingRange {
   from: string; // "HH:MM" (24h, restaurant-local)
   to: string;
 }
+
+/**
+ * Who scheduling applies to.
+ *
+ *   "all"   — every basket can/must be scheduled (the original behaviour)
+ *   "items" — ONLY baskets containing one of the listed dishes. A basket without
+ *             any of them is an ordinary ASAP order and never sees the picker.
+ *
+ * This is how "preorder" is expressed: a cake that needs a day's notice is the
+ * store's only scheduled product, so scheduling is scoped to it rather than
+ * imposed on every order.
+ *
+ * The dish list is stored as menu ids in partner settings, deliberately NOT as a
+ * column on `menu`: the list is read at checkout, where items added from an OFFER
+ * card carry a reduced menu selection (src/api/partners.ts offers { menu { … } })
+ * and would report `undefined` for a menu column — the rule would then silently
+ * never fire for exactly the dishes most likely to be promoted. Settings are
+ * already selected by the storefront query and BOTH auth queries, so no query
+ * anywhere needs to learn a new field.
+ */
+export type PrebookingScope = "all" | "items";
 
 export interface PrebookingWindow {
   day: 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -343,6 +382,19 @@ export interface PrebookingSettings {
    *  slots so the customer can type their own delivery/takeaway time. The typed time
    *  is validated against the operating window + the day's ranges. Default false. */
   free_time_input?: boolean;
+  /** Does delivery/takeaway scheduling apply to every basket, or only to baskets
+   *  containing `preorder_item_ids`? Default "all" — existing partners unchanged. */
+  applies_to?: PrebookingScope;
+  /** Menu ids that require scheduling when `applies_to` is "items". A basket
+   *  holding one of these FORCES a slot even when `prebooking_optional` is on. */
+  preorder_item_ids?: string[];
+  /** Advance notice for those dishes, in minutes, on top of the store's own lead
+   *  time. One value for the whole list — a per-dish notice is a level of detail
+   *  no partner has asked for and doubles the editor. */
+  preorder_lead_minutes?: number;
+  /** Weekdays those dishes are made (0 = Sun … 6 = Sat). Empty = any day the
+   *  store already takes bookings. */
+  preorder_days?: number[];
 
   // ── Slot booking: dine-in table reservations (independent settings) ───────
   /** Minimum advance notice for a dine-in reservation, in minutes. */
@@ -371,6 +423,13 @@ export interface PrebookingSettings {
   dine_in_free_time_input?: boolean;
   /** Explicit dine-in table slot times per weekday. */
   dine_in_windows: PrebookingWindow[];
+  /** The dine-in mirror of applies_to / preorder_item_ids / … . Separate because
+   *  the two order kinds are configured independently everywhere else in this
+   *  blob, and a dish that needs notice for delivery need not need a table. */
+  dine_in_applies_to?: PrebookingScope;
+  dine_in_preorder_item_ids?: string[];
+  dine_in_preorder_lead_minutes?: number;
+  dine_in_preorder_days?: number[];
 }
 
 const DEFAULT_FROM = "10:00";
@@ -395,6 +454,14 @@ export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
   allowed_order_types: ["delivery", "takeaway", "dine_in"],
   prebooking_optional: false,
   free_time_input: false,
+  applies_to: "all",
+  preorder_item_ids: [],
+  preorder_lead_minutes: 0,
+  preorder_days: [],
+  dine_in_applies_to: "all",
+  dine_in_preorder_item_ids: [],
+  dine_in_preorder_lead_minutes: 0,
+  dine_in_preorder_days: [],
   dine_in_min_lead_time_minutes: 0,
   dine_in_max_advance_days: 7,
   dine_in_today_only: false,
@@ -995,6 +1062,50 @@ const useOrderStore = create(
                 cancelDeliveryPoolDispatch(orderId).then((r) => {
                   if (!r.ok && r.status !== 404) console.warn(`[delivery-pool] cancel failed: ${r.message}`);
                 }).catch((e) => console.warn("[delivery-pool] cancel threw:", e));
+              }
+            }
+
+            // Shiprocket — the partner's OWN shipping account. Unlike the rider
+            // providers above, this books a courier/parcel, so the trigger status
+            // and the auto/manual choice are per-store settings rather than fixed
+            // here. Those settings live next to the encrypted credentials in a
+            // server-only table, so the SERVER decides whether this transition is
+            // the configured trigger; we just tell it which status we reached.
+            //
+            // Deliberately NOT gated on isRealDelivery: a delivery-address check is
+            // still applied server-side, but the shape lives with the rest of the
+            // Shiprocket rules rather than being duplicated here.
+            //
+            // Double-dispatch is impossible by construction — the shipment row's
+            // primary key is the claim — so this can fire alongside the manual
+            // Ship button without billing the partner twice.
+            // CANCEL IS NOT GATED ON `enabled`, only on access. A partner whose
+            // parcels are already booked and who then switches Shiprocket off —
+            // which is precisely what someone does when the integration is
+            // misbehaving — would otherwise cancel six orders in the dashboard and
+            // have six couriers still turn up, with nothing in the UI saying so.
+            // Withdrawing a booking is cleanup of money already spent, not new spend.
+            if (features.shiprocket.access && newStatus === "cancelled") {
+              cancelShiprocketShipment(orderId).then((r) => {
+                if (!r.ok) console.warn(`[shiprocket] cancel failed: ${r.message}`);
+              }).catch((e) => console.warn("[shiprocket] cancel threw:", e));
+            }
+
+            if (features.shiprocket.access && features.shiprocket.enabled) {
+              if (newStatus === "cancelled") {
+                /* handled above, ungated */
+              } else {
+                dispatchShiprocketOnStatus(orderId, newStatus).then((r) => {
+                  if (!r.ok) {
+                    console.warn(`[shiprocket] dispatch failed: ${r.message}`);
+                    // A courier that could not be booked is something the person
+                    // standing at the counter has to know about NOW — silently
+                    // logging it means the parcel simply never ships.
+                    toast.error(`Shiprocket: ${r.message}`);
+                  } else if (r.awb) {
+                    toast.success(`Shipped via ${r.courier ?? "Shiprocket"} · AWB ${r.awb}`);
+                  }
+                }).catch((e) => console.warn("[shiprocket] dispatch threw:", e));
               }
             }
           } catch (e) {
@@ -2028,6 +2139,9 @@ const useOrderStore = create(
                 discount_order_types: disc.discount_order_types || null,
                 valid_days: disc.valid_days || null,
                 applicable_on: disc.applicable_on || null,
+                // Without the id list a later recompute reads "Specific" as
+                // unscoped and re-expands the discount to the whole bill.
+                category_item_ids: disc.category_item_ids || null,
                 rank: disc.rank || null,
                 freebie_item_count: disc.freebie_item_count || null,
                 freebie_item_ids: disc.freebie_item_ids || null,

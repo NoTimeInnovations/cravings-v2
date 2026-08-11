@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Search,
   Edit,
@@ -595,9 +596,11 @@ export function AdminV2Menu() {
                   }
 
                   if (
-                    !confirm(
-                      "Sync menu to Google? This can be done once per day.",
-                    )
+                    !(await confirmDialog({
+                      title: "Sync menu to Google?",
+                      description: "This can be done once per day.",
+                      confirmText: "Sync",
+                    }))
                   )
                     return;
 
@@ -775,12 +778,16 @@ export function AdminV2Menu() {
                                   size="icon"
                                   variant="ghost"
                                   className="h-6 w-6 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
                                     if (
-                                      confirm(
-                                        "Are you sure you want to delete this category and all its items?",
-                                      )
+                                      await confirmDialog({
+                                        title: "Delete this category?",
+                                        description:
+                                          "This will permanently delete the category and all its items.",
+                                        confirmText: "Delete category",
+                                        destructive: true,
+                                      })
                                     ) {
                                       deleteCategoryAndItems(categoryId!);
                                     }

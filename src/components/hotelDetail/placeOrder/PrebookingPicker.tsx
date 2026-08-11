@@ -11,6 +11,7 @@ import {
     isOrderTypeAllowed,
     formatSlotLabel,
     validateCustomPrebookTime,
+    restaurantMinuteOfDay,
 } from "@/lib/prebooking";
 
 export interface PrebookingSelection {
@@ -78,6 +79,9 @@ export function PrebookingPicker({
     optional = false,
     clampWindow = null,
     timezone = null,
+    preorderLeadMinutes = 0,
+    preorderDaysKey = null,
+    preorderNote = null,
 }: {
     settings: PrebookingSettings;
     orderTypeKey: PrebookOrderType;
@@ -97,6 +101,18 @@ export function PrebookingPicker({
     /** Restaurant IANA timezone — rolling slots + their window clamp are evaluated
      *  in it so an out-of-timezone customer isn't wrongly clamped. */
     timezone?: string | null;
+    /** Extra notice demanded by a preorder item in the cart, in minutes (the MAX
+     *  across the cart). Raises the earliest selectable date AND slot. */
+    preorderLeadMinutes?: number;
+    /** Weekdays the cart's preorder items permit, as a comma-joined string
+     *  ("0,6"), or null for unrestricted. A STRING rather than an array on
+     *  purpose: `dates` and `ranges` are memos keyed on their inputs, and a fresh
+     *  array identity each render would re-run both every render — which in
+     *  rolling mode fights the 60-second tick and visibly flips the chosen slot. */
+    preorderDaysKey?: string | null;
+    /** One line naming the dish that forced scheduling, shown when nothing is
+     *  bookable so "no dates" doesn't read as a broken shop. */
+    preorderNote?: string | null;
 }) {
     const allowed = reservation ? true : isOrderTypeAllowed(settings, orderTypeKey);
     const [date, setDate] = useState<string>("");
@@ -119,6 +135,24 @@ export function PrebookingPicker({
     const showTime = mode !== "date_only";
     const slotMode = reservation ? settings.dine_in_slot_mode : settings.slot_mode;
     const isRolling = slotMode === "rolling";
+    // Per-item preorder constraint, rebuilt from primitives so it changes identity
+    // only when the cart's actual requirement changes.
+    const preorderDays = useMemo<number[] | null>(() => {
+        if (preorderDaysKey === null || preorderDaysKey === undefined) return null;
+        // "" is the impossible-cart case (two items with no day in common) and must
+        // stay an EMPTY array, not null — null means "no restriction".
+        if (preorderDaysKey === "") return [];
+        return preorderDaysKey
+            .split(",")
+            .map((d) => Number(d))
+            .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+    }, [preorderDaysKey]);
+    // Applied to dine-in reservations too, deliberately: a cake that needs a day's
+    // notice needs it whether the customer eats in or takes it away, so a table
+    // booked for tonight must not be able to carry it. Exempting reservations
+    // would leave dine-in as a hole straight through the rule.
+    const preorderLead = Math.max(0, preorderLeadMinutes || 0);
+    const preorderDaysArg = preorderDays;
     // Free "other time" input (partner opt-in, mirrors how `mode` picks its key).
     // Shown ALONGSIDE the preset slots, but only where a time is picked at all.
     const freeTimeAllowed =
@@ -138,10 +172,18 @@ export function PrebookingPicker({
     // refreshes them (e.g. 3:00, 3:15 → 3:01, 3:16 after a minute).
     const [now, setNow] = useState<Date>(() => new Date());
     useEffect(() => {
-        if (!isRolling) return;
+        // Windows mode used to freeze this clock at mount, which was harmless
+        // while nothing depended on it advancing. Under a per-item NOTICE it is
+        // not: the range clamp (now + lead) is computed from this `now`, so a
+        // frozen clock keeps offering the slot that was earliest at mount while
+        // the submit-time check moves on — the customer who spends a minute
+        // reading the page is refused the only slot on screen, permanently.
+        // Ticking only when a notice is in play leaves every existing partner's
+        // behaviour untouched.
+        if (!isRolling && preorderLead <= 0) return;
         const id = setInterval(() => setNow(new Date()), 60_000);
         return () => clearInterval(id);
-    }, [isRolling]);
+    }, [isRolling, preorderLead]);
 
     // Reset the opt-in when the order type / optionality changes: forced types are
     // always opted-in; optional types start opted-out so the order can go ASAP
@@ -165,6 +207,7 @@ export function PrebookingPicker({
     const clampFrom = clampWindow?.from ?? null;
     const clampTo = clampWindow?.to ?? null;
 
+
     // Dates: today … +30 days that have at least one slot (today is dropped
     // automatically if all its slots are past / under the min lead time).
     const dates = useMemo(
@@ -176,9 +219,11 @@ export function PrebookingPicker({
                       throughDay: 30,
                       clampWindow: clampFrom && clampTo ? { from: clampFrom, to: clampTo } : null,
                       timezone,
+                      extraLeadMinutes: preorderLead,
+                      allowedDays: preorderDaysArg,
                   })
                 : [],
-        [allowed, settings, reservation, now, clampFrom, clampTo, timezone],
+        [allowed, settings, reservation, now, clampFrom, clampTo, timezone, preorderLead, preorderDaysArg],
     );
     // Slots are the partner's configured open ranges for the day (e.g. lunch +
     // dinner) — shown as "from – to", not every half-hour. The selection stores
@@ -191,9 +236,11 @@ export function PrebookingPicker({
                       now,
                       clampWindow: clampFrom && clampTo ? { from: clampFrom, to: clampTo } : null,
                       timezone,
+                      extraLeadMinutes: preorderLead,
+                      allowedDays: preorderDaysArg,
                   })
                 : [],
-        [settings, date, reservation, now, clampFrom, clampTo, timezone],
+        [settings, date, reservation, now, clampFrom, clampTo, timezone, preorderLead, preorderDaysArg],
     );
 
     // Keep the chosen date valid, and auto-select the first available date so
@@ -231,8 +278,25 @@ export function PrebookingPicker({
             if (userPickedTime) {
                 const [h, m] = (time || "0:0").split(":").map(Number);
                 const pickedMin = (h || 0) * 60 + (m || 0);
-                const nowMin = now.getHours() * 60 + now.getMinutes();
-                if (!time || pickedMin <= nowMin) {
+                // The RESTAURANT's minute-of-day. Rolling slot strings are produced
+                // by getRollingSlots from nowMinuteOfDay(now, timezone), so reading
+                // the device clock here compares two different zones — for a Qatar
+                // store's Indian customer that is 2.5 hours out, which both expires
+                // live picks early and keeps dead ones. (The `pickedMin <= nowMin`
+                // test below had the same flaw before this change.)
+                const nowMin = restaurantMinuteOfDay(now, timezone);
+                // A manual rolling pick is normally kept until it passes. Under a
+                // per-item NOTICE it must also still be far enough out: the cart
+                // can gain a 2-hour dish after the customer picked "in 15 minutes".
+                //
+                // Compared against the notice, NOT against membership of `ranges`:
+                // rolling slots are regenerated every 60 seconds from `now`, so a
+                // pick of 14:30 is absent from the 13:01 list purely because the
+                // grid shifted, and a membership test threw away the customer's
+                // choice a minute after they made it — including for a day-only
+                // rule with no notice at all.
+                const droppedByPreorder = preorderLead > 0 && pickedMin < nowMin + preorderLead;
+                if (!time || pickedMin <= nowMin || droppedByPreorder) {
                     // The picked slot has passed → fall back to the soonest available.
                     setTime(ranges[0]?.from ?? "");
                     setUserPickedTime(false);
@@ -246,7 +310,7 @@ export function PrebookingPicker({
         }
         if (time && !ranges.some((r) => r.from === time)) setTime("");
         else if (!time && ranges.length > 0) setTime(ranges[0].from);
-    }, [ranges, time, userPickedTime, isRolling, now, usingCustomTime, opted, freeTimeAllowed]);
+    }, [ranges, time, userPickedTime, isRolling, now, usingCustomTime, opted, freeTimeAllowed, preorderLead]);
 
     // Validate the typed time against the operating window + the day's ranges. This
     // picker is the ONE source of truth for typed-time validity: a non-null message
@@ -261,9 +325,11 @@ export function PrebookingPicker({
                       now,
                       clampWindow: clampFrom && clampTo ? { from: clampFrom, to: clampTo } : null,
                       timezone,
+                      extraLeadMinutes: preorderLead,
+                      allowedDays: preorderDaysArg,
                   })
                 : null,
-        [usingCustomTime, customTime, settings, date, reservation, now, clampFrom, clampTo, timezone],
+        [usingCustomTime, customTime, settings, date, reservation, now, clampFrom, clampTo, timezone, preorderLead, preorderDaysArg],
     );
     // The time that actually gets booked: a valid typed time wins over the preset
     // (they're mutually exclusive — setting one clears the other), and an invalid
@@ -338,8 +404,14 @@ export function PrebookingPicker({
         dates.length === 0 ? (
             <div className="flex items-start gap-2 rounded-xl border-2 border-amber-100 bg-amber-50 p-3">
                 <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                {/* With a preorder item this branch is no longer a rare
+                    misconfiguration — it is the ordinary "this dish can't be made
+                    inside our booking times" case, so it has to name the dish.
+                    "No booking dates are currently available" alone reads as a
+                    broken shop and gives the customer nothing to act on. */}
                 <p className="text-xs font-medium text-amber-800">
-                    No booking dates are currently available. Please contact the restaurant.
+                    {preorderNote ||
+                        "No booking dates are currently available. Please contact the restaurant."}
                 </p>
             </div>
         ) : (

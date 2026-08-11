@@ -100,11 +100,21 @@ const DiscountBanner = ({
   partnerId,
   currency,
   accent,
+  visibleMenuIds = null,
   variant = "cards",
 }: {
   partnerId: string;
   currency: string;
   accent: string;
+  /** Menu ids the customer is allowed to see, when the storefront is under a
+   *  ?category=/?hide= filter; null/undefined when it is not.
+   *
+   *  This banner resolves freebie / BXGY item names with its OWN Hasura query
+   *  against the `menu` table, so it never saw the page's filtered menu — a
+   *  customer on a locked "beverages" link was still told "FREE GULAB JAMUN".
+   *  Given the set, item-scoped discounts whose named dishes are all hidden are
+   *  dropped, and any remaining names are narrowed to what's visible. */
+  visibleMenuIds?: Set<string> | null;
   // "cards" (default) — the full scrollable discount cards (V3/V4).
   // "summary" — a single compact "Items up to X% off · N offers ⌄" row that
   // expands to reveal the cards (V5 / Zomato-style header).
@@ -176,7 +186,24 @@ const DiscountBanner = ({
           );
         }
 
+        const namedIds = (d: DiscountData): string[] =>
+          [
+            ...(d.discount_type === "freebie" || d.discount_type === "bxgy"
+              ? (d.freebie_item_ids ?? "").split(",")
+              : []),
+            ...(d.discount_type === "bxgy" ? (d.bxgy_buy_item_ids ?? "").split(",") : []),
+          ]
+            .map((x) => x.trim())
+            .filter(Boolean);
+
         const visible = active.filter((d) => {
+          // Under a category filter, an offer that only names hidden dishes is
+          // advertising something the customer cannot reach. Discounts that name
+          // no items (a flat % off) are unaffected.
+          if (visibleMenuIds) {
+            const ids = namedIds(d);
+            if (ids.length > 0 && !ids.some((id) => visibleMenuIds.has(id))) return false;
+          }
           if (d.per_user_usage_limit == null) return true;
           if (!userId) return true;
           return (usageMap[d.id] ?? 0) < d.per_user_usage_limit;
@@ -203,13 +230,18 @@ const DiscountBanner = ({
             { ids: [...new Set(freebieIds)] }
           ).then((menuRes) => {
             const names: Record<string, string> = {};
-            (menuRes?.menu ?? []).forEach((m: { id: string; name: string }) => { names[m.id] = m.name; });
+            (menuRes?.menu ?? []).forEach((m: { id: string; name: string }) => {
+              // A surviving BXGY can still name one hidden dish among several;
+              // leave it out of the label rather than the whole offer.
+              if (visibleMenuIds && !visibleMenuIds.has(m.id)) return;
+              names[m.id] = m.name;
+            });
             setFreebieItemNames(names);
           }).catch(() => {});
         }
       })
       .catch((err) => console.error("DiscountBanner fetch failed:", err));
-  }, [partnerId, (user as any)?.id, lastOrderPlacedAt]);
+  }, [partnerId, (user as any)?.id, lastOrderPlacedAt, visibleMenuIds]);
 
   // Rotate the summary ticker through offers one at a time. Only cycles when
   // there's more than one offer to show.

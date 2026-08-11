@@ -23,7 +23,7 @@ import { Loader2, Plus, Trash2, Tag, Copy, Check, Search, Pencil } from "lucide-
 import { getMenu } from "@/api/menu";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { isDiscountStackingEnabled } from "@/lib/discountUtils";
+import { isDiscountBlockedWithOffers, isDiscountStackingEnabled } from "@/lib/discountUtils";
 import { describeBxgy, type BxgyBuyType, type BxgyRewardType } from "@/lib/bxgy";
 
 type DiscountType = "percentage" | "flat" | "freebie" | "bxgy";
@@ -222,6 +222,9 @@ export function DiscountCodeSettings() {
     const { userData, setState } = useAuthStore();
     // One discount per bill by default; partners opt into stacking.
     const [stacking, setStacking] = useState(false);
+    // Hard rule: refuse a discount outright when the cart holds an offer item.
+    const [excludeOffers, setExcludeOffers] = useState(false);
+    const [savingExcludeOffers, setSavingExcludeOffers] = useState(false);
     const [savingStacking, setSavingStacking] = useState(false);
     const [discounts, setDiscounts] = useState<Discount[]>([]);
     const [loading, setLoading] = useState(true);
@@ -261,6 +264,7 @@ export function DiscountCodeSettings() {
 
     useEffect(() => {
         setStacking(isDiscountStackingEnabled((userData as any)?.delivery_rules));
+        setExcludeOffers(isDiscountBlockedWithOffers((userData as any)?.delivery_rules));
     }, [userData]);
 
     // delivery_rules is a shared blob (delivery, round-off, parcel charges…), so
@@ -282,6 +286,28 @@ export function DiscountCodeSettings() {
             toast.error("Could not save that setting");
         } finally {
             setSavingStacking(false);
+        }
+    };
+
+    const saveExcludeOffers = async (value: boolean) => {
+        if (!userData?.id) return;
+        const previous = excludeOffers;
+        setExcludeOffers(value);
+        setSavingExcludeOffers(true);
+        try {
+            const rules = { ...((userData as any)?.delivery_rules || {}), discount_excludes_offers: value };
+            await updatePartner(userData.id, { delivery_rules: rules } as any);
+            revalidateTag(userData.id);
+            setState({ delivery_rules: rules } as any);
+            toast.success(
+                value ? "Discounts blocked on carts with offers" : "Discounts allowed alongside offers",
+            );
+        } catch (e) {
+            console.error("Failed to save discount/offer rule:", e);
+            setExcludeOffers(previous);
+            toast.error("Could not save that setting");
+        } finally {
+            setSavingExcludeOffers(false);
         }
     };
 
@@ -646,6 +672,23 @@ export function DiscountCodeSettings() {
                             checked={stacking}
                             disabled={savingStacking}
                             onCheckedChange={saveStacking}
+                        />
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5 pr-3">
+                            <Label className="text-sm">Don&apos;t allow discounts with offers</Label>
+                            <p className="text-xs text-muted-foreground">
+                                Off by default: an offer item is simply left out of the discount,
+                                so the rest of a mixed cart still gets it. Turn on to refuse the
+                                discount entirely whenever the cart contains any offer item —
+                                discounts or offers, never both.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={excludeOffers}
+                            disabled={savingExcludeOffers}
+                            onCheckedChange={saveExcludeOffers}
                         />
                     </div>
                 </CardHeader>

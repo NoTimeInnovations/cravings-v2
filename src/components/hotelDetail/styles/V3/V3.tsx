@@ -635,7 +635,7 @@ const V3 = ({
         {/* Discount Banner */}
         <DiscountBanner
           partnerId={hoteldata?.id || ""}
-          currency={hoteldata?.currency || "₹"}
+          visibleMenuIds={(hoteldata as any)?.visibleMenuIds ?? null}          currency={hoteldata?.currency || "₹"}
           accent="#059669"
         />
 

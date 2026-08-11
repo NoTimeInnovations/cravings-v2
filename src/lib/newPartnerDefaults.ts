@@ -30,10 +30,18 @@ export const NEW_PARTNER_THEME: NewPartnerTheme = {
   checkoutStyle: "v2",
 };
 
-// ordering + delivery + newonboarding + whatsappOrdering enabled; storefront access-only.
-// Mirrors the 30-day-trial policy — see memory/new-partner-trial-defaults.md
+// ordering + delivery + newonboarding + whatsappOrdering enabled; storefront and
+// porter_bridge access-only. Mirrors the 30-day-trial policy — see
+// memory/new-partner-trial-defaults.md
+//
+// In this CSV the KEY's presence grants `access` and the VALUE sets `enabled`
+// (see parseFeatureFlags in getFeatures.ts), so "porter_bridge-false" means the
+// partner can see and switch the feature on, but it is off until they do.
+// Deliberately not "-true": porter-bridge dispatch resolves a Porter account
+// from the partner's registered mobile, so enabling it before that exists would
+// fail dispatch on their first delivery rather than simply doing nothing.
 export const NEW_PARTNER_FEATURE_FLAGS =
-  "ordering-true,delivery-true,storefront-false,newonboarding-true,whatsappOrdering-true";
+  "ordering-true,delivery-true,storefront-false,newonboarding-true,whatsappOrdering-true,porter_bridge-false";
 
 // Stringified theme for the partners.theme column (used by paths that store a JSON string).
 export const NEW_PARTNER_THEME_STRING = JSON.stringify(NEW_PARTNER_THEME);

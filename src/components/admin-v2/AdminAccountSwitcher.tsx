@@ -163,17 +163,17 @@ export function AdminAccountSwitcher() {
             {/* Trigger Button */}
             <Button
                 variant="ghost"
-                className="flex items-center gap-2 px-2 py-1.5 h-auto hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                className="flex items-center gap-1 px-1 py-1 h-auto hover:bg-orange-50 dark:hover:bg-orange-900/20"
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-7 w-7">
                     <AvatarImage src={partner?.store_banner} className="object-cover" />
-                    <AvatarFallback className="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 text-xs">
+                    <AvatarFallback translate="no" className="notranslate bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 text-xs">
                         {partner?.store_name?.slice(0, 2).toUpperCase() || "??"}
                     </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:flex flex-col items-start">
-                    <span className="text-sm font-medium truncate max-w-[120px]">
+                    <span translate="no" className="notranslate text-sm font-medium truncate max-w-[120px]">
                         {partner?.store_name || "My Store"}
                     </span>
                     <span className="text-xs text-muted-foreground truncate max-w-[120px]">
@@ -194,12 +194,12 @@ export function AdminAccountSwitcher() {
                         <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10">
                                 <AvatarImage src={partner?.store_banner} className="object-cover" />
-                                <AvatarFallback className="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">
+                                <AvatarFallback translate="no" className="notranslate bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">
                                     {partner?.store_name?.slice(0, 2).toUpperCase() || "??"}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold truncate">
+                                <p translate="no" className="notranslate text-sm font-semibold truncate">
                                     {partner?.store_name || "My Store"}
                                 </p>
                                 <p className="text-xs text-muted-foreground truncate">
@@ -257,12 +257,12 @@ export function AdminAccountSwitcher() {
                                             onClick={() => handleSwitchAccount(account)}
                                         >
                                             <Avatar className="h-8 w-8">
-                                                <AvatarFallback className="bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 text-xs">
+                                                <AvatarFallback translate="no" className="notranslate bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 text-xs">
                                                     {account.store_name?.slice(0, 2).toUpperCase() || account.name?.slice(0, 2).toUpperCase() || "??"}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium truncate">
+                                                <p translate="no" className="notranslate text-sm font-medium truncate">
                                                     {account.store_name || account.name}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground truncate">

@@ -24,6 +24,17 @@ import { v4 as uuidv4 } from "uuid";
 
 
 import { computeDiscountAmount, isDiscountStackingEnabled, limitDiscounts } from "@/lib/discountUtils";
+import { scopedBaseFor } from "@/lib/discountStack";
+
+// An item-scoped discount is worth a share of ITS lines only. Recomputing it
+// against the whole subtotal on a POS save would re-expand it to the bill and
+// persist that as the order total. BXGY/freebie are exempt upstream.
+const posScopeArgs = (lines: any[]) => ({
+  scopeLines: (lines ?? []).map((i: any) => ({ id: i?.id, price: i?.price, quantity: i?.quantity })),
+  categoryOf: (menuId: string) =>
+    (lines ?? []).find((i: any) => String(i?.id ?? "").split("|")[0].split("_custom_")[0] === menuId)
+      ?.category?.id,
+});
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems } from "@/lib/takeawayPricing";
 import { findOrCreateUserByPhone } from "@/lib/whatsappFlow/silentUser";
@@ -651,7 +662,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
           // reward as evaluated against the cart when it was applied.
           return total + discount.value;
         }
-        return total + computeDiscountAmount(discount as any, subtotal);
+        const { scopeLines, categoryOf } = posScopeArgs(effectiveItems);
+        return total + computeDiscountAmount(discount as any, subtotal, scopedBaseFor(discount as any, scopeLines, categoryOf));
       }, 0);
 
       const discountedSubtotal = Math.max(0, subtotal - discountAmount);
@@ -792,7 +804,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
         // evaluated value was already resolved when it was applied.
         return total + discount.value;
       }
-      return total + computeDiscountAmount(discount as any, subtotal);
+      const { scopeLines, categoryOf } = posScopeArgs(effectiveItems);
+      return total + computeDiscountAmount(discount as any, subtotal, scopedBaseFor(discount as any, scopeLines, categoryOf));
     }, 0);
 
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
@@ -891,7 +904,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
           // reward as evaluated against the cart when it was applied.
           return total + discount.value;
         }
-        return total + computeDiscountAmount(discount as any, subtotal);
+        const { scopeLines, categoryOf } = posScopeArgs(effectiveItems);
+        return total + computeDiscountAmount(discount as any, subtotal, scopedBaseFor(discount as any, scopeLines, categoryOf));
       }, 0);
 
       const discountedSubtotal = Math.max(0, subtotal - discountAmount);

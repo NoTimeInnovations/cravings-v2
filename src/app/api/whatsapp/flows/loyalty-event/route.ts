@@ -5,6 +5,7 @@ import { runLoyaltyTriggeredFlows } from "@/lib/whatsappFlow/engine";
 import { getFeatures } from "@/lib/getFeatures";
 import { toWhatsAppNumber } from "@/lib/countryPhoneMap";
 import { parseLoyaltySettings, pointsToValue } from "@/lib/loyalty/config";
+import { customerOrderRef } from "@/lib/customerOrderRef";
 
 // Receives the Hasura event trigger on `loyalty_transactions` (INSERT only —
 // the ledger is append-only). When a customer is credited or spends points it
@@ -32,7 +33,7 @@ const Q_CTX = `
 `;
 const Q_ORDER_DISPLAY = `
   query OrderDisplay($id: uuid!) {
-    orders_by_pk(id: $id) { display_id short_id }
+    orders_by_pk(id: $id) { id short_id }
   }
 `;
 
@@ -114,7 +115,8 @@ export async function POST(req: NextRequest) {
       try {
         const o = await fetchFromHasura(Q_ORDER_DISPLAY, { id: row.order_id });
         const od = o?.orders_by_pk;
-        orderIdLabel = od?.display_id || od?.short_id || String(row.order_id).slice(0, 8);
+        // NOT display_id — see customerOrderRef.
+        orderIdLabel = customerOrderRef(od) || String(row.order_id).slice(0, 8);
       } catch {
         orderIdLabel = String(row.order_id).slice(0, 8);
       }

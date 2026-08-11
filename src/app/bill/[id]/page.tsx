@@ -124,11 +124,20 @@ const PrintOrderPage = () => {
       return order.deliveryAddress ? "Delivery" : "Takeaway";
     }
     if (order?.tableNumber === 0) return "Delivery";
-    if (!order?.tableNumber) return "Takeaway";
-    return ` ${isParcel
-      ? `Parcel (Table ${order?.tableName || order?.tableNumber})`
-      : `Table ${order?.tableName || order?.tableNumber}`
-      }`;
+
+    // Name first: a dine-in order can identify its table by name with no number
+    // (see the checkout table-naming flow), and testing tableNumber alone used
+    // to drop those through to "Takeaway".
+    const table = order?.tableName || order?.tableNumber;
+    if (table) {
+      return ` ${isParcel ? `Parcel (Table ${table})` : `Table ${table}`}`;
+    }
+
+    // A table order with no table assigned yet is still dine-in — never
+    // takeaway. Matches typeLabel() in LiveOrderCard and every other surface.
+    if (order?.type === "table_order") return "Dine-in";
+
+    return "Takeaway";
   };
 
   useEffect(() => {

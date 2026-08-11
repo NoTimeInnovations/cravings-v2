@@ -14,6 +14,7 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save, Plus, Trash2, Clock, Keyboard, Wallet, RefreshCw, AlertCircle, Link2, LogOut, CheckCircle2, XCircle } from "lucide-react";
 import { DeliveryRules, DeliveryRange } from "@/store/orderStore";
 import { isHybridBookingActive } from "@/lib/hybridDelivery";
+import { HybridBookingBands } from "./HybridBookingBands";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { countryCodes } from "@/utils/countryCodes";
@@ -43,6 +44,60 @@ const DEFAULT_WINDOW = { from: "09:00", to: "22:00" } as const;
 
 const isFullDayWindow = (w?: { from?: string; to?: string } | null): boolean =>
     !w || ((w.from ?? "00:00") === "00:00" && (w.to ?? "23:59") === "23:59");
+
+/**
+ * The form's view of a partner's saved delivery_rules.
+ *
+ * SPREADS THE STORED OBJECT FIRST, and that is the whole point. This screen used
+ * to rebuild the form state from an explicit list of keys, which silently dropped
+ * every rule the list did not name — so a setting saved correctly to the database
+ * came straight back out of the rebuild as undefined and appeared to switch itself
+ * off the moment you pressed Save. The explicit fields below then normalise the
+ * ones the form actually binds to (defaults, legacy shapes, mode inference).
+ *
+ * Shared by the hydrate effect and the change-detection effect so both compare the
+ * same shape. They had drifted apart, which left "unsaved changes" true from the
+ * moment the page loaded for any partner using the bridge fields.
+ */
+function rulesFromPartner(data: any): DeliveryRules {
+    const stored = (data?.delivery_rules || {}) as any;
+    const hasAdvancedRules = stored.delivery_ranges && stored.delivery_ranges.length > 0;
+    const hasLegacyRules = stored.first_km_range;
+    const deliveryMode = stored.delivery_mode || (hasAdvancedRules ? "advanced" : "basic");
+
+    return {
+        ...stored,
+        delivery_radius: stored.delivery_radius || 15,
+        delivery_ranges: stored.delivery_ranges || [],
+        first_km_range:
+            stored.first_km_range ||
+            (deliveryMode === "basic" && !hasLegacyRules ? { km: 1, rate: 0 } : undefined),
+        delivery_mode: deliveryMode,
+        is_fixed_rate: stored.is_fixed_rate || false,
+        minimum_order_amount: stored.minimum_order_amount || 0,
+        delivery_time_allowed: stored.delivery_time_allowed || null,
+        takeaway_time_allowed: stored.takeaway_time_allowed || null,
+        isDeliveryActive: stored.isDeliveryActive ?? true,
+        needDeliveryLocation: stored.needDeliveryLocation ?? true,
+        need_user_name: stored.need_user_name ?? false,
+        need_address_details: stored.need_address_details ?? false,
+        parcel_charge: stored.parcel_charge || 0,
+        parcel_charge_type: stored.parcel_charge_type || "fixed",
+        parcel_charge_items: stored.parcel_charge_items || {},
+        hide_delivery_charge: stored.hide_delivery_charge ?? false,
+        pool_pickup_otp: stored.pool_pickup_otp ?? false,
+        pool_drop_otp: stored.pool_drop_otp ?? false,
+        delivery_provider_priority: stored.delivery_provider_priority || ["porter", "rapido"],
+        delivery_vehicle_mode: stored.delivery_vehicle_mode || "bike",
+        delivery_payment_modes: stored.delivery_payment_modes || {},
+        delivery_wait_seconds: stored.delivery_wait_seconds ?? 600,
+        delivery_provider_groups: stored.delivery_provider_groups || {},
+        porter_auto_dispatch: stored.porter_auto_dispatch ?? true,
+        porter_dispatch_trigger: stored.porter_dispatch_trigger || "accepted",
+        porter_dispatch_delay_min: stored.porter_dispatch_delay_min ?? 0,
+        porter_pricing_mode: stored.porter_pricing_mode || "porter",
+    } as DeliveryRules;
+}
 import { WhatsappNumberBanner } from "./WhatsappNumberBanner";
 import { ContactNumbersDialog } from "./ContactNumbersDialog";
 
@@ -358,40 +413,7 @@ export function DeliverySettings() {
             setPriceAdjustment((userData as any).price_adjustment ?? null);
             setTakeawayPriceAdjustment((userData as any).takeaway_price_adjustment ?? null);
 
-            const hasAdvancedRules = userData.delivery_rules?.delivery_ranges && userData.delivery_rules.delivery_ranges.length > 0;
-            const hasLegacyRules = userData.delivery_rules?.first_km_range;
-            const deliveryMode = userData.delivery_rules?.delivery_mode || (hasAdvancedRules ? "advanced" : "basic");
-
-            setDeliveryRules({
-                delivery_radius: userData.delivery_rules?.delivery_radius || 15,
-                delivery_ranges: userData.delivery_rules?.delivery_ranges || [],
-                first_km_range: userData.delivery_rules?.first_km_range || (deliveryMode === "basic" && !hasLegacyRules ? { km: 1, rate: 0 } : undefined),
-                delivery_mode: deliveryMode,
-                is_fixed_rate: userData.delivery_rules?.is_fixed_rate || false,
-                minimum_order_amount: userData.delivery_rules?.minimum_order_amount || 0,
-                delivery_time_allowed: userData.delivery_rules?.delivery_time_allowed || null,
-                takeaway_time_allowed: userData.delivery_rules?.takeaway_time_allowed || null,
-                isDeliveryActive: userData.delivery_rules?.isDeliveryActive ?? true,
-                needDeliveryLocation: userData.delivery_rules?.needDeliveryLocation ?? true,
-                need_user_name: userData.delivery_rules?.need_user_name ?? false,
-                need_address_details: userData.delivery_rules?.need_address_details ?? false,
-                parcel_charge: userData.delivery_rules?.parcel_charge || 0,
-                parcel_charge_type: userData.delivery_rules?.parcel_charge_type || "fixed",
-                parcel_charge_items: userData.delivery_rules?.parcel_charge_items || {},
-                hide_delivery_charge: userData.delivery_rules?.hide_delivery_charge ?? false,
-                pool_pickup_otp: userData.delivery_rules?.pool_pickup_otp ?? false,
-                pool_drop_otp: userData.delivery_rules?.pool_drop_otp ?? false,
-                delivery_provider_priority:
-                    userData.delivery_rules?.delivery_provider_priority || ["porter", "rapido"],
-                delivery_vehicle_mode: userData.delivery_rules?.delivery_vehicle_mode || "bike",
-                delivery_payment_modes: userData.delivery_rules?.delivery_payment_modes || {},
-                delivery_wait_seconds: userData.delivery_rules?.delivery_wait_seconds ?? 600,
-                delivery_provider_groups: userData.delivery_rules?.delivery_provider_groups || {},
-                porter_auto_dispatch: userData.delivery_rules?.porter_auto_dispatch ?? true,
-                porter_dispatch_trigger: userData.delivery_rules?.porter_dispatch_trigger || "accepted",
-                porter_dispatch_delay_min: userData.delivery_rules?.porter_dispatch_delay_min ?? 0,
-                porter_pricing_mode: userData.delivery_rules?.porter_pricing_mode || "porter",
-            });
+            setDeliveryRules(rulesFromPartner(userData));
 
             // Initialize WhatsApp numbers. Coalesce a missing/blank area to
             // "default" so numbers seeded at signup (which have no area label)
@@ -591,11 +613,12 @@ export function DeliverySettings() {
             try {
                 const updates: any = {
                     delivery_rate: deliveryRate,
-                    // Read-modify-write: this section hydrates deliveryRules from a
-                    // fixed key whitelist, so spreading it over the existing blob
-                    // preserves keys owned by OTHER sections (round_off from Payment,
+                    // Read-modify-write: spreading over the existing blob preserves
+                    // keys owned by OTHER sections (round_off from Payment,
                     // bill_include_category_name from Bill Printing, etc.) that would
-                    // otherwise be wiped by a full-object replacement.
+                    // otherwise be wiped by a full-object replacement. rulesFromPartner
+                    // now carries this section's own unlisted keys through, so this
+                    // merge is only about the other sections.
                     delivery_rules: { ...((userData as any).delivery_rules || {}), ...deliveryRules },
                     whatsapp_numbers: cleanedWhatsapp,
                     country_code: countryCode,
@@ -740,29 +763,10 @@ export function DeliverySettings() {
 
         const initialRate = data.delivery_rate || 0;
 
-        const hasAdvancedRules = data.delivery_rules?.delivery_ranges && data.delivery_rules.delivery_ranges.length > 0;
-        const hasLegacyRules = data.delivery_rules?.first_km_range;
-        const deliveryMode = data.delivery_rules?.delivery_mode || (hasAdvancedRules ? "advanced" : "basic");
-
-        const initialRules = {
-            delivery_radius: data.delivery_rules?.delivery_radius || 15,
-            delivery_ranges: data.delivery_rules?.delivery_ranges || [],
-            first_km_range: data.delivery_rules?.first_km_range || (deliveryMode === "basic" && !hasLegacyRules ? { km: 1, rate: 0 } : undefined),
-            delivery_mode: deliveryMode,
-            is_fixed_rate: data.delivery_rules?.is_fixed_rate || false,
-            minimum_order_amount: data.delivery_rules?.minimum_order_amount || 0,
-            delivery_time_allowed: data.delivery_rules?.delivery_time_allowed || null,
-            takeaway_time_allowed: data.delivery_rules?.takeaway_time_allowed || null,
-            isDeliveryActive: data.delivery_rules?.isDeliveryActive ?? true,
-            needDeliveryLocation: data.delivery_rules?.needDeliveryLocation ?? true,
-            need_user_name: data.delivery_rules?.need_user_name ?? false,
-            need_address_details: data.delivery_rules?.need_address_details ?? false,
-            parcel_charge: data.delivery_rules?.parcel_charge || 0,
-            parcel_charge_type: data.delivery_rules?.parcel_charge_type || "fixed",
-            hide_delivery_charge: data.delivery_rules?.hide_delivery_charge ?? false,
-            pool_pickup_otp: data.delivery_rules?.pool_pickup_otp ?? false,
-            pool_drop_otp: data.delivery_rules?.pool_drop_otp ?? false,
-        };
+        // Same builder the form hydrates from, so an untouched page reports no
+        // changes — this used to be a shorter list, which made every bridge
+        // partner's Save button light up on load and stay lit.
+        const initialRules = rulesFromPartner(data);
 
         const initialWhatsapp = data.whatsapp_numbers?.length > 0
             ? data.whatsapp_numbers
@@ -872,6 +876,13 @@ export function DeliverySettings() {
         !!features?.porter_bridge?.access &&
         !!features?.porter_bridge?.enabled;
 
+    // Whether this store can hand the far half of a hybrid split to Shiprocket.
+    // Gated on `enabled`, not just access: a store that has the tab but has not
+    // switched shipping on would otherwise be offered a carrier that books
+    // nothing, and the far orders would silently go nowhere.
+    const shiprocketAvailable =
+        !!features?.shiprocket?.access && !!features?.shiprocket?.enabled;
+
     // A porter partner bills the LIVE bridge quote UNLESS they picked "custom"
     // pricing — in which case the distance/fixed-rate pricing UI below must be
     // shown so they can configure their own charge. So hide that pricing UI only
@@ -887,10 +898,7 @@ export function DeliverySettings() {
     // from a rate card they have no way to open. (The amber note above already
     // tells them to "keep that pricing set" for the no-rider fallback; until now
     // that control was hidden in exactly the mode the note is about.)
-    const hybridSplitActive = isHybridBookingActive(
-        deliveryRules,
-        deliveryRules.delivery_radius,
-    );
+    const hybridSplitActive = isHybridBookingActive(deliveryRules);
     const liveQuoteCharge =
         (agentChargeEnabled || porterUsesLiveQuote) && !hybridSplitActive;
 
@@ -1250,92 +1258,15 @@ export function DeliverySettings() {
                                 </p>
                             </div>
 
-                            {/* Hybrid booking: third party near, own riders far.
-                                Sits with the bridge settings because it only means
-                                anything when the bridge is connected. */}
+                            {/* Hybrid booking — the distance ladder. Lives with the
+                                bridge settings because an instant third-party rider is
+                                one of the carriers it routes to. */}
                             <div className="border-t border-orange-100 pt-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-0.5 pr-3">
-                                        <Label className="text-base">Use hybrid booking</Label>
-                                        <p className="text-xs text-muted-foreground">
-                                            Book a third-party rider only up to a set distance. Beyond it,
-                                            the order is priced with your own delivery pricing and you
-                                            deliver it yourself.
-                                        </p>
-                                    </div>
-                                    <Switch
-                                        checked={!!deliveryRules.hybrid_booking}
-                                        onCheckedChange={(val) =>
-                                            setDeliveryRules((prev) => ({
-                                                ...prev,
-                                                hybrid_booking: val,
-                                                // Seed a sensible first value so turning it on is never
-                                                // a no-op: 0/blank would mean "no band at all".
-                                                third_party_max_km:
-                                                    val && !prev.third_party_max_km
-                                                        ? Math.max(1, Math.floor((prev.delivery_radius ?? 15) / 2))
-                                                        : prev.third_party_max_km,
-                                            }))
-                                        }
-                                    />
-                                </div>
-
-                                {deliveryRules.hybrid_booking && (() => {
-                                    const radius = Number(deliveryRules.delivery_radius ?? 15);
-                                    const limit = Number(deliveryRules.third_party_max_km ?? 0);
-                                    // A limit at or past the orderable radius leaves NO band for own
-                                    // delivery — the partner has configured something that can never
-                                    // fire, and would report the feature as broken.
-                                    const tooWide = limit > 0 && radius > 0 && limit >= radius;
-                                    const unset = !(limit > 0);
-                                    return (
-                                        <div className="mt-3 space-y-2">
-                                            <Label className="text-sm">Third-party delivery radius (km)</Label>
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                step="0.5"
-                                                className="max-w-[160px]"
-                                                value={deliveryRules.third_party_max_km ?? ""}
-                                                onChange={(e) =>
-                                                    setDeliveryRules((prev) => ({
-                                                        ...prev,
-                                                        third_party_max_km:
-                                                            e.target.value === "" ? undefined : Number(e.target.value),
-                                                    }))
-                                                }
-                                            />
-                                            {unset ? (
-                                                <p className="text-xs text-amber-700">
-                                                    Set a distance — until you do, every order still goes to the
-                                                    third party.
-                                                </p>
-                                            ) : tooWide ? (
-                                                <p className="text-xs text-red-600">
-                                                    This must be less than your delivery radius ({radius} km), or
-                                                    there is no distance left for your own riders to cover.
-                                                </p>
-                                            ) : (
-                                                <>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        Third party up to {limit} km. From {limit} km to {radius} km you
-                                                        deliver, charged with your own delivery pricing below.
-                                                    </p>
-                                                    {/* Third-party partners currently bypass the delivery-radius
-                                                        block entirely — the provider decides what it will take. Once
-                                                        the split is on, orders past the radius are the restaurant's
-                                                        own, so the radius starts turning them away. Worth saying
-                                                        out loud: a partner used to serving well past their configured
-                                                        radius via the provider would otherwise just see orders stop. */}
-                                                    <p className="text-xs text-amber-700">
-                                                        Orders beyond {radius} km will now be refused at checkout. Raise
-                                                        your delivery radius if you still want to take them.
-                                                    </p>
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                })()}
+                                <HybridBookingBands
+                                    rules={deliveryRules}
+                                    setRules={setDeliveryRules}
+                                    shiprocketAvailable={shiprocketAvailable}
+                                />
                             </div>
 
                             <div className="border-t border-orange-100 pt-3">

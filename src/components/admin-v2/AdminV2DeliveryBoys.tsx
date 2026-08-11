@@ -15,6 +15,7 @@ import {
     deleteDeliveryBoyMutation,
     updateDeliveryBoyMutation,
 } from "@/api/deliveryBoys";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { Loader2, Plus, Trash2, Truck, ArrowLeft, Pencil } from "lucide-react";
 import { getFeatures } from "@/lib/getFeatures";
 import { Switch } from "@/components/ui/switch";
@@ -118,7 +119,12 @@ export function AdminV2DeliveryBoys() {
     };
 
     const handleDeleteDeliveryBoy = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this delivery boy?")) return;
+        if (!(await confirmDialog({
+            title: "Delete this delivery boy?",
+            description: "Their account will be removed and they will lose access to the delivery app. This action cannot be undone.",
+            confirmText: "Delete",
+            destructive: true,
+        }))) return;
 
         setIsDeleting(id);
         try {

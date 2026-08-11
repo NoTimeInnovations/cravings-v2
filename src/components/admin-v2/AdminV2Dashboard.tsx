@@ -4,20 +4,9 @@ import React, { useState, useEffect } from "react";
 import * as ptime from "@/lib/partnerTime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  UtensilsCrossed,
-  ShoppingBag,
-  Settings,
-  BarChart3,
-  ExternalLink,
-  Globe,
-  MessageCircle,
-  AlertTriangle,
-  Bike,
-  Power,
-  ArrowUpDown,
-} from "lucide-react";
+import { UtensilsCrossed, ShoppingBag, Settings, BarChart3, ExternalLink, Globe, MessageCircle, AlertTriangle, Bike, Power, ArrowUpDown, Palette, Sun, Moon } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { useAdminStore } from "@/store/adminStore";
@@ -65,6 +54,9 @@ interface QuickAction {
   view?: string;
   href?: string;
   onClick?: () => void;
+  /** Extra classes on the tile — used to make the theme toggle mobile-only,
+   *  since on desktop the same control lives in the navbar. */
+  className?: string;
 }
 
 // "Contact Us" opens WhatsApp support with a pre-filled message.
@@ -76,6 +68,16 @@ export function AdminV2Dashboard() {
   const { userData } = useAuthStore();
   const { setActiveView } = useAdminStore();
   const router = useRouter();
+  // Light/dark for the mobile quick action. Mounted-guarded because
+  // next-themes only knows the theme after it reads the DOM, and this label
+  // is rendered text — an unguarded read hydration-mismatches.
+  const { resolvedTheme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
+  useEffect(() => setThemeMounted(true), []);
+  const isDarkMode = themeMounted && resolvedTheme === "dark";
+  const themeLabel = isDarkMode ? "Light Mode" : "Dark Mode";
+  const themeIcon = isDarkMode ? Sun : Moon;
+  const toggleTheme = () => setTheme(isDarkMode ? "light" : "dark");
   const pathname = usePathname();
   const partner = userData as Partner;
   const planId = (userData as any)?.subscription_details?.plan?.id;
@@ -198,6 +200,15 @@ export function AdminV2Dashboard() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
+  // Deep-link into Settings -> Appearance -> Theme (menu style + colours).
+  const openThemes = () => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", "Settings");
+    params.set("sg", "appearance");
+    params.set("ss", "theme");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const viewMenuHref = partner?.username
     ? `/${partner.username}`
     : qrId
@@ -221,6 +232,7 @@ export function AdminV2Dashboard() {
     { title: "Availability", icon: Power, onClick: () => openMenuPanel("availability") },
     { title: "Priority", icon: ArrowUpDown, onClick: () => openMenuPanel("priority") },
     { title: "Order Settings", icon: Bike, onClick: openOrdering },
+    { title: "Themes", icon: Palette, onClick: openThemes },
     { title: "Settings", icon: Settings, view: "Settings" },
     { title: "Analytics", icon: BarChart3, view: "Analytics" },
     { title: "View Menu", icon: ExternalLink, href: viewMenuHref },
@@ -230,6 +242,15 @@ export function AdminV2Dashboard() {
       href: partner?.username ? `/${partner.username}/home` : "/",
     },
     { title: "Contact Us", icon: MessageCircle, href: SUPPORT_WHATSAPP_URL },
+    // Mobile only: the navbar's toggle is hidden below lg, so this is the only
+    // way to switch mode on a phone. Rendered through the same tile grid rather
+    // than bolted on, so it inherits the layout and tap target.
+    {
+      title: themeLabel,
+      icon: themeIcon,
+      onClick: toggleTheme,
+      className: "lg:hidden",
+    },
   ];
 
   const quickActions = allQuickActions.filter((a) => !a.hidden);
@@ -334,7 +355,7 @@ export function AdminV2Dashboard() {
             <button
               key={action.title}
               onClick={() => handleQuickAction(action)}
-              className="flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium"
+              className={`flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium ${action.className ?? ""}`}
             >
               <action.icon className="h-5 w-5 text-orange-600 shrink-0" />
               <span className="text-center leading-tight">{action.title}</span>

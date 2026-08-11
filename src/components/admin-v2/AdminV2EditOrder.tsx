@@ -26,6 +26,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { taxLabel } from "@/lib/taxLabel";
 import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
+import { scopedBaseFor } from "@/lib/discountStack";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import useOrderStore, { Order } from "@/store/orderStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,6 +102,10 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     const [totalPrice, setTotalPrice] = useState(0);
     const [tableNumber, setTableNumber] = useState<number | null>(null);
     const [phone, setPhone] = useState<string | null>(null);
+    // Editable here because this is the only screen a partner reaches to correct
+    // an order after the fact — the Print chooser only ever asks when the method
+    // is MISSING, so a wrong one (cash recorded for a UPI payment) was permanent.
+    const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
     const [newItemId, setNewItemId] = useState<string>("");
     const [searchQuery, setSearchQuery] = useState("");
     const [showExtraItems, setShowExtraItems] = useState(false);
@@ -143,6 +148,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                     orderData.order_items.map((item: any) => ({
                         id: item.id,
                         menu_id: item.menu.id,
+                        category_id: item.menu?.category?.id,
                         quantity: item.quantity,
                         tax_inclusive:
                             item.item?.tax_inclusive ?? item.menu?.tax_inclusive ?? false,
@@ -155,6 +161,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                 setTotalPrice(orderData.total_price);
                 setTableNumber(orderData.table_number);
                 setPhone(orderData.phone);
+                setPaymentMethod(orderData.payment_method ?? null);
                 // Loaded purely so the save can write it back unchanged. The
                 // query already selected it; nothing read it, so every save sent
                 // the column as null and erased the address off delivery orders.
@@ -185,10 +192,31 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         }
     };
 
+    // One definition of "what is this discount worth against these lines", so
+    // the Summary rows cannot print a different number from the one saved.
+    const scopedAmountFor = (
+        disc: any,
+        base: number,
+        lines: Array<{ menu_id?: string; category_id?: string; quantity: number; menu: { price: number } }>,
+    ) => {
+        const scopeLines = lines.map((i) => ({
+            id: i.menu_id,
+            price: i.menu.price,
+            quantity: i.quantity,
+        }));
+        const categoryOf = (menuId: string) =>
+            lines.find((i) => i.menu_id === menuId)?.category_id;
+        return disc.type === "freebie"
+            ? getDiscountAmount(disc, base)
+            : computeDiscountAmount(disc, base, scopedBaseFor(disc, scopeLines, categoryOf));
+    };
+
     const calculateTotal = (
         currentItems: Array<{
             quantity: number;
             tax_inclusive?: boolean;
+            menu_id?: string;
+            category_id?: string;
             menu: {
                 price: number;
             };
@@ -215,13 +243,13 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         const subtotal = foodSubtotal + extraChargesTotal + qrGroupCharges;
 
         // Recompute on the edited items, but honour the discount's
-        // max_discount_amount cap — saving an edit must never undo it.
-        const discountAmount = discounts.reduce((total, discount) => {
-            const disc = discount as any;
-            return total + (disc.type === "freebie"
-                ? getDiscountAmount(disc, subtotal)
-                : computeDiscountAmount(disc, subtotal));
-        }, 0);
+        // max_discount_amount cap — saving an edit must never undo it. A scoped
+        // discount was charged against ITS items only; recomputing it on the
+        // whole subtotal would silently re-expand it to the bill on save.
+        const discountAmount = discounts.reduce(
+            (total, discount) => total + scopedAmountFor(discount as any, subtotal, currentItems as any),
+            0,
+        );
 
         const discountedSubtotal = Math.max(0, subtotal - discountAmount);
         const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
@@ -304,6 +332,9 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
             menu_id: string;
             quantity: number;
             tax_inclusive?: boolean;
+            // Must travel with the line: a category-scoped discount is resolved
+            // from it on save, and a line without it is silently not counted.
+            category_id?: string;
             menu: { name: string; price: number };
         };
 
@@ -315,6 +346,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                 quantity: 1,
                 // Variants have no tax flag of their own — they inherit the row's.
                 tax_inclusive: (menuItem as any).tax_inclusive ?? false,
+                category_id: (menuItem as any)?.category?.id,
                 menu: {
                     name: `${menuItem.name} (${variant.name})`,
                     price: variant.price,
@@ -325,6 +357,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                 menu_id: baseId,
                 quantity: 1,
                 tax_inclusive: (menuItem as any).tax_inclusive ?? false,
+                category_id: (menuItem as any)?.category?.id,
                 menu: {
                     name: menuItem.name,
                     price: menuItem.price,
@@ -405,6 +438,10 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                     discounts: discounts.length > 0 ? discounts : null,
                     notes: orderNote || null,
                     delivery_address: deliveryAddress,
+                    // Always written, so DESELECTING clears it. Safe only because
+                    // GetOrderById now selects payment_method — otherwise this would
+                    // blank the column on every save, exactly as delivery_address once was.
+                    payment_method: paymentMethod,
                 },
             });
 
@@ -755,6 +792,50 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                     </>
                                 )}
 
+                                {/* Shown for every order type, and always editable —
+                                    including when a method is already recorded, which
+                                    is exactly the case that had no way to be corrected. */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Payment Method</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[
+                                            { value: "cash", label: "Cash", icon: "💵" },
+                                            { value: "upi", label: "UPI", icon: "📱" },
+                                            { value: "card", label: "Card", icon: "💳" },
+                                        ].map((m) => (
+                                            <Button
+                                                key={m.value}
+                                                type="button"
+                                                variant={paymentMethod === m.value ? "default" : "outline"}
+                                                onClick={() =>
+                                                    // Tapping the selected one clears it, so a method
+                                                    // recorded by mistake can be removed, not just swapped.
+                                                    setPaymentMethod(paymentMethod === m.value ? null : m.value)
+                                                }
+                                                className="flex h-auto flex-col gap-1 py-3"
+                                            >
+                                                <span className="text-xl">{m.icon}</span>
+                                                <span className="text-xs font-medium">{m.label}</span>
+                                            </Button>
+                                        ))}
+                                    </div>
+                                    {!paymentMethod && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Not recorded — the bill will print without a payment method.
+                                        </p>
+                                    )}
+                                    {/* Online payments (cashfree, razorpay) are real values that
+                                        match none of the three buttons. Without this the row looks
+                                        unset, and tapping Cash would silently overwrite a genuine
+                                        gateway payment and break reconciliation. */}
+                                    {paymentMethod && !["cash", "upi", "card"].includes(paymentMethod) && (
+                                        <p className="text-xs text-amber-600">
+                                            Paid online via <span className="font-medium capitalize">{paymentMethod}</span> —
+                                            choosing one of the above will overwrite that record.
+                                        </p>
+                                    )}
+                                </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Order Note</label>
                                     <textarea
@@ -862,10 +943,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                     const qrGroupCharges = qrGroup?.extra_charge ? getExtraCharge(items as any[], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
                                                     const taxableAmount = foodSubtotal + extraChargesTotal + qrGroupCharges;
 
-                                                    const disc = discount as any;
-                                                    return total + (disc.type === "freebie"
-                                                        ? getDiscountAmount(disc, taxableAmount)
-                                                        : computeDiscountAmount(disc, taxableAmount));
+                                                    return total + scopedAmountFor(discount as any, taxableAmount, items as any);
                                                 }, 0).toFixed(2)}
                                             </span>
                                         </div>
@@ -884,12 +962,10 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                     const qrGroupCharges = qrGroup?.extra_charge ? getExtraCharge(items as any[], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
                                                     const subtotal = foodSubtotal + extraChargesTotal + qrGroupCharges;
 
-                                                    const discountAmount = discounts.reduce((total, discount) => {
-                                                        const disc = discount as any;
-                                                        return total + (disc.type === "freebie"
-                                                            ? getDiscountAmount(disc, subtotal)
-                                                            : computeDiscountAmount(disc, subtotal));
-                                                    }, 0);
+                                                    const discountAmount = discounts.reduce(
+                                                        (total, discount) => total + scopedAmountFor(discount as any, subtotal, items as any),
+                                                        0,
+                                                    );
 
                                                     const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
                                                     const ratio = foodSubtotal > 0 ? discountedFoodSubtotal / foodSubtotal : 0;

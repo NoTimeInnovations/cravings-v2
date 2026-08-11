@@ -367,10 +367,10 @@ const HotelPage = async ({
     ?.map((item: any) => {
       const deliveryBase = deliveryBasePrice(item);
       const offerPrice = item.offers?.[0]?.offer_price;
-      // If offer exists, apply the same discount amount to delivery base price
-      const finalPrice = offerPrice != null && item.price > 0
-        ? Math.max(0, deliveryBase - (item.price - offerPrice))
-        : deliveryBase;
+      // The offer price is what the customer pays, on delivery exactly as on
+      // dine-in (qrScan) and the business menu — never re-derived as a discount
+      // off the delivery base. Keep in step with lib/hotelDataFetcher.ts.
+      const finalPrice = offerPrice != null ? offerPrice : deliveryBase;
       return {
         ...item,
         price: Math.max(0, finalPrice + partnerPriceAdjustment),
@@ -410,7 +410,10 @@ const HotelPage = async ({
 
       return {
         ...offer,
-        offer_price: Math.max(0, (offer.offer_price || 0) + variantDeliveryDelta + partnerPriceAdjustment),
+        // Literal, matching the menu above: the delivery delta is deliberately
+        // NOT added, or the offers strip would quote a different price than the
+        // menu card for the same offer.
+        offer_price: Math.max(0, (offer.offer_price || 0) + partnerPriceAdjustment),
         menu: {
           ...offer.menu,
           price: Math.max(0, originalPrice + deliveryDelta + partnerPriceAdjustment),

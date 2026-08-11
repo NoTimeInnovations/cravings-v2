@@ -30,6 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Check } from "lucide-react";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 const SECTION_TYPES = [
     { id: "navbar", label: "Navbar", icon: "🧭", desc: "Top navigation with links" },
@@ -335,8 +336,13 @@ export function StorefrontSettings() {
                         <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => {
-                                if (confirm("Reset storefront to defaults? All edits will be lost."))
+                            onClick={async () => {
+                                if (await confirmDialog({
+                                    title: "Reset storefront to defaults?",
+                                    description: "All edits will be lost.",
+                                    confirmText: "Reset",
+                                    destructive: true,
+                                }))
                                     resetStorefront();
                             }}
                         >
@@ -473,8 +479,13 @@ export function StorefrontSettings() {
                                         <Pencil className="h-4 w-4" />
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            if (confirm(`Delete "${meta?.label}" section?`))
+                                        onClick={async () => {
+                                            if (await confirmDialog({
+                                                title: `Delete "${meta?.label}" section?`,
+                                                description: "The section and its content will be removed from your storefront.",
+                                                confirmText: "Delete",
+                                                destructive: true,
+                                            }))
                                                 removeSection(sec.id);
                                         }}
                                         className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 hover:bg-red-50"
@@ -982,8 +993,13 @@ function CarouselEditor({
                         <SubCard
                             key={sl.id}
                             title={`Slide ${i + 1}`}
-                            onDelete={() => {
-                                if (confirm("Delete slide?")) removeSlide(sl.id);
+                            onDelete={async () => {
+                                if (await confirmDialog({
+                                    title: "Delete slide?",
+                                    description: "This slide will be removed from the carousel.",
+                                    confirmText: "Delete",
+                                    destructive: true,
+                                })) removeSlide(sl.id);
                             }}
                         >
                             <ImageUploadField
@@ -1204,8 +1220,13 @@ function TestimonialsEditor({
                         <SubCard
                             key={q.id}
                             title={`Review ${i + 1}`}
-                            onDelete={() => {
-                                if (confirm("Delete review?")) removeQuote(q.id);
+                            onDelete={async () => {
+                                if (await confirmDialog({
+                                    title: "Delete review?",
+                                    description: "This review will be removed from the testimonials section.",
+                                    confirmText: "Delete",
+                                    destructive: true,
+                                })) removeQuote(q.id);
                             }}
                         >
                             <FieldRow label="Reviewer name">

@@ -40,6 +40,40 @@ function maybeRefundLoyalty(orderId: string, reason: string): void {
 }
 
 /**
+ * Cancel any Shiprocket shipment tied to this order.
+ *
+ * Hooked HERE rather than only on the status-change path, because the cancel
+ * DIALOG is how orders are actually cancelled everywhere that matters — the
+ * dashboard, the order detail view and the customer's own tracking page all
+ * short-circuit to it and never reach updateOrderStatus. A shipment cancelled
+ * only there would leave the courier collecting a parcel for an order that no
+ * longer exists, billed to the merchant.
+ *
+ * Calls the plain-module core rather than the guarded server action, because a
+ * customer cancelling their own order cannot satisfy that guard (it is scoped to
+ * partner/captain/superadmin).
+ *
+ * ⚠ Note what this action does and does NOT check: it requires a session with
+ * role user|partner, but it never compares the order's user_id / partner_id
+ * against the caller. That gap is pre-existing — maybeCancelPorter,
+ * maybeRefundLoyalty and maybeRestock all sit behind the same weak check — and it
+ * means anyone holding an order UUID can trigger this. Shiprocket inherits that
+ * exposure rather than introducing it, but the cost here is a real cancelled
+ * parcel, so an ownership check on cancelOrderAction is worth adding.
+ *
+ * Fire-and-forget and idempotent (a row already `cancelled` returns a silent
+ * skip) — a cancel never fails over Shiprocket.
+ */
+function maybeCancelShiprocket(orderId: string): void {
+  import("@/lib/shiprocket/shipments")
+    .then(({ cancelShipmentCore }) => cancelShipmentCore(orderId))
+    .then((r) => {
+      if (r && !r.ok) console.warn(`[shiprocket] cancel via cancelOrderAction failed: ${r.message}`);
+    })
+    .catch((e) => console.warn("[shiprocket] cancel via cancelOrderAction threw:", e));
+}
+
+/**
  * Add the cancelled order's stock back. Fire-and-forget and idempotent (an
  * atomic RELEASE inside restockOrderStock ensures it restocks at most once, even
  * if cancel and expire race). A cancel never fails over a restock hiccup.
@@ -59,6 +93,8 @@ const GET_ORDER_PARTNER_PP_ID = `
     orders_by_pk(id: $orderId) {
       id
       status
+      user_id
+      partner_id
       partner {
         id
         petpooja_restaurant_id
@@ -102,6 +138,36 @@ export async function cancelOrderAction(
     const data = await fetchFromHasura(GET_ORDER_PARTNER_PP_ID, { orderId });
     const order = data?.orders_by_pk;
     if (!order) return { success: false, message: "Order not found" };
+
+    // OWNERSHIP, not just routing. This is a "use server" export, so it is a public
+    // RPC endpoint: with only a role check, any signed-in account could cancel any
+    // store's orders by id — and this action does not merely flip a status, it
+    // withdraws Porter bookings, refunds loyalty and cancels real Shiprocket
+    // parcels. Order ids are no defence: the browser carries a Hasura admin secret,
+    // so they can simply be listed.
+    //
+    // Enforced wherever there IS a signal to enforce on:
+    //   partner → must own the order. No exceptions, and this alone stops one store
+    //             cancelling another's.
+    //   user    → must match orders.user_id when it is set.
+    //
+    // ~60% of orders are placed by guests and carry user_id = null, with no phone
+    // on the row either, so for those there is nothing to check a customer against.
+    // Rejecting them would break a real flow (order as a guest, sign in, cancel
+    // from the tracking link), so they are allowed through as before and logged.
+    // Closing that properly needs an ownership signal recorded at placement time.
+    if (auth.role === "partner" && order.partner_id !== auth.id) {
+      return { success: false, message: "Not authorized to cancel this order" };
+    }
+    if (auth.role === "user" && order.user_id && order.user_id !== auth.id) {
+      return { success: false, message: "Not authorized to cancel this order" };
+    }
+    if (auth.role === "user" && !order.user_id) {
+      console.warn(
+        `[cancel-order] order=${orderId} has no user_id; cancelled by user=${auth.id} without an ownership check`,
+      );
+    }
+
     isPetpoojaPartner = !!order.partner?.petpooja_restaurant_id;
   } catch (err: any) {
     return { success: false, message: err?.message || "Failed to load order" };
@@ -119,6 +185,7 @@ export async function cancelOrderAction(
         return { success: false, message: "Failed to cancel order" };
       }
       maybeCancelPorter(orderId, reason);
+      maybeCancelShiprocket(orderId);
       maybeRefundLoyalty(orderId, "Order cancelled");
       maybeRestock(orderId);
       return { success: true };
@@ -153,6 +220,7 @@ export async function cancelOrderAction(
     }
 
     maybeCancelPorter(orderId, reason);
+    maybeCancelShiprocket(orderId);
     maybeRefundLoyalty(orderId, "Order cancelled");
     maybeRestock(orderId);
     return { success: true };
