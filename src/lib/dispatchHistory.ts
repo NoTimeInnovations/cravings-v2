@@ -49,6 +49,12 @@ export interface DispatchHistoryRow {
   /** null = a rider was never assigned (the search timed out) as opposed to a
    *  rider taking the job and then dropping it. */
   assignedAt?: number | null;
+  /** Porter reported cancelled for a booking that HAD a rider, with no
+   *  reallocation to follow. Porter's own app has been observed still showing
+   *  that rider en route, so this is "uncertain", not "definitively dead". */
+  cancelSuspect?: boolean;
+  /** Set when we followed a Porter reallocation onto a new CRN — the old one. */
+  reallocatedFrom?: string | null;
   createdAt: number;
   updatedAt?: number;
 }
