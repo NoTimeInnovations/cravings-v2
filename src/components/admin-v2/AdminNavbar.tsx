@@ -5,6 +5,7 @@ import { useState } from "react";
 import { SheetTrigger } from "@/components/ui/sheet";
 import { AdminThemeToggle } from "./AdminThemeToggle";
 import { AdminShopToggle } from "./AdminShopToggle";
+import { AdminLanguageSwitcher } from "./AdminLanguageSwitcher";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { OrderNotification } from "./OrderNotification";
 import { getFeatures } from "@/lib/getFeatures";
@@ -68,7 +69,10 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 </Button>
                 <div className="flex items-center gap-2 hidden lg:flex min-w-0">
                     <img src="/menuthere-logo-new.png" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain shrink-0" />
-                    <span className="text-xl font-bold text-orange-600 dark:text-orange-400 truncate">
+                    {/* A brand name is a proper noun — machine-translating
+                        "Kerala Specials" helps nobody and makes the partner think
+                        their store was renamed. */}
+                    <span translate="no" className="notranslate text-xl font-bold text-orange-600 dark:text-orange-400 truncate">
                         {userData?.role === 'partner' ? (userData as Partner).store_name : "Menuthere"}
                     </span>
                     {userData?.role === 'partner' && (() => {
@@ -95,6 +99,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                     read-only "Store Closed" badge, which showed the same state
                     without being able to change it. */}
                 <AdminShopToggle />
+                <AdminLanguageSwitcher />
                 {/* Light/dark, desktop only. On phones this sat in a very tight
                     row next to notifications, refresh and the account switcher;
                     the same control now lives among the dashboard quick actions,
