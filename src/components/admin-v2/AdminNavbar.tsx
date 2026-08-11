@@ -131,7 +131,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 </div>
             </div>
 
-            <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
                 {/* Open / close the store. Both breakpoints on purpose: it is a
                     twice-a-day action and burying it in Settings on a phone is
                     exactly the trip this is meant to save. Replaces the old
