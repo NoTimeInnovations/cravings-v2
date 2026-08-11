@@ -251,6 +251,17 @@ export interface DeliveryRules {
    *  porter_bridge partners) or "custom" (the partner's own delivery_rules
    *  pricing). Absent = "porter". */
   porter_pricing_mode?: "custom" | "porter";
+  /** THIRD-PARTY FREE NEAR-ZONE — only meaningful when `porter_pricing_mode` is
+   *  "porter" (the customer is charged the live bridge quote). Within this many
+   *  road-km of the store the delivery is FREE to the customer (ANY order value)
+   *  and the restaurant absorbs the courier fare; beyond it the customer pays the
+   *  live quote as normal. 0/absent = off (the quote is charged at every distance).
+   *
+   *  Distinct from `hybrid_booking`: that hands FAR orders to the restaurant's OWN
+   *  rider. This never switches the rider — it only waives the near fare and keeps
+   *  third-party pricing beyond the free zone. Consumed by src/lib/freeDelivery.ts
+   *  (isWithinThirdPartyFreeZone) and applied in the checkout Porter charge path. */
+  porter_free_km?: number;
   /** HYBRID BOOKING — route each delivery by distance.
    *
    *  When on, `hybrid_bands` is a ladder of distance bands, each naming ONE
@@ -280,6 +291,43 @@ export interface DeliveryRules {
   third_party_max_km?: number;
   hybrid_near_provider?: "own" | "bridge" | "shiprocket";
   hybrid_far_provider?: "own" | "bridge" | "shiprocket";
+  /** FREE / REDUCED DELIVERY ABOVE A CART VALUE, capped by distance.
+   *
+   *  Drives bigger carts: when the item subtotal reaches `free_delivery_min_order`
+   *  AND the drop is within `free_delivery_max_km` road-km, the customer-billed
+   *  delivery fee is either waived (`free_delivery_mode: "free"`) or cut by
+   *  `free_delivery_discount` (`"reduced"`). Applies to EVERY delivery pricing
+   *  source — own basic/advanced/fixed/per-km, the delivery-agent quote, and the
+   *  Porter/Rapido live quote. When a live-quote rider is still booked on a free
+   *  order the restaurant absorbs the courier fare (the real fare is kept on
+   *  orders.delivery_provider_meta.fareAmount).
+   *
+   *  Independent of hybrid booking: the benefit sits DOWNSTREAM of the own-vs-3PL
+   *  choice, so `free_delivery_max_km` and `third_party_max_km` are separate caps
+   *  and either ordering is coherent.
+   *
+   *  DISABLED when `free_delivery_enabled` is false/absent, or when a distance cap
+   *  is used but `free_delivery_max_km` <= 0. Set `free_delivery_any_distance` to
+   *  drop the km cap entirely (value-only) — normal pricing everywhere when off.
+   *  Consumed by src/lib/freeDelivery.ts. Values are in MAJOR currency units
+   *  (rupees), matching minimum_order_amount / delivery_rate. */
+  free_delivery_enabled?: boolean;
+  /** Item subtotal at/above which the perk unlocks. 0 = no minimum (perk applies
+   *  to any order within the distance cap). */
+  free_delivery_min_order?: number;
+  /** Max road distance (km) for the perk when a distance cap is used. <= 0 or
+   *  absent (with a cap) => feature OFF. Ignored when `free_delivery_any_distance`
+   *  is true. */
+  free_delivery_max_km?: number;
+  /** When true, ignore the km cap — a qualifying order value earns the perk at
+   *  ANY distance (still bounded by the serviceable `delivery_radius`). Lets a
+   *  partner ship big orders free however far. Default false. */
+  free_delivery_any_distance?: boolean;
+  /** Whether the qualifying fee is fully waived or merely reduced. Default "free". */
+  free_delivery_mode?: "free" | "reduced";
+  /** Amount OFF the computed fee when mode === "reduced" (ignored when "free").
+   *  Fee is clamped at 0. */
+  free_delivery_discount?: number;
   /** Menuthere Delivery Pool per-restaurant OTP toggles — rider must enter a
    *  code to confirm pickup (shown to the restaurant) / delivery (sent to the
    *  customer). Read by deliveryPoolDispatch at hand-off. */
