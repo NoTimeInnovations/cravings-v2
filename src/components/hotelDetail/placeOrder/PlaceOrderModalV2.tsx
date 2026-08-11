@@ -50,6 +50,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
+import { useQrDataStore } from "@/store/qrDataStore";
 import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType, ymd, validateCustomPrebookTime, resolveCartPreorder, preorderBlockReason, formatLeadTime, formatAllowedDays, isOrderTypeAllowed } from "@/lib/prebooking";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
@@ -510,6 +511,13 @@ const PlaceOrderModalV2 = ({
   }, [findSavedAddress, address, userCoordinates]);
 
   const isQrScan = qrId !== null && tableNumber !== 0;
+  // What the customer is sitting at. Prefer the partner's own label for the QR
+  // ("T3", "Balcony 2") and fall back to the raw number. One partner uses rooms
+  // rather than tables — same id check V1's TableNumberCard makes.
+  const { qrData } = useQrDataStore();
+  const seatNoun =
+    hotelData?.id === "33f5474e-4644-4e47-a327-94684c71b170" ? "Room" : "Table";
+  const seatLabel = qrData?.table_name || (tableNumber ? String(tableNumber) : "");
 
   const isDeliveryActive = hotelData?.delivery_rules?.isDeliveryActive ?? true;
   const deliveryTimeAllowed = hotelData?.delivery_rules?.delivery_time_allowed;
@@ -3548,6 +3556,22 @@ const PlaceOrderModalV2 = ({
                 </div>
                 <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
               </button>
+            ) : isQrScan ? (
+              // A table order is neither delivery nor pickup. It used to fall
+              // through to "Pickup from <store>", which told the customer the
+              // wrong thing and hid the one detail the kitchen routes by — so a
+              // mis-scanned table was invisible until the food went elsewhere.
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
+                <div className="min-w-0 leading-tight">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    {seatNoun} order
+                  </p>
+                  <p translate="no" className="truncate text-sm font-bold notranslate" style={{ color: accent }}>
+                    {seatLabel ? `${seatNoun} ${seatLabel}` : restaurantName || "Checkout"}
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="flex-1 min-w-0 flex items-center gap-2">
                 <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
@@ -3565,6 +3589,19 @@ const PlaceOrderModalV2 = ({
           </div>
 
           <div className="p-4 space-y-4 pb-40">
+            {/* Which table this order is for. The header carries it too, but that
+                bar is compact and scrolls under on some devices — and this is the
+                field the customer needs to check BEFORE paying, since a wrong
+                table sends the food to someone else. */}
+            {isQrScan && seatLabel && (
+              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between">
+                <span className="text-sm text-gray-500">{seatNoun}</span>
+                <span translate="no" className="notranslate text-sm font-bold text-gray-900">
+                  {seatLabel}
+                </span>
+              </div>
+            )}
+
             {/* Order Type Switcher */}
             {!isQrScan && (
               <div className="bg-white rounded-2xl p-4 shadow-sm">
