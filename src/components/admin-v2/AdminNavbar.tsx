@@ -1,11 +1,21 @@
 import { Button } from "@/components/ui/button";
-import { Menu, Printer, RefreshCw } from "lucide-react";
+import { Menu, Printer, RefreshCw, MoreVertical, Globe, Check } from "lucide-react";
 
 import { useState } from "react";
 import { SheetTrigger } from "@/components/ui/sheet";
 import { AdminThemeToggle } from "./AdminThemeToggle";
 import { AdminShopToggle } from "./AdminShopToggle";
-import { AdminLanguageSwitcher } from "./AdminLanguageSwitcher";
+import { useAdminTranslate } from "./AdminLanguageSwitcher";
+import { MENU_LANGUAGES } from "@/lib/menuLanguages";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { OrderNotification } from "./OrderNotification";
 import { getFeatures } from "@/lib/getFeatures";
@@ -24,6 +34,22 @@ interface AdminNavbarProps {
 export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps) {
     const { userData } = useAuthStore();
     const [reloading, setReloading] = useState(false);
+    // Google Translate bootstrap. Called here rather than in a child so the
+    // widget loads with the navbar and the language list can live in the
+    // overflow menu below.
+    const { current: currentLang, setLang } = useAdminTranslate();
+    // Printer settings only exist inside the wrapped app, and only for partners
+    // whose plan includes an order surface to print from.
+    const showPrinter =
+        userData?.role === "partner" &&
+        (() => {
+            const f = getFeatures((userData as Partner).feature_flags || "");
+            return (
+                (f.ordering.access || f.delivery.access || f.pos.access) &&
+                typeof window !== "undefined" &&
+                window.localStorage?.getItem("isApp") === "true"
+            );
+        })();
 
     // Hard reload, not an in-app refetch. The dashboard's state is spread across
     // ~10 independent zustand stores with no aggregate refetch, fetchUser() runs
@@ -56,6 +82,10 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
 
     return (
         <nav className="flex items-center justify-between px-4 py-3 bg-background border-b border-border">
+            {/* Google Translate mounts its (hidden) widget here. Without this
+                node TranslateElement throws on init and .goog-te-combo never
+                exists, so picking a language would silently do nothing. */}
+            <div id="admin_google_translate_element" className="hidden" aria-hidden="true" />
             <div className="flex items-center gap-4 min-w-0">
                 <SheetTrigger asChild>
                     <Button variant="ghost" size="icon" className="lg:hidden" data-tour="hamburger-menu">
@@ -99,41 +129,10 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                     read-only "Store Closed" badge, which showed the same state
                     without being able to change it. */}
                 <AdminShopToggle />
-                <AdminLanguageSwitcher />
-                {/* Light/dark, desktop only. On phones this sat in a very tight
-                    row next to notifications, refresh and the account switcher;
-                    the same control now lives among the dashboard quick actions,
-                    where it has room for a label. lg: matches the sidebar
-                    breakpoint used by the hamburger above, so exactly one of the
-                    two is reachable at any width. */}
-                <div data-tour="dark-mode" className="hidden lg:flex">
-                    <AdminThemeToggle label />
-                </div>
-                {userData?.role === 'partner' && (() => {
-                    const features = getFeatures((userData as Partner).feature_flags || "");
-                    const hasPrintingFeatures = features.ordering.access || features.delivery.access || features.pos.access;
-                    const isApp = window?.localStorage?.getItem("isApp") === "true";
-
-                    if (hasPrintingFeatures && isApp) {
-                        return (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className=""
-                                onClick={() => console.log("PRINTER SETTINGS OPEN")}
-                                title="Printer Settings"
-                            >
-                                <Printer className="h-5 w-5" />
-                            </Button>
-                        );
-                    }
-                    return null;
-                })()}
-                {!isFreePlan((userData as Partner)?.subscription_details?.plan?.id) && (
-                    <div data-tour="notifications">
-                        <OrderNotification />
-                    </div>
-                )}
+                {/* Refresh stays on the row with the store toggle: those two are the
+                    controls a partner reaches for mid-service, and a reload buried
+                    one tap deep is a reload they stop using when the feed looks
+                    stale. */}
                 <Button
                     variant="ghost"
                     size="icon"
@@ -144,6 +143,59 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 >
                     <RefreshCw className={`h-5 w-5 text-gray-600 dark:text-gray-400 ${reloading ? "animate-spin" : ""}`} />
                 </Button>
+                {/* Light/dark, desktop only — see AdminThemeToggle. */}
+                <div data-tour="dark-mode" className="hidden lg:flex">
+                    <AdminThemeToggle label />
+                </div>
+                {!isFreePlan((userData as Partner)?.subscription_details?.plan?.id) && (
+                    <div data-tour="notifications">
+                        <OrderNotification />
+                    </div>
+                )}
+                {/* Overflow: language and printer settings. Both are set-once
+                    preferences, so a tap to reach them costs nothing.
+                    Deliberately NOT in here: the notification bell, which carries a
+                    live count of pending orders — burying that behind a menu is the
+                    difference between seeing a new order and missing it. */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label="More options" title="More">
+                            <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                                <Globe className="mr-2 h-4 w-4" />
+                                Language
+                                <span className="ml-auto text-xs font-semibold uppercase text-muted-foreground">
+                                    {currentLang}
+                                </span>
+                            </DropdownMenuSubTrigger>
+                            {/* notranslate: a language list rendered in the language
+                                you are trying to leave is a one-way door. */}
+                            <DropdownMenuSubContent
+                                translate="no"
+                                className="notranslate max-h-[60vh] overflow-y-auto"
+                            >
+                                {MENU_LANGUAGES.map((l) => (
+                                    <DropdownMenuItem key={l.code} onClick={() => setLang(l.code)}>
+                                        {l.label}
+                                        {currentLang === l.code && (
+                                            <Check className="ml-auto h-4 w-4 text-orange-600" />
+                                        )}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        {showPrinter && (
+                            <DropdownMenuItem onClick={() => console.log("PRINTER SETTINGS OPEN")}>
+                                <Printer className="mr-2 h-4 w-4" />
+                                Printer Settings
+                            </DropdownMenuItem>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 {userData?.role === 'partner' && (
                     <div data-tour="account-switcher">
                         <AdminAccountSwitcher />

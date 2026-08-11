@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Globe, Check } from "lucide-react";
 import { MENU_LANGUAGES } from "@/lib/menuLanguages";
 
 /**
- * Google Translate language switcher for the admin dashboard.
+ * Google Translate bootstrap + language setter for the admin dashboard.
+ *
+ * A hook rather than a component: the navbar renders the language list as a
+ * submenu of its overflow menu, so there is no standalone button to own.
  *
  * ── Why a separate component from the storefront's <LanguageSwitcher> ────────
  *
@@ -50,8 +52,7 @@ function currentLangFromCookie(): string {
     return decodeURIComponent(m[1]).split("/")[2] || "en";
 }
 
-export function AdminLanguageSwitcher() {
-    const [open, setOpen] = useState(false);
+export function useAdminTranslate() {
     const [current, setCurrent] = useState("en");
     const initedRef = useRef(false);
 
@@ -112,7 +113,6 @@ export function AdminLanguageSwitcher() {
     }, []);
 
     const setLang = (code: string) => {
-        setOpen(false);
         setCurrent(code);
 
         if (code === "en") {
@@ -154,47 +154,5 @@ export function AdminLanguageSwitcher() {
         }
     };
 
-    const currentLabel = MENU_LANGUAGES.find((l) => l.code === current)?.label ?? "English";
-
-    return (
-        <>
-            <div id="admin_google_translate_element" className="hidden" aria-hidden="true" />
-            {/* notranslate on the switcher itself: a language menu whose own
-                labels get machine-translated becomes impossible to navigate back
-                from — "English" would render in the language you are trying to
-                leave. */}
-            <div className="notranslate relative" translate="no">
-                <button
-                    type="button"
-                    onClick={() => setOpen((o) => !o)}
-                    aria-label={`Change language (current: ${currentLabel})`}
-                    title={currentLabel}
-                    className="flex h-9 items-center gap-1.5 rounded-md px-2 text-gray-600 transition-colors hover:bg-muted dark:text-gray-400"
-                >
-                    <Globe className="h-[1.1rem] w-[1.1rem]" />
-                    <span className="text-xs font-semibold uppercase leading-none">{current}</span>
-                </button>
-                {open && (
-                    <>
-                        <div className="fixed inset-0 z-[90]" onClick={() => setOpen(false)} />
-                        <div className="absolute right-0 z-[100] mt-2 max-h-[60vh] w-44 overflow-y-auto rounded-xl border bg-background p-1 shadow-lg">
-                            {MENU_LANGUAGES.map((l) => (
-                                <button
-                                    key={l.code}
-                                    type="button"
-                                    onClick={() => setLang(l.code)}
-                                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-muted"
-                                >
-                                    {l.label}
-                                    {current === l.code && <Check className="h-4 w-4 text-orange-600" />}
-                                </button>
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
-        </>
-    );
+    return { current, setLang };
 }
-
-export default AdminLanguageSwitcher;
