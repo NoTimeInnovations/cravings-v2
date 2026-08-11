@@ -101,6 +101,11 @@ import { valueStack, canStack, givesGift, scopedBaseFor, type StackableDiscount 
 import { bxgyFreebieUnits, bxgyGivesFreeItem, bxgyRepeatCount, bxgyRewardAmount, describeBxgy, parseIdList } from "@/lib/bxgy";
 import { fireGiftConfetti, originOf } from "@/lib/giftConfetti";
 import { GiftEarnedModal } from "@/components/hotelDetail/GiftEarnedModal";
+import { computeDeliveryBenefit, resolveDeliveryBenefit } from "@/lib/freeDelivery";
+import { deliverySavings } from "@/lib/deliveryBenefitDisplay";
+import { DeliveryFeeValue } from "@/components/hotelDetail/delivery/DeliveryFeeLine";
+import { FreeDeliveryNudge } from "@/components/hotelDetail/delivery/FreeDeliveryNudge";
+import { DeliveryUnlockedCard } from "@/components/hotelDetail/delivery/DeliveryUnlockedCard";
 import { clearSessionOrderType } from "@/lib/onboardingSession";
 
 type AppliedDiscount = {
@@ -1268,50 +1273,67 @@ const PlaceOrderModalV2 = ({
     // about to pay, and hiding the line makes it an unexplained difference.
     !useShiprocketForCharge;
 
-  const deliveryCharge = useMemo(() => {
-    if (isQrScan || orderType !== "delivery") return 0;
+  // Base delivery fare from whichever source applies (Porter → agent → own),
+  // then the free/reduced-delivery perk is layered on top via computeDeliveryBenefit
+  // so it covers EVERY source uniformly. `deliveryCharge` is the benefited fee the
+  // customer actually pays; `deliveryBenefit` carries the display state (was-price,
+  // FREE/reduced, unlock progress).
+  const deliveryBenefit = useMemo(() => {
+    if (isQrScan || orderType !== "delivery") return computeDeliveryBenefit(null, 0, null, 0);
+    let baseFare = 0;
     // Porter takes precedence over delivery_agent when both are enabled.
     if (usePorterForCharge) {
       if (porterQuote?.available && typeof porterQuote.fare === "number") {
-        return porterQuote.fare;
+        baseFare = porterQuote.fare;
+      } else if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) {
+        // Third-party rider unavailable → fall back to the partner's own delivery
+        // pricing so the order is STILL placeable (we never block). If the live
+        // dispatch also fails at accept-time, the admin is told to self-deliver.
+        baseFare = deliveryInfo.cost;
       }
-      // Third-party rider unavailable → fall back to the partner's own delivery
-      // pricing so the order is STILL placeable (we never block). If the live
-      // dispatch also fails at accept-time, the admin is told to self-deliver.
-      if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) return deliveryInfo.cost;
-      return 0;
-    }
-    if (useAgentForCharge) {
+    } else if (useAgentForCharge) {
       if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
-        return agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP;
+        baseFare = agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP;
       }
-      return 0;
-    }
-    if (useShiprocketForCharge) {
+    } else if (useShiprocketForCharge) {
       if (shiprocketQuote?.available && typeof shiprocketQuote.rate === "number") {
-        return shiprocketQuote.rate;
+        baseFare = shiprocketQuote.rate;
+      } else if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) {
+        // Unquotable is not unshippable — an unserviceable PIN or a Shiprocket
+        // outage falls back to the store's own pricing and the order still goes
+        // through, exactly as the porter branch does above.
+        baseFare = deliveryInfo.cost;
       }
-      // Unquotable is not unshippable — an unserviceable PIN or a Shiprocket
-      // outage falls back to the store's own pricing and the order still goes
-      // through, exactly as the porter branch does above.
-      if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) return deliveryInfo.cost;
-      return 0;
+    } else if (hotelData?.delivery_rules?.hide_delivery_charge) {
+      baseFare = 0;
+    } else if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) {
+      baseFare = deliveryInfo.cost;
     }
-    if (hotelData?.delivery_rules?.hide_delivery_charge) return 0;
-    if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) return deliveryInfo.cost;
-    return 0;
+    // Combine the value-based perk (every source) with the third-party free
+    // near-zone (Porter/Rapido live quote only). Pure + unit-tested for both the
+    // normal-delivery and third-party paths — see resolveDeliveryBenefit.
+    return resolveDeliveryBenefit({
+      rules: hotelData?.delivery_rules,
+      subtotalMajor: subtotal,
+      distanceKm: deliveryInfo?.distance,
+      baseFare,
+      isThirdPartyCharge: usePorterForCharge,
+    });
   }, [
     isQrScan,
     orderType,
     deliveryInfo,
-    hotelData?.delivery_rules?.hide_delivery_charge,
+    hotelData?.delivery_rules,
     useAgentForCharge,
     agentQuote,
     usePorterForCharge,
     porterQuote,
     useShiprocketForCharge,
     shiprocketQuote,
+    subtotal,
   ]);
+
+  const deliveryCharge = deliveryBenefit.finalFare;
 
   // Block placement until we have an `available: true` quote. The
   // missing-coords case is already covered by other guards; this enforces
@@ -2284,6 +2306,28 @@ const PlaceOrderModalV2 = ({
   useEffect(() => {
     if (earnedFreebieUnits === 0) setGiftModalOpen(false);
   }, [earnedFreebieUnits]);
+
+  // The delivery-perk celebration — the sibling of the free-item confetti above.
+  // Fires the moment free/reduced delivery is unlocked while the sheet is open,
+  // once per unlock: re-arms if the cart drops back below the threshold (or out
+  // of the km cap), and resets on close so the next open can celebrate again.
+  const deliveryUnlockCelebratedRef = useRef(false);
+  const [deliveryUnlockOpen, setDeliveryUnlockOpen] = useState(false);
+  useEffect(() => {
+    if (!open_place_order_modal) {
+      deliveryUnlockCelebratedRef.current = false;
+      setDeliveryUnlockOpen(false);
+      return;
+    }
+    if (deliveryBenefit.qualifies && !deliveryUnlockCelebratedRef.current) {
+      fireGiftConfetti();
+      setDeliveryUnlockOpen(true);
+      deliveryUnlockCelebratedRef.current = true;
+    } else if (!deliveryBenefit.qualifies && deliveryUnlockCelebratedRef.current) {
+      deliveryUnlockCelebratedRef.current = false;
+      setDeliveryUnlockOpen(false);
+    }
+  }, [open_place_order_modal, deliveryBenefit.qualifies]);
 
   const menuItemById = (id: string) =>
     hotelData?.menus?.find((m) => m.id === id.trim());
@@ -3774,6 +3818,19 @@ const PlaceOrderModalV2 = ({
               </div>
             )}
 
+            {/* Free / reduced delivery progress nudge — "Add ₹X more for free
+                delivery", with a bar that fills as the cart grows. Renders null
+                when the perk isn't configured or the drop is beyond the cap. */}
+            {orderType === "delivery" && !isQrScan && (
+              <FreeDeliveryNudge
+                rules={hotelData?.delivery_rules}
+                benefit={deliveryBenefit}
+                subtotal={subtotal}
+                currency={currency}
+                accent={accent}
+              />
+            )}
+
             {/* Why the scheduler appeared. Without this the picker just shows up
                 (and the earliest date is days out) with no stated cause — the
                 customer has no way to connect it to the cake they added. Sits in
@@ -4206,13 +4263,13 @@ const PlaceOrderModalV2 = ({
                       <div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Delivery Charges</span>
-                          {deliveryCharge > 0 ? (
-                            <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
-                          ) : (
-                            <span className="font-semibold" style={{ color: accent }}>
-                              Free
-                            </span>
-                          )}
+                          <DeliveryFeeValue
+                            benefit={deliveryBenefit.benefit}
+                            originalFare={deliveryBenefit.originalFare}
+                            finalFare={deliveryCharge}
+                            currency={currency}
+                            accent={accent}
+                          />
                         </div>
                         {agentQuote.distanceKm !== undefined && (
                           <div className="text-xs text-gray-400 mt-0.5">
@@ -4235,13 +4292,13 @@ const PlaceOrderModalV2 = ({
                       <div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Delivery Charges</span>
-                          {deliveryCharge > 0 ? (
-                            <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
-                          ) : (
-                            <span className="font-semibold" style={{ color: accent }}>
-                              Free
-                            </span>
-                          )}
+                          <DeliveryFeeValue
+                            benefit={deliveryBenefit.benefit}
+                            originalFare={deliveryBenefit.originalFare}
+                            finalFare={deliveryCharge}
+                            currency={currency}
+                            accent={accent}
+                          />
                         </div>
                         {deliveryInfo.distance > 0 && (
                           <div className="text-xs text-gray-400 mt-0.5">
@@ -4262,12 +4319,14 @@ const PlaceOrderModalV2 = ({
                             <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
                             Calculating…
                           </span>
-                        ) : porterQuote.available && typeof porterQuote.fare === "number" ? (
-                          <span className="text-gray-900"><MenuPrice currency={currency} amount={porterQuote.fare.toFixed(0)} /></span>
-                        ) : deliveryCharge > 0 ? (
-                          <span className="text-gray-900"><MenuPrice currency={currency} amount={deliveryCharge.toFixed(0)} /></span>
                         ) : (
-                          <span className="font-semibold" style={{ color: accent }}>Free</span>
+                          <DeliveryFeeValue
+                            benefit={deliveryBenefit.benefit}
+                            originalFare={deliveryBenefit.originalFare}
+                            finalFare={deliveryCharge}
+                            currency={currency}
+                            accent={accent}
+                          />
                         )}
                       </div>
                       {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
@@ -4587,6 +4646,14 @@ const PlaceOrderModalV2 = ({
       onClose={() => setGiftModalOpen(false)}
       items={earnedGiftItems}
       units={earnedFreebieUnits}
+      currency={currency}
+      accent={accent}
+    />
+    <DeliveryUnlockedCard
+      open={deliveryUnlockOpen}
+      onClose={() => setDeliveryUnlockOpen(false)}
+      benefit={deliveryBenefit.benefit === "reduced" ? "reduced" : "free"}
+      savedAmount={deliverySavings(deliveryBenefit)}
       currency={currency}
       accent={accent}
     />

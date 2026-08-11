@@ -96,6 +96,13 @@ function rulesFromPartner(data: any): DeliveryRules {
         porter_dispatch_trigger: stored.porter_dispatch_trigger || "accepted",
         porter_dispatch_delay_min: stored.porter_dispatch_delay_min ?? 0,
         porter_pricing_mode: stored.porter_pricing_mode || "porter",
+        porter_free_km: stored.porter_free_km ?? 0,
+        free_delivery_enabled: stored.free_delivery_enabled ?? false,
+        free_delivery_min_order: stored.free_delivery_min_order ?? 0,
+        free_delivery_max_km: stored.free_delivery_max_km ?? 0,
+        free_delivery_mode: stored.free_delivery_mode || "free",
+        free_delivery_discount: stored.free_delivery_discount ?? 0,
+        free_delivery_any_distance: stored.free_delivery_any_distance ?? false,
     } as DeliveryRules;
 }
 import { WhatsappNumberBanner } from "./WhatsappNumberBanner";
@@ -1256,6 +1263,38 @@ export function DeliverySettings() {
                                 <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                                     If no third-party rider is available when a customer orders, the order is <strong>still placed</strong> using your Custom delivery pricing (the distance / fixed rate below), and you&apos;ll be asked to deliver it yourself. Keep that pricing set so the fallback charge is correct.
                                 </p>
+
+                                {/* Free near-zone for third-party pricing: within N km the store
+                                    absorbs the courier fare (any order value); beyond it the
+                                    customer pays the live quote. NOT the own-rider hybrid split. */}
+                                {(deliveryRules.porter_pricing_mode || "custom") === "porter" && (
+                                    <div className="mt-3 border-t border-orange-100 pt-3 space-y-2">
+                                        <Label className="text-sm">Free delivery within (km)</Label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            step="0.5"
+                                            className="max-w-[160px]"
+                                            placeholder="e.g. 5"
+                                            value={deliveryRules.porter_free_km ?? ""}
+                                            onChange={(e) =>
+                                                setDeliveryRules((prev) => ({
+                                                    ...prev,
+                                                    porter_free_km: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)),
+                                                }))
+                                            }
+                                        />
+                                        {Number(deliveryRules.porter_free_km ?? 0) > 0 ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                Nearby customers get <strong>free delivery</strong> up to {Number(deliveryRules.porter_free_km)} km — you cover the courier fare. Beyond {Number(deliveryRules.porter_free_km)} km they pay the third-party price. Order value doesn&apos;t matter.
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground">
+                                                0 or blank = customers pay the third-party price at every distance.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Hybrid booking — the distance ladder. Lives with the
@@ -1488,6 +1527,179 @@ export function DeliverySettings() {
                                 value={deliveryRules.delivery_radius}
                                 onChange={(e) => setDeliveryRules(prev => ({ ...prev, delivery_radius: Number(e.target.value) }))}
                             />
+                        </div>
+                    )}
+
+                    {/* FREE / REDUCED DELIVERY — reward bigger orders. Applies to every
+                        delivery pricing source (own riders + Porter/Rapido live quote). */}
+                    {deliveryRules.needDeliveryLocation && (
+                        <div className="rounded-xl border p-4 space-y-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-0.5">
+                                    <Label className="text-base">Free / Reduced Delivery</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Reward bigger orders. When the cart reaches your target and the customer is within range, waive or reduce their delivery fee. Works with your own riders and Porter/Rapido.
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={!!deliveryRules.free_delivery_enabled}
+                                    onCheckedChange={(val) =>
+                                        setDeliveryRules((prev) => ({
+                                            ...prev,
+                                            free_delivery_enabled: val,
+                                            // Seed a sensible first distance so turning it on is never a
+                                            // no-op (0/blank = feature off).
+                                            free_delivery_max_km:
+                                                val && !prev.free_delivery_max_km
+                                                    ? Math.max(1, Math.floor(prev.delivery_radius ?? 5))
+                                                    : prev.free_delivery_max_km,
+                                            free_delivery_mode: prev.free_delivery_mode ?? "free",
+                                        }))
+                                    }
+                                />
+                            </div>
+
+                            {deliveryRules.free_delivery_enabled && (() => {
+                                const mode = deliveryRules.free_delivery_mode === "reduced" ? "reduced" : "free";
+                                const anyDistance = !!deliveryRules.free_delivery_any_distance;
+                                const maxKm = Number(deliveryRules.free_delivery_max_km ?? 0);
+                                const minOrder = Number(deliveryRules.free_delivery_min_order ?? 0);
+                                const discount = Number(deliveryRules.free_delivery_discount ?? 0);
+                                const radius = Number(deliveryRules.delivery_radius ?? 0);
+                                const segBtn = (active: boolean) =>
+                                    `rounded-lg border px-3 py-2 text-sm font-medium transition ${active ? "border-orange-500 bg-orange-50 text-orange-700" : "border-input bg-white text-muted-foreground hover:bg-muted"}`;
+                                return (
+                                    <div className="space-y-4 border-t pt-4">
+                                        <div className="space-y-2 max-w-[360px]">
+                                            <Label>Order value to unlock ({currencySymbol})</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                placeholder="e.g. 500"
+                                                value={deliveryRules.free_delivery_min_order ?? ""}
+                                                onChange={(e) =>
+                                                    setDeliveryRules((prev) => ({
+                                                        ...prev,
+                                                        free_delivery_min_order: e.target.value === "" ? undefined : Number(e.target.value),
+                                                    }))
+                                                }
+                                            />
+                                            <p className="text-xs text-muted-foreground">Item total at or above this unlocks the perk. Leave 0 for &ldquo;any order&rdquo;.</p>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Distance</Label>
+                                            <div className="grid grid-cols-2 gap-2 max-w-[360px]">
+                                                <button
+                                                    type="button"
+                                                    className={segBtn(!anyDistance)}
+                                                    onClick={() => setDeliveryRules((prev) => ({ ...prev, free_delivery_any_distance: false }))}
+                                                >
+                                                    Within a distance
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={segBtn(anyDistance)}
+                                                    onClick={() => setDeliveryRules((prev) => ({ ...prev, free_delivery_any_distance: true }))}
+                                                >
+                                                    Any distance
+                                                </button>
+                                            </div>
+                                            {anyDistance ? (
+                                                <p className="text-xs text-muted-foreground">Applies at any distance within your delivery radius — best for rewarding big orders.</p>
+                                            ) : (
+                                                <div className="space-y-1 pt-1">
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.5"
+                                                        className="max-w-[160px]"
+                                                        placeholder="e.g. 5"
+                                                        value={deliveryRules.free_delivery_max_km ?? ""}
+                                                        onChange={(e) =>
+                                                            setDeliveryRules((prev) => ({
+                                                                ...prev,
+                                                                free_delivery_max_km: e.target.value === "" ? undefined : Number(e.target.value),
+                                                            }))
+                                                        }
+                                                    />
+                                                    <p className="text-xs text-muted-foreground">Only for deliveries up to this many km.</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Benefit</Label>
+                                            <div className="grid grid-cols-2 gap-2 max-w-[360px]">
+                                                <button
+                                                    type="button"
+                                                    className={segBtn(mode === "free")}
+                                                    onClick={() => setDeliveryRules((prev) => ({ ...prev, free_delivery_mode: "free" }))}
+                                                >
+                                                    Make it FREE
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={segBtn(mode === "reduced")}
+                                                    onClick={() =>
+                                                        setDeliveryRules((prev) => ({
+                                                            ...prev,
+                                                            free_delivery_mode: "reduced",
+                                                            free_delivery_discount:
+                                                                prev.free_delivery_discount && prev.free_delivery_discount > 0
+                                                                    ? prev.free_delivery_discount
+                                                                    : 20,
+                                                        }))
+                                                    }
+                                                >
+                                                    Reduce by amount
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {mode === "reduced" && (
+                                            <div className="space-y-2">
+                                                <Label>Reduce delivery fee by ({currencySymbol})</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    className="max-w-[160px]"
+                                                    placeholder="e.g. 20"
+                                                    value={deliveryRules.free_delivery_discount ?? ""}
+                                                    onChange={(e) =>
+                                                        setDeliveryRules((prev) => ({
+                                                            ...prev,
+                                                            free_delivery_discount: e.target.value === "" ? undefined : Number(e.target.value),
+                                                        }))
+                                                    }
+                                                />
+                                            </div>
+                                        )}
+
+                                        {!anyDistance && maxKm <= 0 ? (
+                                            <p className="text-xs text-amber-700">Set a distance, or choose &ldquo;Any distance&rdquo;.</p>
+                                        ) : mode === "reduced" && discount <= 0 ? (
+                                            <p className="text-xs text-amber-700">Enter an amount to reduce the delivery fee by.</p>
+                                        ) : (() => {
+                                            const where = anyDistance ? "at any distance" : `within ${maxKm} km`;
+                                            const perk = mode === "free" ? "free delivery" : `${currencySymbol}${discount} off delivery`;
+                                            return (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {minOrder > 0
+                                                        ? `Orders of ${currencySymbol}${minOrder}+ get ${perk} ${where}.`
+                                                        : `All orders get ${perk} ${where}.`}
+                                                </p>
+                                            );
+                                        })()}
+                                        {!anyDistance && radius > 0 && maxKm >= radius && (
+                                            <p className="text-xs text-amber-700">This covers your whole delivery area ({radius} km).</p>
+                                        )}
+                                        <p className="text-xs text-muted-foreground">
+                                            On live-quote delivery (Porter/Rapido), your store covers the courier fare for free/reduced orders.
+                                        </p>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     )}
 
