@@ -260,6 +260,32 @@ export type WatchlistResponse = {
 // current vs previous equal period
 export type TrendPair = { curr: number; prev: number };
 
+// ---- partner signups over time (Target tab "Customers joined" panel)
+export type SignupsRange = {
+  from: string; // YYYY-MM-DD (IST)
+  to: string; // YYYY-MM-DD (IST)
+  days: number; // inclusive
+  prevFrom: string;
+  prevTo: string;
+  total: number; // partners joined in [from, to]
+  prevTotal: number; // partners joined in the prior equal-length period
+  perDay: number;
+  perWeek: number;
+  perMonth: number;
+};
+
+export type SignupsResponse = {
+  range: SignupsRange;
+  series: { d: string; count: number }[]; // one entry per day in [from, to]
+  kpis: {
+    allTime: number;
+    last24h: TrendPair;
+    last7: TrendPair;
+    last30: TrendPair;
+  };
+  syncedAt: string;
+};
+
 export type DailyLogEntry = {
   id: string; // analytics_daily_log row id
   logDate: string; // YYYY-MM-DD (IST)

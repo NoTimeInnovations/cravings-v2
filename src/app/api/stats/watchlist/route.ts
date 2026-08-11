@@ -24,14 +24,16 @@ export const dynamic = "force-dynamic";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALID_STATUSES = new Set(["paid", "free_trial"]);
 
-// "Real order" filter — counts a restaurant's actual order activity across ALL
-// channels (customer app/web, POS/in-store, captain, WhatsApp, etc.). We only
-// drop non-orders (cancelled / never-paid / expired drafts) and internal test
-// accounts. NOTE: unlike the delivery-only endpoints we deliberately do NOT
-// restrict by `source`, since POS/in-store billing is a large part of volume.
+// ONLINE order filter — counts only orders the restaurant took through online
+// ordering (customer app/web/WhatsApp; legacy null-source orders predate the
+// column and count as online). POS / in-store billing (source "pos", incl.
+// captain) is deliberately EXCLUDED: the watchlist is about who is actually
+// using online ordering, matching the sync's qualification bar. We also drop
+// non-orders (cancelled / never-paid / expired drafts) and internal test users.
 const VALID = `
   { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
-  { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+  { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+  { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
 `;
 
 const bucket = (alias: string, range: string, withGmv = false) => `

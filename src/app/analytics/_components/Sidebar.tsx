@@ -45,7 +45,7 @@ export const TABS: Array<{
     id: "target",
     label: "Target",
     icon: Target,
-    description: "Growth plan to the revenue goal",
+    description: "Signups over time & the active-restaurant watchlist",
   },
   {
     id: "progress",

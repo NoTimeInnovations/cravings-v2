@@ -1,37 +1,35 @@
 "use client";
 
 /**
- * Target — the road to ₹10,00,000 / month, plus a shared watchlist of the
- * restaurants we're tracking.
+ * Target — growth & activity for the team.
  *
- * Everything here is DB-backed and identical for everyone:
- *  - The watchlist (which restaurants, their plan, and paying/test/free status)
- *    is stored in `analytics_watchlist` — only the selection is persisted.
- *  - Paying customers + MRR are derived from the watchlist (status = "paying").
- *  - Order stats (total / avg-per-day / avg-per-week and day/week/month trends)
- *    are computed live on every load from the orders table — nothing cached,
- *    nothing in localStorage.
+ * The tab answers two questions, both DB-backed and identical for everyone:
+ *   1. How many restaurants are *joining* over time? — "Customers joined",
+ *      computed live from partners.created_at (test accounts excluded), with a
+ *      custom date range and per-day / per-week / per-month rates.
+ *   2. Which restaurants are *actually using* online ordering? — the shared
+ *      watchlist. Only the selection (partner + plan + status + note) is stored
+ *      in `analytics_watchlist`; all order stats are computed live from the
+ *      orders table. "Online orders" here means POS / in-store billing is
+ *      excluded — the watchlist is about online-ordering activity.
  *
- * Money is all in INR. Target = ₹10,00,000/mo; at the ₹3,000 base plan that is
- * 334 paying customers.
+ * The daily sales log (calls / free trials / paid customers) is shown and can be
+ * added to here too; its full history + editing live on the Daily progress tab.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ResponsiveContainer,
-  ComposedChart,
-  Area,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  ReferenceLine,
 } from "recharts";
 import {
-  Target as TargetIcon,
   Users,
-  CalendarClock,
+  UserPlus,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -41,12 +39,12 @@ import {
   Loader2,
   Building2,
   RefreshCw,
-  IndianRupee,
   ArrowUpDown,
   Check,
   ChevronLeft,
   Pencil,
   Sparkles,
+  CalendarRange,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,28 +55,26 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { rupees } from "../format";
 import { SectionHeader } from "./OverviewSection";
 import {
   ProgressSummaryTable,
+  QuickLogForm,
   useDailyLogSummary,
   roundOrders,
-  roundCustomers,
 } from "../progressShared";
-import type { WatchlistEntry, WatchlistStatus } from "../types";
+import type {
+  WatchlistEntry,
+  WatchlistStatus,
+  SignupsResponse,
+} from "../types";
 import { toast } from "sonner";
 
-// ---------------------------------------------------------------- config (shared for everyone)
-const MONTHLY_TARGET_INR = 1_000_000; // ₹10,00,000 / month
-const BASE_PLAN_INR = 3000; // headline: "if everyone paid this"
+// ---------------------------------------------------------------- config
+const BASE_PLAN_INR = 3000;
 const PLAN_OPTIONS = [3000, 5000];
-const PLAN_START = "2026-07-01";
-const GOAL_DATE = "2026-12-31";
-const DPW = 6; // working days / week
 const REFRESH_MS = 30_000;
 const SEARCH_DEBOUNCE_MS = 250;
-
-const TARGET_CUSTOMERS = Math.ceil(MONTHLY_TARGET_INR / BASE_PLAN_INR); // 334
+const ACCENT = "#4f46e5";
 
 const STATUS_META: Record<
   WatchlistStatus,
@@ -98,163 +94,75 @@ const STATUS_META: Record<
 const STATUS_ORDER: WatchlistStatus[] = ["paid", "free_trial"];
 
 // ---------------------------------------------------------------- utils
-const pad = (n: number) => (n < 10 ? "0" + n : "" + n);
-const isoD = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const parseD = (s: string) => {
-  const p = s.split("-");
-  return new Date(+p[0], +p[1] - 1, +p[2]);
-};
-const midnight = (d: Date) => {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-};
-const clampD = (d: Date, a: Date, b: Date) => (d < a ? a : d > b ? b : d);
-const isWork = (d: Date, dpw: number) => {
-  if (dpw >= 7) return true;
-  const w = d.getDay();
-  if (dpw <= 5) return w >= 1 && w <= 5;
-  return w !== 0; // 6 → Mon–Sat
-};
-const countWork = (a: Date, b: Date, dpw: number) => {
-  if (b < a) return 0;
-  let n = 0;
-  const d = midnight(a);
-  const e = midnight(b);
-  while (d <= e) {
-    if (isWork(d, dpw)) n++;
-    d.setDate(d.getDate() + 1);
-  }
-  return n;
-};
-const addWork = (a: Date, n: number, dpw: number) => {
-  const d = midnight(a);
-  let added = 0;
-  while (added < n) {
-    d.setDate(d.getDate() + 1);
-    if (isWork(d, dpw)) added++;
-  }
-  return d;
-};
 const nf = (n: number) => Math.round(n).toLocaleString("en-IN");
 const inr = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
-const fmtD = (d: Date) =>
-  d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-const fmtDShort = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+// signup rates: show one decimal when small, whole numbers once ≥ 10
+const fmtRate = (n: number) => (n >= 10 ? nf(n) : (Math.round(n * 10) / 10).toString());
 
-// ---------------------------------------------------------------- plan metrics
-function computePlan(entries: WatchlistEntry[]) {
-  const paid = entries.filter((e) => e.status === "paid");
-  const paidCount = paid.length;
-  const mrrInr = paid.reduce((s, e) => s + (e.planInr || 0), 0);
-  const remainingMrr = Math.max(0, MONTHLY_TARGET_INR - mrrInr);
-  const remainingCustomers = roundCustomers(remainingMrr / BASE_PLAN_INR);
+const istToday = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
-  const start = parseD(PLAN_START);
-  const goal = parseD(GOAL_DATE);
-  const now = midnight(new Date());
-  const eff = clampD(now, start, goal);
-  const totalWD = Math.max(1, countWork(start, goal, DPW));
-  const elapsedWD = now < start ? 0 : countWork(start, eff, DPW);
-  const remWD = now > goal ? 0 : Math.max(0, countWork(eff, goal, DPW));
-
-  const requiredByToday = MONTHLY_TARGET_INR * (elapsedWD / totalWD);
-  const delta = mrrInr - requiredByToday;
-  const weekWorth = (MONTHLY_TARGET_INR / totalWD) * DPW;
-
-  const perDayMrr = remWD > 0 ? remainingMrr / remWD : remainingMrr;
-  const perDayCust = perDayMrr / BASE_PLAN_INR;
-  const perWeekCust = perDayCust * DPW;
-
-  type Pace = { cls: "good" | "warn" | "bad" | "neutral"; label: string };
-  let pace: Pace;
-  if (now < start) pace = { cls: "neutral", label: "Not started" };
-  else if (remainingMrr <= 0) pace = { cls: "good", label: "Goal reached 🎉" };
-  else if (paidCount === 0) pace = { cls: "bad", label: "No paid customers yet" };
-  else if (delta >= 0) pace = { cls: "good", label: "On / ahead of pace" };
-  else if (delta >= -weekWorth) pace = { cls: "warn", label: "Slightly behind" };
-  else pace = { cls: "bad", label: "Behind pace" };
-
-  const rate = elapsedWD > 0 ? mrrInr / elapsedWD : 0; // ₹ per working day
-  let projDate: Date | null = null;
-  let projOnTime: boolean | null = null;
-  if (remainingMrr <= 0) projOnTime = true;
-  else if (rate > 0) {
-    projDate = addWork(eff, Math.ceil(remainingMrr / rate), DPW);
-    projOnTime = projDate <= goal;
-  }
-
-  return {
-    start,
-    goal,
-    now,
-    paid,
-    paidCount,
-    freeTrialCount: entries.filter((e) => e.status === "free_trial").length,
-    mrrInr,
-    remainingMrr,
-    remainingCustomers,
-    totalWD,
-    elapsedWD,
-    remWD,
-    requiredByToday,
-    delta,
-    weekWorth,
-    perDayCust,
-    perWeekCust,
-    pace,
-    projDate,
-    projOnTime,
-  };
-}
-type PlanMetrics = ReturnType<typeof computePlan>;
-
-// cumulative MRR (from paying entries) vs required linear pace
-function buildChart(entries: WatchlistEntry[], m: PlanMetrics) {
-  const t0 = m.start.getTime();
-  const t1 = m.goal.getTime();
-  const nowT = clampD(m.now, m.start, m.goal).getTime();
-
-  const byDate: Record<string, number> = {};
-  for (const e of m.paid) {
-    const d = isoD(new Date(e.createdAt));
-    byDate[d] = (byDate[d] || 0) + (e.planInr || 0);
-  }
-
-  const set = new Set<number>([t0, t1, nowT]);
-  const cur = new Date(m.start.getFullYear(), m.start.getMonth(), 1);
-  while (cur.getTime() <= t1) {
-    const t = cur.getTime();
-    if (t >= t0) set.add(t);
-    cur.setMonth(cur.getMonth() + 1);
-  }
-  Object.keys(byDate).forEach((d) => {
-    let t = parseD(d).getTime();
-    if (t < t0) t = t0;
-    if (t > t1) t = t1;
-    set.add(t);
+const addDaysStr = (dateStr: string, n: number) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+};
+const fmtDayShort = (s: string) => {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+};
+const fmtDayFull = (s: string) => {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
-
-  const xs = Array.from(set).sort((a, b) => a - b);
-  const required = (t: number) => MONTHLY_TARGET_INR * ((t - t0) / Math.max(1, t1 - t0));
-  const actualAt = (t: number) => {
-    let v = 0;
-    Object.keys(byDate).forEach((d) => {
-      let dt = parseD(d).getTime();
-      if (dt < t0) dt = t0;
-      if (dt <= t) v += byDate[d];
-    });
-    return v;
-  };
-  return xs.map((t) => ({
-    t,
-    required: Math.round(required(t)),
-    actual: t <= nowT ? actualAt(t) : null,
-  }));
-}
+};
 
 // ---------------------------------------------------------------- component
 export default function TargetSection() {
+  // ---- signups (growth over time)
+  const [to, setTo] = useState(istToday);
+  const [from, setFrom] = useState(() => addDaysStr(istToday(), -29));
+  const [signups, setSignups] = useState<SignupsResponse | null>(null);
+  const [signupsLoading, setSignupsLoading] = useState(true);
+
+  const loadSignups = useCallback(
+    async (f: string, t: string, soft = false) => {
+      if (!soft) setSignupsLoading(true);
+      try {
+        const r = await fetch(`/api/stats/signups?from=${f}&to=${t}`, { cache: "no-store" });
+        const d = await r.json();
+        if (!d.error) setSignups(d);
+      } catch (e) {
+        console.error("signups load failed", e);
+      } finally {
+        setSignupsLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    loadSignups(from, to);
+    const id = setInterval(() => loadSignups(from, to, true), REFRESH_MS);
+    return () => clearInterval(id);
+  }, [from, to, loadSignups]);
+
+  const setRange = useCallback((f: string, t: string) => {
+    setFrom(f);
+    setTo(t);
+  }, []);
+
+  // ---- watchlist
   const [entries, setEntries] = useState<WatchlistEntry[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -283,15 +191,9 @@ export default function TargetSection() {
   }, [load]);
 
   const list = entries ?? [];
-  const m = useMemo(() => computePlan(list), [list]);
-  const chart = useMemo(() => buildChart(list, m), [list, m]);
+  const existingIds = useMemo(() => new Set(list.map((e) => e.partnerId)), [list]);
 
-  const existingIds = useMemo(
-    () => new Set(list.map((e) => e.partnerId)),
-    [list]
-  );
-
-  // ---- mutations
+  // ---- watchlist mutations
   const addEntry = useCallback(
     async (
       partnerId: string,
@@ -316,9 +218,9 @@ export default function TargetSection() {
     [load]
   );
 
-  // Auto-add every restaurant that has "started" (≥ ~2 orders/week over the last
-  // two weeks) so active stores never slip off the watchlist. Idempotent — only
-  // new ones are added; existing rows keep their plan / status / note.
+  // Sync the watchlist to reality: ADD restaurants with ≥ 2 online orders/week
+  // over the last 30 days, and REMOVE the tracked ones that have fallen below
+  // (paid restaurants are protected from auto-removal).
   const syncActive = useCallback(async () => {
     setSyncing(true);
     try {
@@ -328,16 +230,24 @@ export default function TargetSection() {
         toast.error(d.error ?? "Sync failed");
         return;
       }
-      if (d.added > 0) {
-        toast.success(
-          `Added ${d.added} active restaurant${d.added === 1 ? "" : "s"} to the watchlist.`
-        );
+      const parts: string[] = [];
+      if (d.added > 0) parts.push(`added ${d.added}`);
+      if (d.removed > 0) parts.push(`removed ${d.removed}`);
+      if (parts.length) {
+        toast.success(`Watchlist synced — ${parts.join(", ")}.`);
         await load(true);
-      } else if ((d.qualified ?? 0) > 0) {
-        toast(`All ${d.qualified} active restaurants are already tracked.`);
       } else {
         toast(
-          `No restaurants with ${d.minOrders ?? 4}+ orders in the last ${d.windowDays ?? 14} days.`
+          `Watchlist already up to date — ${nf(d.qualified ?? 0)} active restaurant${
+            (d.qualified ?? 0) === 1 ? "" : "s"
+          } (≥${d.minPerWeek ?? 2} online orders/week).`
+        );
+      }
+      if (d.keptPaidBelow > 0) {
+        toast(
+          `${nf(d.keptPaidBelow)} paid restaurant${
+            d.keptPaidBelow === 1 ? "" : "s"
+          } kept despite low orders.`
         );
       }
     } catch (e) {
@@ -385,39 +295,39 @@ export default function TargetSection() {
   const sortedRows = useMemo(() => sortRows(list, sort), [list, sort]);
 
   // shared daily-progress summary (calls / free trials / paid customers)
-  const { summary: progressSummary, loading: progressLoading } = useDailyLogSummary();
+  const { summary: progressSummary, loading: progressLoading, reload: reloadProgress } =
+    useDailyLogSummary();
 
-  const mrrPct = Math.min(100, Math.round((m.mrrInr / MONTHLY_TARGET_INR) * 100));
-  const custPct = Math.min(100, Math.round((m.paidCount / TARGET_CUSTOMERS) * 100));
+  const paidCount = useMemo(() => list.filter((e) => e.status === "paid").length, [list]);
+  const freeTrialCount = list.length - paidCount;
   const ordersLast24h = list.reduce((s, e) => s + e.last24h, 0);
+
+  const kpis = signups?.kpis;
 
   return (
     <div className="space-y-6">
-      {/* Thesis + countdown */}
+      {/* Hero */}
       <Card className="border bg-white p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-primary">
-              <TargetIcon className="size-3.5" />
-              Revenue target
+              <TrendingUp className="size-3.5" />
+              Growth &amp; activity
             </div>
             <h2 className="mt-1.5 text-xl font-semibold tracking-tight sm:text-2xl">
-              The road to {inr(MONTHLY_TARGET_INR)} / month
+              How fast are we growing?
             </h2>
             <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
-              Reach <b className="text-foreground">{inr(MONTHLY_TARGET_INR)}/mo</b> by {fmtD(m.goal)} —
-              about <b className="text-foreground">{nf(TARGET_CUSTOMERS)} paid customers</b> if everyone
-              is on the {inr(BASE_PLAN_INR)} plan. You have{" "}
-              <b className="text-foreground">{nf(m.paidCount)} paid</b> now, so the gap is{" "}
-              <b className="text-foreground">{nf(m.remainingCustomers)} more</b> ({inr(m.remainingMrr)}/mo).
+              Track how many restaurants join us over time and spot which of them are actually
+              taking online orders — so we spend our energy on the serious ones.
             </p>
           </div>
           <div className="shrink-0 rounded-xl border bg-muted/40 px-4 py-3 text-right">
             <div className="text-2xl font-semibold tabular-nums leading-none">
-              {m.now > m.goal ? 0 : nf(m.remWD)}
+              {kpis ? nf(kpis.allTime) : "—"}
             </div>
             <div className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-              working days left · {fmtDShort(m.goal)}, {m.goal.getFullYear()}
+              restaurants joined · all-time
             </div>
           </div>
         </div>
@@ -426,228 +336,49 @@ export default function TargetSection() {
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
-          label="Paid customers"
-          value={nf(m.paidCount)}
-          unit={`/ ${nf(TARGET_CUSTOMERS)}`}
-          sub={`${nf(m.remainingCustomers)} more at ${inr(BASE_PLAN_INR)}`}
-          progress={custPct}
+          icon={<Users className="size-4" />}
+          label="Total partners"
+          value={kpis ? nf(kpis.allTime) : "—"}
+          sub="all-time signups"
+        />
+        <KpiTrendCard
+          icon={<UserPlus className="size-4" />}
+          label="Joined · last 7d"
+          pair={kpis?.last7}
+          prevLabel="prev 7d"
+        />
+        <KpiTrendCard
+          icon={<UserPlus className="size-4" />}
+          label="Joined · last 30d"
+          pair={kpis?.last30}
+          prevLabel="prev 30d"
         />
         <StatCard
-          label="Current MRR"
-          value={inr(m.mrrInr)}
-          unit={`/ ${inr(MONTHLY_TARGET_INR)}`}
-          sub={`${mrrPct}% of monthly target`}
-          progress={mrrPct}
+          icon={<Building2 className="size-4" />}
+          label="On watchlist"
+          value={nf(list.length)}
+          sub={`${nf(ordersLast24h)} online orders in 24h`}
         />
-        <Card className="relative overflow-hidden border bg-white p-4">
-          <div className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Pace vs plan
-          </div>
-          <div className="mt-2.5">
-            <PacePill cls={m.pace.cls} label={m.pace.label} />
-          </div>
-          <div className="mt-2 text-[11px] text-muted-foreground">
-            Target by today <b className="text-foreground">{inr(m.requiredByToday)}</b> · at{" "}
-            <b className="text-foreground">{inr(m.mrrInr)}</b> ({m.delta >= 0 ? "+" : "−"}
-            {inr(Math.abs(m.delta))})
-          </div>
-        </Card>
-        <Card className="relative overflow-hidden border bg-white p-4">
-          <div className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Projected finish
-          </div>
-          <div className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
-            {m.projDate
-              ? fmtDShort(m.projDate)
-              : m.remainingMrr <= 0
-                ? "Done"
-                : "—"}
-            {m.projDate && (
-              <span className="text-base font-medium text-muted-foreground">
-                , {m.projDate.getFullYear()}
-              </span>
-            )}
-          </div>
-          <div className="mt-1.5 text-[11px] text-muted-foreground">
-            {m.projOnTime === null ? (
-              "Add paid customers to project"
-            ) : m.projOnTime ? (
-              <span className="text-emerald-600">On time ✓</span>
-            ) : (
-              <span className="text-rose-600">Later than goal</span>
-            )}{" "}
-            at current rate
-          </div>
-        </Card>
       </div>
 
-      {/* What it takes */}
-      <Card className="border bg-white p-5">
-        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">What it takes from here</h3>
-          <span className="text-xs text-muted-foreground">
-            {m.remainingMrr <= 0
-              ? "Target reached — keep them paid!"
-              : `To finish by ${fmtDShort(m.goal)}, each working day needs:`}
-          </span>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Focus
-            icon={<Users className="size-4" />}
-            label="New paid / day"
-            big={nf(roundCustomers(Math.max(0, m.perDayCust)))}
-            note={`${nf(m.remainingCustomers)} left ÷ ${nf(m.remWD)} working days`}
-            accent
-          />
-          <Focus
-            icon={<CalendarClock className="size-4" />}
-            label="New paid / week"
-            big={nf(roundCustomers(Math.max(0, m.perWeekCust)))}
-            note={`${DPW} working days / week`}
-          />
-          <Focus
-            icon={<IndianRupee className="size-4" />}
-            label="MRR still to add"
-            big={inr(m.remainingMrr)}
-            note={`on top of ${inr(m.mrrInr)} today`}
-          />
-        </div>
-      </Card>
+      {/* Customers joined (signups over time) */}
+      <SignupsPanel
+        data={signups}
+        loading={signupsLoading}
+        from={from}
+        to={to}
+        onRange={setRange}
+      />
 
-      {/* Burn-up chart */}
-      <Card className="border bg-white p-5">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">MRR vs. required pace</h3>
-          <span className="text-xs text-muted-foreground">
-            {inr(0)} → {inr(MONTHLY_TARGET_INR)}
-          </span>
-        </div>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chart} margin={{ top: 12, right: 16, bottom: 4, left: 4 }}>
-              <defs>
-                <linearGradient id="tgt-actual" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#4f46e5" stopOpacity={0.22} />
-                  <stop offset="100%" stopColor="#4f46e5" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="#eef0f5" vertical={false} />
-              <XAxis
-                dataKey="t"
-                type="number"
-                scale="time"
-                domain={[m.start.getTime(), m.goal.getTime()]}
-                tickFormatter={(t: number) =>
-                  new Date(t).toLocaleDateString("en-US", { month: "short" })
-                }
-                tick={{ fontSize: 11, fill: "#6a7180" }}
-                tickLine={false}
-                axisLine={{ stroke: "#e5e8ef" }}
-                minTickGap={24}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "#6a7180" }}
-                tickLine={false}
-                axisLine={false}
-                width={52}
-                tickFormatter={(v: number) => rupees(v)}
-                domain={[0, Math.ceil((MONTHLY_TARGET_INR * 1.05) / 100000) * 100000]}
-              />
-              <Tooltip
-                content={(p: any) => {
-                  if (!p?.active || !p?.payload?.length) return null;
-                  const d = p.payload[0]?.payload;
-                  return (
-                    <div className="rounded-lg border bg-white px-3 py-2 text-xs shadow-sm">
-                      <div className="mb-1 text-muted-foreground">{fmtD(new Date(d.t))}</div>
-                      {d.actual != null && (
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="flex items-center gap-1.5">
-                            <span className="inline-block size-2 rounded-full bg-[#4f46e5]" />
-                            Actual MRR
-                          </span>
-                          <b className="tabular-nums">{inr(d.actual)}</b>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="flex items-center gap-1.5">
-                          <span className="inline-block size-2 rounded-full bg-[#94a3b8]" />
-                          Required
-                        </span>
-                        <b className="tabular-nums">{inr(d.required)}</b>
-                      </div>
-                    </div>
-                  );
-                }}
-              />
-              <ReferenceLine
-                y={MONTHLY_TARGET_INR}
-                stroke="#10b981"
-                strokeDasharray="2 4"
-                label={{
-                  value: `Goal ${rupees(MONTHLY_TARGET_INR)}`,
-                  position: "insideTopRight",
-                  fill: "#059669",
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              />
-              {m.now >= m.start && m.now <= m.goal && (
-                <ReferenceLine
-                  x={clampD(m.now, m.start, m.goal).getTime()}
-                  stroke="#94a3b8"
-                  strokeDasharray="2 3"
-                  label={{ value: "today", position: "top", fill: "#94a3b8", fontSize: 10 }}
-                />
-              )}
-              <Area
-                type="monotone"
-                dataKey="actual"
-                stroke="#4f46e5"
-                strokeWidth={2.4}
-                fill="url(#tgt-actual)"
-                connectNulls={false}
-                dot={false}
-                isAnimationActive={false}
-              />
-              <Line
-                type="linear"
-                dataKey="required"
-                stroke="#94a3b8"
-                strokeWidth={2}
-                strokeDasharray="5 4"
-                dot={false}
-                isAnimationActive={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-4 text-xs text-foreground/80">
-          <span className="inline-flex items-center gap-2">
-            <span className="inline-block h-[3px] w-3.5 rounded bg-[#4f46e5]" /> Actual MRR (paid
-            customers)
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span
-              className="inline-block h-[2px] w-3.5 rounded"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg,#94a3b8 0 5px,transparent 5px 9px)",
-              }}
-            />{" "}
-            Required pace (linear to goal)
-          </span>
-        </div>
-      </Card>
-
-      {/* Our progress (from the Daily progress log) */}
+      {/* Our progress — summary + quick add (full history on the Daily progress tab) */}
       <div className="space-y-4">
         <SectionHeader
           title="Our progress"
-          subtitle="Calls done, new free trials and new paid customers — logged in the Daily progress tab"
+          subtitle="Calls done, new free trials and new paid customers — add an entry below or manage the full history on the Daily progress tab"
         />
         <Card className="border bg-white p-0 overflow-hidden">
           <ProgressSummaryTable summary={progressSummary} loading={progressLoading} />
+          <QuickLogForm onSaved={reloadProgress} />
         </Card>
       </div>
 
@@ -655,7 +386,7 @@ export default function TargetSection() {
       <div className="space-y-4">
         <SectionHeader
           title="Restaurant watchlist"
-          subtitle="Shared, saved in the database — track orders for the restaurants we onboard (paid or free trial)"
+          subtitle="The restaurants actually using online ordering — POS / in-store billing is excluded. Sync keeps only the serious ones (≥ 2 online orders / week over the last 30 days)."
           right={
             <div className="flex items-center gap-3">
               <SortSelect value={sort} onChange={setSort} />
@@ -665,10 +396,10 @@ export default function TargetSection() {
                 onClick={syncActive}
                 disabled={syncing}
                 className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-2.5 text-xs font-medium text-muted-foreground shadow-sm hover:bg-neutral-50 disabled:opacity-60"
-                title="Add restaurants with 2+ orders/week (last 2 weeks) to the watchlist"
+                title="Add restaurants with ≥2 online orders/week (last 30 days) and remove those that fell below (paid ones are kept)"
               >
                 <Sparkles className={cn("size-3.5", syncing && "animate-pulse")} />
-                {syncing ? "Syncing…" : "Sync active"}
+                {syncing ? "Syncing…" : "Sync watchlist"}
               </button>
               <button
                 type="button"
@@ -685,9 +416,9 @@ export default function TargetSection() {
         {/* summary chips */}
         <div className="flex flex-wrap gap-2">
           <Chip label="Tracked" value={nf(list.length)} />
-          <Chip label="Paid" value={nf(m.paidCount)} tone="emerald" />
-          <Chip label="Free trial" value={nf(m.freeTrialCount)} tone="amber" />
-          <Chip label="Orders · 24h" value={nf(ordersLast24h)} />
+          <Chip label="Paid" value={nf(paidCount)} tone="emerald" />
+          <Chip label="Free trial" value={nf(freeTrialCount)} tone="amber" />
+          <Chip label="Online · 24h" value={nf(ordersLast24h)} />
         </div>
 
         <Card className="border bg-white p-0 overflow-hidden">
@@ -706,7 +437,9 @@ export default function TargetSection() {
                     <th className="px-3 py-2.5 text-left font-medium">Restaurant</th>
                     <th className="px-3 py-2.5 text-left font-medium">Plan</th>
                     <th className="px-3 py-2.5 text-left font-medium">Status</th>
-                    <th className="px-3 py-2.5 text-right font-medium">Total orders</th>
+                    <th className="px-3 py-2.5 text-right font-medium" title="Online orders only — POS / in-store excluded">
+                      Online orders
+                    </th>
                     <th className="px-3 py-2.5 text-right font-medium">Avg / day</th>
                     <th className="px-3 py-2.5 text-right font-medium">Avg / week</th>
                     <th className="px-3 py-2.5 text-right font-medium" title="Last 24 hours vs the 24 hours before">
@@ -723,12 +456,7 @@ export default function TargetSection() {
                 </thead>
                 <tbody>
                   {sortedRows.map((e) => (
-                    <WatchRow
-                      key={e.id}
-                      e={e}
-                      onPatch={patchEntry}
-                      onRemove={removeEntry}
-                    />
+                    <WatchRow key={e.id} e={e} onPatch={patchEntry} onRemove={removeEntry} />
                   ))}
                 </tbody>
               </table>
@@ -738,10 +466,198 @@ export default function TargetSection() {
 
         <p className="text-center text-xs text-muted-foreground">
           The selection (restaurant + plan + status) is stored in the database and shared with
-          everyone. Order totals and trends are calculated live each time — nothing is cached or kept
-          on this device.
+          everyone. Order totals and trends are online orders, calculated live each time — nothing is
+          cached or kept on this device.
         </p>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- signups panel
+function SignupsPanel({
+  data,
+  loading,
+  from,
+  to,
+  onRange,
+}: {
+  data: SignupsResponse | null;
+  loading: boolean;
+  from: string;
+  to: string;
+  onRange: (from: string, to: string) => void;
+}) {
+  const today = istToday();
+  const r = data?.range;
+  const delta = r ? r.total - r.prevTotal : 0;
+  const pctv = r && r.prevTotal > 0 ? (delta / r.prevTotal) * 100 : r && r.total > 0 ? 100 : 0;
+  const tone = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const Icon = tone === "up" ? TrendingUp : tone === "down" ? TrendingDown : Minus;
+  const toneCls =
+    tone === "up" ? "text-emerald-600" : tone === "down" ? "text-rose-600" : "text-muted-foreground";
+
+  const PRESETS = [
+    { label: "7 days", days: 7 },
+    { label: "30 days", days: 30 },
+    { label: "90 days", days: 90 },
+  ];
+  const activePreset = r
+    ? PRESETS.find((p) => r.days === p.days && r.to === today)?.days ?? null
+    : null;
+
+  return (
+    <Card className="border bg-white p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <UserPlus className="size-4" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold leading-tight">Customers joined</h3>
+            <p className="text-[11px] text-muted-foreground">
+              New restaurants over the selected period
+            </p>
+          </div>
+        </div>
+
+        {/* range selector: presets + custom dates */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {PRESETS.map((p) => (
+            <button
+              key={p.days}
+              type="button"
+              onClick={() => onRange(addDaysStr(today, -(p.days - 1)), today)}
+              className={cn(
+                "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                activePreset === p.days
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "bg-white text-muted-foreground hover:bg-neutral-50"
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+          <span className="mx-0.5 hidden text-muted-foreground/60 sm:inline">
+            <CalendarRange className="size-3.5" />
+          </span>
+          <input
+            type="date"
+            value={from}
+            max={to}
+            onChange={(e) => e.target.value && onRange(e.target.value, to)}
+            className="h-7 rounded-md border border-input bg-background px-2 text-xs shadow-sm"
+          />
+          <span className="text-muted-foreground">→</span>
+          <input
+            type="date"
+            value={to}
+            min={from}
+            max={today}
+            onChange={(e) => e.target.value && onRange(from, e.target.value)}
+            className="h-7 rounded-md border border-input bg-background px-2 text-xs shadow-sm"
+          />
+        </div>
+      </div>
+
+      {/* headline + rates */}
+      <div className="grid gap-4 sm:grid-cols-[1.3fr_1fr_1fr_1fr]">
+        <div className="rounded-xl border bg-muted/30 p-4">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Joined in this period
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-3xl font-semibold tracking-tight tabular-nums text-primary">
+              {r ? nf(r.total) : "—"}
+            </span>
+            {r && (
+              <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", toneCls)}>
+                <Icon className="size-3.5" />
+                {r.prevTotal > 0 ? `${delta > 0 ? "+" : ""}${Math.round(pctv)}%` : r.total > 0 ? "new" : "—"}
+              </span>
+            )}
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {r ? (
+              <>
+                {nf(r.prevTotal)} in the previous {r.days} day{r.days === 1 ? "" : "s"}
+              </>
+            ) : (
+              "—"
+            )}
+          </div>
+        </div>
+        <RateTile label="Per day" value={r ? fmtRate(r.perDay) : "—"} />
+        <RateTile label="Per week" value={r ? fmtRate(r.perWeek) : "—"} />
+        <RateTile label="Per month" value={r ? fmtRate(r.perMonth) : "—"} />
+      </div>
+
+      {/* daily chart */}
+      <div className="mt-4 h-[240px] w-full">
+        {loading && !data ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            <Loader2 className="mr-2 size-4 animate-spin" /> Loading…
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data?.series ?? []} margin={{ top: 8, right: 8, bottom: 4, left: -8 }}>
+              <CartesianGrid stroke="#eef0f5" vertical={false} />
+              <XAxis
+                dataKey="d"
+                tickFormatter={fmtDayShort}
+                tick={{ fontSize: 11, fill: "#6a7180" }}
+                tickLine={false}
+                axisLine={{ stroke: "#e5e8ef" }}
+                minTickGap={28}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 11, fill: "#6a7180" }}
+                tickLine={false}
+                axisLine={false}
+                width={36}
+              />
+              <Tooltip
+                cursor={{ fill: "rgba(79,70,229,0.06)" }}
+                content={(p: any) => {
+                  if (!p?.active || !p?.payload?.length) return null;
+                  const d = p.payload[0]?.payload;
+                  return (
+                    <div className="rounded-lg border bg-white px-3 py-2 text-xs shadow-sm">
+                      <div className="mb-1 text-muted-foreground">{fmtDayFull(d.d)}</div>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="flex items-center gap-1.5">
+                          <span className="inline-block size-2 rounded-full" style={{ background: ACCENT }} />
+                          Joined
+                        </span>
+                        <b className="tabular-nums">{nf(d.count)}</b>
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+              <Bar dataKey="count" fill={ACCENT} radius={[3, 3, 0, 0]} maxBarSize={38} isAnimationActive={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        Based on the date each restaurant was created. Compared against the previous equal-length
+        period so you can see whether joins are speeding up or slowing down.
+      </p>
+    </Card>
+  );
+}
+
+function RateTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border bg-muted/30 p-4">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="mt-1 text-[11px] text-muted-foreground">avg over the period</div>
     </div>
   );
 }
@@ -868,7 +784,7 @@ function WatchRow({
         </div>
       </td>
 
-      {/* total */}
+      {/* total (online) */}
       <td className="px-3 py-2.5 text-right font-semibold tabular-nums">
         {nf(e.totalOrders)}
       </td>
@@ -959,7 +875,7 @@ type SortKey =
   | "name_asc";
 
 const SORT_OPTIONS: { id: SortKey; label: string }[] = [
-  { id: "total_desc", label: "Total orders" },
+  { id: "total_desc", label: "Online orders" },
   { id: "day_desc", label: "Last 24h" },
   { id: "week_desc", label: "Last 7 days" },
   { id: "month_desc", label: "Last 30 days" },
@@ -1269,8 +1185,8 @@ function WatchlistEmpty() {
       </div>
       <div className="text-base font-semibold">No restaurants tracked yet</div>
       <div className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-        Use "Add restaurant" to start your watchlist. Pick their plan and whether they're paid or on
-        a free trial — the list is saved for everyone.
+        Hit "Sync watchlist" to auto-add every restaurant taking ≥ 2 online orders a week, or use
+        "Add restaurant" to track one by hand.
       </div>
     </div>
   );
@@ -1307,96 +1223,68 @@ function Chip({
 }
 
 function StatCard({
+  icon,
   label,
   value,
-  unit,
   sub,
-  progress,
 }: {
+  icon?: React.ReactNode;
   label: string;
   value: string;
-  unit?: string;
   sub: string;
-  progress?: number;
 }) {
   return (
     <Card className="relative overflow-hidden border bg-white p-4">
       <div className="absolute inset-y-0 left-0 w-[3px] bg-primary" />
-      <div className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center gap-1.5 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {icon}
         {label}
       </div>
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="text-2xl font-semibold tracking-tight tabular-nums">{value}</span>
-        {unit && <span className="text-sm font-medium text-muted-foreground">{unit}</span>}
-      </div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
       <div className="mt-1.5 text-[11px] text-muted-foreground">{sub}</div>
-      {progress != null && (
-        <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
     </Card>
   );
 }
 
-function PacePill({
-  cls,
-  label,
-}: {
-  cls: "good" | "warn" | "bad" | "neutral";
-  label: string;
-}) {
-  const styles: Record<string, string> = {
-    good: "text-emerald-700 bg-emerald-50",
-    warn: "text-amber-700 bg-amber-50",
-    bad: "text-rose-700 bg-rose-50",
-    neutral: "text-muted-foreground bg-muted",
-  };
-  const Icon = cls === "good" ? TrendingUp : cls === "neutral" ? CalendarClock : TrendingDown;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold",
-        styles[cls]
-      )}
-    >
-      <Icon className="size-3.5" />
-      {label}
-    </span>
-  );
-}
-
-function Focus({
+function KpiTrendCard({
   icon,
   label,
-  big,
-  note,
-  accent,
+  pair,
+  prevLabel,
 }: {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   label: string;
-  big: string;
-  note: string;
-  accent?: boolean;
+  pair?: { curr: number; prev: number };
+  prevLabel: string;
 }) {
+  const curr = pair?.curr ?? 0;
+  const prev = pair?.prev ?? 0;
+  const delta = curr - prev;
+  const pctv = prev > 0 ? (delta / prev) * 100 : curr > 0 ? 100 : 0;
+  const tone = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const Icon = tone === "up" ? TrendingUp : tone === "down" ? TrendingDown : Minus;
+  const toneCls =
+    tone === "up" ? "text-emerald-600" : tone === "down" ? "text-rose-600" : "text-muted-foreground";
+  const label2 = prev > 0 ? `${delta > 0 ? "+" : ""}${Math.round(pctv)}%` : curr > 0 ? "new" : "—";
   return (
-    <div className="rounded-xl border bg-muted/30 p-4">
-      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+    <Card className="relative overflow-hidden border bg-white p-4">
+      <div className="absolute inset-y-0 left-0 w-[3px] bg-primary" />
+      <div className="flex items-center gap-1.5 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {icon}
         {label}
       </div>
-      <div
-        className={cn(
-          "mt-1.5 text-3xl font-semibold tracking-tight tabular-nums",
-          accent && "text-primary"
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="text-2xl font-semibold tracking-tight tabular-nums">
+          {pair ? nf(curr) : "—"}
+        </span>
+        {pair && (
+          <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", toneCls)}>
+            <Icon className="size-3.5" />
+            {label2}
+          </span>
         )}
-      >
-        {big}
       </div>
-      <div className="mt-1 text-[11px] text-muted-foreground">{note}</div>
-    </div>
+      <div className="mt-1.5 text-[11px] text-muted-foreground">{nf(prev)} in the {prevLabel}</div>
+    </Card>
   );
 }
