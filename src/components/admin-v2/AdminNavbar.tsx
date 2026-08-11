@@ -95,15 +95,15 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 node TranslateElement throws on init and .goog-te-combo never
                 exists, so picking a language would silently do nothing. */}
             <div id="admin_google_translate_element" className="hidden" aria-hidden="true" />
-            <div className="flex items-center gap-4 min-w-0">
+            <div className="flex items-center gap-1 sm:gap-3 min-w-0">
                 <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="lg:hidden" data-tour="hamburger-menu">
-                        <Menu className="h-6 w-6" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 lg:hidden" data-tour="hamburger-menu">
+                        <Menu className="h-5 w-5" />
                         <span className="sr-only">Toggle sidebar</span>
                     </Button>
                 </SheetTrigger>
-                <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={onToggleSidebar} data-tour="hamburger-menu">
-                    <Menu className="h-6 w-6" />
+                <Button variant="ghost" size="icon" className="hidden h-8 w-8 lg:flex" onClick={onToggleSidebar} data-tour="hamburger-menu">
+                    <Menu className="h-5 w-5" />
                     <span className="sr-only">Toggle sidebar</span>
                 </Button>
                 <div className="flex items-center gap-2 hidden lg:flex min-w-0">
@@ -131,7 +131,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
                 {/* Open / close the store. Both breakpoints on purpose: it is a
                     twice-a-day action and burying it in Settings on a phone is
                     exactly the trip this is meant to save. Replaces the old
@@ -145,12 +145,13 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 <Button
                     variant="ghost"
                     size="icon"
+                    className="h-8 w-8"
                     onClick={handleReload}
                     disabled={reloading}
                     title="Refresh"
                     aria-label="Refresh"
                 >
-                    <RefreshCw className={`h-5 w-5 text-gray-600 dark:text-gray-400 ${reloading ? "animate-spin" : ""}`} />
+                    <RefreshCw className={`h-[18px] w-[18px] text-gray-600 dark:text-gray-400 ${reloading ? "animate-spin" : ""}`} />
                 </Button>
                 {/* Light/dark, desktop only — see AdminThemeToggle. */}
                 <div data-tour="dark-mode" className="hidden lg:flex">
@@ -166,11 +167,11 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="relative"
+                            className="relative h-8 w-8"
                             aria-label={pendingCount > 0 ? `More options (${pendingCount} pending orders)` : "More options"}
                             title="More"
                         >
-                            <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                            <MoreVertical className="h-[18px] w-[18px] text-gray-600 dark:text-gray-400" />
                             {showNotifications && pendingCount > 0 && (
                                 <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
                                     {pendingCount}

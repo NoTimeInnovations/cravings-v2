@@ -163,10 +163,10 @@ export function AdminAccountSwitcher() {
             {/* Trigger Button */}
             <Button
                 variant="ghost"
-                className="flex items-center gap-2 px-2 py-1.5 h-auto hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                className="flex items-center gap-1 px-1 py-1 h-auto hover:bg-orange-50 dark:hover:bg-orange-900/20"
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-7 w-7">
                     <AvatarImage src={partner?.store_banner} className="object-cover" />
                     <AvatarFallback translate="no" className="notranslate bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 text-xs">
                         {partner?.store_name?.slice(0, 2).toUpperCase() || "??"}

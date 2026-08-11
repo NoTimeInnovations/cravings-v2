@@ -54,7 +54,7 @@ export function AdminShopToggle() {
 
     return (
         <div
-            className={`flex items-center gap-2 rounded-full border px-2.5 py-1 transition-colors ${
+            className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 transition-colors ${
                 isOpen
                     ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20"
                     : "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20"
@@ -63,18 +63,18 @@ export function AdminShopToggle() {
         >
             {/* Colour alone can't carry this — a red/green switch reads the same
                 to a colourblind partner, so the state is also spelled out. */}
-            <span className="relative flex h-2 w-2 shrink-0">
+            <span className="relative flex h-1.5 w-1.5 shrink-0">
                 {!isOpen && (
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
                 )}
                 <span
-                    className={`relative inline-flex h-2 w-2 rounded-full ${
+                    className={`relative inline-flex h-1.5 w-1.5 rounded-full ${
                         isOpen ? "bg-green-500" : "bg-red-500"
                     }`}
                 />
             </span>
             <span
-                className={`text-xs font-semibold ${
+                className={`text-[11px] font-semibold leading-none ${
                     isOpen
                         ? "text-green-700 dark:text-green-400"
                         : "text-red-700 dark:text-red-400"
@@ -87,7 +87,7 @@ export function AdminShopToggle() {
                 disabled={saving}
                 onCheckedChange={onToggle}
                 aria-label={isOpen ? "Close the store" : "Open the store"}
-                className="scale-90"
+                className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
             />
         </div>
     );
