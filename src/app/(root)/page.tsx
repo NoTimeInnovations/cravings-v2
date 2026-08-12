@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Hero from "@/components/home/Hero";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getTrustBarPartners } from "@/lib/getTrustBarPartners";
+import { getT } from "@/lib/i18n/server";
 
 const SocialProof = dynamic(
   () => import("@/components/home/SocialProof")
@@ -18,32 +19,42 @@ const FAQ = dynamic(() => import("@/components/home/FAQ"));
 const Footer = dynamic(() => import("@/components/Footer"));
 const WhatsAppButton = dynamic(() => import("@/components/WhatsAppButton"));
 
-export const metadata: Metadata = {
-  title:
-    "Menuthere | Online Ordering & Delivery Platform for Restaurants",
-  description:
-    "Launch your restaurant's own delivery app with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
-  openGraph: {
-    title:
-      "Menuthere | Online Ordering & Delivery Platform for Restaurants",
-    description:
-      "Launch your restaurant's own delivery app with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
-    images: ["/og_image.png"],
-    type: "website",
-    url: "https://menuthere.com",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title:
-      "Menuthere | Online Ordering & Delivery Platform for Restaurants",
-    description:
-      "Launch your restaurant's own delivery app with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
-    images: ["/og_image.png"],
-  },
-  alternates: {
-    canonical: "https://menuthere.com",
-  },
-};
+/**
+ * Per-locale <title>/description.
+ *
+ * Was a STATIC `export const metadata` object, which cannot read a cookie — so
+ * the page rendered in Arabic while its title and social preview stayed
+ * English. generateMetadata runs on the server per request and can.
+ *
+ * The canonical stays a single URL on purpose: every locale shares one URL, so
+ * there are no alternates to declare and hreflang is not expressible here.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  const title = t.metadata.title;
+  const description = t.metadata.description;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: ["/og_image.png"],
+      type: "website",
+      url: "https://menuthere.com",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og_image.png"],
+    },
+    alternates: {
+      canonical: "https://menuthere.com",
+    },
+  };
+}
 
 export default async function Home() {
   const trustBarPartners = await getTrustBarPartners(6);

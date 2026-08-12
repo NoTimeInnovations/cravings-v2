@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { decryptText } from "./lib/encrtption";
 import { cookies } from "next/headers";
+import {
+  LOCALE_COOKIE,
+  LOCALE_HEADER,
+  isLocale,
+  localeForCountry,
+} from "./lib/i18n/config";
 
 
 declare module 'next/server' {
@@ -140,6 +146,19 @@ export async function proxy(request: NextRequest) {
   }))
 
   if (country) requestHeaders.set("x-user-country", country);
+
+  // Resolve the display language for this request and hand it downstream, so
+  // Server Components read one header instead of each re-deriving the rule.
+  //
+  // An explicit choice in the cookie always wins; the country is only a first
+  // guess for someone who has never chosen. The guess is deliberately NOT
+  // written to the cookie — that would freeze a guess into a decision, and a
+  // visitor who later travels could never be re-guessed.
+  const chosenLocale = request.cookies.get(LOCALE_COOKIE)?.value;
+  requestHeaders.set(
+    LOCALE_HEADER,
+    isLocale(chosenLocale) ? chosenLocale : localeForCountry(country),
+  );
 
   if (
     pathname.includes("/hotels") ||

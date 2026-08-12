@@ -6,41 +6,52 @@ import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import ownersData from "@/content/solutions/owners.json";
 import { Star, CheckCircle2 } from "lucide-react";
+import { getT } from "@/lib/i18n/server";
+import { getSolutionContent } from "@/lib/i18n/solutionsContent";
 
-export const metadata: Metadata = {
-  title: "Restaurant Owner Solutions | Menuthere",
-  description:
-    "Take back control of your restaurant with Menuthere. Manage menu, POS, captains, and inventory from a single dashboard. Zero commissions, maximum profit.",
-  alternates: { canonical: "https://menuthere.com/solutions/owners" },
-  openGraph: {
-    title: "Restaurant Owner Solutions | Menuthere",
-    description: "Take back control of your restaurant with Menuthere. Manage menu, POS, captains, and inventory from a single dashboard. Zero commissions, maximum profit.",
-    url: "https://menuthere.com/solutions/owners",
-    type: "website",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
 
-export default function OwnersPage() {
+  return {
+    title: t.solutionsOwners.metaTitle,
+    description: t.solutionsOwners.metaDescription,
+    alternates: { canonical: "https://menuthere.com/solutions/owners" },
+    openGraph: {
+      title: t.solutionsOwners.metaTitle,
+      description: t.solutionsOwners.metaDescription,
+      url: "https://menuthere.com/solutions/owners",
+      type: "website",
+    },
+  };
+}
+
+export default async function OwnersPage() {
+  const { t, locale } = await getT();
+  // Body copy — hero, benefits, features, reviews — lives in JSON rather than
+  // JSX, so it cannot be reached by the dictionary. Swap in the translated
+  // document for this locale; getSolutionContent falls back to English.
+  const content = getSolutionContent("owners", locale, ownersData);
+
   return (
     <main className="min-h-screen bg-white geist-font">
       {/* Hero Section */}
       <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
         <div className="w-full max-w-2xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100/70 text-orange-600 text-xs font-medium mb-6">
-            {ownersData.hero.eyebrow}
+            {content.hero.eyebrow}
           </div>
           <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
-            {ownersData.hero.headline}
+            {content.hero.headline}
           </h1>
           <p className="geist-font text-lg text-stone-500 max-w-lg mx-auto mt-5 leading-relaxed">
-            {ownersData.hero.subheadline}
+            {content.hero.subheadline}
           </p>
           <div className="flex items-center gap-3 mt-8 justify-center">
             <ButtonV2 href="/get-started" variant="primary">
-              Get Started
+              {t.solutionsOwners.heroPrimaryCta}
             </ButtonV2>
             <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
-              Book a Demo
+              {t.solutionsOwners.heroSecondaryCta}
             </ButtonV2>
           </div>
         </div>
@@ -53,11 +64,13 @@ export default function OwnersPage() {
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12">
-            Why Menuthere{" "}
-            <span className="text-stone-500">for Owners?</span>
+            {t.solutionsOwners.benefitsHeading}{" "}
+            <span className="text-stone-500">
+              {t.solutionsOwners.benefitsHeadingAccent}
+            </span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {ownersData.benefits.map((benefit, index) => (
+            {content.benefits.map((benefit, index) => (
               <div
                 key={index}
                 className="bg-white rounded-xl p-6 border border-stone-200"
@@ -84,7 +97,7 @@ export default function OwnersPage() {
 
       {/* Features Sections */}
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%]">
-        {ownersData.features.map((feature, index) => {
+        {content.features.map((feature, index) => {
           const isImageRight = feature.imagePosition
             ? feature.imagePosition === "right"
             : index % 2 === 0;
@@ -142,11 +155,13 @@ export default function OwnersPage() {
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12 text-center">
-            Loved by restaurant{" "}
-            <span className="text-stone-500 italic">owners.</span>
+            {t.solutionsOwners.reviewsHeading}{" "}
+            <span className="text-stone-500 italic">
+              {t.solutionsOwners.reviewsHeadingAccent}
+            </span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {ownersData.reviews.map((review, index) => (
+            {content.reviews.map((review, index) => (
               <div
                 key={index}
                 className="bg-white p-6 rounded-xl border border-stone-200 flex flex-col"

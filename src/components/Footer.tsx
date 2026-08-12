@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/LocaleProvider";
+
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,6 +13,7 @@ export default function Footer({
 }: {
   appName?: string;
 }) {
+  const { t } = useT();
   return (
     <footer className="bg-orange-600 pt-16 md:pt-24 pb-10 geist-font text-white relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 md:px-10 lg:px-12 relative z-10">
@@ -35,7 +38,7 @@ export default function Footer({
 
           {/* Column 2: Solutions */}
           <div>
-            <h4 className="font-semibold text-white text-sm mb-4">Solutions</h4>
+            <h4 className="font-semibold text-white text-sm mb-4">{t.footer.solutions}</h4>
             <ul className="space-y-2.5">
               <li>
                 <Link
@@ -90,7 +93,7 @@ export default function Footer({
 
           {/* Column 3: Resources */}
           <div>
-            <h4 className="font-semibold text-white text-sm mb-4">Resources</h4>
+            <h4 className="font-semibold text-white text-sm mb-4">{t.footer.resources}</h4>
             <ul className="space-y-2.5">
               <li>
                 <Link
@@ -130,7 +133,7 @@ export default function Footer({
 
           {/* Column 4: Legal */}
           <div>
-            <h4 className="font-semibold text-white text-sm mb-4">Legal</h4>
+            <h4 className="font-semibold text-white text-sm mb-4">{t.footer.legal}</h4>
             <ul className="space-y-2.5">
               <li>
                 <Link
@@ -163,7 +166,7 @@ export default function Footer({
         {/* Bottom Bar */}
         <div className="pt-6 border-t border-white/20 flex flex-col md:flex-row justify-between items-center gap-4">
           <span className="text-xs text-white/80">
-            &copy; 2026 Menuthere. All rights reserved.
+            &copy; 2026 Menuthere. {t.footer.rights}
           </span>
 
           <div className="flex items-center gap-4">

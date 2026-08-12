@@ -1,5 +1,7 @@
 import { Metadata } from "next";
 import Image from "next/image";
+import { getT } from "@/lib/i18n/server";
+import { getSolutionContent } from "@/lib/i18n/solutionsContent";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
@@ -13,40 +15,48 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-export const metadata: Metadata = {
-  title: "Agency Partner Program | Earn Recurring Commissions | Menuthere",
-  description:
-    "Become an authorized partner for Menuthere. Earn up to 30% lifetime recurring commissions selling premium digital menu solutions to restaurants.",
-  alternates: { canonical: "https://menuthere.com/solutions/agencies" },
-  openGraph: {
-    title: "Agency Partner Program | Earn Recurring Commissions | Menuthere",
-    description: "Become an authorized partner for Menuthere. Earn up to 30% lifetime recurring commissions selling premium digital menu solutions to restaurants.",
-    url: "https://menuthere.com/solutions/agencies",
-    type: "website",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return {
+    title: t.solutionsAgencies.metaTitle,
+    description: t.solutionsAgencies.metaDescription,
+    alternates: { canonical: "https://menuthere.com/solutions/agencies" },
+    openGraph: {
+      title: t.solutionsAgencies.metaTitle,
+      description: t.solutionsAgencies.metaDescription,
+      url: "https://menuthere.com/solutions/agencies",
+      type: "website",
+    },
+  };
+}
 
-export default function AgenciesPage() {
+export default async function AgenciesPage() {
+  const { t, locale } = await getT();
+  // Body copy — hero, benefits, features, reviews — lives in JSON rather than
+  // JSX, so it cannot be reached by the dictionary. Swap in the translated
+  // document for this locale; getSolutionContent falls back to English.
+  const content = getSolutionContent("agencies", locale, agenciesData);
+
   return (
     <main className="min-h-screen bg-white geist-font">
       {/* Hero Section */}
       <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
         <div className="w-full max-w-2xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100/70 text-orange-600 text-xs font-medium mb-6">
-            Agency Partner Program
+            {t.solutionsAgencies.heroBadge}
           </div>
           <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
-            {agenciesData.hero.headline}
+            {content.hero.headline}
           </h1>
           <p className="geist-font text-lg text-stone-500 max-w-lg mx-auto mt-5 leading-relaxed">
-            {agenciesData.hero.subheadline}
+            {content.hero.subheadline}
           </p>
           <div className="flex items-center gap-3 mt-8 justify-center">
             <ButtonV2 href="mailto:Menuthere@gmail.com" variant="primary">
-              Apply Now
+              {t.solutionsAgencies.heroApplyCta}
             </ButtonV2>
             <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
-              Book a Demo
+              {t.solutionsAgencies.heroDemoCta}
             </ButtonV2>
           </div>
         </div>
@@ -59,14 +69,13 @@ export default function AgenciesPage() {
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-3xl mx-auto px-6 md:px-16 text-center">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-6">
-            Unlock Revenue for Restaurants,{" "}
-            <span className="text-stone-500">Secure Yours</span>
+            {t.solutionsAgencies.problemHeading}{" "}
+            <span className="text-stone-500">
+              {t.solutionsAgencies.problemHeadingAccent}
+            </span>
           </h2>
           <p className="text-stone-500 leading-relaxed">
-            Independent restaurants lose sales to static PDFs unable to reflect
-            real-time changes. As a Menuthere partner, you solve this with our
-            proven $30/month platform, instant QR updates trusted by 600+
-            locations, earning you position as their go-to advisor.
+            {t.solutionsAgencies.problemBody}
           </p>
         </div>
       </section>
@@ -78,11 +87,13 @@ export default function AgenciesPage() {
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12">
-            Why partner{" "}
-            <span className="text-stone-500">with us?</span>
+            {t.solutionsAgencies.benefitsHeading}{" "}
+            <span className="text-stone-500">
+              {t.solutionsAgencies.benefitsHeadingAccent}
+            </span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {agenciesData.benefits.map((benefit, index) => (
+            {content.benefits.map((benefit, index) => (
               <div
                 key={index}
                 className="bg-white rounded-xl p-6 border border-stone-200"
@@ -109,7 +120,7 @@ export default function AgenciesPage() {
 
       {/* Features Sections */}
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%]">
-        {agenciesData.features.map((feature, index) => {
+        {content.features.map((feature, index) => {
           const isImageRight = feature.imagePosition
             ? feature.imagePosition === "right"
             : index % 2 === 0;
@@ -168,45 +179,46 @@ export default function AgenciesPage() {
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <div className="text-center mb-14">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100/20 text-orange-100 text-xs font-medium mb-6">
-              High Earning Potential
+              {t.solutionsAgencies.earningsBadge}
             </div>
             <h2 className="geist-font text-3xl md:text-4xl font-semibold text-white tracking-tight mb-4">
-              Performance-Based Commission{" "}
-              <span className="text-stone-400 italic">Structure.</span>
+              {t.solutionsAgencies.earningsHeading}{" "}
+              <span className="text-stone-400 italic">
+                {t.solutionsAgencies.earningsHeadingAccent}
+              </span>
             </h2>
             <p className="text-stone-400 max-w-2xl mx-auto">
-              Payouts align directly with revenue. Monthly via Stripe on the
-              same day we receive subscription funds.
+              {t.solutionsAgencies.earningsSubheading}
             </p>
           </div>
 
           {/* Desktop Table */}
           <div className="hidden md:block rounded-xl border border-stone-700 overflow-hidden">
             <div className="grid grid-cols-3 bg-stone-800/50 p-5 border-b border-stone-700 font-medium text-stone-400 text-sm">
-              <div>Tier</div>
-              <div>Lifetime Referred Revenue</div>
-              <div>Commission (Per $30 Sub)</div>
+              <div>{t.solutionsAgencies.earningsTableTierHeader}</div>
+              <div>{t.solutionsAgencies.earningsTableRevenueHeader}</div>
+              <div>{t.solutionsAgencies.earningsTableCommissionHeader}</div>
             </div>
             <div className="divide-y divide-stone-700">
               <div className="grid grid-cols-3 p-5 items-center">
-                <div className="font-semibold text-emerald-400">Starter</div>
-                <div className="text-stone-300 text-sm">$0 to $1,000</div>
+                <div className="font-semibold text-emerald-400">{t.solutionsAgencies.tierStarterName}</div>
+                <div className="text-stone-300 text-sm">{t.solutionsAgencies.tierStarterRevenue}</div>
                 <div className="font-semibold text-white">
-                  20% <span className="text-sm font-normal text-stone-400">($6/month)</span>
+                  {t.solutionsAgencies.tierStarterRate} <span className="text-sm font-normal text-stone-400">{t.solutionsAgencies.tierStarterPayout}</span>
                 </div>
               </div>
               <div className="grid grid-cols-3 p-5 items-center">
-                <div className="font-semibold text-blue-400">Growth</div>
-                <div className="text-stone-300 text-sm">$1,001 to $5,000</div>
+                <div className="font-semibold text-blue-400">{t.solutionsAgencies.tierGrowthName}</div>
+                <div className="text-stone-300 text-sm">{t.solutionsAgencies.tierGrowthRevenue}</div>
                 <div className="font-semibold text-white">
-                  25% <span className="text-sm font-normal text-stone-400">($7.50/month)</span>
+                  {t.solutionsAgencies.tierGrowthRate} <span className="text-sm font-normal text-stone-400">{t.solutionsAgencies.tierGrowthPayout}</span>
                 </div>
               </div>
               <div className="grid grid-cols-3 p-5 items-center bg-orange-600/10">
-                <div className="font-semibold text-orange-100">Elite</div>
-                <div className="text-stone-300 text-sm">$5,001+</div>
+                <div className="font-semibold text-orange-100">{t.solutionsAgencies.tierEliteName}</div>
+                <div className="text-stone-300 text-sm">{t.solutionsAgencies.tierEliteRevenue}</div>
                 <div className="font-semibold text-white">
-                  30% <span className="text-sm font-normal text-stone-400">($9/month)</span>
+                  {t.solutionsAgencies.tierEliteRate} <span className="text-sm font-normal text-stone-400">{t.solutionsAgencies.tierElitePayout}</span>
                 </div>
               </div>
             </div>
@@ -215,9 +227,9 @@ export default function AgenciesPage() {
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
             {[
-              { tier: "Starter", color: "text-emerald-400", revenue: "$0 to $1,000", commission: "20%", amount: "$6/month per sub" },
-              { tier: "Growth", color: "text-blue-400", revenue: "$1,001 to $5,000", commission: "25%", amount: "$7.50/month per sub" },
-              { tier: "Elite", color: "text-orange-100", revenue: "$5,001+", commission: "30%", amount: "$9/month per sub" },
+              { tier: t.solutionsAgencies.tierStarterName, color: "text-emerald-400", revenue: t.solutionsAgencies.tierStarterRevenue, commission: t.solutionsAgencies.tierStarterRate, amount: t.solutionsAgencies.tierStarterPayoutPerSub },
+              { tier: t.solutionsAgencies.tierGrowthName, color: "text-blue-400", revenue: t.solutionsAgencies.tierGrowthRevenue, commission: t.solutionsAgencies.tierGrowthRate, amount: t.solutionsAgencies.tierGrowthPayoutPerSub },
+              { tier: t.solutionsAgencies.tierEliteName, color: "text-orange-100", revenue: t.solutionsAgencies.tierEliteRevenue, commission: t.solutionsAgencies.tierEliteRate, amount: t.solutionsAgencies.tierElitePayoutPerSub },
             ].map((item, idx) => (
               <div key={idx} className="rounded-xl border border-stone-700 p-5">
                 <div className="flex justify-between items-center mb-4">
@@ -225,11 +237,11 @@ export default function AgenciesPage() {
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-baseline border-b border-stone-700 pb-3">
-                    <span className="text-stone-400 text-sm">Revenue</span>
+                    <span className="text-stone-400 text-sm">{t.solutionsAgencies.tierCardRevenueLabel}</span>
                     <span className="text-white font-medium text-sm">{item.revenue}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-stone-400 text-sm">Commission</span>
+                    <span className="text-stone-400 text-sm">{t.solutionsAgencies.tierCardCommissionLabel}</span>
                     <div className="text-right">
                       <span className="text-white font-semibold block">{item.commission}</span>
                       <span className="text-stone-500 text-xs">{item.amount}</span>
@@ -249,8 +261,10 @@ export default function AgenciesPage() {
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12 text-center">
-            Partner onboarding{" "}
-            <span className="text-stone-500 italic">process.</span>
+            {t.solutionsAgencies.processHeading}{" "}
+            <span className="text-stone-500 italic">
+              {t.solutionsAgencies.processHeadingAccent}
+            </span>
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -258,9 +272,9 @@ export default function AgenciesPage() {
             <div className="hidden md:block absolute top-10 left-[16%] right-[16%] h-px bg-stone-200" />
 
             {[
-              { step: "01", title: "Application Review", desc: "Fast approval with reseller portal access (demo links, branded materials)." },
-              { step: "02", title: "Field Deployment", desc: "Target restaurants, deliver 5-minute demos, and secure commitments." },
-              { step: "03", title: "Revenue Share", desc: "Automated tracking and same-day payouts on collected funds." },
+              { step: "01", title: t.solutionsAgencies.processStepOneTitle, desc: t.solutionsAgencies.processStepOneDescription },
+              { step: "02", title: t.solutionsAgencies.processStepTwoTitle, desc: t.solutionsAgencies.processStepTwoDescription },
+              { step: "03", title: t.solutionsAgencies.processStepThreeTitle, desc: t.solutionsAgencies.processStepThreeDescription },
             ].map((item, idx) => (
               <div key={idx} className="flex flex-col items-center text-center">
                 <div className="w-20 h-20 rounded-full bg-orange-100/70 flex items-center justify-center mb-5 text-xl font-semibold text-orange-600 relative z-10">
@@ -285,21 +299,22 @@ export default function AgenciesPage() {
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20 bg-[#fcfbf7]">
         <div className="max-w-3xl mx-auto px-6 md:px-16 text-center">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            Strategic Partners{" "}
-            <span className="text-stone-500">We Seek</span>
+            {t.solutionsAgencies.idealPartnerHeading}{" "}
+            <span className="text-stone-500">
+              {t.solutionsAgencies.idealPartnerHeadingAccent}
+            </span>
           </h2>
           <p className="text-stone-500 max-w-2xl mx-auto mb-10">
-            Field-tested sales leaders who cultivate restaurant relationships.
-            Selective program for proven performers.
+            {t.solutionsAgencies.idealPartnerBody}
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             {[
-              "Restaurant Advisors",
-              "B2B Channel Partners",
-              "Sales Executives",
-              "Franchise Specialists",
-              "SaaS Resellers",
-              "Business Development Pros",
+              t.solutionsAgencies.partnerTypeRestaurantAdvisors,
+              t.solutionsAgencies.partnerTypeChannelPartners,
+              t.solutionsAgencies.partnerTypeSalesExecutives,
+              t.solutionsAgencies.partnerTypeFranchiseSpecialists,
+              t.solutionsAgencies.partnerTypeSaasResellers,
+              t.solutionsAgencies.partnerTypeBizDevPros,
             ].map((tag, idx) => (
               <span
                 key={idx}
@@ -320,18 +335,20 @@ export default function AgenciesPage() {
         <div className="max-w-3xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
-              Partner{" "}
-              <span className="text-gray-400 italic">FAQs.</span>
+              {t.solutionsAgencies.faqHeading}{" "}
+              <span className="text-gray-400 italic">
+                {t.solutionsAgencies.faqHeadingAccent}
+              </span>
             </h2>
           </div>
           <Accordion type="single" collapsible className="w-full">
             {[
-              { question: "Product Overview", answer: "Premium $30/month QR digital menu platform for global restaurants." },
-              { question: "Experience Required", answer: "Field sales expertise; comprehensive assets provided." },
-              { question: "Payout Mechanics", answer: "Monthly Stripe disbursements on collection day, lifetime per active sub." },
-              { question: "Costs Involved", answer: "Zero, fully commission-driven." },
-              { question: "Territory", answer: "Worldwide independents, US prioritized." },
-              { question: "Resources", answer: "Portal with videos, scripts, presentations; warm leads available." },
+              { question: t.solutionsAgencies.faqProductOverviewQuestion, answer: t.solutionsAgencies.faqProductOverviewAnswer },
+              { question: t.solutionsAgencies.faqExperienceRequiredQuestion, answer: t.solutionsAgencies.faqExperienceRequiredAnswer },
+              { question: t.solutionsAgencies.faqPayoutMechanicsQuestion, answer: t.solutionsAgencies.faqPayoutMechanicsAnswer },
+              { question: t.solutionsAgencies.faqCostsInvolvedQuestion, answer: t.solutionsAgencies.faqCostsInvolvedAnswer },
+              { question: t.solutionsAgencies.faqTerritoryQuestion, answer: t.solutionsAgencies.faqTerritoryAnswer },
+              { question: t.solutionsAgencies.faqResourcesQuestion, answer: t.solutionsAgencies.faqResourcesAnswer },
             ].map((faq, index) => (
               <AccordionItem
                 key={index}
@@ -355,10 +372,10 @@ export default function AgenciesPage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              "600+ Live Deployments",
-              "Field-Tested Model",
-              "Revenue-Share Only",
-              "Exclusive Access",
+              t.solutionsAgencies.trustBadgeDeployments,
+              t.solutionsAgencies.trustBadgeFieldTested,
+              t.solutionsAgencies.trustBadgeRevenueShare,
+              t.solutionsAgencies.trustBadgeExclusiveAccess,
             ].map((item, idx) => (
               <div
                 key={idx}
@@ -379,13 +396,13 @@ export default function AgenciesPage() {
       <section className="py-12 bg-stone-50 border-t border-stone-200">
         <div className="max-w-4xl mx-auto px-6">
           <h4 className="text-lg font-semibold text-stone-900 mb-4">
-            Partner Program Terms
+            {t.solutionsAgencies.termsHeading}
           </h4>
           <ul className="grid md:grid-cols-2 gap-x-12 gap-y-3 text-sm text-stone-600 list-disc pl-5">
-            <li>Income Continuity: Commissions continue for active subscriptions only.</li>
-            <li>Termination Rights: Menuthere reserves the right to terminate for brand misalignment.</li>
-            <li>Payout Timing: Exact day of subscription collection, net of fees.</li>
-            <li>Eligibility: Worldwide partners accepted; subject to approval.</li>
+            <li>{t.solutionsAgencies.termsIncomeContinuity}</li>
+            <li>{t.solutionsAgencies.termsTerminationRights}</li>
+            <li>{t.solutionsAgencies.termsPayoutTiming}</li>
+            <li>{t.solutionsAgencies.termsEligibility}</li>
           </ul>
         </div>
       </section>

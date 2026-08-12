@@ -1,10 +1,13 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Inter, Dancing_Script, Poppins, Roboto, Geist, Bricolage_Grotesque, Montserrat } from "next/font/google";
+import { Inter, Dancing_Script, Poppins, Roboto, Geist, Bricolage_Grotesque, Montserrat, Noto_Sans_Devanagari, Noto_Sans_Arabic } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { headers } from "next/headers";
+import { getLocale } from "@/lib/i18n/server";
+import { dirOf } from "@/lib/i18n/config";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import "./globals.css";
 import "@smastrom/react-rating/style.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -120,6 +123,21 @@ const bricolageGrotesque = Bricolage_Grotesque({
   display: "swap",
 });
 
+// Latin-only families cover none of Devanagari or Arabic, so these carry the
+// Hindi and Arabic text. globals.css points html[lang] at them.
+const notoDevanagari = Noto_Sans_Devanagari({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["devanagari"],
+  variable: "--font-devanagari",
+  display: "swap",
+});
+const notoArabic = Noto_Sans_Arabic({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["arabic"],
+  variable: "--font-arabic",
+  display: "swap",
+});
+
 const montserrat = Montserrat({
   weight: ["300", "400", "500", "600", "700", "800"],
   subsets: ["latin"],
@@ -141,8 +159,13 @@ export default async function RootLayout({
   // [username]/layout handles storefront GTM instead.
   const partnerGtmId = headersList.get("x-partner-gtm");
 
+  // Resolved once per request, here, so <html lang/dir> is correct in the FIRST
+  // byte of HTML — no flash of English, and no layout flip after hydration.
+  const locale = await getLocale();
+  const dir = dirOf(locale);
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} dir={dir} suppressHydrationWarning>
       <head>
         <meta name="theme-color" content="#f97316" />
         {/* Preconnect to critical third-party origins */}
@@ -204,7 +227,7 @@ document.head.appendChild(o)}initApollo();`,
         />
       </head>
       <body
-        className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable} ${geist.variable} ${bricolageGrotesque.variable} ${montserrat.variable}`}
+        className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable} ${geist.variable} ${bricolageGrotesque.variable} ${montserrat.variable} ${notoDevanagari.variable} ${notoArabic.variable}`}
       >
         {/* Custom-domain partner GTM (covers /order, /bill & all top-level
             routes the [username] subtree layout can't reach). */}
@@ -221,10 +244,14 @@ document.head.appendChild(o)}initApollo();`,
             {/* Backs confirmDialog()/promptDialog() — mounted once here so the
                 imperative helpers work from any route without a provider. */}
             <ConfirmDialogHost />
-            {!isCustomDomain && <Navbar />}
-            <main id="main-content">
-              {children}
-            </main>
+            {/* Wraps the Navbar too, so the switcher and the page it changes
+                share one locale — and so switching re-renders both at once. */}
+            <LocaleProvider initialLocale={locale}>
+              {!isCustomDomain && <Navbar />}
+              <main id="main-content">
+                {children}
+              </main>
+            </LocaleProvider>
             {!isCustomDomain && <BottomNav />}
           </DomainProvider>
         </PostHogProvider>

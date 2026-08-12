@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { getT } from "@/lib/i18n/server";
 import HelpCenterFacebook from "./FacebookSupport";
 import HelpCenterContactForm from "./ContactForm";
 import HelpCenterWhatsApp from "./WhatsAppSupport";
@@ -12,68 +13,71 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 
-export const metadata: Metadata = {
-    title: "Help & Support | Menuthere Digital Menu",
-    description:
-        "Get help with your Menuthere digital menu. FAQs, WhatsApp support, and email contact. Quick answers on menu management, offers, and more.",
-    alternates: { canonical: "https://menuthere.com/help-center" },
-    openGraph: {
-        title: "Help & Support | Menuthere Digital Menu",
-        description:
-            "Get help with your Menuthere digital menu. FAQs, WhatsApp support, and email contact. Quick answers on menu management, offers, and more.",
-        url: "https://menuthere.com/help-center",
-        type: "website",
-    },
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getT();
+    return {
+        title: t.helpCenter.metaTitle,
+        description: t.helpCenter.metaDescription,
+        alternates: { canonical: "https://menuthere.com/help-center" },
+        openGraph: {
+            title: t.helpCenter.metaTitle,
+            description: t.helpCenter.metaDescription,
+            url: "https://menuthere.com/help-center",
+            type: "website",
+        },
+    };
+}
 
-const FAQS = [
-    {
-        question: "How do I stop customers finding old menus on Google or apps?",
-        answer: "All changes-like products, prices, descriptions, or availability-are applied instantly to your digital menu. Verify by clicking View Menu from your dashboard; no delays or reprints needed."
-    },
-    {
-        question: "Out-of-stock items still show on my QR/digital menu-what gives?",
-        answer: "In the Menu section, click Availability at the top. Toggle entire categories or individual items on/off with a single click-sold-out items vanish everywhere immediately."
-    },
-    {
-        question: "Updating menus takes forever and costs a fortune in designers.",
-        answer: "Editing is extremely simple and takes seconds-no technical knowledge required. Go to the Menu section, click any product to update name, price, image, description, offers, or variants, then save. Changes go live instantly."
-    },
-    {
-        question: "How do I instantly update my menu products?",
-        answer: "Go to the Menu section in your dashboard. You'll see all categories and products listed-click any to edit details like name, price, image, or description, then save for instant updates."
-    },
-    {
-        question: "How do I rearrange menu items or categories?",
-        answer: "Open the Menu section and click Priority. Drag or set priority numbers for categories and items, then save-the new order appears live right away."
-    },
-    {
-        question: "How do I add offers or specials to menu items?",
-        answer: "For Specials/Best Sellers: In Menu section, toggle the option per item-they'll appear as Must-Try at the top. For custom offers: Go to Offers section, create single/multi-item deals, and they activate instantly."
-    },
-    {
-        question: "Hard to update banners or product images without tech help?",
-        answer: "Navigate to Settings → General Settings to upload/change your restaurant banner. For products, edit images directly in the Menu section-drag-and-drop simple, live immediately."
-    },
-    {
-        question: "Can I preview or schedule changes like daily specials easily?",
-        answer: "Yes-preview any edit via View Menu before saving. For scheduling, use the Offers section to set timed updates (e.g., daily specials)-automate without daily logins."
-    },
-    {
-        question: "Will I be able to turn the store off during offline hours?",
-        answer: "Yes. Go to Settings and toggle your restaurant off anytime-perfect for offline hours, closures, or maintenance. Toggle back on when ready."
-    },
-    {
-        question: "How easy is it overall to edit menu items?",
-        answer: "Extremely-seconds per change. Update prices, names, images, availability, or offers via intuitive toggles/dropdowns in the Menu section, no coding or designers."
-    },
-    {
-        question: "Can I cancel my subscription at any time?",
-        answer: "Yes-cancel anytime from your account. Your plan stays active until the current billing period ends, with no further charges unless you renew."
-    }
-];
+export default async function HelpCenterPage() {
+    const { t } = await getT();
 
-export default function HelpCenterPage() {
+    const FAQS = [
+        {
+            question: t.helpCenter.faq1Question,
+            answer: t.helpCenter.faq1Answer
+        },
+        {
+            question: t.helpCenter.faq2Question,
+            answer: t.helpCenter.faq2Answer
+        },
+        {
+            question: t.helpCenter.faq3Question,
+            answer: t.helpCenter.faq3Answer
+        },
+        {
+            question: t.helpCenter.faq4Question,
+            answer: t.helpCenter.faq4Answer
+        },
+        {
+            question: t.helpCenter.faq5Question,
+            answer: t.helpCenter.faq5Answer
+        },
+        {
+            question: t.helpCenter.faq6Question,
+            answer: t.helpCenter.faq6Answer
+        },
+        {
+            question: t.helpCenter.faq7Question,
+            answer: t.helpCenter.faq7Answer
+        },
+        {
+            question: t.helpCenter.faq8Question,
+            answer: t.helpCenter.faq8Answer
+        },
+        {
+            question: t.helpCenter.faq9Question,
+            answer: t.helpCenter.faq9Answer
+        },
+        {
+            question: t.helpCenter.faq10Question,
+            answer: t.helpCenter.faq10Answer
+        },
+        {
+            question: t.helpCenter.faq11Question,
+            answer: t.helpCenter.faq11Answer
+        }
+    ];
+
     return (
         <div className="min-h-screen w-full bg-white geist-font">
 
@@ -81,11 +85,11 @@ export default function HelpCenterPage() {
             <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
                 <div className="w-full max-w-2xl mx-auto text-center">
                     <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
-                        Help &{" "}
-                        <span className="text-stone-500 italic">Support.</span>
+                        {t.helpCenter.heroTitle}{" "}
+                        <span className="text-stone-500 italic">{t.helpCenter.heroTitleAccent}</span>
                     </h1>
                     <p className="geist-font text-lg text-stone-500 max-w-md mx-auto mt-5 leading-relaxed">
-                        Need assistance? Reach out to us via email or chat directly on WhatsApp.
+                        {t.helpCenter.heroSubtitle}
                     </p>
                 </div>
             </section>
@@ -118,8 +122,8 @@ export default function HelpCenterPage() {
                 <div className="max-w-3xl mx-auto px-6 lg:px-8">
                     <div className="text-center mb-14">
                         <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
-                            Frequently asked{" "}
-                            <span className="text-gray-400 italic">questions.</span>
+                            {t.helpCenter.faqSectionTitle}{" "}
+                            <span className="text-gray-400 italic">{t.helpCenter.faqSectionTitleAccent}</span>
                         </h2>
                     </div>
 

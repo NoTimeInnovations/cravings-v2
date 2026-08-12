@@ -1,0 +1,96 @@
+{
+    "slug": "owners",
+    "hero": {
+        "eyebrow": "لأصحاب المطاعم",
+        "headline": "استعد السيطرة الكاملة على مطعمك",
+        "subheadline": "أدر العمليات، وخفض التكاليف، وضاعف الإيرادات من منصة واحدة متكاملة. تحكم في كل شيء من هاتفك، في أي مكان وفي أي وقت",
+        "primaryCta": "ابدأ الآن",
+        "primaryCtaLink": "/get-started",
+        "secondaryCta": "احجز عرضا توضيحيا",
+        "secondaryCtaLink": "https://cal.id/craving",
+        "image": "/assets/mockups/solutions-owners-v4.png"
+    },
+    "benefits": [
+        {
+            "title": "إدارة قائمة الطعام بلا عناء",
+            "description": "عدل قائمة طعامك متى شئت، مباشرة من هاتفك."
+        },
+        {
+            "title": "تشغيل مطعم بلا تعقيد",
+            "description": "أدر عمليات مطعمك بالكامل من هاتفك المحمول."
+        },
+        {
+            "title": "التحليلات والتقارير",
+            "description": "تابع أداء مطعمك بأرقام لحظية ودقيقة."
+        }
+    ],
+    "features": [
+        {
+            "title": "لوحة تحكم موحدة",
+            "description": "لا حاجة بعد اليوم لتسجيل الدخول إلى خمسة أنظمة مختلفة. أدر قائمة الطعام ونظام POS وفريق الصالة والمخزون من مكان واحد.",
+            "list": [
+                "إدارة قائمة الطعام",
+                "نظام POS والفوترة",
+                "إدارة فريق الصالة",
+                "المخزون والمشتريات"
+            ],
+            "image": "/assets/mockups/scan-analytics-v3.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "صفر عمولات، أقصى ربح",
+            "description": "كفى اقتساما لإيرادات تعبت في تحقيقها. مع موقع طلبات خاص بك، تحتفظ بـ 100% من قيمة كل طلب.",
+            "list": [
+                "بلا رسوم خفية",
+                "مدفوعات تصلك مباشرة (الدفع عند الاستلام)",
+                "هوامش ربح أعلى",
+                "تسعير واضح وشفاف"
+            ],
+            "image": "/assets/mockups/zero-commission-v3.jpeg",
+            "imagePosition": "left"
+        },
+        {
+            "title": "قرارات مبنية على البيانات",
+            "description": "اعرف بالضبط ما الذي يباع وما الذي لا يباع. طور قائمة طعامك بناء على بيانات فعلية، لا على التخمين.",
+            "list": [
+                "تقارير الأصناف الأكثر مبيعا",
+                "تقارير حسب الفئة",
+                "تقرير مبيعات في أي وقت",
+                "تحليلات ساعات الذروة"
+            ],
+            "image": "/assets/mockups/analytics-dashboard-v2.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [
+        {
+            "author": "Sarah Jenkins",
+            "role": "المالكة",
+            "company": "The Burger Joint",
+            "text": "غير Menuthere طريقة تعاملنا مع الطلبات في ساعات الذروة. قائمة الطعام الرقمية أنقذتنا فعلا!",
+            "avatar": "/assets/avatars/avatar-1.png"
+        },
+        {
+            "author": "David Chen",
+            "role": "المالك",
+            "company": "Golden Dragon",
+            "text": "أفضل استثمار قمنا به هذا العام. أخيرا أرى تكاليف مطبخي بوضوح كامل.",
+            "avatar": "/assets/avatars/avatar-2.png"
+        },
+        {
+            "author": "Maria Garcia",
+            "role": "المؤسسة",
+            "company": "Cafe Sol",
+            "text": "إمكانية تعديل الأسعار فورا على القائمة الرقمية وفرت علينا الكثير من تكاليف الطباعة.",
+            "avatar": "/assets/avatars/avatar-3.png"
+        }
+    ],
+    "cta": {
+        "title": "جاهز لتوسيع نطاق أعمالك؟",
+        "description": "انضم إلى أكثر من 600 صاحب مطعم انتقلوا إلى Menuthere وارتاحوا بالا.",
+        "buttonText": "ابدأ الآن",
+        "buttonLink": "/get-started",
+        "secondaryButtonText": "احجز عرضا توضيحيا",
+        "secondaryButtonLink": "https://menuthere.com/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
+    }
+}

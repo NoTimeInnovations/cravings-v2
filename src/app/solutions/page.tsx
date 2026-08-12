@@ -24,142 +24,146 @@ import RestaurantMarquee from "@/components/international/RestaurantMarquee";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import { getT } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Digital Menu Solutions for Every Food Business | Menuthere",
-  description:
-    "Transform your food business with smart digital menus. Perfect for restaurants, cafes, bakeries, cloud kitchens, hotels, food trucks, bars, and catering services. QR code menus, real-time updates, Google Business Profile sync.",
-  keywords:
-    "digital menu, QR code menu, restaurant technology, cafe menu, bakery menu, cloud kitchen, food truck menu, hotel dining, bar menu, catering menu, contactless ordering",
-  openGraph: {
-    title: "Digital Menu Solutions | Menuthere",
-    description:
-      "Smart digital menus for restaurants, cafes, bakeries, and more. Real-time updates, beautiful designs, zero printing costs.",
-    type: "website",
-    url: "https://menuthere.com/solutions",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return {
+    title: t.solutionsIndex.metaTitle,
+    description: t.solutionsIndex.metaDescription,
+    keywords:
+      "digital menu, QR code menu, restaurant technology, cafe menu, bakery menu, cloud kitchen, food truck menu, hotel dining, bar menu, catering menu, contactless ordering",
+    openGraph: {
+      title: t.solutionsIndex.ogTitle,
+      description: t.solutionsIndex.ogDescription,
+      type: "website",
+      url: "https://menuthere.com/solutions",
+    },
+  };
+}
 
 const SOLUTIONS = [
   {
     slug: "restaurants",
-    title: "Restaurants",
-    shortDesc: "Smart digital menus for dine-in excellence",
+    titleKey: "cardRestaurantsTitle",
+    shortDescKey: "cardRestaurantsDesc",
     icon: Utensils,
   },
   {
     slug: "cafes",
-    title: "Cafes & Coffee Shops",
-    shortDesc: "Modern menus for the perfect brew experience",
+    titleKey: "cardCafesTitle",
+    shortDescKey: "cardCafesDesc",
     icon: Coffee,
   },
   {
     slug: "bakeries",
-    title: "Bakeries & Pastry Shops",
-    shortDesc: "Showcase your fresh bakes beautifully",
+    titleKey: "cardBakeriesTitle",
+    shortDescKey: "cardBakeriesDesc",
     icon: Cake,
   },
   {
     slug: "cloud-kitchens",
-    title: "Cloud Kitchens",
-    shortDesc: "Multi-brand menu management made easy",
+    titleKey: "cardCloudKitchensTitle",
+    shortDescKey: "cardCloudKitchensDesc",
     icon: ChefHat,
   },
   {
     slug: "hotels",
-    title: "Hotels & Resorts",
-    shortDesc: "Elegant dining experiences for guests",
+    titleKey: "cardHotelsTitle",
+    shortDescKey: "cardHotelsDesc",
     icon: Building2,
   },
   {
     slug: "food-trucks",
-    title: "Food Trucks",
-    shortDesc: "Mobile menus that go wherever you go",
+    titleKey: "cardFoodTrucksTitle",
+    shortDescKey: "cardFoodTrucksDesc",
     icon: Truck,
   },
   {
     slug: "bars",
-    title: "Bars & Pubs",
-    shortDesc: "Dynamic drink menus with style",
+    titleKey: "cardBarsTitle",
+    shortDescKey: "cardBarsDesc",
     icon: Wine,
   },
   {
     slug: "catering",
-    title: "Catering Services",
-    shortDesc: "Professional menus for every event",
+    titleKey: "cardCateringTitle",
+    shortDescKey: "cardCateringDesc",
     icon: PartyPopper,
   },
   {
     slug: "owners",
-    title: "Restaurant Owners",
-    shortDesc: "Take back control of your restaurant operations",
+    titleKey: "cardOwnersTitle",
+    shortDescKey: "cardOwnersDesc",
     icon: Briefcase,
   },
   {
     slug: "agencies",
-    title: "Agencies & Consultants",
-    shortDesc: "Manage multiple client accounts with ease",
+    titleKey: "cardAgenciesTitle",
+    shortDescKey: "cardAgenciesDesc",
     icon: Briefcase,
   },
   {
     slug: "petpooja",
-    title: "Direct Ordering & PetPooja",
-    shortDesc: "Zero commission alternative to Swiggy & Zomato",
+    titleKey: "cardPetpoojaTitle",
+    shortDescKey: "cardPetpoojaDesc",
     icon: ShieldAlert,
   },
   {
     slug: "whatsapp-ordering",
-    title: "WhatsApp Ordering",
-    shortDesc: "Customers order by just sending “Hi” — no app, no signup",
+    titleKey: "cardWhatsappOrderingTitle",
+    shortDescKey: "cardWhatsappOrderingDesc",
     icon: MessageCircle,
   },
-];
+] as const;
 
 const FEATURES = [
   {
     icon: QrCode,
-    title: "QR Code Menus",
-    description:
-      "Instant access via smartphone scan. No app downloads required.",
+    titleKey: "featureQrTitle",
+    descriptionKey: "featureQrDesc",
   },
   {
     icon: Clock,
-    title: "Real-Time Updates",
-    description: "Change prices, add items, mark sold-out instantly.",
+    titleKey: "featureRealtimeTitle",
+    descriptionKey: "featureRealtimeDesc",
   },
   {
     icon: Globe,
-    title: "Google Business Sync",
-    description: "Auto-update your Google Business Profile menu.",
+    titleKey: "featureGoogleSyncTitle",
+    descriptionKey: "featureGoogleSyncDesc",
   },
   {
     icon: TrendingUp,
-    title: "Analytics & Insights",
-    description: "Track popular items and customer preferences.",
+    titleKey: "featureAnalyticsTitle",
+    descriptionKey: "featureAnalyticsDesc",
   },
-];
+] as const;
 
 export default async function SolutionsPage() {
+  const { t } = await getT();
+
   return (
     <main className="min-h-screen w-full bg-white geist-font">
       {/* Hero Section */}
       <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
         <div className="w-full max-w-2xl mx-auto text-center">
           <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
-            Digital menus that{" "}
-            <span className="text-stone-500 italic">transform</span> your
-            business.
+            {t.solutionsIndex.heroTitleLead}{" "}
+            <span className="text-stone-500 italic">
+              {t.solutionsIndex.heroTitleEmphasis}
+            </span>{" "}
+            {t.solutionsIndex.heroTitleTail}
           </h1>
           <p className="geist-font text-lg text-stone-500 max-w-lg mx-auto mt-5 leading-relaxed">
-            Whether you run a cozy cafe, a bustling restaurant, or a cloud
-            kitchen empire - our platform adapts to your unique needs.
+            {t.solutionsIndex.heroSubtitle}
           </p>
           <div className="flex items-center gap-3 mt-8 justify-center">
             <ButtonV2 href="/get-started" variant="primary">
-              Get Started Free
+              {t.solutionsIndex.heroPrimaryCta}
             </ButtonV2>
             <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
-              Book a Demo
+              {t.solutionsIndex.heroSecondaryCta}
             </ButtonV2>
           </div>
         </div>
@@ -172,12 +176,13 @@ export default async function SolutionsPage() {
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            Choose your industry,{" "}
-            <span className="text-stone-500">get started.</span>
+            {t.solutionsIndex.industriesHeadingLead}{" "}
+            <span className="text-stone-500">
+              {t.solutionsIndex.industriesHeadingEmphasis}
+            </span>
           </h2>
           <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
-            Tailored digital menu solutions designed specifically for your type
-            of food business.
+            {t.solutionsIndex.industriesIntro}
           </p>
         </div>
 
@@ -192,13 +197,13 @@ export default async function SolutionsPage() {
                 <solution.icon className="w-5 h-5 text-orange-600 group-hover:text-white transition-colors duration-300" />
               </div>
               <h3 className="text-base font-semibold text-stone-900 mb-1 group-hover:text-orange-600 transition-colors">
-                {solution.title}
+                {t.solutionsIndex[solution.titleKey]}
               </h3>
               <p className="text-stone-500 text-sm leading-relaxed">
-                {solution.shortDesc}
+                {t.solutionsIndex[solution.shortDescKey]}
               </p>
               <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                Learn more
+                {t.solutionsIndex.cardLearnMoreLink}
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
@@ -213,8 +218,10 @@ export default async function SolutionsPage() {
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12">
-            Powerful features,{" "}
-            <span className="text-stone-500">every business.</span>
+            {t.solutionsIndex.featuresHeadingLead}{" "}
+            <span className="text-stone-500">
+              {t.solutionsIndex.featuresHeadingEmphasis}
+            </span>
           </h2>
         </div>
 
@@ -228,10 +235,10 @@ export default async function SolutionsPage() {
                 <feature.icon className="w-5 h-5 text-orange-600" />
               </div>
               <h3 className="text-base font-semibold text-stone-900 mb-2">
-                {feature.title}
+                {t.solutionsIndex[feature.titleKey]}
               </h3>
               <p className="text-stone-500 text-sm leading-relaxed">
-                {feature.description}
+                {t.solutionsIndex[feature.descriptionKey]}
               </p>
             </div>
           ))}
@@ -246,22 +253,20 @@ export default async function SolutionsPage() {
         <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <span className="inline-block px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium mb-6">
-              Google Business Integration
+              {t.solutionsIndex.googleBadge}
             </span>
             <h2 className="geist-font font-semibold text-2xl md:text-3xl text-stone-900 leading-tight mb-4">
-              Sync your menu with Google Business Profile
+              {t.solutionsIndex.googleHeading}
             </h2>
             <p className="text-base text-stone-500 mb-6 leading-relaxed">
-              Automatically update your Google Business Profile menu whenever
-              you make changes. Customers searching for you on Google Maps will
-              always see your latest offerings.
+              {t.solutionsIndex.googleBody}
             </p>
             <ul className="space-y-3 mb-6">
               {[
-                "One-click sync to Google Business Profile",
-                "Real-time menu updates across platforms",
-                "Improved local SEO and visibility",
-                "Attract more customers from Google Search & Maps",
+                t.solutionsIndex.googleBenefitOneClickSync,
+                t.solutionsIndex.googleBenefitRealtimeUpdates,
+                t.solutionsIndex.googleBenefitLocalSeo,
+                t.solutionsIndex.googleBenefitMoreCustomers,
               ].map((item, idx) => (
                 <li key={idx} className="flex items-center gap-3">
                   <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -273,7 +278,7 @@ export default async function SolutionsPage() {
               href="/solutions/google-business"
               className="inline-flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors group"
             >
-              Learn about Google Business Manager
+              {t.solutionsIndex.googleManagerLink}
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
@@ -300,20 +305,28 @@ export default async function SolutionsPage() {
                 </svg>
               </div>
               <div>
-                <div className="font-semibold">Google Business Profile</div>
-                <div className="text-blue-200 text-sm">Menu Manager</div>
+                <div className="font-semibold">
+                  {t.solutionsIndex.googleCardTitle}
+                </div>
+                <div className="text-blue-200 text-sm">
+                  {t.solutionsIndex.googleCardSubtitle}
+                </div>
               </div>
             </div>
             <div className="space-y-3">
               <div className="bg-white/10 rounded-lg p-4">
                 <div className="text-sm text-blue-200 mb-1">
-                  Menu Items Synced
+                  {t.solutionsIndex.googleCardSyncedLabel}
                 </div>
                 <div className="text-2xl font-bold">247</div>
               </div>
               <div className="bg-white/10 rounded-lg p-4">
-                <div className="text-sm text-blue-200 mb-1">Last Sync</div>
-                <div className="text-lg font-semibold">Just now</div>
+                <div className="text-sm text-blue-200 mb-1">
+                  {t.solutionsIndex.googleCardLastSyncLabel}
+                </div>
+                <div className="text-lg font-semibold">
+                  {t.solutionsIndex.googleCardLastSyncValue}
+                </div>
               </div>
             </div>
           </div>

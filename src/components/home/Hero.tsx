@@ -1,5 +1,7 @@
 "use client";
 
+import { useT, interpolate } from "@/lib/i18n/LocaleProvider";
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -25,6 +27,7 @@ interface SelectedPlace {
 }
 
 export default function Hero({ partners = [] }: { partners?: string[] }) {
+  const { t } = useT();
   const router = useRouter();
 
   const [search, setSearch] = useState("");
@@ -124,7 +127,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selected) {
-      toast.error("Pick your business from the dropdown");
+      toast.error(t.hero.pickFromDropdown);
       return;
     }
     setSubmitting(true);
@@ -165,7 +168,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                   <span className="absolute inline-flex h-full w-full rounded-full bg-[#E85D04] opacity-70 animate-ping" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#E85D04]" />
                 </span>
-                <span>Live on Product Hunt</span>
+                <span>{t.hero.productHunt}</span>
                 <span className="h-2.5 w-px bg-[rgba(232,93,4,0.3)]" aria-hidden />
                 <span className="tabular-nums">#22 today</span>
               </div>
@@ -182,13 +185,13 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                   fontWeight: 600,
                 }}
               >
-                <span className="hero-title-word hero-title-word-1 inline-block">Own your orders.</span>
+                <span className="hero-title-word hero-title-word-1 inline-block">{t.hero.headlineA}</span>
                 <br />
                 <span
                   className="hero-title-word hero-title-word-2 inline-block text-[#E85D04]"
                   style={{ marginTop: "0.04em" }}
                 >
-                  Own your customers.
+                  {t.hero.headlineB}
                 </span>
               </h1>
 
@@ -197,8 +200,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                 className="mt-6 text-[15px] sm:text-[16px] text-[#4A4A50] leading-[1.6] max-w-[480px]"
                 style={{ letterSpacing: "-0.005em" }}
               >
-                Skip the 30% aggregator cut. Menuthere spins up your branded
-                ordering &amp; delivery platform in minutes.
+                {t.hero.subhead}
               </p>
 
               {/* CTA — Google Places search inline */}
@@ -230,7 +232,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                         type="button"
                         onClick={handleClearSelection}
                         className="text-[#A6A6AB] hover:text-[#0A0A0B] shrink-0 p-1 -m-1 rounded-md hover:bg-[rgba(11,11,12,0.04)] transition-colors"
-                        aria-label="Clear"
+                        aria-label={t.hero.clear}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -241,7 +243,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                       className="inline-flex items-center gap-1.5 bg-[#0A0A0B] hover:bg-[#1A1A1C] text-white rounded-[12px] px-4 py-2.5 text-[14px] font-semibold disabled:opacity-60 shrink-0 transition-all duration-300 active:scale-[0.98] shadow-[0_8px_20px_-10px_rgba(11,11,12,0.45)]"
                     >
                       <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
-                      {submitting ? "Working…" : "Generate"}
+                      {submitting ? t.hero.working : t.hero.generate}
                     </button>
                   </div>
                 ) : (
@@ -256,7 +258,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                       <Search className="h-4 w-4 text-[#A6A6AB] shrink-0" />
                       <input
                         type="text"
-                        placeholder={`Search "${typedPlaceholder || "Burger Town"}"`}
+                        placeholder={interpolate(t.hero.searchPlaceholder, { name: typedPlaceholder || "Burger Town" })}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="flex-1 min-w-0 bg-transparent border-none outline-none text-[15px] text-[#0A0A0B] placeholder:text-[#B2B2B7] tracking-[-0.005em]"
@@ -268,7 +270,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                       className="inline-flex items-center gap-1.5 bg-[#0A0A0B] hover:bg-[#1A1A1C] text-white rounded-[12px] px-4 py-2.5 text-[14px] font-semibold disabled:opacity-60 shrink-0 transition-all duration-300 active:scale-[0.98] shadow-[0_8px_20px_-10px_rgba(11,11,12,0.45)]"
                     >
                       <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
-                      Generate
+                      {t.hero.generate}
                     </button>
                   </div>
                 )}
@@ -302,15 +304,15 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
 
               {/* Checkmark bullets */}
               <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2.5 text-[13.5px] text-[#3F3F44] font-medium">
-                <Bullet>No commission</Bullet>
-                <Bullet>Your brand</Bullet>
-                <Bullet>Live in minutes</Bullet>
+                <Bullet>{t.hero.bulletNoCommission}</Bullet>
+                <Bullet>{t.hero.bulletYourBrand}</Bullet>
+                <Bullet>{t.hero.bulletLiveInMinutes}</Bullet>
               </div>
 
               {/* Highlighted WhatsApp ordering callout → dedicated page */}
               <Link
                 href="/solutions/whatsapp-ordering"
-                aria-label="Explore WhatsApp ordering"
+                aria-label={t.hero.whatsappExplore}
                 className="group mt-6 inline-flex items-center gap-3 rounded-2xl border border-[#25D366]/30 bg-[#25D366]/[0.07] py-2 pl-2 pr-3.5 transition-all duration-300 hover:border-[#25D366]/50 hover:bg-[#25D366]/[0.12] hover:shadow-[0_12px_28px_-14px_rgba(37,211,102,0.5)] active:scale-[0.99]"
               >
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#25D366] text-white shadow-[0_6px_14px_-6px_rgba(37,211,102,0.8)]">
@@ -318,16 +320,16 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                 </span>
                 <span className="text-left leading-tight">
                   <span className="flex items-center gap-1.5 text-[13px] font-bold text-[#0A0A0B]">
-                    WhatsApp Ordering
+                    {t.hero.whatsappTitle}
                     <span className="rounded-full bg-[#25D366]/15 px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wide text-[#1d9e4e]">
                       New
                     </span>
                   </span>
                   <span className="mt-0.5 block text-[12px] text-[#4A4A50]">
-                    Customers order on WhatsApp — no app, no login.
+                    {t.hero.whatsappBlurb}
                   </span>
                 </span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-[#1d9e4e] transition-transform duration-300 group-hover:translate-x-0.5" />
+                <ArrowRight className="rtl-flip h-4 w-4 shrink-0 text-[#1d9e4e] transition-transform duration-300 group-hover:translate-x-0.5" />
               </Link>
             </div>
 
@@ -344,7 +346,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
           {partners.length > 0 && (
             <div className="mt-20 lg:mt-28 pt-10 border-t border-[rgba(11,11,12,0.08)]">
               <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8E8E94]">
-                Trusted by restaurants growing their brand
+                {t.hero.trustedBy}
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 sm:gap-x-12 lg:gap-x-16 gap-y-6 text-[#3F3F44]">
                 {partners.map((name, i) => (

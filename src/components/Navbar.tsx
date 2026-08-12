@@ -1,4 +1,7 @@
 "use client";
+
+import { useT } from "@/lib/i18n/LocaleProvider";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
@@ -51,30 +54,35 @@ interface BeforeInstallPromptEvent extends Event {
 
 const PRODUCTS = [
   {
+    i18nKey: "ownDeliveryWebsite",
     title: "Own Delivery Website",
     description: "Commission-free delivery platform",
     icon: Globe,
     href: "/product/delivery-website",
   },
   {
+    i18nKey: "digitalMenuCreator",
     title: "Digital Menu Creator",
     description: "QR code menus for dine-in ordering",
     icon: ScanLine,
     href: "/product/digital-menu",
   },
   {
+    i18nKey: "pos",
     title: "Point Of Sale (POS)",
     description: "Manage billing and operations",
     icon: Monitor,
     href: "/product/pos",
   },
   {
+    i18nKey: "tableOrdering",
     title: "Table Ordering",
     description: "Seamless dining experience for customers",
     icon: Smartphone,
     href: "/product/table-ordering",
   },
   {
+    i18nKey: "captainOrdering",
     title: "Captain Ordering",
     description: "Efficient order taking for staff",
     icon: ClipboardList,
@@ -84,6 +92,7 @@ const PRODUCTS = [
 
 const SOLUTIONS_FEATURES = [
   {
+    i18nKey: "googleBusinessSync",
     title: "Google Business Sync",
     description: "Sync menu to Google Maps",
     href: "/solutions/google-business",
@@ -93,12 +102,14 @@ const SOLUTIONS_FEATURES = [
 
 const SOLUTIONS_ROLES = [
   {
+    i18nKey: "owners",
     title: "Owners",
     description: "Oversee operations and grow revenue",
     href: "/solutions/owners",
     icon: Briefcase,
   },
   {
+    i18nKey: "agencies",
     title: "Agencies",
     description: "Manage multiple client accounts easily",
     href: "/solutions/agencies",
@@ -120,42 +131,49 @@ const SOLUTIONS_ROLES = [
 
 const SOLUTIONS_INDUSTRIES = [
   {
+    i18nKey: "restaurants",
     title: "Restaurants",
     description: "Smart digital menus for dine-in",
     href: "/solutions/restaurants",
     icon: Utensils,
   },
   {
+    i18nKey: "cafes",
     title: "Cafés & Coffee Shops",
     description: "Modern menus for the perfect brew",
     href: "/solutions/cafes",
     icon: Coffee,
   },
   {
+    i18nKey: "bakeries",
     title: "Bakeries",
     description: "Showcase fresh bakes beautifully",
     href: "/solutions/bakeries",
     icon: Cake,
   },
   {
+    i18nKey: "cloudKitchens",
     title: "Cloud Kitchens",
     description: "Multi-brand menu management",
     href: "/solutions/cloud-kitchens",
     icon: ChefHat,
   },
   {
+    i18nKey: "hotels",
     title: "Hotels & Resorts",
     description: "Elegant guest dining experience",
     href: "/solutions/hotels",
     icon: Hotel,
   },
   {
+    i18nKey: "foodTrucks",
     title: "Food Trucks",
     description: "Mobile menus on the go",
     href: "/solutions/food-trucks",
     icon: Truck,
   },
   {
+    i18nKey: "bars",
     title: "Bars & Pubs",
     description: "Dynamic drink menus with style",
     href: "/solutions/bars",
@@ -302,7 +320,23 @@ const PARTNER_SUBROUTES = new Set([
 import { Partner, useAuthStore } from "@/store/authStore";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 
+
+/** Copy for one mega-menu entry, by its stable i18nKey. Falls back to the
+ *  English literal already in the array, so a missing key degrades to English
+ *  rather than rendering an empty menu row. */
+function useNavCopy() {
+  const { t } = useT();
+  return (item: { i18nKey?: string; title: string; description?: string }) => {
+    const e = item.i18nKey
+      ? (t.navItems as Record<string, { title: string; description: string }>)[item.i18nKey]
+      : undefined;
+    return { title: e?.title ?? item.title, description: e?.description ?? item.description ?? "" };
+  };
+}
+
 export function Navbar() {
+  const { t } = useT();
+  const navCopy = useNavCopy();
   const { userData: storeUserData } = useAuthStore();
   const userData = storeUserData as any;
   const features = getFeatures(userData?.feature_flags as string);
@@ -510,15 +544,16 @@ export function Navbar() {
             variant="secondary"
             className="hidden sm:inline-flex"
           >
-            Login
+            {t.nav.login}
           </ButtonV2>
           <ButtonV2
             href={BOOK_DEMO_WHATSAPP}
             variant="primary"
             target="_blank"
           >
-            Book a Demo
+            {t.nav.bookDemo}
           </ButtonV2>
+          <LanguageSwitcher className="hidden sm:block" />
         </div>
       );
     }
@@ -591,7 +626,7 @@ export function Navbar() {
               "flex items-center gap-1 transition-colors relative",
               isDarkText ? "text-gray-900" : "text-white"
             )}>
-              Products
+              {t.nav.products}
               <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isProductsOpen ? "rotate-180" : "")} />
 
               {/* Custom Underline */}
@@ -613,7 +648,7 @@ export function Navbar() {
               <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                 {PRODUCTS.map((product) => (
                   <Link
-                    key={product.title}
+                    key={navCopy(product).title}
                     href={product.href}
                     className="flex items-start gap-4 group/item hover:bg-gray-50 p-2 -mx-2 rounded-lg transition-colors"
                     onClick={() => setIsProductsOpen(false)}
@@ -623,10 +658,10 @@ export function Navbar() {
                     </div>
                     <div>
                       <h3 className="text-gray-900 font-semibold text-sm group-hover/item:text-orange-600 transition-colors">
-                        {product.title}
+                        {navCopy(product).title}
                       </h3>
                       <p className="text-gray-500 text-xs mt-0.5 leading-snug">
-                        {product.description}
+                        {navCopy(product).description}
                       </p>
                     </div>
                   </Link>
@@ -650,7 +685,7 @@ export function Navbar() {
             onClick={() => setIsSolutionsOpen(!isSolutionsOpen)}
           >
             <span className="flex items-center gap-1 transition-colors">
-              Solutions
+              {t.nav.solutions}
               <ChevronDown
                 className={cn(
                   "w-4 h-4 transition-transform duration-200",
@@ -730,7 +765,7 @@ export function Navbar() {
                   <div className="space-y-0.5">
                     {SOLUTIONS_FEATURES.map((item) => (
                       <Link
-                        key={item.title}
+                        key={navCopy(item).title}
                         href={item.href}
                         className="flex items-center gap-3 group/item hover:bg-stone-50 px-2 py-2.5 rounded-lg transition-colors"
                         onClick={() => setIsSolutionsOpen(false)}
@@ -740,10 +775,10 @@ export function Navbar() {
                         </div>
                         <div>
                           <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors">
-                            {item.title}
+                            {navCopy(item).title}
                           </h3>
                           <p className="text-stone-400 text-[11px] leading-snug">
-                            {item.description}
+                            {navCopy(item).description}
                           </p>
                         </div>
                       </Link>
@@ -759,7 +794,7 @@ export function Navbar() {
                   <div className="space-y-0.5">
                     {SOLUTIONS_ROLES.map((item) => (
                       <Link
-                        key={item.title}
+                        key={navCopy(item).title}
                         href={item.href}
                         className="flex items-center gap-3 group/item hover:bg-stone-50 px-2 py-2.5 rounded-lg transition-colors"
                         onClick={() => setIsSolutionsOpen(false)}
@@ -769,10 +804,10 @@ export function Navbar() {
                         </div>
                         <div>
                           <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors">
-                            {item.title}
+                            {navCopy(item).title}
                           </h3>
                           <p className="text-stone-400 text-[11px] leading-snug">
-                            {item.description}
+                            {navCopy(item).description}
                           </p>
                         </div>
                       </Link>
@@ -788,7 +823,7 @@ export function Navbar() {
                   <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                     {SOLUTIONS_INDUSTRIES.map((item) => (
                       <Link
-                        key={item.title}
+                        key={navCopy(item).title}
                         href={item.href}
                         className="flex items-center gap-2.5 group/item hover:bg-stone-50 px-2 py-2 rounded-lg transition-colors"
                         onClick={() => setIsSolutionsOpen(false)}
@@ -798,7 +833,7 @@ export function Navbar() {
                         </div>
                         <div>
                           <h3 className="text-stone-700 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors leading-tight">
-                            {item.title}
+                            {navCopy(item).title}
                           </h3>
                         </div>
                       </Link>
@@ -824,7 +859,7 @@ export function Navbar() {
             onClick={() => setIsResourcesOpen(!isResourcesOpen)}
           >
             <span className="flex items-center gap-1 transition-colors">
-              Resources
+              {t.nav.resources}
               <ChevronDown
                 className={cn(
                   "w-4 h-4 transition-transform duration-200",
@@ -847,7 +882,7 @@ export function Navbar() {
               <div className="p-3 space-y-0.5">
                 {RESOURCES.map((item) => (
                   <Link
-                    key={item.title}
+                    key={navCopy(item).title}
                     href={item.href}
                     className="flex items-center gap-3 group/item hover:bg-stone-50 px-3 py-3 rounded-xl transition-colors"
                     onClick={() => setIsResourcesOpen(false)}
@@ -857,10 +892,10 @@ export function Navbar() {
                     </div>
                     <div>
                       <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors">
-                        {item.title}
+                        {navCopy(item).title}
                       </h3>
                       <p className="text-stone-400 text-[11px] leading-snug">
-                        {item.description}
+                        {navCopy(item).description}
                       </p>
                     </div>
                   </Link>
@@ -887,7 +922,7 @@ export function Navbar() {
             onMouseEnter={handleNavHover}
             className="px-3 py-1.5 text-sm font-medium transition-colors hidden lg:inline-flex text-[#544b47] hover:text-gray-900"
           >
-            Blog
+            {t.nav.blog}
           </Link>
         )}
       </>
@@ -1028,16 +1063,16 @@ export function Navbar() {
                     onClick={() => toggleMobileSection('products')}
                     className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
                   >
-                    Products
+                    {t.nav.products}
                     <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'products' ? "rotate-180" : "")} />
                   </button>
                   <div className={cn("space-y-4 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'products' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
                     {PRODUCTS.map(item => (
-                      <Link key={item.title} href={item.href} className="flex items-start gap-4 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Link key={navCopy(item).title} href={item.href} className="flex items-start gap-4 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
                         <item.icon className="w-5 h-5 mt-0.5 shrink-0" />
                         <div>
-                          <div className="font-medium">{item.title}</div>
-                          <div className="text-sm text-white/60 leading-snug">{item.description}</div>
+                          <div className="font-medium">{navCopy(item).title}</div>
+                          <div className="text-sm text-white/60 leading-snug">{navCopy(item).description}</div>
                         </div>
                       </Link>
                     ))}
@@ -1050,7 +1085,7 @@ export function Navbar() {
                     onClick={() => toggleMobileSection("solutions")}
                     className="flex items-center justify-between w-full text-gray-900 font-medium text-lg py-3"
                   >
-                    Solutions
+                    {t.nav.solutions}
                     <ChevronDown
                       className={cn(
                         "w-5 h-5 transition-transform duration-200",
@@ -1117,13 +1152,13 @@ export function Navbar() {
                       <div className="space-y-3">
                         {SOLUTIONS_FEATURES.map((item) => (
                           <Link
-                            key={item.title}
+                            key={navCopy(item).title}
                             href={item.href}
                             className="flex items-center gap-3 text-gray-700 hover:text-gray-900"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             <item.icon className="w-4 h-4 text-orange-600" />
-                            <span className="font-medium">{item.title}</span>
+                            <span className="font-medium">{navCopy(item).title}</span>
                           </Link>
                         ))}
                       </div>
@@ -1136,13 +1171,13 @@ export function Navbar() {
                       <div className="space-y-3">
                         {SOLUTIONS_ROLES.map((item) => (
                           <Link
-                            key={item.title}
+                            key={navCopy(item).title}
                             href={item.href}
                             className="flex items-center gap-3 text-gray-700 hover:text-gray-900"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             <item.icon className="w-4 h-4 text-orange-600" />
-                            <span className="font-medium">{item.title}</span>
+                            <span className="font-medium">{navCopy(item).title}</span>
                           </Link>
                         ))}
                       </div>
@@ -1155,13 +1190,13 @@ export function Navbar() {
                       <div className="space-y-3">
                         {SOLUTIONS_INDUSTRIES.map((item) => (
                           <Link
-                            key={item.title}
+                            key={navCopy(item).title}
                             href={item.href}
                             className="flex items-center gap-3 text-gray-700 hover:text-gray-900"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             <item.icon className="w-4 h-4 text-orange-600" />
-                            <span className="font-medium">{item.title}</span>
+                            <span className="font-medium">{navCopy(item).title}</span>
                           </Link>
                         ))}
                       </div>
@@ -1175,7 +1210,7 @@ export function Navbar() {
                     onClick={() => toggleMobileSection("resources")}
                     className="flex items-center justify-between w-full text-gray-900 font-medium text-lg py-3"
                   >
-                    Resources
+                    {t.nav.resources}
                     <ChevronDown
                       className={cn(
                         "w-5 h-5 transition-transform duration-200",
@@ -1195,16 +1230,16 @@ export function Navbar() {
                   >
                     {RESOURCES.map((item) => (
                       <Link
-                        key={item.title}
+                        key={navCopy(item).title}
                         href={item.href}
                         className="flex items-start gap-4 text-gray-700 hover:text-gray-900"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <item.icon className="w-5 h-5 mt-0.5 shrink-0 text-orange-600" />
                         <div>
-                          <div className="font-medium">{item.title}</div>
+                          <div className="font-medium">{navCopy(item).title}</div>
                           <div className="text-sm text-gray-500 leading-snug">
-                            {item.description}
+                            {navCopy(item).description}
                           </div>
                         </div>
                       </Link>
@@ -1230,7 +1265,7 @@ export function Navbar() {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center justify-between w-full text-gray-900 font-medium text-lg py-3"
                   >
-                    Blog
+                    {t.nav.blog}
                   </Link>
                 </div>
               </>

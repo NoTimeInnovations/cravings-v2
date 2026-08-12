@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/sheet";
 import { COUNTRY_NAMES, ALL_COUNTRIES, getCountryByName, getCountryByDial } from "@/lib/countries";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import { useT, interpolate } from "@/lib/i18n/LocaleProvider";
 
 // --- Types ---
 interface MenuItem {
@@ -102,16 +103,21 @@ const PHONE_DIGITS_BY_CODE = _PHONE_DIGITS_BY_CODE as Record<string, number>;
 
 const getPhoneDigits = (phone: string) => phone.replace(/\D/g, "");
 
-const validatePhone = (phone: string, phoneCode: string): { valid: boolean; message: string } => {
+// Lives outside the component, so it cannot read the dictionary. It returns a
+// stable key instead of English text; the render site resolves it through `t`.
+const validatePhone = (
+  phone: string,
+  phoneCode: string,
+): { valid: boolean; messageKey: "" | "phoneInvalidError" } => {
   const digits = getPhoneDigits(phone);
-  if (!digits) return { valid: false, message: "" };
+  if (!digits) return { valid: false, messageKey: "" };
   const expected = PHONE_DIGITS_BY_CODE[phoneCode];
   if (!expected) {
-    if (digits.length < 7 || digits.length > 15) return { valid: false, message: "Invalid phone number" };
-    return { valid: true, message: "" };
+    if (digits.length < 7 || digits.length > 15) return { valid: false, messageKey: "phoneInvalidError" };
+    return { valid: true, messageKey: "" };
   }
-  if (digits.length !== expected) return { valid: false, message: "Invalid phone number" };
-  return { valid: true, message: "" };
+  if (digits.length !== expected) return { valid: false, messageKey: "phoneInvalidError" };
+  return { valid: true, messageKey: "" };
 };
 
 // --- Helper Functions ---
@@ -314,6 +320,7 @@ function CurrencySelect({
   onChange: (symbol: string) => void;
   placeholder?: string;
 }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -360,7 +367,7 @@ function CurrencySelect({
           <Input
             ref={inputRef}
             autoComplete="off"
-            placeholder="Search currency (e.g. USD, Euro, ₹)"
+            placeholder={t.getStarted.currencySearchPlaceholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 pl-9 pr-3 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
@@ -375,7 +382,7 @@ function CurrencySelect({
           }`}
         >
           <span className="truncate">
-            {displayLabel || placeholder || "Select Currency"}
+            {displayLabel || placeholder || t.getStarted.currencySelectFallback}
           </span>
           <ChevronDown className="h-4 w-4 text-stone-400 shrink-0" />
         </button>
@@ -383,7 +390,7 @@ function CurrencySelect({
       {open && (
         <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
           {filtered.length === 0 && (
-            <li className="px-3 py-2 text-sm text-stone-400">No match</li>
+            <li className="px-3 py-2 text-sm text-stone-400">{t.getStarted.currencyNoMatch}</li>
           )}
           {filtered.slice(0, 100).map((o) => (
             <li key={o.code}>
@@ -419,6 +426,7 @@ export default function GetStartedClient({
   logo?: string;
   defaultCountry?: string;
 }) {
+  const { t } = useT();
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -576,7 +584,7 @@ export default function GetStartedClient({
       setAuthCredentials((prev) => ({ ...prev, email: googleEmail }));
       setShowAuthModal(false);
       setSigninMethod("google");
-      toast.success("Signed in with Google!");
+      toast.success(t.getStarted.googleSignInSuccessToast);
       // Clean up URL params
       const url = new URL(window.location.href);
       url.searchParams.delete("google_email");
@@ -584,7 +592,7 @@ export default function GetStartedClient({
       // Flag to auto-trigger publish after state is committed
       setPendingGooglePublish(true);
     } else if (googleError) {
-      toast.error("Google sign-in failed. Please try again.");
+      toast.error(t.getStarted.googleSignInFailedToast);
       const url = new URL(window.location.href);
       url.searchParams.delete("google_error");
       window.history.replaceState({}, "", url.toString());
@@ -642,11 +650,11 @@ export default function GetStartedClient({
         const oversized = newFiles.filter((f) => f.size > MAX_FILE_SIZE);
         if (oversized.length > 0) {
           toast.error(
-            `${oversized.length} file(s) exceed the 10MB size limit. Please upload smaller files.`
+            interpolate(t.getStarted.filesTooLargeToast, { count: oversized.length })
           );
         }
         setMenuFiles((prev) => [...prev, ...newFiles]);
-        toast.success(`${newFiles.length} file(s) added!`);
+        toast.success(interpolate(t.getStarted.filesAddedToast, { count: newFiles.length }));
       }
     };
 
@@ -662,7 +670,7 @@ export default function GetStartedClient({
       const oversized = files.filter((f) => f.size > MAX_FILE_SIZE);
       if (oversized.length > 0) {
         toast.error(
-          `${oversized.length} file(s) exceed the 10MB size limit. Please upload smaller files.`
+          interpolate(t.getStarted.filesTooLargeToast, { count: oversized.length })
         );
       }
       setMenuFiles((prev) => [...prev, ...files]);
@@ -800,8 +808,7 @@ export default function GetStartedClient({
       setExtractedItems(parsedMenu);
 
       if (parsedMenu.length === 0 && result.failedBatches > 0) {
-        const msg =
-          "We couldn't read your menu. Please try clearer files or add items manually.";
+        const msg = t.getStarted.menuUnreadableError;
         setExtractionError(msg);
         toast.error(msg);
       }
@@ -810,9 +817,9 @@ export default function GetStartedClient({
     } catch (error: any) {
       console.error("Extraction failed:", error);
       setExtractionError(
-        error.message || "Failed to extract menu. Please try again.",
+        error.message || t.getStarted.extractionFailedToast,
       );
-      toast.error("Failed to extract menu. Please try again.");
+      toast.error(t.getStarted.extractionFailedToast);
       throw error;
     } finally {
       setIsExtractingMenu(false);
@@ -840,7 +847,7 @@ export default function GetStartedClient({
 
     router.push('/get-started?step=2');
     setStep(2);
-    toast.success(`Loaded "${menu.name}" sample menu!`);
+    toast.success(interpolate(t.getStarted.sampleMenuLoadedToast, { name: menu.name }));
   };
 
   const handleCancelExtraction = () => {
@@ -867,13 +874,17 @@ export default function GetStartedClient({
 
   const handleNextToExtraction = async () => {
     if (!hotelDetails.name || !hotelDetails.phone) {
-      toast.error("Please fill in all details");
+      toast.error(t.getStarted.missingDetailsToast);
       return;
     }
 
     const phoneValidation = validatePhone(hotelDetails.phone, hotelDetails.phoneCode);
     if (!phoneValidation.valid) {
-      toast.error(phoneValidation.message || "Please enter a valid phone number");
+      toast.error(
+        phoneValidation.messageKey
+          ? t.getStarted[phoneValidation.messageKey]
+          : t.getStarted.invalidPhoneToast,
+      );
       return;
     }
 
@@ -919,9 +930,7 @@ export default function GetStartedClient({
         const { isUnique } = await checkEmailUnique(email);
 
         if (!isUnique) {
-          toast.error(
-            "This email is already registered. Please use a different email.",
-          );
+          toast.error(t.getStarted.emailAlreadyRegisteredToast);
           setAuthCredentials((prev) => ({ ...prev, email: "" }));
           setAuthModalEmail("");
           setShowAuthModal(true);
@@ -1149,11 +1158,11 @@ export default function GetStartedClient({
       localStorage.removeItem(STORAGE_KEY);
       sessionStorage.clear();
       setIsPublishing(false);
-      toast.success("Menu published! Redirecting to dashboard...");
+      toast.success(t.getStarted.publishSuccessToast);
       window.location.href = "/admin-v2";
     } catch (error) {
       console.error("Signup finalization failed", error);
-      toast.error("Failed to finalize signup. Please try again.");
+      toast.error(t.getStarted.publishFailedToast);
       setIsPublishing(false);
     }
   };
@@ -1164,7 +1173,7 @@ export default function GetStartedClient({
 
   const handleEmailContinue = () => {
     if (!authModalEmail || !authModalEmail.includes("@")) {
-      toast.error("Please enter a valid email address");
+      toast.error(t.getStarted.invalidEmailToast);
       return;
     }
     setAuthModalStep(2);
@@ -1172,11 +1181,11 @@ export default function GetStartedClient({
 
   const handlePasswordContinue = async () => {
     if (!authModalPassword || authModalPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error(t.getStarted.passwordTooShortToast);
       return;
     }
     if (authModalPassword !== authModalConfirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error(t.getStarted.passwordMismatchToast);
       return;
     }
     setAuthCredentials((prev) => ({ ...prev, email: authModalEmail, password: authModalPassword }));
@@ -1203,8 +1212,8 @@ export default function GetStartedClient({
                 </button>
               )}
               <h2 className="text-xl font-semibold text-stone-900">
-                {authModalStep === 1 && "Sign in to publish"}
-                {authModalStep === 2 && "Create a password"}
+                {authModalStep === 1 && t.getStarted.authModalSignInTitle}
+                {authModalStep === 2 && t.getStarted.authModalPasswordTitle}
               </h2>
             </div>
             <button
@@ -1223,7 +1232,7 @@ export default function GetStartedClient({
           {authModalStep === 1 && (
             <>
               <p className="text-sm text-stone-500 !mt-1">
-                We'll send your dashboard login details to your email.
+                {t.getStarted.authModalEmailHint}
               </p>
 
               {/* Google sign-in hidden for App Store Guideline 4.8 compliance.
@@ -1235,12 +1244,12 @@ export default function GetStartedClient({
                     className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors text-sm font-medium text-stone-700"
                   >
                     <FcGoogle size={20} />
-                    Sign in with Google
+                    {t.getStarted.googleSignInButton}
                   </button>
 
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-px bg-stone-200" />
-                    <span className="text-xs text-stone-400">or</span>
+                    <span className="text-xs text-stone-400">{t.getStarted.authDividerOr}</span>
                     <div className="flex-1 h-px bg-stone-200" />
                   </div>
                 </>
@@ -1249,7 +1258,7 @@ export default function GetStartedClient({
               <div className="space-y-3">
                 <Input
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={t.getStarted.emailPlaceholder}
                   value={authModalEmail}
                   onChange={(e) => setAuthModalEmail(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleEmailContinue()}
@@ -1261,7 +1270,7 @@ export default function GetStartedClient({
                   variant="primary"
                   className="w-full justify-center"
                 >
-                  Continue with Email
+                  {t.getStarted.continueWithEmailButton}
                 </ButtonV2>
               </div>
             </>
@@ -1270,13 +1279,13 @@ export default function GetStartedClient({
           {authModalStep === 2 && (
             <>
               <p className="text-sm text-stone-500 !mt-1">
-                Set a password for your dashboard account.
+                {t.getStarted.authModalPasswordHint}
               </p>
               <div className="space-y-3">
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Password (min 6 characters)"
+                    placeholder={t.getStarted.passwordPlaceholder}
                     value={authModalPassword}
                     onChange={(e) => setAuthModalPassword(e.target.value)}
                     className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 pr-10 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
@@ -1292,7 +1301,7 @@ export default function GetStartedClient({
                 </div>
                 <Input
                   type={showPassword ? "text" : "password"}
-                  placeholder="Confirm password"
+                  placeholder={t.getStarted.confirmPasswordPlaceholder}
                   value={authModalConfirmPassword}
                   onChange={(e) => setAuthModalConfirmPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handlePasswordContinue()}
@@ -1303,7 +1312,7 @@ export default function GetStartedClient({
                   variant="primary"
                   className="w-full justify-center"
                 >
-                  Continue
+                  {t.getStarted.continueButton}
                 </ButtonV2>
               </div>
             </>
@@ -1324,10 +1333,10 @@ export default function GetStartedClient({
     <div className="max-w-md mx-auto text-center space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-2">
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-stone-900">
-          Upload Your Menu
+          {t.getStarted.step1Title}
         </h1>
         <p className="text-sm md:text-base text-stone-500">
-          Take a photo of your menu and we'll digitize it instantly.
+          {t.getStarted.step1Subtitle}
         </p>
       </div>
 
@@ -1354,15 +1363,15 @@ export default function GetStartedClient({
           <div className="space-y-1">
             <p className="font-semibold text-stone-900 text-sm md:text-base">
               {menuFiles.length > 0
-                ? `${menuFiles.length} File(s) Selected`
-                : "Click to upload, drag & drop, or paste"}
+                ? interpolate(t.getStarted.filesSelectedCount, { count: menuFiles.length })
+                : t.getStarted.uploadDropzonePrompt}
             </p>
             <p className="text-xs md:text-sm text-stone-500">
-              JPG, PNG, PDF up to 10MB
+              {t.getStarted.uploadFormatsHint}
             </p>
             {menuFiles.length > 0 && (
               <p className="text-xs text-green-600 font-medium">
-                Click area to add more
+                {t.getStarted.uploadAddMoreHint}
               </p>
             )}
           </div>
@@ -1379,13 +1388,15 @@ export default function GetStartedClient({
             >
               {file.size > MAX_FILE_SIZE && (
                 <div className="absolute top-0 left-0 right-0 z-20 bg-red-500/90 text-white text-[10px] py-1 px-2 text-center font-medium">
-                  Too large ({Math.round(file.size / (1024 * 1024))}MB)
+                  {interpolate(t.getStarted.fileTooLargeBadge, {
+                    size: Math.round(file.size / (1024 * 1024)),
+                  })}
                 </div>
               )}
               {file.type.startsWith("image/") ? (
                 <img
                   src={URL.createObjectURL(file)}
-                  alt={`Page ${idx + 1}`}
+                  alt={interpolate(t.getStarted.filePreviewAlt, { number: idx + 1 })}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -1413,8 +1424,8 @@ export default function GetStartedClient({
           htmlFor="menu-instruction"
           className="text-xs md:text-sm font-medium text-stone-700"
         >
-          Instructions for our AI{" "}
-          <span className="text-stone-400 font-normal">(optional)</span>
+          {t.getStarted.aiInstructionLabel}{" "}
+          <span className="text-stone-400 font-normal">{t.getStarted.optionalSuffix}</span>
         </label>
         <textarea
           id="menu-instruction"
@@ -1422,11 +1433,11 @@ export default function GetStartedClient({
           onChange={(e) => setMenuInstruction(e.target.value)}
           rows={2}
           maxLength={500}
-          placeholder={`Anything special about your menu? e.g. "Ignore all drinks", "Treat Combos as its own category", "Prices are in AED"`}
+          placeholder={t.getStarted.aiInstructionPlaceholder}
           className="w-full resize-none rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-colors"
         />
         <p className="text-[11px] text-stone-400">
-          Your instruction takes priority when the AI reads your files.
+          {t.getStarted.aiInstructionHint}
         </p>
       </div>
 
@@ -1440,8 +1451,8 @@ export default function GetStartedClient({
         className="w-full justify-center"
       >
         {menuFiles.some((f) => f.size > MAX_FILE_SIZE)
-          ? "Remove invalid files to continue"
-          : "Next Step"}
+          ? t.getStarted.removeInvalidFilesButton
+          : t.getStarted.nextStepButton}
       </ButtonV2>
 
       <div className="relative py-4">
@@ -1449,7 +1460,7 @@ export default function GetStartedClient({
           <span className="w-full border-t border-stone-200" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-stone-500">Or</span>
+          <span className="bg-white px-2 text-stone-500">{t.getStarted.uploadOrDivider}</span>
         </div>
       </div>
 
@@ -1459,7 +1470,7 @@ export default function GetStartedClient({
       >
         <div className="absolute inset-0 bg-gradient-to-r from-orange-100/0 via-orange-100/30 to-orange-100/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
         <Sparkles className="w-5 h-5 mr-2 text-orange-600 group-hover:text-orange-600 transition-colors" />
-        <span>Try with Sample Menu</span>
+        <span>{t.getStarted.sampleMenuButton}</span>
       </button>
 
       {showSampleMenuDialog && (
@@ -1471,9 +1482,9 @@ export default function GetStartedClient({
           <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl px-5 pt-4 pb-5 shadow-xl animate-in slide-in-from-bottom duration-300 sm:slide-in-from-bottom-4 sm:fade-in max-h-[85dvh] overflow-y-auto">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h2 className="text-lg font-semibold text-stone-900">Choose a Sample Menu</h2>
+                <h2 className="text-lg font-semibold text-stone-900">{t.getStarted.sampleMenuDialogTitle}</h2>
                 <p className="text-sm text-stone-500 mt-0.5">
-                  Pick a restaurant type to get started with a pre-built menu.
+                  {t.getStarted.sampleMenuDialogSubtitle}
                 </p>
               </div>
               <button
@@ -1500,7 +1511,7 @@ export default function GetStartedClient({
                   </div>
                   {menu.items.length === 0 && (
                     <span className="text-xs text-stone-400 bg-stone-100 px-2 py-1 rounded-full shrink-0">
-                      Coming soon
+                      {t.getStarted.sampleMenuComingSoonBadge}
                     </span>
                   )}
                 </button>
@@ -1517,18 +1528,18 @@ export default function GetStartedClient({
     e.target.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file for your logo");
+      toast.error(t.getStarted.logoNotAnImageToast);
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      toast.error("Logo must be under 10MB");
+      toast.error(t.getStarted.logoTooLargeToast);
       return;
     }
     try {
       const b64 = await fileToBase64(file);
       setLogoDataUrl(`data:${file.type};base64,${b64}`);
     } catch {
-      toast.error("Could not read that image");
+      toast.error(t.getStarted.logoReadFailedToast);
     }
   };
 
@@ -1536,22 +1547,22 @@ export default function GetStartedClient({
     <div className="max-w-md mx-auto space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="sm:text-center space-y-2">
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-stone-900">
-          Restaurant Details
+          {t.getStarted.step2Title}
         </h1>
         <p className="text-sm md:text-base text-stone-500">
-          Tell us a bit about your place to personalize your menu.
+          {t.getStarted.step2Subtitle}
         </p>
       </div>
 
       <div className="space-y-2 md:space-y-6 bg-white rounded-3xl">
         <div className="space-y-2">
           <Label htmlFor="name" className="text-sm">
-            Restaurant Name <span className="text-red-500">*</span>
+            {t.getStarted.restaurantNameLabel} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="name"
             name="name"
-            placeholder="e.g. The Burger Joint"
+            placeholder={t.getStarted.restaurantNamePlaceholder}
             value={hotelDetails.name}
             onChange={handleDetailsChange}
             className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
@@ -1560,14 +1571,14 @@ export default function GetStartedClient({
 
         <div className="space-y-2">
           <Label htmlFor="username" className="text-sm">
-            Username
+            {t.getStarted.usernameLabel}
           </Label>
           <div className="flex items-center h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 overflow-hidden focus-within:ring-2 focus-within:ring-orange-600/30 focus-within:ring-offset-0">
             <span className="pl-3 text-sm text-stone-400 whitespace-nowrap select-none">menuthere.com/</span>
             <input
               id="username"
               name="username"
-              placeholder="your_store_name"
+              placeholder={t.getStarted.usernamePlaceholder}
               value={hotelDetails.username || ""}
               onChange={handleUsernameChange}
               onBlur={() => validateAndCheckUsername(hotelDetails.username || "")}
@@ -1577,20 +1588,20 @@ export default function GetStartedClient({
           {hotelDetails.username ? (
             <div className="flex items-center gap-1.5">
               {usernameStatus === "checking" && (
-                <p className="text-xs text-stone-400">Checking availability...</p>
+                <p className="text-xs text-stone-400">{t.getStarted.usernameCheckingStatus}</p>
               )}
               {usernameStatus === "available" && (
                 <p className="text-xs text-green-600 flex items-center gap-1">
-                  <Check className="w-3 h-3" /> Username is available
+                  <Check className="w-3 h-3" /> {t.getStarted.usernameAvailableStatus}
                 </p>
               )}
               {usernameStatus === "taken" && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" /> This username is already taken
+                  <AlertCircle className="w-3 h-3" /> {t.getStarted.usernameTakenStatus}
                 </p>
               )}
               {usernameStatus === "idle" && hotelDetails.username.length > 0 && hotelDetails.username.length < 3 && (
-                <p className="text-xs text-stone-400">Username must be at least 3 characters</p>
+                <p className="text-xs text-stone-400">{t.getStarted.usernameMinLengthHint}</p>
               )}
             </div>
           ) : null}
@@ -1598,7 +1609,7 @@ export default function GetStartedClient({
 
         <div className="space-y-2">
           <Label htmlFor="phone" className="text-sm">
-            Phone Number<span className="text-red-500">*</span>
+            {t.getStarted.phoneNumberLabel}<span className="text-red-500">*</span>
           </Label>
           <div className="flex">
             <Select
@@ -1609,7 +1620,7 @@ export default function GetStartedClient({
               }}
             >
               <SelectTrigger className="w-24 shrink-0 h-10 md:h-11 min-h-[2.5rem] md:min-h-[2.75rem] rounded-l-xl rounded-r-none border border-r-0 border-stone-200 bg-stone-100 px-2 text-sm text-stone-600 shadow-none focus:ring-orange-600/30 focus:ring-offset-0" style={{ height: "auto" }}>
-                <SelectValue placeholder="Code">
+                <SelectValue placeholder={t.getStarted.phoneCodePlaceholder}>
                   {hotelDetails.phoneCode}
                 </SelectValue>
               </SelectTrigger>
@@ -1634,11 +1645,11 @@ export default function GetStartedClient({
             />
           </div>
           {hotelDetails.phone && (() => {
-            const { valid, message } = validatePhone(hotelDetails.phone, hotelDetails.phoneCode);
-            if (!message) return null;
+            const { valid, messageKey } = validatePhone(hotelDetails.phone, hotelDetails.phoneCode);
+            if (!messageKey) return null;
             return (
               <p className={`text-xs ${valid ? "text-green-600" : "text-red-500"}`}>
-                {message}
+                {t.getStarted[messageKey]}
               </p>
             );
           })()}
@@ -1649,7 +1660,7 @@ export default function GetStartedClient({
       <div className="grid md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="country" className="text-sm">
-            Country <span className="text-red-500">*</span>
+            {t.getStarted.countryLabel} <span className="text-red-500">*</span>
           </Label>
           <Combobox
             id="country"
@@ -1659,34 +1670,34 @@ export default function GetStartedClient({
               handleDetailsChange({ target: { name: "country", value } } as React.ChangeEvent<HTMLSelectElement>)
             }
             options={COUNTRY_NAMES}
-            placeholder="Select or type Country"
+            placeholder={t.getStarted.countryPlaceholder}
           />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="address" className="text-sm">
-            Address <span className="text-red-500">*</span>
+            {t.getStarted.addressLabel} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="address"
             name="address"
             value={hotelDetails.address || ""}
             onChange={handleDetailsChange}
-            placeholder="Street, area, city…"
+            placeholder={t.getStarted.addressPlaceholder}
             className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
           />
         </div>
 
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="currency" className="text-sm">
-            Currency <span className="text-red-500">*</span>
+            {t.getStarted.currencyLabel} <span className="text-red-500">*</span>
           </Label>
           <CurrencySelect
             value={hotelDetails.currency}
             onChange={(symbol) =>
               setHotelDetails((prev) => ({ ...prev, currency: symbol }))
             }
-            placeholder="Select or search currency"
+            placeholder={t.getStarted.currencyPlaceholder}
           />
         </div>
       </div>
@@ -1694,7 +1705,7 @@ export default function GetStartedClient({
       {/* Logo (optional) — shown on your storefront. Saved as the banner; you
           can re-adjust the size & background later in Settings → Branding. */}
       <div className="space-y-3">
-        <Label className="text-sm">Logo (optional)</Label>
+        <Label className="text-sm">{t.getStarted.logoLabel}</Label>
         <div className="flex items-center gap-4">
           <div
             className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-stone-200"
@@ -1704,7 +1715,7 @@ export default function GetStartedClient({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={logoDataUrl}
-                alt="Logo preview"
+                alt={t.getStarted.logoPreviewAlt}
                 className="h-full w-full object-contain"
                 style={{ transform: `scale(${Math.min(5, Math.max(0.5, logoScale / 100))})` }}
               />
@@ -1726,7 +1737,7 @@ export default function GetStartedClient({
               onClick={() => logoInputRef.current?.click()}
               className="w-full justify-center"
             >
-              {logoDataUrl ? "Change logo" : "Upload logo"}
+              {logoDataUrl ? t.getStarted.changeLogoButton : t.getStarted.uploadLogoButton}
             </ButtonV2>
             {logoDataUrl && (
               <button
@@ -1734,7 +1745,7 @@ export default function GetStartedClient({
                 onClick={() => setLogoDataUrl("")}
                 className="text-xs text-stone-400 hover:text-red-500"
               >
-                Remove
+                {t.getStarted.removeLogoButton}
               </button>
             )}
           </div>
@@ -1744,7 +1755,7 @@ export default function GetStartedClient({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="logoSize" className="text-xs text-stone-500">
-                Size (%)
+                {t.getStarted.logoSizeLabel}
               </Label>
               <Input
                 id="logoSize"
@@ -1764,7 +1775,7 @@ export default function GetStartedClient({
             </div>
             <div className="space-y-1">
               <Label htmlFor="logoBg" className="text-xs text-stone-500">
-                Background
+                {t.getStarted.logoBackgroundLabel}
               </Label>
               <div className="flex h-10 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-2">
                 <input
@@ -1791,14 +1802,14 @@ export default function GetStartedClient({
         variant="primary"
         className="w-full justify-center"
       >
-        Create Menu
+        {t.getStarted.createMenuButton}
       </ButtonV2>
     </div>
   );
 
   const handleEmailChange = async () => {
     if (!newEmail || !newEmail.includes("@")) {
-      toast.error("Please enter a valid email address");
+      toast.error(t.getStarted.invalidEmailToast);
       return;
     }
 
@@ -1813,10 +1824,10 @@ export default function GetStartedClient({
 
       setAuthCredentials((prev) => ({ ...prev, email: newEmail }));
       setShowEmailChangeForm(false);
-      toast.success("Email updated! Check your new inbox.");
+      toast.success(t.getStarted.emailUpdatedToast);
     } catch (error) {
       console.error("Failed to update email:", error);
-      toast.error("Failed to update email. Please try again.");
+      toast.error(t.getStarted.emailUpdateFailedToast);
     } finally {
       setIsUpdatingEmail(false);
     }
@@ -1839,20 +1850,19 @@ export default function GetStartedClient({
             <div className="w-16 h-16 bg-orange-100/70 rounded-full flex items-center justify-center mx-auto mb-4">
               <Mail className="w-8 h-8 text-orange-600" />
             </div>
-            <h1 className="text-2xl font-semibold text-stone-900">Change Email</h1>
+            <h1 className="text-2xl font-semibold text-stone-900">{t.getStarted.changeEmailTitle}</h1>
             <p className="text-stone-500">
-              Enter your correct email address. We'll send your menu link and
-              dashboard credentials there.
+              {t.getStarted.changeEmailSubtitle}
             </p>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="newEmail">New Email Address</Label>
+              <Label htmlFor="newEmail">{t.getStarted.newEmailLabel}</Label>
               <Input
                 id="newEmail"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t.getStarted.emailPlaceholder}
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 className="h-12 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-base"
@@ -1870,12 +1880,12 @@ export default function GetStartedClient({
               {isUpdatingEmail ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Updating...
+                  {t.getStarted.updatingEmailButton}
                 </>
               ) : (
                 <>
                   <RefreshCw className="w-5 h-5 mr-2" />
-                  Update & Resend
+                  {t.getStarted.updateAndResendButton}
                 </>
               )}
             </ButtonV2>
@@ -1894,10 +1904,10 @@ export default function GetStartedClient({
             <Mail className="w-10 h-10 text-green-600" />
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-stone-900">
-            Check Your Email!
+            {t.getStarted.successTitle}
           </h1>
           <p className="text-stone-600 text-lg">
-            We've sent your menu link and dashboard login credentials to:
+            {t.getStarted.successSubtitle}
           </p>
           <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
             <p className="text-xl font-semibold text-stone-900 break-all">
@@ -1905,7 +1915,7 @@ export default function GetStartedClient({
             </p>
           </div>
           <p className="text-stone-500 text-sm">
-            Can't find it? Check your spam folder or update your email below.
+            {t.getStarted.successSpamHint}
           </p>
         </div>
 
@@ -1918,7 +1928,7 @@ export default function GetStartedClient({
           }}
           className="w-full justify-center"
         >
-          Wrong email? Change it
+          {t.getStarted.changeEmailButton}
         </ButtonV2>
 
         <ButtonV2
@@ -1927,7 +1937,7 @@ export default function GetStartedClient({
           showArrow={false}
           className="w-full justify-center"
         >
-          Login to Dashboard
+          {t.getStarted.loginToDashboardButton}
         </ButtonV2>
       </div>
     );
@@ -1943,7 +1953,7 @@ export default function GetStartedClient({
               <AlertCircle className="w-10 h-10 text-red-600" />
             </div>
             <h2 className="text-2xl font-semibold text-stone-900">
-              Extraction Failed
+              {t.getStarted.extractionErrorTitle}
             </h2>
             <p className="text-stone-500">{extractionError}</p>
           </div>
@@ -1955,7 +1965,7 @@ export default function GetStartedClient({
               showArrow={false}
               className="w-full justify-center"
             >
-              Try Again
+              {t.getStarted.retryExtractionButton}
             </ButtonV2>
             <ButtonV2
               variant="secondary"
@@ -1963,7 +1973,7 @@ export default function GetStartedClient({
               showArrow={false}
               className="w-full justify-center"
             >
-              Cancel & Upload Again
+              {t.getStarted.cancelExtractionButton}
             </ButtonV2>
           </div>
         </div>
@@ -1979,10 +1989,10 @@ export default function GetStartedClient({
               <Loader2 className="w-8 h-8 md:w-10 md:h-10 text-orange-600 animate-spin" />
             </div>
             <h1 className="text-xl md:text-3xl font-semibold tracking-tight text-stone-900">
-              Extracting Your Menu
+              {t.getStarted.extractingTitle}
             </h1>
             <p className="text-sm md:text-base text-stone-500">
-              Please wait while we process your menu image...
+              {t.getStarted.extractingSubtitle}
             </p>
           </div>
         </div>
@@ -2000,25 +2010,30 @@ export default function GetStartedClient({
             <>
               <div className="space-y-2 hidden md:block">
                 <h1 className="text-3xl font-semibold tracking-tight text-stone-900">
-                  Your Menu is Ready!
+                  {t.getStarted.step3Title}
                 </h1>
                 <p className="text-stone-500">
-                  We've extracted {extractedItems.length} items. Customize your
-                  theme below.
+                  {interpolate(t.getStarted.step3Subtitle, {
+                    count: extractedItems.length,
+                  })}
                 </p>
               </div>
 
               <div className="hidden md:block space-y-6">
                 <div className="space-y-3">
                   <h3 className="text-sm font-medium text-stone-700">
-                    Choose a Theme
+                    {t.getStarted.themePickerTitle}
                   </h3>
                   <div className="grid grid-cols-3 gap-3">
                     {PRESETS.map((palette, idx) => {
                       const isSelected =
                         selectedPalette.background === palette.background &&
                         selectedPalette.accent === palette.accent;
-                      const labels = ["Classic", "Midnight", "Fresh"];
+                      const labels = [
+                        t.getStarted.themeClassicLabel,
+                        t.getStarted.themeMidnightLabel,
+                        t.getStarted.themeFreshLabel,
+                      ];
                       return (
                         <button
                           key={idx}
@@ -2038,7 +2053,7 @@ export default function GetStartedClient({
                               className="text-base font-bold"
                               style={{ color: palette.text }}
                             >
-                              Aa
+                              {t.getStarted.themeSwatchSample}
                             </span>
                             <div
                               className="w-5 h-5 rounded-full ring-1 ring-black/5"
@@ -2069,7 +2084,7 @@ export default function GetStartedClient({
                   variant="primary"
                   className="w-full justify-center"
                 >
-                  Publish Live
+                  {t.getStarted.publishButton}
                 </ButtonV2>
               </div>
             </>
@@ -2094,7 +2109,11 @@ export default function GetStartedClient({
                   const isSelected =
                     selectedPalette.background === palette.background &&
                     selectedPalette.accent === palette.accent;
-                  const labels = ["Classic", "Midnight", "Fresh"];
+                  const labels = [
+                    t.getStarted.themeClassicLabel,
+                    t.getStarted.themeMidnightLabel,
+                    t.getStarted.themeFreshLabel,
+                  ];
                   return (
                     <button
                       key={idx}
@@ -2114,7 +2133,7 @@ export default function GetStartedClient({
                           className="text-sm font-bold"
                           style={{ color: palette.text }}
                         >
-                          Aa
+                          {t.getStarted.themeSwatchSample}
                         </span>
                         <div
                           className="w-4 h-4 rounded-full ring-1 ring-black/5"
@@ -2138,7 +2157,7 @@ export default function GetStartedClient({
               variant="primary"
               className="w-full justify-center !bg-orange-100"
             >
-              Publish Live
+              {t.getStarted.publishButton}
             </ButtonV2>
           </div>
         )}
@@ -2153,7 +2172,7 @@ export default function GetStartedClient({
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-stone-900 leading-tight">
-                    Check Your Email!
+                    {t.getStarted.successTitle}
                   </h3>
                   <p className="text-xs text-stone-500 break-all">
                     {authCredentials.email}
@@ -2162,8 +2181,7 @@ export default function GetStartedClient({
               </div>
 
               <p className="text-sm text-stone-600 text-center">
-                We've sent your menu link and dashboard credentials to your
-                email.
+                {t.getStarted.successMobileSubtitle}
               </p>
 
               <ButtonV2
@@ -2175,7 +2193,7 @@ export default function GetStartedClient({
                   setShowEmailChangeForm(true);
                 }}
               >
-                Wrong email? Change it
+                {t.getStarted.changeEmailButton}
               </ButtonV2>
 
               <ButtonV2
@@ -2184,7 +2202,7 @@ export default function GetStartedClient({
                 showArrow={false}
                 className="w-full justify-center text-sm"
               >
-                Login to Dashboard
+                {t.getStarted.loginToDashboardButton}
               </ButtonV2>
             </div>
           </div>
@@ -2206,10 +2224,10 @@ export default function GetStartedClient({
       <FullScreenLoader
         isLoading={isPublishing}
         loadingTexts={[
-          "Creating your account...",
-          "Setting up your digital menu...",
-          "Configuring dashboard...",
-          "Almost there...",
+          t.getStarted.publishingLoader1,
+          t.getStarted.publishingLoader2,
+          t.getStarted.publishingLoader3,
+          t.getStarted.publishingLoader4,
         ]}
       />
       {/* Header Steps */}
@@ -2257,7 +2275,7 @@ export default function GetStartedClient({
           </div>
           {/* Step Indicator */}
           <div className="text-sm font-medium text-stone-500">
-            Step {step} of 3
+            {interpolate(t.getStarted.stepIndicator, { step })}
           </div>
         </div>
       </header>

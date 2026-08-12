@@ -679,3 +679,54 @@ button[data-state="open"] h1 .left-marker {
 [data-menu-ink] .text-gray-300 {
   color: var(--menu-ink-soft);
 }
+
+/* ---------------------------------------------------------------------------
+   Script-specific typography.
+
+   Every display family loaded in layout.tsx is Latin-only — Bricolage
+   Grotesque, which sets the landing hero's H1, has no Devanagari or Arabic
+   glyphs at all. Without these rules Hindi and Arabic would silently fall back
+   to whatever the visitor's OS happened to have, which is how "we shipped
+   translations" turns into "the headline renders in Times New Roman".
+
+   Selecting on html[lang] means one rule covers every descendant, including
+   text inside components that hardcode a font-family utility class.
+--------------------------------------------------------------------------- */
+html[lang="hi"],
+html[lang="hi"] body {
+  font-family: var(--font-devanagari), var(--font-inter), system-ui, sans-serif;
+}
+
+html[lang="ar"],
+html[lang="ar"] body {
+  font-family: var(--font-arabic), var(--font-inter), system-ui, sans-serif;
+}
+
+/* Latin display faces cannot render these scripts, so headings have to opt out
+   of them too — otherwise the H1 alone falls back while the body looks right. */
+html[lang="hi"] :is(h1, h2, h3, h4, h5, h6),
+html[lang="hi"] .font-bricolage {
+  font-family: var(--font-devanagari), sans-serif;
+}
+
+html[lang="ar"] :is(h1, h2, h3, h4, h5, h6),
+html[lang="ar"] .font-bricolage {
+  font-family: var(--font-arabic), sans-serif;
+}
+
+/* Arabic is cursive: letters JOIN. Added letter-spacing severs those joins and
+   renders words as disconnected glyphs, and uppercasing is meaningless in both
+   Arabic and Devanagari. The landing hero applies both to partner names. */
+html[lang="ar"] * {
+  letter-spacing: normal !important;
+}
+
+html[lang="ar"] *,
+html[lang="hi"] * {
+  text-transform: none !important;
+}
+
+/* Mirror decorative arrows/chevrons that point "forward" in reading order. */
+html[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}

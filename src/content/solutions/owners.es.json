@@ -1,0 +1,96 @@
+{
+    "slug": "owners",
+    "hero": {
+        "eyebrow": "Para dueños de restaurantes",
+        "headline": "Recupera el control de tu restaurante",
+        "subheadline": "Supervisa la operación, reduce gastos y aumenta tus ingresos con una sola plataforma todo en uno. Gestiona todo desde el teléfono, en cualquier momento y lugar",
+        "primaryCta": "Empezar",
+        "primaryCtaLink": "/get-started",
+        "secondaryCta": "Solicitar una demo",
+        "secondaryCtaLink": "https://cal.id/craving",
+        "image": "/assets/mockups/solutions-owners-v4.png"
+    },
+    "benefits": [
+        {
+            "title": "Gestión del menú sin complicaciones",
+            "description": "Actualiza tu menú en segundos, directo desde el teléfono."
+        },
+        {
+            "title": "Operación del restaurante sin fricciones",
+            "description": "Controla toda la operación de tu restaurante desde el teléfono."
+        },
+        {
+            "title": "Analítica e informes",
+            "description": "Conoce el rendimiento de tu restaurante en tiempo real."
+        }
+    ],
+    "features": [
+        {
+            "title": "Un solo panel de control",
+            "description": "Se acabó entrar a cinco portales distintos. Gestiona el menú, el POS, los capitanes y el inventario desde un mismo lugar.",
+            "list": [
+                "Gestiona tu menú",
+                "POS y facturación",
+                "Gestiona a tus capitanes",
+                "Inventario y compras"
+            ],
+            "image": "/assets/mockups/scan-analytics-v3.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Cero comisiones, máxima rentabilidad",
+            "description": "Deja de repartir los ingresos que tanto cuesta ganar. Con tu propia web de pedidos, te quedas con el 100% del valor de cada pedido.",
+            "list": [
+                "Sin cargos ocultos",
+                "Pagos directos a ti (pago contra entrega)",
+                "Márgenes de ganancia más altos",
+                "Precios transparentes"
+            ],
+            "image": "/assets/mockups/zero-commission-v3.jpeg",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Decisiones basadas en datos",
+            "description": "Descubre exactamente qué se vende y qué no. Optimiza tu menú con datos reales, no con suposiciones.",
+            "list": [
+                "Informes de los platos más vendidos",
+                "Informes por categoría",
+                "Informe de ventas en cualquier momento",
+                "Análisis de las horas pico"
+            ],
+            "image": "/assets/mockups/analytics-dashboard-v2.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [
+        {
+            "author": "Sarah Jenkins",
+            "role": "Propietaria",
+            "company": "The Burger Joint",
+            "text": "Menuthere cambió por completo la forma en que manejamos los pedidos en las horas pico. ¡El menú digital nos salva el día!",
+            "avatar": "/assets/avatars/avatar-1.png"
+        },
+        {
+            "author": "David Chen",
+            "role": "Propietario",
+            "company": "Golden Dragon",
+            "text": "La mejor inversión que hicimos este año. Por fin tengo visibilidad total de los gastos de la cocina.",
+            "avatar": "/assets/avatars/avatar-2.png"
+        },
+        {
+            "author": "Maria Garcia",
+            "role": "Fundadora",
+            "company": "Cafe Sol",
+            "text": "Poder cambiar los precios al instante en el menú digital nos ahorró muchísimo en impresión.",
+            "avatar": "/assets/avatars/avatar-3.png"
+        }
+    ],
+    "cta": {
+        "title": "¿Todo listo para hacer crecer tu negocio?",
+        "description": "Súmate a más de 600 dueños de restaurantes que se pasaron a Menuthere y trabajan con total tranquilidad.",
+        "buttonText": "Empezar ahora",
+        "buttonLink": "/get-started",
+        "secondaryButtonText": "Reservar demo",
+        "secondaryButtonLink": "https://menuthere.com/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "slug": "agencies",
+    "hero": {
+        "eyebrow": "Programa de partners para agencias",
+        "headline": "Hasta un 30 % mensual por venta, con comisiones recurrentes de por vida",
+        "subheadline": "Programa oficial de revendedores de Menuthere: soluciones premium de menús digitales para restaurantes, con demos presenciales sin fricción. Las comisiones escalan hasta el 30 % sobre ingresos recurrentes verificados.",
+        "primaryCta": "Solicitar acceso",
+        "primaryCtaLink": "mailto:Menuthere@gmail.com",
+        "image": "/assets/mockups/payout.png"
+    },
+    "benefits": [
+        {
+            "title": "Ingresos recurrentes",
+            "description": "Un flujo de ingresos pasivos que no se detiene: las comisiones recurrentes se cobran de por vida, mientras los clientes sigan suscritos."
+        },
+        {
+            "title": "Inversión cero",
+            "description": "Sin pagos iniciales ni cargos ocultos. El modelo es 100 % por comisión: se gana desde la primera venta."
+        },
+        {
+            "title": "Pagos inmediatos",
+            "description": "Pagamos el mismo día en que entra el cobro de la suscripción. Sin esperar al cierre de mes."
+        }
+    ],
+    "features": [
+        {
+            "title": "Más ingresos para los restaurantes",
+            "description": "Los restaurantes independientes pierden ventas por culpa de los PDF estáticos. La solución: una plataforma probada, con menús QR que se actualizan al instante y que ya confían más de 600 locales.",
+            "list": [
+                "Los menús estáticos desaprovechan las horas pico",
+                "Actualizar tarde erosiona el margen",
+                "La disponibilidad en tiempo real vende más",
+                "ROI tangible desde el primer día"
+            ],
+            "image": "/assets/mockups/analytics-dashboard-v2.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Una solución SaaS premiada",
+            "description": "Menús QR que el restaurante actualiza en segundos. Demos rápidas en el propio local que se convierten en suscripciones al momento.",
+            "list": [
+                "Edición de precios en el QR al instante",
+                "Diseño mobile-first",
+                "Temas personalizados acordes a cada marca",
+                "Integración del menú con Google Maps"
+            ],
+            "image": "/assets/mockups/menu-editing.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Comisiones según resultados",
+            "description": "Los pagos van directamente ligados a los ingresos. Los niveles suben de forma automática según el total de ingresos generados por los clientes referidos.",
+            "list": [
+                "Starter: 20 % ($6/mes por venta)",
+                "Growth: 25 % ($7.50/mes por venta)",
+                "Elite: 30 % ($9/mes por venta)",
+                "Liquidaciones mensuales vía Stripe"
+            ],
+            "image": "/assets/mockups/growth-tools-v2.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [
+        {
+            "author": "Michael Ross",
+            "role": "Revendedor SaaS",
+            "company": "TechSales Pro",
+            "text": "El modelo de comisiones recurrentes es fantástico. Una vez que doy de alta un restaurante, sigo ganando todos los meses.",
+            "avatar": "/assets/avatars/avatar-4.png"
+        },
+        {
+            "author": "Sarah Lee",
+            "role": "Consultora de negocios",
+            "company": "Growth Partners",
+            "text": "A mis clientes les encanta el producto y a mí me encanta cobrar el mismo día. Es lo más fácil que he vendido en mi vida.",
+            "avatar": "/assets/avatars/avatar-5.png"
+        }
+    ],
+    "cta": {
+        "title": "Una alianza sin riesgos",
+        "description": "Más de 600 implementaciones activas. Un modelo probado en la calle. Reparto de ingresos sin riesgo. La puerta de entrada a nuestra red de partners de élite ya está abierta.",
+        "buttonText": "Solicitar acceso",
+        "buttonLink": "mailto:Menuthere@gmail.com"
+    }
+}
