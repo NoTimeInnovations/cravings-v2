@@ -16,9 +16,32 @@ export type FallbackOutItem = {
   image_url: string; // permanent S3 URL
 };
 
+/**
+ * Google operators appended to EVERY image search.
+ *
+ * The social and video domains dominate image results for dish names while
+ * being almost useless as menu photos: Facebook and Instagram return page
+ * avatars and reel thumbnails, Pinterest returns collages and watermarked
+ * re-uploads, YouTube returns video stills with play buttons and text overlays.
+ * Excluding them pushes real food photography up the ranking.
+ */
+export const IMAGE_SEARCH_SUFFIX =
+  "food item -site:facebook.com -site:instagram.com -site:pinterest.com -site:youtube.com";
+
+/**
+ * Decorate a raw search term with the operators above.
+ *
+ * The NAME is truncated, never the suffix: slicing the combined string would
+ * cut an operator in half ("-site:youtub"), which Google reads as a normal
+ * term and silently stops excluding that domain.
+ */
+export function decorateImageQuery(term: string): string {
+  return `${(term || "").trim().slice(0, 80)} ${IMAGE_SEARCH_SUFFIX}`;
+}
+
 /** Menu item name -> Google search query. */
 function buildQuery(name: string): string {
-  return `${name.trim()} food`.slice(0, 100);
+  return decorateImageQuery(name);
 }
 
 /**
@@ -70,7 +93,15 @@ export async function fillItemsFromGoogle(
 
   let results: Map<string, GoogleImageResult[]>;
   try {
-    results = await searchGoogleImagesBatch([...queryToItems.keys()], opts);
+    // Ask for several candidates, not the 3 the provider defaults to. Each one
+    // is only a CHANCE at an image: hotlink-blocked hosts, non-image content
+    // types and sub-1KB files are all discarded below, so a short list means an
+    // item silently ends up with no picture. The extra candidates cost nothing
+    // unless the earlier ones fail — the loop stops at the first upload.
+    results = await searchGoogleImagesBatch([...queryToItems.keys()], {
+      maxPerQuery: 8,
+      ...opts,
+    });
   } catch (e) {
     console.error("Apify search failed:", e);
     return [];
@@ -186,9 +217,13 @@ export async function searchGoogleImagesForPicker(
 ): Promise<GoogleImageResult[]> {
   const q = (query || "").trim();
   if (!q) return [];
+  // The provider keys its results by the query STRING it was given, so the
+  // lookup has to use the decorated form — reading back by the raw term would
+  // always miss and render an empty gallery.
+  const decorated = decorateImageQuery(q);
   try {
-    const map = await searchGoogleImagesBatch([q], { maxPerQuery: max });
-    return (map.get(q) || []).filter((r) => r.imageUrl);
+    const map = await searchGoogleImagesBatch([decorated], { maxPerQuery: max });
+    return (map.get(decorated) || []).filter((r) => r.imageUrl);
   } catch (e) {
     console.error("[googleImages] picker search failed:", e);
     return [];
