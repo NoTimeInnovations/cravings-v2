@@ -1626,13 +1626,25 @@ const PlaceOrderModalV2 = ({
     if (!open_place_order_modal || !hotelData?.id) return;
     fetchFromHasura(
       `query GetActiveDiscountsV2($partner_id: uuid!) {
-        discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, order_by: [{ rank: asc_nulls_last }], limit: 10) {
+        discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _and: [{ _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, { _or: [{ starts_at: { _is_null: true } }, { starts_at: { _lte: "now()" } }] }] }, order_by: [{ rank: asc_nulls_last }], limit: 10) {
           ${discountFields}
         }
       }`,
       { partner_id: hotelData.id },
     )
-      .then((res) => setAvailableDiscounts(res?.discounts ?? []))
+      // Re-filter on the client too. `now()` is evaluated when the query runs,
+      // and this sheet can sit open for a long time — but the real reason is that
+      // this list is the ONLY thing standing between a scheduled coupon and a
+      // customer tapping APPLY on it, so it should not depend on one clause in
+      // one string staying correct.
+      .then((res) => {
+        const now = Date.now();
+        setAvailableDiscounts(
+          (res?.discounts ?? []).filter(
+            (d: any) => !d.starts_at || new Date(d.starts_at).getTime() <= now,
+          ),
+        );
+      })
       .catch(() => {});
   }, [hotelData?.id, open_place_order_modal]);
 

@@ -2634,13 +2634,17 @@ const PlaceOrderModal = ({
     if (!showDiscountSection || !hotelData?.id) return;
     fetchFromHasura(
       `query GetActiveDiscounts($partner_id: uuid!) {
-        discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, order_by: [{ rank: asc_nulls_last }], limit: 5) {
+        discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _and: [{ _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, { _or: [{ starts_at: { _is_null: true } }, { starts_at: { _lte: "now()" } }] }] }, order_by: [{ rank: asc_nulls_last }], limit: 5) {
           ${discountFields}
         }
       }`,
       { partner_id: hotelData.id }
     ).then((res) => {
-      const discs = res?.discounts ?? [];
+      // Client-side twin of the query's starts_at clause — see the V2 modal.
+      const now = Date.now();
+      const discs = (res?.discounts ?? []).filter(
+        (d: any) => !d.starts_at || new Date(d.starts_at).getTime() <= now,
+      );
       setAvailableDiscounts(discs);
       setHasActiveCodes(discs.length > 0);
     }).catch(() => { });
