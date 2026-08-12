@@ -161,6 +161,15 @@ type AvailableDiscount = {
   bxgy_reward_type?: string | null;
   bxgy_reward_value?: number | null;
   bxgy_max_repeat?: number | null;
+  // discountFields SELECTS all of these — they were simply missing from this
+  // type, so applyFromList could not see them and never checked them. A coupon
+  // scheduled for next week was listed AND applicable.
+  is_active?: boolean;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  usage_limit?: number | null;
+  used_count?: number | null;
+  per_user_usage_limit?: number | null;
 };
 
 // Three paths apply a discount here — auto-apply, a typed coupon, and the
@@ -1766,6 +1775,27 @@ const PlaceOrderModalV2 = ({
     };
   }, [hotelData?.id, open_place_order_modal, items, subtotal, discountBase, orderType, isQrScan, appliedDiscounts, stackingEnabled]);
 
+  /** Is this coupon valid RIGHT NOW, independent of the cart? Shared by the
+   *  typed-code path and the tap-from-list path so the two cannot disagree —
+   *  they already had, which is how a coupon starting on the 15th could be
+   *  applied on the 12th. */
+  const couponValidityError = (d: {
+    is_active?: boolean;
+    starts_at?: string | null;
+    expires_at?: string | null;
+    usage_limit?: number | null;
+    used_count?: number | null;
+  }): string | null => {
+    const now = new Date();
+    if (d.is_active === false) return "This discount is no longer active.";
+    if (d.starts_at && now < new Date(d.starts_at)) return "This discount hasn't started yet.";
+    if (d.expires_at && now > new Date(d.expires_at)) return "This discount has expired.";
+    if (d.usage_limit != null && (d.used_count ?? 0) >= d.usage_limit) {
+      return "This code has reached its usage limit.";
+    }
+    return null;
+  };
+
   const validateAndApplyCode = async (code: string) => {
     const trimmed = code.trim().toUpperCase();
     if (!trimmed) return;
@@ -1782,17 +1812,11 @@ const PlaceOrderModalV2 = ({
         setDiscountError("Invalid code.");
         return;
       }
-      if (!disc.is_active) {
-        setDiscountError("This discount is no longer active.");
-        return;
-      }
-      const now = new Date();
-      if (disc.starts_at && now < new Date(disc.starts_at)) {
-        setDiscountError("This discount hasn't started yet.");
-        return;
-      }
-      if (disc.expires_at && now > new Date(disc.expires_at)) {
-        setDiscountError("This discount has expired.");
+      // Shared with applyFromList — the two drifted once and a coupon starting
+      // on the 15th became applicable on the 12th from the list.
+      const validity = couponValidityError(disc);
+      if (validity) {
+        setDiscountError(validity);
         return;
       }
       if (disc.min_order_value && subtotal < Number(disc.min_order_value)) {
@@ -1837,10 +1861,6 @@ const PlaceOrderModalV2 = ({
           return;
         }
       }
-      if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) {
-        setDiscountError("This code has reached its usage limit.");
-        return;
-      }
       if (disc.per_user_usage_limit != null && (user as any)?.id) {
         try {
           const usageRes = await fetchFromHasura(getUserDiscountUsageQuery, {
@@ -1878,7 +1898,32 @@ const PlaceOrderModalV2 = ({
     }
   };
 
-  const applyFromList = (d: AvailableDiscount) => {
+  const applyFromList = async (d: AvailableDiscount) => {
+    const validity = couponValidityError(d);
+    if (validity) {
+      toast.error(validity);
+      return;
+    }
+    // Per-customer cap needs a round trip. Skipped here before, so a
+    // "once per customer" coupon could be re-used simply by tapping it in the
+    // list instead of typing the code.
+    if (d.per_user_usage_limit != null && (user as any)?.id) {
+      try {
+        const usageRes = await fetchFromHasura(getUserDiscountUsageQuery, {
+          user_id: (user as any).id,
+          partner_id: hotelData.id,
+          code: d.code,
+        });
+        const userUsed = usageRes?.orders_aggregate?.aggregate?.count ?? 0;
+        if (userUsed >= Number(d.per_user_usage_limit)) {
+          toast.error(`You've already used this code ${userUsed} time${userUsed === 1 ? "" : "s"}.`);
+          return;
+        }
+      } catch {
+        toast.error("Couldn't check this coupon. Please try again.");
+        return;
+      }
+    }
     // Validate inline against the current cart (NOT via validateAndApplyCode,
     // which upper-cases + re-queries by exact code — that breaks mixed-case
     // Petpooja-synced coupon names). Carry discount_order_types + valid_days so
