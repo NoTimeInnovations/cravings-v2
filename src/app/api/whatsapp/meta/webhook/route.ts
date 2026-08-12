@@ -484,6 +484,58 @@ async function persistIncoming(
   }
 }
 
+// ── Template quick-reply button-click tracking ──────────────────────────────
+// SMB / coexistence WABAs can't use Meta's template_analytics, so we count
+// quick-reply button taps ourselves. A button reply carries `context.id` (the
+// WAMID of the original template message); we map that back to the template via
+// the message-log ledger and record one idempotent click (deduped on the reply
+// id). NOTE: URL/CTA buttons send no webhook, so those taps are not captured.
+const FIND_TEMPLATE_BY_MID = `
+  query FindTemplateByMid($mid: String!) {
+    whatsapp_message_logs(where: { meta_message_id: { _eq: $mid } }, limit: 1) {
+      template_name
+    }
+  }
+`;
+const INSERT_TEMPLATE_CLICK = `
+  mutation InsertTemplateClick($obj: whatsapp_template_click_events_insert_input!) {
+    insert_whatsapp_template_click_events_one(
+      object: $obj,
+      on_conflict: { constraint: whatsapp_template_click_events_reply_message_id_key, update_columns: [] }
+    ) { id }
+  }
+`;
+
+/**
+ * Record a quick-reply button tap on a template message. Fire-and-forget and
+ * fully guarded — must never affect inbound message processing.
+ */
+async function recordTemplateButtonClick(
+  partnerId: string,
+  msg: any,
+): Promise<void> {
+  try {
+    if (msg?.type !== "button") return;
+    const contextMid = msg?.context?.id;
+    if (!contextMid || !msg?.id) return;
+    const d = await fetchFromHasura(FIND_TEMPLATE_BY_MID, { mid: contextMid });
+    const templateName = d?.whatsapp_message_logs?.[0]?.template_name;
+    if (!templateName) return; // reply wasn't to a known template send
+    await fetchFromHasura(INSERT_TEMPLATE_CLICK, {
+      obj: {
+        partner_id: partnerId,
+        template_name: templateName,
+        button_text: msg.button?.text ?? null,
+        button_payload: msg.button?.payload ?? null,
+        context_message_id: contextMid,
+        reply_message_id: msg.id, // UNIQUE → dedupes webhook retries
+        contact_phone: msg.from ?? null,
+      },
+    });
+  } catch (e) {
+    console.error("recordTemplateButtonClick failed:", e);
+  }
+}
 
 // ════════════════════════════════════════════════════════════════
 //  DELIVERY STATUS CAPTURE (Meta `value.statuses[]`)
@@ -1028,6 +1080,9 @@ export async function POST(req: NextRequest) {
             const persistP = persistIncoming(partner.partner_id, msg, contactName, phoneNumberId);
             // Tag the sender's chat in the inbox when this is a Flow answer.
             const tagP = tagCampaignAnswer(msg);
+            // Count template quick-reply button taps (SMB/coexistence WABAs can't
+            // use Meta's template_analytics). Guarded; flushed with the writes below.
+            const clickP = recordTemplateButtonClick(partner.partner_id, msg);
 
             const flowInput = normalizeFlowInput(msg);
 
@@ -1130,7 +1185,7 @@ export async function POST(req: NextRequest) {
               }
             }
 
-            await Promise.all([persistP.catch(() => {}), tagP.catch(() => {})]);
+            await Promise.all([persistP.catch(() => {}), tagP.catch(() => {}), clickP.catch(() => {})]);
           }
 
           // Handle "Track Order Status" quick reply button click (auto-reply) —
