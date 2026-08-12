@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 type Review = {
   name: string;
@@ -10,31 +11,36 @@ type Review = {
   body: string[];
 };
 
-const REVIEWS: Review[] = [
+// Module scope cannot call a hook, so each entry carries the dictionary KEYS
+// for its copy and the component resolves them at render.
+const REVIEWS = [
   {
-    name: "Hotel Colombo",
-    location: "MG Road, Edappally",
-    initials: "HC",
-    body: [
-      "Honestly, I never thought making an app would be this easy 😅 they handled everything smoothly and made the whole process super simple for us.",
-      "And they made it look exactly how I wanted. I was very particular about a few things and wasn't ready to compromise at all — we went through multiple reworks, but they were super patient and calm throughout and got it exactly right.",
-      "Very clean work, thank you soo much guys.",
+    id: "reviewOne",
+    nameKey: "reviewOneAuthorName",
+    locationKey: "reviewOneAuthorLocation",
+    initialsKey: "reviewOneAuthorInitials",
+    bodyKeys: [
+      "reviewOneParagraphOne",
+      "reviewOneParagraphTwo",
+      "reviewOneParagraphThree",
     ],
   },
   {
-    name: "Rimaal Mandi & Grills",
-    location: "Pune",
-    initials: "RM",
-    body: [
-      "Thanks to the MenuThere team for developing our app. The app helps customers order directly from us and makes delivery management much easier. We also provided third-party delivery options such as Porter, and the team successfully integrated them into the system. Everything has been working smoothly, and they have done a great job.",
-      "The main reason we launched this app is because, while platforms like Zomato and Swiggy bring us good business and customer reach, the payout side can sometimes be challenging due to commissions and other costs. Of course, we cannot avoid Zomato and Swiggy, as many customers are used to ordering through them, and we will continue to work with them.",
-      "At the same time, this app gives us another channel to connect directly with our customers and serve them better.",
-      "Thank you, MenuThere team, for your support and excellent work.",
+    id: "reviewTwo",
+    nameKey: "reviewTwoAuthorName",
+    locationKey: "reviewTwoAuthorLocation",
+    initialsKey: "reviewTwoAuthorInitials",
+    bodyKeys: [
+      "reviewTwoParagraphOne",
+      "reviewTwoParagraphTwo",
+      "reviewTwoParagraphThree",
+      "reviewTwoParagraphFour",
     ],
   },
-];
+] as const;
 
 function ReviewCard({ review }: { review: Review }) {
+  const { t } = useT();
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
@@ -86,7 +92,7 @@ function ReviewCard({ review }: { review: Review }) {
           onClick={() => setExpanded((v) => !v)}
           className="mt-3 self-start text-sm font-semibold text-orange-600 hover:text-orange-700"
         >
-          {expanded ? "Show less" : "Show more"}
+          {expanded ? t.landing.reviewCollapseButton : t.landing.reviewExpandButton}
         </button>
       )}
 
@@ -106,13 +112,23 @@ function ReviewCard({ review }: { review: Review }) {
 }
 
 export default function CustomerReviews() {
+  const { t } = useT();
+
   return (
     <div
       data-section="reviews"
       className="mt-10 lg:mt-14 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 items-start"
     >
       {REVIEWS.map((review) => (
-        <ReviewCard key={review.name} review={review} />
+        <ReviewCard
+          key={review.id}
+          review={{
+            name: t.landing[review.nameKey],
+            location: t.landing[review.locationKey],
+            initials: t.landing[review.initialsKey],
+            body: review.bodyKeys.map((bodyKey) => t.landing[bodyKey]),
+          }}
+        />
       ))}
     </div>
   );

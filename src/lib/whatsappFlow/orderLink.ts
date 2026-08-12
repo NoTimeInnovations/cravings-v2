@@ -31,6 +31,38 @@ function secret(): string {
   return process.env.META_APP_SECRET || "menuthere-order-link";
 }
 
+/**
+ * An order link that carries a CUSTOMER is a bearer credential — verifying it
+ * hands out that customer's session. That is only sound while the signing key is
+ * actually secret, and the fallback above is in the public repo.
+ *
+ * In production, refuse to mint or honour identity-bearing tokens unless a real
+ * META_APP_SECRET is configured. Plain (menu-only) links keep working on the
+ * fallback because they grant nothing.
+ *
+ * In practice this never fires — META_APP_SECRET is already required to connect
+ * a WhatsApp account at all (the OAuth exchange in whatsapp-meta.ts), so a
+ * partner with no secret has no order links either. It is here so that a
+ * misconfiguration degrades to "the link doesn't sign you in" rather than to
+ * "anyone can forge a session for any phone number".
+ */
+let warnedNoSecret = false;
+export function identityTokensAllowed(): boolean {
+  if (process.env.META_APP_SECRET) return true;
+  if (process.env.NODE_ENV !== "production") return true;
+  // Loud, once per process. Silent degradation here reinstates exactly the
+  // mis-attribution bug this whole path exists to fix, and it would look like
+  // "auto-login randomly stopped working" from the outside.
+  if (!warnedNoSecret) {
+    warnedNoSecret = true;
+    console.error(
+      "[orderLink] META_APP_SECRET is not set — order links will NOT sign customers in. " +
+        "Orders may be attributed to whatever session the device already holds. Set it in prod.",
+    );
+  }
+  return false;
+}
+
 // 32-byte AES key derived from the same secret the HMAC uses. SHA-256 yields
 // exactly 32 bytes (aes-256 key size).
 function encKey(): Buffer {
@@ -116,6 +148,8 @@ export function verifyOrderLinkToken(
       const phone = obj.p ? String(obj.p) : null;
       if (!exp || !phone) return fail;
       if (Date.now() > exp) return { valid: false, expired: true, userId: null, phone };
+      // Valid link, but with a guessable key we must not let it name a customer.
+      if (!identityTokensAllowed()) return { valid: true, expired: false, userId: null, phone: null };
       return { valid: true, expired: false, userId: null, phone };
     } catch {
       return fail;
@@ -147,6 +181,9 @@ export function verifyOrderLinkToken(
     if (sig.length !== expected.length) return fail;
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return fail;
     if (Date.now() > exp) return { valid: false, expired: true, userId, phone: null };
+    if (userId && !identityTokensAllowed()) {
+      return { valid: true, expired: false, userId: null, phone: null };
+    }
     return { valid: true, expired: false, userId, phone: null };
   } catch {
     return fail;
@@ -181,8 +218,11 @@ export function buildOrderLink(
     reorderPayload?: string | null;
   },
 ): string {
-  const phone = opts?.phone ?? null;
-  const userId = opts?.userId ?? null;
+  // Degrade an identity-bearing link to a plain menu link rather than mint one
+  // that a forged signature could impersonate. See identityTokensAllowed().
+  const allowIdentity = identityTokensAllowed();
+  const phone = allowIdentity ? opts?.phone ?? null : null;
+  const userId = allowIdentity ? opts?.userId ?? null : null;
   const isAuth = !!(phone || userId);
   const ttl = opts?.ttlMinutes ?? (isAuth ? AUTH_TTL_MIN : DEFAULT_TTL_MIN);
   const token = phone

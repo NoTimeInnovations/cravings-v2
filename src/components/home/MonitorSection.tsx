@@ -1,6 +1,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
+import { getT } from "@/lib/i18n/server";
 import { SECTION_GUTTER, SECTION_SPACING } from "./section";
 
 const RealTimeMenuAnimation = dynamic(() => import("./RealTimeMenuAnimation"));
@@ -18,90 +19,84 @@ const WhatsAppOrderingAnimation = dynamic(
   () => import("./WhatsAppOrderingAnimation"),
 );
 
+// Module scope cannot read the request locale, so each entry carries the
+// dictionary KEYS for its copy and the component resolves them at render.
 const FEATURES = [
   {
-    title: "Your Own Website & Branded App",
-    description:
-      "Launch a branded ordering website and your own app on the App Store and Play Store, all under your name. Customers order directly from you. No aggregator middlemen, no 20-33% commissions. They browse, order, track deliveries, and reorder in one tap, while you own the customer relationship, control your pricing, and keep every rupee of profit.",
+    titleKey: "featureWebsiteAppTitle",
+    descriptionKey: "featureWebsiteAppBody",
     href: "/product/delivery-website",
-    cta: "See how it works",
+    ctaKey: "featureWebsiteAppCta",
     panel: "aggregator",
   },
   {
-    title: "Order on WhatsApp — just send “Hi”",
-    description:
-      "Turn your WhatsApp number into your easiest ordering channel. Customers send a simple “Hi” and instantly get an auto-login link to your menu — no app to download, no signup, no OTP. They order in a few taps and get live status updates back on WhatsApp, while you keep the customer and pay zero commission.",
+    titleKey: "featureWhatsappOrderingTitle",
+    descriptionKey: "featureWhatsappOrderingBody",
     href: "/solutions/whatsapp-ordering",
-    cta: "See WhatsApp ordering",
+    ctaKey: "featureWhatsappOrderingCta",
     panel: "whatsapp",
   },
   {
-    title: "Petpooja POS Integration",
-    description:
-      "Every online order flows directly into your Petpooja POS in real-time. No manual entry, no missed orders, no double handling. Menu items, prices, and categories sync automatically between your POS and delivery website. The only platform in India with deep Petpooja integration built-in.",
+    titleKey: "featurePetpoojaTitle",
+    descriptionKey: "featurePetpoojaBody",
     href: "/solutions/petpooja",
-    cta: "Learn about Petpooja integration",
+    ctaKey: "featurePetpoojaCta",
     panel: "petpooja",
   },
   {
-    title: "Payment Integration",
-    description:
-      "Accept payments instantly with built-in UPI, cards, net banking, and wallets, plus cash on delivery. Secure, PCI-compliant checkout powered by Cashfree, with money settling directly to your bank account. No aggregator holding your funds and no payout delays. Every rupee reaches you.",
+    titleKey: "featurePaymentsTitle",
+    descriptionKey: "featurePaymentsBody",
     href: "/get-started",
-    cta: "See payment options",
+    ctaKey: "featurePaymentsCta",
     panel: "payment",
   },
   {
-    title: "Real-Time Order Management",
-    description:
-      "Accept, track, and manage delivery orders from a single dashboard. Get instant notifications for new orders, update order status in real-time, and keep your kitchen and delivery team in sync. No more juggling multiple tablets or missing orders during rush hours.",
+    titleKey: "featureOrderManagementTitle",
+    descriptionKey: "featureOrderManagementBody",
     href: "/get-started",
-    cta: "Explore order management",
+    ctaKey: "featureOrderManagementCta",
     panel: "realtime",
   },
   {
-    title: "Digital Menu Management",
-    description:
-      "Manage your entire menu from one dashboard: add or edit items, prices, categories, photos, and variants in real time. Toggle dishes in or out of stock instantly, set dietary filters and smart search, and keep everything in sync across your website, app, and QR codes. No reprinting, no developers. Changes go live the moment you save.",
+    titleKey: "featureDigitalMenuTitle",
+    descriptionKey: "featureDigitalMenuBody",
     href: "/product/digital-menu",
-    cta: "Learn more about Digital Menu",
+    ctaKey: "featureDigitalMenuCta",
     panel: "smartqr",
   },
   {
-    title: "Dynamic Offers & Promotions",
-    description:
-      "Run flash deals, happy-hour specials, or time-based discounts that activate and expire automatically. Highlight best-sellers with Must-Try badges and Chef's Choice tags. Drive repeat orders and boost revenue without printing a single flyer.",
+    titleKey: "featureOffersTitle",
+    descriptionKey: "featureOffersBody",
     href: "/solutions/owners",
-    cta: "See how offers work",
+    ctaKey: "featureOffersCta",
     panel: "offers",
   },
   {
-    title: "Google Business Menu Sync",
-    description:
-      "Automatically sync your complete menu (categories, items, prices, and photos) to your Google Business Profile in one click. Show up on Google Maps with a full menu. Restaurants with complete profiles get 7x more clicks and drive 30% more footfall.",
+    titleKey: "featureGoogleSyncTitle",
+    descriptionKey: "featureGoogleSyncBody",
     href: "/solutions/google-business",
-    cta: "See how Google Sync works",
+    ctaKey: "featureGoogleSyncCta",
     panel: "googlesync",
   },
   {
-    title: "Delivery Boy App",
-    description:
-      "A dedicated app for your delivery team. Delivery boys receive order notifications, navigate to customer locations, and update delivery status, all in real-time. Track live locations, assign orders automatically, and ensure faster deliveries with complete visibility.",
+    titleKey: "featureDeliveryAppTitle",
+    descriptionKey: "featureDeliveryAppBody",
     href: "/download-app",
-    cta: "Learn about the delivery app",
+    ctaKey: "featureDeliveryAppCta",
     panel: "deliveryboy",
   },
   {
-    title: "Analytics & Insights",
-    description:
-      "Track order volumes, revenue trends, peak hours, and best-selling items. Make data-driven decisions about your pricing, promotions, and delivery operations. Know exactly what is working and where to optimize.",
+    titleKey: "featureAnalyticsTitle",
+    descriptionKey: "featureAnalyticsBody",
     href: "/solutions/owners",
-    cta: "Learn about analytics",
+    ctaKey: "featureAnalyticsCta",
     panel: "analytics",
   },
 ] as const;
 
-export default function MonitorSection() {
+export default async function MonitorSection() {
+  const { t } = await getT();
+
   return (
     <section className="relative">
       {/* Same content column as the hero: max-w-7xl + the shared gutter, so
@@ -115,18 +110,18 @@ export default function MonitorSection() {
       >
         <div className="flex flex-col gap-6 relative z-10 mb-16">
           <h2 className="font-geist font-medium text-3xl md:text-4xl text-stone-900 leading-tight">
-            Everything your restaurant needs,{" "}
-            <span className="text-stone-500">in one platform.</span>
+            {t.landing.platformHeadingLead}{" "}
+            <span className="text-stone-500">{t.landing.platformHeadingAccent}</span>
           </h2>
         </div>
 
         {FEATURES.map((feature, index) => (
         <MonitorSectionCard
-          key={feature.title}
-          title={feature.title}
-          description={feature.description}
+          key={feature.titleKey}
+          title={t.landing[feature.titleKey]}
+          description={t.landing[feature.descriptionKey]}
           href={feature.href}
-          cta={feature.cta}
+          cta={t.landing[feature.ctaKey]}
           align={index % 2 === 0 ? "left" : "right"}
           customPanel={feature.panel}
         />

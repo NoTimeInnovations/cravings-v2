@@ -29,150 +29,117 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { getT } from "@/lib/i18n/server";
+import { interpolate } from "@/lib/i18n/dictionaries";
 
 export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+
   return {
-    title: `Sync Restaurant Menu to Google Business | Menuthere`,
-    description: `Sync your restaurant menu to Google Business Profile automatically. One-click setup, real-time updates, better local SEO. Trusted by 600+ restaurants.`,
+    title: t.solutionsRest.googleBusiness.metaTitle,
+    description: t.solutionsRest.googleBusiness.metaDescription,
     alternates: { canonical: "https://menuthere.com/solutions/google-business" },
     openGraph: {
-      title: `Sync Restaurant Menu to Google Business | Menuthere`,
-      description:
-        "Automatically sync your restaurant menu to Google Maps. Always up-to-date, zero manual effort.",
+      title: t.solutionsRest.googleBusiness.metaTitle,
+      description: t.solutionsRest.googleBusiness.ogDescription,
       type: "website",
       url: "https://menuthere.com/solutions/google-business",
     },
   };
 }
 
-const HOW_IT_WORKS = [
-  {
-    step: "01",
-    title: "Create Your Menu",
-    description:
-      "Build your menu on our platform with categories, items, prices, and photos. Takes just minutes.",
-    icon: Utensils,
-  },
-  {
-    step: "02",
-    title: "Connect Google Profile",
-    description:
-      "Link your Google Business Profile in one click. We handle all the OAuth and API setup for you.",
-    icon: Globe,
-  },
-  {
-    step: "03",
-    title: "Sync & Go Live",
-    description:
-      "Hit sync and your entire menu appears on Google Maps. Update anytime - changes reflect instantly.",
-    icon: Zap,
-  },
-];
-
-const BENEFITS = [
-  {
-    icon: Search,
-    title: "Boost Local SEO",
-    description:
-      'Restaurants with complete Google Business Profiles get 7x more clicks. A synced menu is one of the strongest local ranking signals - helping you appear higher in "restaurants near me" searches.',
-  },
-  {
-    icon: MapPin,
-    title: "Show Up on Google Maps",
-    description:
-      "When customers search for food on Google Maps, your full menu is visible right there - prices, categories, and items. They can decide to visit before even calling you.",
-  },
-  {
-    icon: RefreshCw,
-    title: "Always Up-to-Date",
-    description:
-      "Changed a price? Added a new dish? Removed a seasonal item? One sync and your Google Business Profile menu reflects the latest version. No manual editing on Google.",
-  },
-  {
-    icon: Clock,
-    title: "Save Hours Every Week",
-    description:
-      "Manually updating your Google Business menu is tedious and error-prone. Our sync does it in seconds, not hours. Focus on cooking, not copy-pasting.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Drive More Footfall",
-    description:
-      "Customers who see a detailed menu on Google are 30% more likely to visit. Give them the information they need to choose you over competitors.",
-  },
-  {
-    icon: Shield,
-    title: "Accurate & Reliable",
-    description:
-      "No more mismatched prices between your actual menu and what Google shows. Eliminate customer complaints about outdated information on Maps.",
-  },
-];
-
-const FEATURES = [
-  "One-click full menu sync to Google Business Profile",
-  "Automatic category mapping and structuring",
-  "Image upload support for menu items",
-  "Price and availability sync",
-  "Multi-location support for chains",
-  "Sync history and status tracking",
-  "Works with any Google Business account",
-  "No technical knowledge required",
-  "Supports veg/non-veg labeling",
-  "Handles special characters and multilingual menus",
-];
-
-const FAQ = [
-  {
-    question: "What is Google Business Profile menu sync?",
-    answer:
-      "It's a feature that automatically copies your restaurant's menu from our platform to your Google Business Profile (the listing that appears on Google Search and Google Maps). Instead of manually adding each menu item on Google, you sync everything with one click.",
-  },
-  {
-    question: "Do I need a Google Business Profile to use this?",
-    answer:
-      "Yes, you need a verified Google Business Profile for your restaurant. If you don't have one yet, you can create one for free at business.google.com. Once verified, you can connect it to our platform and start syncing.",
-  },
-  {
-    question: "How often should I sync my menu?",
-    answer:
-      "We recommend syncing whenever you make changes to your menu - new items, price changes, or seasonal updates. The sync only takes a few seconds, so there's no reason not to keep it up-to-date. Some restaurants sync daily, others weekly.",
-  },
-  {
-    question: "Will syncing overwrite my existing Google menu?",
-    answer:
-      "Yes, each sync replaces your Google Business Profile menu with the latest version from our platform. This ensures complete accuracy. Your other Google Business Profile information (photos, reviews, hours) is not affected.",
-  },
-  {
-    question: "Does this work for multiple restaurant locations?",
-    answer:
-      "Yes! If you manage multiple locations under one Google Business account, you can select which location to sync to. Each location can have its own menu. Perfect for restaurant chains with different menus per branch.",
-  },
-  {
-    question: "Is my Google account data safe?",
-    answer:
-      "Absolutely. We use Google's official OAuth 2.0 and Business Profile API. We only request the minimum permissions needed to manage your menu. Your credentials are never stored - we use secure token-based authentication.",
-  },
-  {
-    question: "What happens to menu images during sync?",
-    answer:
-      "Menu item images from your profile are uploaded to Google along with the menu data. Large images are automatically optimized for Google's requirements. If an image fails to upload, the item still syncs - just without the photo.",
-  },
-  {
-    question: "Is this feature included in all plans?",
-    answer:
-      "Google Business Profile menu sync is available on our Pro and Business plans. Check our pricing page for details on what's included in each plan.",
-  },
-];
-
-const STATS = [
-  { value: "500+", label: "Restaurants Syncing" },
-  { value: "7x", label: "More Profile Clicks" },
-  { value: "< 30s", label: "Sync Time" },
-  { value: "30%", label: "More Footfall" },
-];
-
 export default async function GoogleBusinessPage() {
+  const { t } = await getT();
+  const c = t.solutionsRest.googleBusiness;
+  const shared = t.solutionsRest.shared;
   const appName = "Menuthere";
+
+  // Copy lives in the dictionary, so these lists are built inside the
+  // component — a module-level const cannot read the request's locale.
+  const HOW_IT_WORKS = [
+    {
+      step: "01",
+      title: c.step1Title,
+      description: c.step1Body,
+      icon: Utensils,
+    },
+    {
+      step: "02",
+      title: c.step2Title,
+      description: c.step2Body,
+      icon: Globe,
+    },
+    {
+      step: "03",
+      title: c.step3Title,
+      description: c.step3Body,
+      icon: Zap,
+    },
+  ];
+
+  const BENEFITS = [
+    {
+      icon: Search,
+      title: c.benefit1Title,
+      description: c.benefit1Body,
+    },
+    {
+      icon: MapPin,
+      title: c.benefit2Title,
+      description: c.benefit2Body,
+    },
+    {
+      icon: RefreshCw,
+      title: c.benefit3Title,
+      description: c.benefit3Body,
+    },
+    {
+      icon: Clock,
+      title: c.benefit4Title,
+      description: c.benefit4Body,
+    },
+    {
+      icon: TrendingUp,
+      title: c.benefit5Title,
+      description: c.benefit5Body,
+    },
+    {
+      icon: Shield,
+      title: c.benefit6Title,
+      description: c.benefit6Body,
+    },
+  ];
+
+  const FEATURES = [
+    c.feature1,
+    c.feature2,
+    c.feature3,
+    c.feature4,
+    c.feature5,
+    c.feature6,
+    c.feature7,
+    c.feature8,
+    c.feature9,
+    c.feature10,
+  ];
+
+  const FAQ = [
+    { question: c.faq1Question, answer: c.faq1Answer },
+    { question: c.faq2Question, answer: c.faq2Answer },
+    { question: c.faq3Question, answer: c.faq3Answer },
+    { question: c.faq4Question, answer: c.faq4Answer },
+    { question: c.faq5Question, answer: c.faq5Answer },
+    { question: c.faq6Question, answer: c.faq6Answer },
+    { question: c.faq7Question, answer: c.faq7Answer },
+    { question: c.faq8Question, answer: c.faq8Answer },
+  ];
+
+  const STATS = [
+    { value: c.statSyncingValue, label: c.statSyncingLabel },
+    { value: c.statClicksValue, label: c.statClicksLabel },
+    { value: c.statSyncTimeValue, label: c.statSyncTimeLabel },
+    { value: c.statFootfallValue, label: c.statFootfallLabel },
+  ];
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -181,19 +148,19 @@ export default async function GoogleBusinessPage() {
       {
         "@type": "ListItem",
         position: 1,
-        name: "Home",
+        name: shared.breadcrumbHome,
         item: "https://menuthere.com",
       },
       {
         "@type": "ListItem",
         position: 2,
-        name: "Solutions",
+        name: shared.breadcrumbSolutions,
         item: "https://menuthere.com/solutions",
       },
       {
         "@type": "ListItem",
         position: 3,
-        name: "Google Business Profile Menu Sync",
+        name: c.breadcrumbCurrent,
         item: "https://menuthere.com/solutions/google-business",
       },
     ],
@@ -221,33 +188,27 @@ export default async function GoogleBusinessPage() {
                     className="object-cover"
                   />
                 </div>
-                Google Business Integration
+                {c.heroBadge}
               </div>
               <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-gray-900 leading-[1.1] mb-2 tracking-tight">
-                Sync Your Menu to{" "}
-                <span className="bg-gradient-to-r from-[#e65a22] via-[#d14d1a] to-[#e65a22] bg-clip-text text-transparent">
-                  Google Maps
-                </span>{" "}
-                Automatically
+                {c.heroTitle}
               </h1>
               <p className="text-base text-gray-600 leading-relaxed mb-8 max-w-xl">
-                Keep your Google Business Profile menu always up-to-date.
-                One-click sync from Menuthere - your menu on Google Search &
-                Maps, accurate every time.
+                {c.heroSubtitle}
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
                   href="/get-started"
                   className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-[#e65a22] rounded-xl hover:bg-[#d14d1a] hover:shadow-lg hover:shadow-[#e65a22]/25 transition-all duration-300"
                 >
-                  Sync your menu
+                  {c.heroPrimaryCta}
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Link>
                 <Link
                   href="/help-center"
                   className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-900 bg-white border-2 border-gray-200 rounded-xl hover:border-[#e65a22] hover:text-[#e65a22] transition-all duration-300"
                 >
-                  Book a Demo
+                  {shared.bookDemoCta}
                 </Link>
               </div>
             </div>
@@ -273,10 +234,10 @@ export default async function GoogleBusinessPage() {
                     </div>
                     <div>
                       <div className="font-bold text-white text-lg">
-                        Google Business Profile
+                        {c.mockupCardTitle}
                       </div>
                       <div className="text-blue-100 text-sm">
-                        Menu Sync Manager
+                        {c.mockupCardSubtitle}
                       </div>
                     </div>
                   </div>
@@ -292,10 +253,10 @@ export default async function GoogleBusinessPage() {
                       </div>
                       <div>
                         <div className="text-sm font-semibold text-green-800">
-                          Menu Synced Successfully
+                          {c.mockupSyncStatusTitle}
                         </div>
                         <div className="text-xs text-green-600">
-                          Last sync: Just now
+                          {c.mockupSyncStatusMeta}
                         </div>
                       </div>
                     </div>
@@ -311,13 +272,13 @@ export default async function GoogleBusinessPage() {
                         156
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        Items Synced
+                        {c.mockupStatItemsLabel}
                       </div>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3 text-center">
                       <div className="text-2xl font-bold text-gray-900">12</div>
                       <div className="text-xs text-gray-500 mt-1">
-                        Categories
+                        {c.mockupStatCategoriesLabel}
                       </div>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3 text-center">
@@ -325,7 +286,7 @@ export default async function GoogleBusinessPage() {
                         98%
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        With Images
+                        {c.mockupStatImagesLabel}
                       </div>
                     </div>
                   </div>
@@ -333,23 +294,23 @@ export default async function GoogleBusinessPage() {
                   {/* Sample Menu Items */}
                   <div className="space-y-2">
                     <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Recently Synced
+                      {c.mockupRecentlySyncedLabel}
                     </div>
                     {[
                       {
-                        name: "Butter Chicken",
+                        name: c.mockupItem1Name,
                         price: "₹349",
-                        cat: "Main Course",
+                        cat: c.mockupItem1Category,
                       },
                       {
-                        name: "Paneer Tikka",
+                        name: c.mockupItem2Name,
                         price: "₹279",
-                        cat: "Starters",
+                        cat: c.mockupItem2Category,
                       },
                       {
-                        name: "Gulab Jamun",
+                        name: c.mockupItem3Name,
                         price: "₹129",
-                        cat: "Desserts",
+                        cat: c.mockupItem3Category,
                       },
                     ].map((item) => (
                       <div
@@ -385,10 +346,10 @@ export default async function GoogleBusinessPage() {
                 </div>
                 <div>
                   <div className="text-xs font-bold text-gray-900">
-                    Profile Views
+                    {c.mockupBadgeTitle}
                   </div>
                   <div className="text-xs text-green-600 font-semibold">
-                    +340% this month
+                    {c.mockupBadgeValue}
                   </div>
                 </div>
               </div>
@@ -420,13 +381,13 @@ export default async function GoogleBusinessPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-2 bg-[#e65a22]/10 text-[#d14d1a] rounded-full text-sm font-medium mb-4">
-              Simple 3-Step Process
+              {c.howItWorksBadge}
             </span>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              How It Works
+              {c.howItWorksHeading}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              From your menu dashboard to Google Maps in three simple steps
+              {c.howItWorksSubheading}
             </p>
           </div>
 
@@ -444,7 +405,7 @@ export default async function GoogleBusinessPage() {
                     <item.icon className="w-8 h-8" />
                   </div>
                   <div className="text-xs font-bold text-[#e65a22] uppercase tracking-widest mb-2">
-                    Step {item.step}
+                    {interpolate(shared.stepLabel, { step: item.step })}
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-3">
                     {item.title}
@@ -464,11 +425,10 @@ export default async function GoogleBusinessPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Why Restaurants Love Google Menu Sync
+              {c.benefitsHeading}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Your menu is your most powerful marketing tool - make sure it
-              shows up where customers are searching
+              {c.benefitsSubheading}
             </p>
           </div>
 
@@ -498,10 +458,10 @@ export default async function GoogleBusinessPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Without Sync vs. With Menuthere
+              {c.comparisonHeading}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              See the difference automatic menu sync makes
+              {c.comparisonSubheading}
             </p>
           </div>
 
@@ -510,17 +470,17 @@ export default async function GoogleBusinessPage() {
             <div className="bg-white rounded-2xl border-2 border-red-100 p-8 relative">
               <div className="absolute -top-4 left-6">
                 <span className="bg-red-100 text-red-700 text-sm font-bold px-4 py-1.5 rounded-full">
-                  ✕ Without Sync
+                  {c.comparisonWithoutBadge}
                 </span>
               </div>
               <ul className="space-y-4 mt-4">
                 {[
-                  "Manually add each item on Google one-by-one",
-                  "Menu on Google becomes outdated within days",
-                  "Price mismatches cause customer complaints",
-                  "Hours spent on data entry every month",
-                  "No images - just plain text listings",
-                  "Inconsistent info across platforms",
+                  c.comparisonWithout1,
+                  c.comparisonWithout2,
+                  c.comparisonWithout3,
+                  c.comparisonWithout4,
+                  c.comparisonWithout5,
+                  c.comparisonWithout6,
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-start gap-3">
                     <span className="text-red-400 text-lg mt-0.5">✕</span>
@@ -534,17 +494,17 @@ export default async function GoogleBusinessPage() {
             <div className="bg-white rounded-2xl border-2 border-green-100 p-8 relative shadow-lg shadow-green-50">
               <div className="absolute -top-4 left-6">
                 <span className="bg-green-100 text-green-700 text-sm font-bold px-4 py-1.5 rounded-full">
-                  ✓ With Menuthere
+                  {c.comparisonWithBadge}
                 </span>
               </div>
               <ul className="space-y-4 mt-4">
                 {[
-                  "One-click sync pushes your entire menu",
-                  "Google menu always matches your latest offerings",
-                  "Accurate prices build customer trust",
-                  "Seconds to sync, not hours of manual work",
-                  "Full image support for visual appeal",
-                  "Unified menu across website, QR & Google",
+                  c.comparisonWith1,
+                  c.comparisonWith2,
+                  c.comparisonWith3,
+                  c.comparisonWith4,
+                  c.comparisonWith5,
+                  c.comparisonWith6,
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
@@ -563,11 +523,10 @@ export default async function GoogleBusinessPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-                Everything You Get with Google Menu Sync
+                {c.featuresHeading}
               </h2>
               <p className="text-xl text-gray-600 mb-10">
-                A complete toolkit for keeping your Google presence accurate and
-                compelling.
+                {c.featuresSubheading}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {FEATURES.map((feature, idx) => (
@@ -587,19 +546,15 @@ export default async function GoogleBusinessPage() {
 
               <div className="relative z-10">
                 <Globe className="w-16 h-16 mb-6 text-white/80" />
-                <h3 className="text-2xl font-bold mb-4">
-                  Ready to sync your menu?
-                </h3>
+                <h3 className="text-2xl font-bold mb-4">{c.ctaBoxHeading}</h3>
                 <p className="text-lg text-orange-100 mb-8 leading-relaxed">
-                  Join hundreds of restaurants already using Menuthere to keep
-                  their Google presence up-to-date. Set up takes less than 5
-                  minutes.
+                  {c.ctaBoxBody}
                 </p>
                 <Link
                   href="/get-started"
                   className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold bg-white text-[#e65a22] rounded-xl hover:bg-gray-50 transition-colors shadow-lg"
                 >
-                  Start Free Trial
+                  {c.ctaBoxButton}
                   <ArrowUpRight className="ml-2 w-5 h-5" />
                 </Link>
               </div>
@@ -620,15 +575,13 @@ export default async function GoogleBusinessPage() {
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-sm font-medium mb-5">
               <Sparkles className="w-4 h-4 text-white" />
-              <span className="text-white">Coming Soon</span>
+              <span className="text-white">{c.comingSoonBadge}</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              The Future of Your{" "}
-              <span className="text-orange-100/90">Google Presence</span>
+              {c.comingSoonHeading}
             </h2>
             <p className="text-orange-100 max-w-xl mx-auto">
-              We&apos;re building powerful new features to help you manage your
-              entire Google Business Profile - beyond just the menu.
+              {c.comingSoonBody}
             </p>
           </div>
 
@@ -640,21 +593,18 @@ export default async function GoogleBusinessPage() {
                   <Send className="w-5 h-5 text-white" />
                 </div>
                 <h3 className="text-lg font-bold text-white">
-                  Auto-Post to Google
+                  {c.autoPostTitle}
                 </h3>
               </div>
               <p className="text-orange-100 text-sm leading-relaxed mb-5">
-                Automatically publish posts, offers, events, and updates
-                directly to your Google Business Profile. Share today&apos;s
-                special, a new dish launch, or a festival offer - without
-                logging into Google.
+                {c.autoPostBody}
               </p>
               <div className="space-y-2.5">
                 {[
-                  "Schedule posts with photos and CTAs",
-                  "Promote daily specials & seasonal offers",
-                  "Event announcements auto-published",
-                  "Post analytics and engagement tracking",
+                  c.autoPostPoint1,
+                  c.autoPostPoint2,
+                  c.autoPostPoint3,
+                  c.autoPostPoint4,
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-white flex-shrink-0" />
@@ -671,20 +621,18 @@ export default async function GoogleBusinessPage() {
                   <MessageSquare className="w-5 h-5 text-white" />
                 </div>
                 <h3 className="text-lg font-bold text-white">
-                  AI Review Replies
+                  {c.reviewRepliesTitle}
                 </h3>
               </div>
               <p className="text-orange-100 text-sm leading-relaxed mb-5">
-                Let AI craft thoughtful, personalized replies to every Google
-                review - positive or negative. Respond faster, maintain your
-                reputation, and show customers you care, 24/7.
+                {c.reviewRepliesBody}
               </p>
               <div className="space-y-2.5">
                 {[
-                  "AI-generated professional & warm replies",
-                  "Handles both positive & negative reviews",
-                  "Matches your restaurant's tone & voice",
-                  "One-click approve or edit before posting",
+                  c.reviewRepliesPoint1,
+                  c.reviewRepliesPoint2,
+                  c.reviewRepliesPoint3,
+                  c.reviewRepliesPoint4,
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-white flex-shrink-0" />
@@ -711,17 +659,12 @@ export default async function GoogleBusinessPage() {
                 ))}
               </div>
               <blockquote className="text-xl md:text-2xl font-medium leading-relaxed mb-8">
-                &ldquo;We used to spend an entire afternoon every month updating
-                our menu on Google. With Menuthere, I hit one button and
-                everything syncs - items, prices, even images. Our Google Maps
-                listing looks professional now and we&apos;ve seen a noticeable
-                increase in walk-in customers who mention seeing our menu
-                online.&rdquo;
+                {c.testimonialQuote}
               </blockquote>
               <div>
-                <div className="font-bold text-lg">Arjun & Priya Nair</div>
-                <div className="opacity-80">Owners, Spice Route Kitchen</div>
-                <div className="opacity-60 text-sm">Kochi, Kerala</div>
+                <div className="font-bold text-lg">{c.testimonialAuthor}</div>
+                <div className="opacity-80">{c.testimonialRole}</div>
+                <div className="opacity-60 text-sm">{c.testimonialLocation}</div>
               </div>
             </div>
           </div>
@@ -733,12 +676,9 @@ export default async function GoogleBusinessPage() {
         <div className="max-w-3xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
-              Frequently asked{" "}
-              <span className="text-gray-400 italic">questions.</span>
+              {shared.faqHeading}
             </h2>
-            <p className="text-stone-500 mt-4">
-              Everything you need to know about Google Business Profile menu sync
-            </p>
+            <p className="text-stone-500 mt-4">{c.faqSubheading}</p>
           </div>
           <Accordion type="single" collapsible className="w-full">
             {FAQ.map((faq, index) => (

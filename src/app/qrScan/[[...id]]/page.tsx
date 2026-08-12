@@ -9,6 +9,9 @@ import {
 import { GET_QR_TABLE } from "@/api/qrcodes";
 import { ScanTracker } from "@/components/ScanTracker";
 import { getAuthCookie, getOrderSessionCookie } from "@/app/auth/actions";
+import { verifyOrderLinkToken } from "@/lib/whatsappFlow/orderLink";
+import OrderLinkAutoLogin from "@/components/OrderLinkAutoLogin";
+import { ExpiredOrderLinkCard } from "@/components/ExpiredOrderLinkCard";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
 import { getFeatures } from "@/lib/getFeatures";
@@ -208,6 +211,45 @@ const page = async ({
   );
 
   const hoteldata = hotelId ? await getHotelData(hotelId) : null;
+
+  // A table link sent over WhatsApp now carries the same signed ?olt= token the
+  // generic order link does, so the order is attributed to the number that asked
+  // for it. Without this the QR page simply ordered as whoever the browser was
+  // already signed in as — the owner testing from admin, or the last customer on
+  // a shared device — putting a stranger's phone on the ticket.
+  //
+  // Mount-only gate; the switch decision (silent / confirm / refuse) lives in
+  // autoLoginFromOrderToken so this route and /[username] share one answer.
+  // A table link is passed around a table by design, which is exactly why the
+  // action asks before replacing anybody's existing session.
+  const olt = (sp as any)?.olt as string | undefined;
+  const oltStatus = olt && hotelId ? verifyOrderLinkToken(hotelId, olt) : null;
+  const oltUserId = oltStatus?.valid ? oltStatus.userId : null;
+  const autoLoginToken =
+    olt && oltStatus?.valid && (oltStatus.userId || oltStatus.phone) &&
+    !(oltUserId && auth?.id === oltUserId)
+      ? olt
+      : null;
+
+  // An EXPIRED table link must not fall through and quietly order as whatever
+  // session the device holds — that is the exact mis-attribution this change
+  // exists to stop. Same card /[username] shows: "message hi for a fresh link".
+  if (oltStatus?.expired && hotelId) {
+    const info = await fetchFromHasura(
+      `query TableLinkExpired($p: uuid!) {
+        whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, order_by: {is_primary: desc, updated_at: asc}, limit: 1) { display_phone }
+        partners_by_pk(id: $p) { store_name }
+      }`,
+      { p: hotelId },
+    ).catch(() => null);
+    return (
+      <ExpiredOrderLinkCard
+        storeName={info?.partners_by_pk?.store_name ?? null}
+        waNumber={info?.whatsapp_business_integrations?.[0]?.display_phone ?? null}
+        reason="expired"
+      />
+    );
+  }
 
   if (hoteldata?.offers) {
     const today = new Date().setHours(0, 0, 0, 0);
@@ -468,6 +510,9 @@ const page = async ({
     // if (isOrderingEnabled || isDeliveryEnabled) {
     return (
       <>
+        {autoLoginToken && (
+          <OrderLinkAutoLogin partnerId={hoteldata.id} token={autoLoginToken} />
+        )}
         <ScanTracker qrId={validQrId} hotelId={hoteldata.id} />
         <HotelMenuPage
           socialLinks={socialLinks}

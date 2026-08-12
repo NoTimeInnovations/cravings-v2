@@ -5,24 +5,27 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { unstable_cache } from "next/cache";
+import { getT } from "@/lib/i18n/server";
 
 const Footer = dynamic(() => import("@/components/Footer"));
 
-export const metadata: Metadata = {
-  title: "Blog | Menuthere - Restaurant & Cafe Insights",
-  description:
-    "Tips, guides, and insights for restaurant owners on digital menus, QR codes, Google Business sync, and growing your food business.",
-  alternates: {
-    canonical: "https://menuthere.com/blog",
-  },
-  openGraph: {
-    title: "Blog | Menuthere",
-    description:
-      "Tips, guides, and insights for restaurant owners on digital menus, QR codes, and growing your food business.",
-    url: "https://menuthere.com/blog",
-    type: "website",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+
+  return {
+    title: t.blog.metaTitle,
+    description: t.blog.metaDescription,
+    alternates: {
+      canonical: "https://menuthere.com/blog",
+    },
+    openGraph: {
+      title: t.blog.ogTitle,
+      description: t.blog.ogDescription,
+      url: "https://menuthere.com/blog",
+      type: "website",
+    },
+  };
+}
 
 interface BlogPost {
   id: string;
@@ -87,6 +90,7 @@ const getLatestPosts = unstable_cache(
 );
 
 export default async function BlogPage() {
+  const { t } = await getT();
   const posts = await getLatestPosts();
   const heroPosts = posts.slice(0, 2);
   const remainingPosts = posts.slice(2);
@@ -97,12 +101,14 @@ export default async function BlogPage() {
       <section className="bg-[#fcfbf7] border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-6 md:px-10 pt-28 pb-16">
           <p className="text-sm font-semibold uppercase tracking-wider text-orange-500 mb-4">
-            Blog
+            {t.blog.categoryLabel}
           </p>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium tracking-tighter leading-[1.15] text-stone-900">
-            Latest updates and insights
+            {t.blog.heroHeading}
             <br />
-            <span className="text-stone-400 font-normal">from Menuthere</span>
+            <span className="text-stone-400 font-normal">
+              {t.blog.heroHeadingAccent}
+            </span>
           </h1>
 
           {/* Featured 2 posts */}
@@ -116,7 +122,9 @@ export default async function BlogPage() {
                 >
                   <div className="flex items-center justify-between text-sm text-stone-500 mb-5">
                     <span>{formatDate(post.published_at)}</span>
-                    <span className="font-semibold text-stone-700">Blog</span>
+                    <span className="font-semibold text-stone-700">
+                      {t.blog.categoryLabel}
+                    </span>
                   </div>
                   <h2 className="text-2xl md:text-3xl font-semibold leading-tight tracking-tighter mb-3 group-hover:text-orange-500 transition-colors text-stone-900">
                     {post.title}
@@ -153,7 +161,9 @@ export default async function BlogPage() {
                   >
                     <div className="flex items-center justify-between text-sm text-stone-500 mb-4">
                       <span>{formatDate(post.published_at)}</span>
-                      <span className="font-semibold text-stone-700">Blog</span>
+                      <span className="font-semibold text-stone-700">
+                        {t.blog.categoryLabel}
+                      </span>
                     </div>
                     <h2 className="text-xl font-semibold tracking-tight leading-snug mb-2 group-hover:text-orange-500 transition-colors text-stone-900 text-pretty">
                       {post.title}
@@ -173,7 +183,7 @@ export default async function BlogPage() {
 
       {posts.length === 0 && (
         <p className="text-center py-24 text-stone-400">
-          No articles published yet. Stay tuned!
+          {t.blog.emptyState}
         </p>
       )}
 

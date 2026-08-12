@@ -3,6 +3,17 @@ import en, { type Dictionary } from "./en";
 import hi from "./hi";
 import ar from "./ar";
 import es from "./es";
+import ml from "./ml";
+import ta from "./ta";
+import bn from "./bn";
+import ur from "./ur";
+import pt from "./pt";
+import fr from "./fr";
+import de from "./de";
+import ru from "./ru";
+import tr from "./tr";
+import id from "./id";
+import zh from "./zh";
 
 export type { Dictionary };
 
@@ -11,13 +22,26 @@ export type { Dictionary };
  *
  * They are small (a few KB of strings) and the switcher changes locale on the
  * CLIENT without a navigation, so a dynamic import would mean a network round
- * trip and a flash of the previous language every time someone switches. The
- * whole set costs less than one of this page's hero images.
+ * trip and a flash of the previous language every time someone switches.
+ *
+ * The map is PARTIAL on purpose: LOCALES lists every language the switcher
+ * offers, and translations land one at a time. A locale with no dictionary yet
+ * renders English rather than failing to build — but note that each dictionary
+ * which DOES exist is typed `Dictionary`, so it cannot be half-filled. The
+ * choice is "English or complete", never "half English".
  */
-const DICTIONARIES: Record<Locale, Dictionary> = { en, hi, ar, es };
+const DICTIONARIES: Partial<Record<Locale, Dictionary>> = {
+  en, hi, ml, ta, bn, ur, ar, es, pt, fr, de, ru, tr, id, zh,
+};
+
+/** Locales that actually have a dictionary today. The switcher uses this so it
+ *  cannot offer a language that would silently render English. */
+export const TRANSLATED_LOCALES = Object.keys(DICTIONARIES) as Locale[];
+
+export const hasDictionary = (locale: Locale): boolean => locale in DICTIONARIES;
 
 export function getDictionary(locale: Locale): Dictionary {
-  return DICTIONARIES[locale] ?? DICTIONARIES[DEFAULT_LOCALE];
+  return DICTIONARIES[locale] ?? DICTIONARIES[DEFAULT_LOCALE] ?? en;
 }
 
 /**

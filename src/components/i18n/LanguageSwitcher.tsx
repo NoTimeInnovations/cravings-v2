@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
-import { LOCALES, LOCALE_LABELS, type Locale } from "@/lib/i18n/config";
+import { LOCALE_LABELS, type Locale } from "@/lib/i18n/config";
+import { TRANSLATED_LOCALES } from "@/lib/i18n/dictionaries";
 import { useT } from "@/lib/i18n/LocaleProvider";
 
 /**
@@ -74,7 +75,9 @@ export function LanguageSwitcher({
             align === "end" ? "end-0" : "start-0"
           }`}
         >
-          {LOCALES.map((code) => {
+          {/* Only languages with a dictionary — offering one without would
+              silently render English and read as a broken switcher. */}
+          {TRANSLATED_LOCALES.map((code) => {
             const active = code === locale;
             return (
               <li key={code}>

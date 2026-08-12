@@ -1,3 +1,5 @@
+import { encryptPhoneToken, identityTokensAllowed } from "@/lib/whatsappFlow/orderLink";
+
 /**
  * Match a table from an inbound WhatsApp message ("I want to order from Table 5").
  *
@@ -103,6 +105,7 @@ export function extractTableLabel(normalizedText: string): string | null {
     let j = i + 1;
     if (j < tokens.length && TABLE_QUALIFIERS.has(tokens[j])) j++;
     if (j >= tokens.length) continue;
+
     const label = labelFromToken(tokens[j]);
     if (label) return label;
   }
@@ -155,7 +158,29 @@ export function buildTableOrderLink(
   domain: string,
   storeName: string | null | undefined,
   qrId: string,
+  /** Mints the same signed auto-login token buildOrderLink uses, so the order is
+   *  attributed to the number that ASKED for the link.
+   *
+   *  Without it the table link is anonymous, and /qrScan simply orders as
+   *  whoever the browser is already signed in as — the restaurant owner testing
+   *  from their own phone, or the previous customer on a shared device. That is
+   *  a silent mis-attribution: wrong phone on the ticket, wrong order history,
+   *  loyalty points to a stranger.
+   *
+   *  Local phone, NOT the country-coded one: auto-login keys the account on
+   *  `${local}@user.com`, so a prefixed number mints a session for a brand-new
+   *  empty account and loses the customer's address, history and balance. */
+  opts?: { partnerId?: string | null; phone?: string | null; ttlMinutes?: number },
 ): string {
   const slug = (storeName || "store").trim().replace(/\s+/g, "-");
-  return `https://${domain}/qrScan/${slug}/${qrId}`;
+  const base = `https://${domain}/qrScan/${slug}/${qrId}`;
+  const partnerId = opts?.partnerId?.trim();
+  const phone = opts?.phone?.trim();
+  if (!partnerId || !phone) return base;
+  // Same gate buildOrderLink applies: with no real META_APP_SECRET the signing
+  // key is the public fallback, so an identity token would be both forgeable and
+  // refused by the verifier. Fall back to a plain table link instead of minting
+  // a customer's phone under a key anyone can derive.
+  if (!identityTokensAllowed()) return base;
+  return `${base}?olt=${encryptPhoneToken(partnerId, phone, opts?.ttlMinutes ?? 23 * 60)}`;
 }

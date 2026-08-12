@@ -9,6 +9,8 @@ import dynamic from "next/dynamic";
 import { unstable_cache } from "next/cache";
 import { TableOfContents } from "@/components/blog/TableOfContents";
 import { BlogViewTracker } from "@/components/blog/BlogViewTracker";
+import { getT } from "@/lib/i18n/server";
+import { interpolate } from "@/lib/i18n/dictionaries";
 
 const Footer = dynamic(() => import("@/components/Footer"));
 
@@ -127,12 +129,15 @@ const getOtherPosts = unstable_cache(
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const { t } = await getT();
   const post = await getPost(slug);
 
-  if (!post) return { title: "Post Not Found" };
+  if (!post) return { title: t.blog.postNotFoundMetaTitle };
 
   return {
-    title: `${post.meta_title || post.title} | Menuthere Blog`,
+    title: interpolate(t.blog.postMetaTitleTemplate, {
+      title: post.meta_title || post.title,
+    }),
     description: post.meta_description || post.excerpt,
     alternates: {
       canonical: `https://menuthere.com/blog/${slug}`,
@@ -151,6 +156,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
+  const { t } = await getT();
   const [post, otherPosts] = await Promise.all([
     getPost(slug),
     getOtherPosts(slug),
@@ -169,7 +175,7 @@ export default async function BlogPostPage({ params }: Props) {
               href="/blog"
               className="text-sm text-stone-500 hover:text-orange-500 transition-colors"
             >
-              ← Blog
+              {t.blog.backToIndexLink}
             </Link>
             <span className="text-sm text-stone-400">
               {formatDate(post.published_at)}
@@ -228,7 +234,7 @@ export default async function BlogPostPage({ params }: Props) {
         <section className="border-t border-stone-100">
           <div className="max-w-7xl mx-auto px-6 md:px-10 py-16">
             <h2 className="text-2xl font-semibold tracking-tight text-center mb-12 text-stone-900">
-              More articles
+              {t.blog.relatedHeading}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-stone-100 items-start">
               {otherPosts.map((other) => (
@@ -239,7 +245,9 @@ export default async function BlogPostPage({ params }: Props) {
                 >
                   <div className="flex items-center justify-between text-sm text-stone-500 mb-4">
                     <span>{formatDate(other.published_at)}</span>
-                    <span className="font-semibold text-stone-700">Blog</span>
+                    <span className="font-semibold text-stone-700">
+                      {t.blog.categoryLabel}
+                    </span>
                   </div>
                   <h3 className="text-xl font-semibold tracking-tight leading-snug group-hover:text-orange-500 transition-colors text-stone-900 text-pretty">
                     {other.title}

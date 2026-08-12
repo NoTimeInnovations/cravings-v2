@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Inter, Dancing_Script, Poppins, Roboto, Geist, Bricolage_Grotesque, Montserrat, Noto_Sans_Devanagari, Noto_Sans_Arabic } from "next/font/google";
+import { Inter, Dancing_Script, Poppins, Roboto, Geist, Bricolage_Grotesque, Montserrat, Noto_Sans_Devanagari, Noto_Sans_Arabic, Noto_Sans_Malayalam, Noto_Sans_Tamil, Noto_Sans_Bengali, Noto_Sans_SC } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
@@ -130,12 +130,51 @@ const notoDevanagari = Noto_Sans_Devanagari({
   subsets: ["devanagari"],
   variable: "--font-devanagari",
   display: "swap",
+  preload: false,
 });
 const notoArabic = Noto_Sans_Arabic({
   weight: ["400", "500", "600", "700"],
   subsets: ["arabic"],
   variable: "--font-arabic",
   display: "swap",
+  // preload:false on every script face below. These are only reached by an
+  // html[lang] rule, so preloading them would make an English visitor download
+  // five alphabets they will never render.
+  preload: false,
+});
+const notoMalayalam = Noto_Sans_Malayalam({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["malayalam"],
+  variable: "--font-malayalam",
+  display: "swap",
+  preload: false,
+});
+const notoTamil = Noto_Sans_Tamil({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["tamil"],
+  variable: "--font-tamil",
+  display: "swap",
+  preload: false,
+});
+const notoBengali = Noto_Sans_Bengali({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["bengali"],
+  variable: "--font-bengali",
+  display: "swap",
+  preload: false,
+});
+// Simplified Chinese. next/font only exposes latin/latin-ext/cyrillic/vietnamese
+// as `subsets` for this family — there is no selectable Han subset, because
+// Google serves CJK as many unicode-range slices rather than one named subset.
+// So the Han coverage cannot be guaranteed from here, and globals.css therefore
+// lists real system CJK faces after this one. preload stays off: CJK is huge and
+// is only ever reached by an html[lang="zh"] rule.
+const notoSC = Noto_Sans_SC({
+  weight: ["400", "500", "700"],
+  subsets: ["latin"],
+  variable: "--font-cjk",
+  display: "swap",
+  preload: false,
 });
 
 const montserrat = Montserrat({
@@ -227,7 +266,7 @@ document.head.appendChild(o)}initApollo();`,
         />
       </head>
       <body
-        className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable} ${geist.variable} ${bricolageGrotesque.variable} ${montserrat.variable} ${notoDevanagari.variable} ${notoArabic.variable}`}
+        className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable} ${geist.variable} ${bricolageGrotesque.variable} ${montserrat.variable} ${notoDevanagari.variable} ${notoArabic.variable} ${notoMalayalam.variable} ${notoTamil.variable} ${notoBengali.variable} ${notoSC.variable}`}
       >
         {/* Custom-domain partner GTM (covers /order, /bill & all top-level
             routes the [username] subtree layout can't reach). */}

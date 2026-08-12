@@ -237,7 +237,7 @@ const WA_LINK_DOMAIN = "menuthere.com";
 const TABLES_TTL_MS = 60_000;
 const tablesCache = new Map<
   string,
-  { at: number; rows: TableCandidate[]; storeName: string | null }
+  { at: number; rows: TableCandidate[]; storeName: string | null; countryCode?: string | null }
 >();
 
 const GET_PARTNER_TABLES = `
@@ -249,6 +249,7 @@ const GET_PARTNER_TABLES = `
     }
     partners_by_pk(id: $pid) {
       store_name
+      country_code
     }
   }
 `;
@@ -258,16 +259,20 @@ const GET_PARTNER_TABLES = `
 // carry it.
 async function getPartnerTablesCached(
   partnerId: string,
-): Promise<{ rows: TableCandidate[]; storeName: string | null }> {
+): Promise<{ rows: TableCandidate[]; storeName: string | null; countryCode: string | null }> {
   const hit = tablesCache.get(partnerId);
   if (hit && Date.now() - hit.at < TABLES_TTL_MS) {
-    return { rows: hit.rows, storeName: hit.storeName };
+    return { rows: hit.rows, storeName: hit.storeName, countryCode: hit.countryCode ?? null };
   }
   const res: any = await fetchFromHasura(GET_PARTNER_TABLES, { pid: partnerId });
   const rows: TableCandidate[] = res?.qr_codes ?? [];
   const storeName: string | null = res?.partners_by_pk?.store_name ?? null;
-  tablesCache.set(partnerId, { at: Date.now(), rows, storeName });
-  return { rows, storeName };
+  // Needed to turn the WhatsApp number into the LOCAL form the auto-login token
+  // keys on. The cached phone-number→partner row does not carry it, and this
+  // query already fetches the partner for store_name.
+  const countryCode: string | null = res?.partners_by_pk?.country_code ?? null;
+  tablesCache.set(partnerId, { at: Date.now(), rows, storeName, countryCode });
+  return { rows, storeName, countryCode };
 }
 
 function extractIncomingBody(msg: any): { type: string; body: string | null; mediaUrl: string | null } {
@@ -1138,13 +1143,22 @@ export async function POST(req: NextRequest) {
               let tableLabelOverride: string | undefined;
               if (flowInput.type === "text" && extractTableLabel(flowInput.normalized || "")) {
                 try {
-                  const { rows, storeName } = await getPartnerTablesCached(runPartnerId);
+                  const { rows, storeName, countryCode } = await getPartnerTablesCached(runPartnerId);
                   const m = matchTableCandidate(flowInput.normalized || "", rows);
                   if (m?.kind === "hit") {
                     orderLinkOverride = buildTableOrderLink(
                       WA_LINK_DOMAIN,
                       branch?.store_name ?? storeName,
                       m.table.id,
+                      {
+                        // Same identity the generic order link carries, so the
+                        // table order lands on the number that asked for it
+                        // rather than whoever the browser is signed in as.
+                        // toLocalPhone for the reason spelled out in
+                        // buildTableOrderLink: auto-login keys on the LOCAL number.
+                        partnerId: runPartnerId,
+                        phone: toLocalPhone(msg.from, countryCode) || null,
+                      },
                     );
                     // What the partner actually calls this table, falling back
                     // to "Table N" the same way every other surface does.

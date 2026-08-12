@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 
 type Theme = "orange" | "whatsapp";
 
@@ -20,15 +21,20 @@ const THEMES: Record<
   },
 };
 
-export default function StartFreeTrailSection({
-  heading = "Launch your delivery website in under 2 minutes.",
-  description = "Upload your menu, set up your delivery zones, and start taking orders directly from your customers with full Petpooja POS integration. Join 600+ restaurants already growing with Menuthere.",
+export default async function StartFreeTrailSection({
+  heading,
+  description,
   theme = "orange",
 }: {
   heading?: string;
   description?: string;
   theme?: Theme;
 } = {}) {
+  // Defaults moved off the parameter list: a default value is evaluated at
+  // module scope and cannot await the request locale.
+  const { t: copy } = await getT();
+  const resolvedHeading = heading ?? copy.landing.ctaBannerHeadingDefault;
+  const resolvedDescription = description ?? copy.landing.ctaBannerBodyDefault;
   const t = THEMES[theme];
 
   return (
@@ -40,21 +46,21 @@ export default function StartFreeTrailSection({
       <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 grid md:grid-cols-2">
         <div className="max-w-xl py-6 md:py-12">
           <h2 className="text-3xl md:text-4xl font-semibold text-white mb-4">
-            {heading}
+            {resolvedHeading}
           </h2>
-          <p className="text-white/70 mb-6">{description}</p>
+          <p className="text-white/70 mb-6">{resolvedDescription}</p>
           <div className="flex gap-3">
             <Link
               href="/get-started"
               className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition-colors duration-200 hover:bg-stone-800"
             >
-              Start for free
+              {copy.landing.ctaBannerPrimaryButton}
             </Link>
             <Link
               href="/pricing"
               className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium text-white border border-white/40 transition-colors duration-200 hover:bg-white/10"
             >
-              See all plans
+              {copy.landing.ctaBannerSecondaryButton}
             </Link>
           </div>
         </div>

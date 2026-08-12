@@ -248,27 +248,24 @@ const UsernamePage = async ({
     isDeliveryActive && isWithinTimeWindow(deliveryRules?.delivery_time_allowed, hotelTimezone);
   const initialTakeawayOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed, hotelTimezone);
 
-  // A valid WhatsApp order-link token that carries a user id silently logs that
-  // customer in (no OTP). The link is personal — issued to one customer's
-  // WhatsApp — so it runs when nobody is signed in OR when a DIFFERENT customer
-  // is signed in (it switches to the link's customer). A partner/superadmin
-  // session is never overridden, and an already-correct session is a no-op.
-  // The cookie can't be set during a server render, so a tiny client component
-  // does it via a server action, then refreshes.
-  // A valid token carries a customer either as a userId (legacy signed token) or
-  // an encrypted phone (resolved to a user id inside the auto-login action). For
-  // a phone token we can't compare against the current session at render time,
-  // so we attempt the auto-login and let the action no-op if it's already the
-  // same customer. A staff (non-user) session is never overridden.
+  // A valid WhatsApp order-link token carries a customer, either as a userId
+  // (legacy signed token) or an encrypted phone (resolved to a user id inside
+  // the auto-login action). The cookie can't be set during a server render, so a
+  // tiny client component does it via a server action, then refreshes.
+  //
+  // This gate only decides whether to MOUNT that component. Whether the session
+  // is actually switched — silently, after a confirmation, or not at all — lives
+  // entirely in autoLoginFromOrderToken, so this route and /qrScan cannot drift
+  // into two different security answers. Mounting is cheap and renders nothing
+  // unless there is something to do.
+  //
+  // Skipped only when we can already tell the session IS the link's customer (a
+  // legacy userId token); a phone token can't be compared at render time, so the
+  // action no-ops instead.
   const oltUserId = oltStatus?.valid ? oltStatus.userId : null;
   const oltCarriesCustomer = !!(oltStatus?.valid && (oltStatus.userId || oltStatus.phone));
   const autoLoginToken =
-    olt &&
-    oltCarriesCustomer &&
-    (!auth || auth.role === "user") &&
-    !(auth?.role === "user" && oltUserId && auth.id === oltUserId)
-      ? olt
-      : null;
+    olt && oltCarriesCustomer && !(oltUserId && auth?.id === oltUserId) ? olt : null;
 
   return (
     <>

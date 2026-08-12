@@ -30,181 +30,167 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { getT } from "@/lib/i18n/server";
 
 const CANONICAL = "https://menuthere.com/solutions/whatsapp-ordering";
 
 export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+
   return {
-    title:
-      "WhatsApp Ordering for Restaurants — Customers Just Send 'Hi' | Menuthere",
-    description:
-      "Turn your WhatsApp number into an ordering channel. Customers send 'Hi', get an instant auto-login link, order from your visual menu, and receive live status updates — no app download, no signup, zero commission.",
-    keywords:
-      "whatsapp ordering, whatsapp ordering system for restaurants, order on whatsapp, whatsapp business ordering, restaurant whatsapp menu, send hi to order, whatsapp food ordering, conversational ordering, zero commission ordering",
+    title: t.solutionsRest.whatsappOrdering.metaTitle,
+    description: t.solutionsRest.whatsappOrdering.metaDescription,
+    keywords: t.solutionsRest.whatsappOrdering.metaKeywords,
     alternates: { canonical: CANONICAL },
     openGraph: {
-      title: "WhatsApp Ordering — Customers Just Send 'Hi' | Menuthere",
-      description:
-        "The lowest-friction ordering channel for restaurants. Send 'Hi' → instant link → order on your menu → live WhatsApp updates. No app, no signup, zero commission.",
+      title: t.solutionsRest.whatsappOrdering.ogTitle,
+      description: t.solutionsRest.whatsappOrdering.ogDescription,
       type: "website",
       url: CANONICAL,
     },
   };
 }
 
-/* ------------------------------- page data -------------------------------- */
-
-const STEPS = [
-  {
-    n: "01",
-    icon: MessageCircle,
-    title: "Customer sends “Hi”",
-    body: "From a sticker, a table QR, your bio link or Google profile, the customer taps to WhatsApp and sends Hi to your number. No app to download, no form to fill.",
-  },
-  {
-    n: "02",
-    icon: Zap,
-    title: "They get an instant Order Now link",
-    body: "Your number replies in a second with a tappable Order Now button. The link signs them in automatically — no OTP, no password, no account creation.",
-  },
-  {
-    n: "03",
-    icon: MousePointerClick,
-    title: "They order on your visual menu",
-    body: "The link opens your branded web menu — already logged in. They browse photos, add to cart, pick UPI or cash, and place the order in a few taps.",
-  },
-  {
-    n: "04",
-    icon: Bell,
-    title: "Updates flow back on WhatsApp",
-    body: "Order received, accepted, food ready, out for delivery with a live tracking link, delivered — plus loyalty points. Every update lands right in the chat.",
-  },
-];
-
-const FEATURES = [
-  {
-    icon: Smartphone,
-    title: "No app, no signup",
-    body: "Works on any phone that has WhatsApp. Sending “Hi” silently creates and recognises the customer, so they never hit a login wall.",
-  },
-  {
-    icon: BadgeCheck,
-    title: "Your own branded number",
-    body: "Connect your real WhatsApp Business number in minutes via Meta — even the one you already use. Or go live instantly on our shared number.",
-  },
-  {
-    icon: Globe,
-    title: "Custom-domain order links",
-    body: "Order links can run on your own domain (yourbrand.com), not a generic third-party URL — so every touchpoint stays on your brand.",
-  },
-  {
-    icon: Bell,
-    title: "Automated status updates",
-    body: "Placed with full bill, accepted, ready, dispatched with a live tracking map link, completed and loyalty points — all sent automatically.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Secure single-use links",
-    body: "Every link is signed, expires in minutes and locks to the first opener — a forwarded link can never hijack someone’s logged-in session.",
-  },
-  {
-    icon: Sparkles,
-    title: "No-code message flows",
-    body: "Your welcome and order messages are editable flows with keyword triggers, buttons and media — change the copy without touching code.",
-  },
-  {
-    icon: Inbox,
-    title: "Unified WhatsApp inbox",
-    body: "Every inbound and outbound message is saved and viewable in your dashboard, so nothing slips through during a rush.",
-  },
-  {
-    icon: BarChart3,
-    title: "Channel-tagged analytics",
-    body: "Orders placed over WhatsApp are tagged automatically. See App vs Website vs WhatsApp order counts and revenue side by side.",
-  },
-];
-
-const COMPARISON = [
-  {
-    label: "Commission per order",
-    us: { v: "0%", good: true },
-    aggregator: { v: "20–33%", good: false },
-    chatbot: { v: "Monthly fee + per-msg", good: false },
-  },
-  {
-    label: "App download required",
-    us: { v: "Never", good: true },
-    aggregator: { v: "Yes", good: false },
-    chatbot: { v: "No", good: true },
-  },
-  {
-    label: "Customer login / OTP",
-    us: { v: "Auto — none", good: true },
-    aggregator: { v: "Account + OTP", good: false },
-    chatbot: { v: "Usually required", good: false },
-  },
-  {
-    label: "Ordering experience",
-    us: { v: "Full visual menu, photos", good: true },
-    aggregator: { v: "Inside their app", good: false },
-    chatbot: { v: "Type items in chat", good: false },
-  },
-  {
-    label: "Sends from your own number",
-    us: { v: "Yes", good: true },
-    aggregator: { v: "No", good: false },
-    chatbot: { v: "Sometimes", good: true },
-  },
-  {
-    label: "Live order + delivery tracking",
-    us: { v: "On WhatsApp", good: true },
-    aggregator: { v: "In their app", good: false },
-    chatbot: { v: "Rarely", good: false },
-  },
-  {
-    label: "You own the customer data",
-    us: { v: "Yes, fully", good: true },
-    aggregator: { v: "No", good: false },
-    chatbot: { v: "Partial", good: false },
-  },
-  {
-    label: "Setup time",
-    us: { v: "Minutes", good: true },
-    aggregator: { v: "Weeks of onboarding", good: false },
-    chatbot: { v: "Days + scripting", good: false },
-  },
-];
-
-const FAQ = [
-  {
-    q: "Do my customers need to install anything?",
-    a: "No. As long as they have WhatsApp, they can order. They send “Hi”, tap the Order Now link and they’re on your menu — already signed in. There is no app to download and no account to create.",
-  },
-  {
-    q: "Does the customer type their order inside the chat?",
-    a: "No — and that’s the point. WhatsApp is the front door, not the checkout. The “Hi” gets them an instant link to your real visual menu with photos, categories and search, so ordering is fast and mistakes are rare. Status updates then come back on WhatsApp.",
-  },
-  {
-    q: "Can it send from my own WhatsApp number?",
-    a: "Yes. You can connect your own WhatsApp Business number through Meta’s official onboarding in a few minutes — including a number you already use on the WhatsApp Business app. Prefer zero setup? Go live instantly on our shared number and switch later.",
-  },
-  {
-    q: "Is the ordering link safe to share?",
-    a: "Each link is cryptographically signed, expires in minutes and locks to the first person who opens it. If someone forwards it, it simply won’t work for anyone else — so a logged-in session can never leak.",
-  },
-  {
-    q: "What does the customer receive after ordering?",
-    a: "Automatic WhatsApp messages for every stage: order received with the full bill, accepted, food ready, out for delivery with a live tracking link, completed, and loyalty points earned (if you run loyalty).",
-  },
-  {
-    q: "How much commission does Menuthere take?",
-    a: "Zero commission on orders. WhatsApp ordering is part of your own direct channel — you keep 100% of every order value, and payments settle straight to your bank.",
-  },
-];
-
 /* --------------------------------- page ----------------------------------- */
 
-export default function WhatsAppOrderingPage() {
+export default async function WhatsAppOrderingPage() {
+  const { t } = await getT();
+  const c = t.solutionsRest.whatsappOrdering;
+  const shared = t.solutionsRest.shared;
+
+  /* ------------------------------ page data ------------------------------- */
+  // Copy lives in the dictionary, so these lists are built inside the
+  // component — a module-level const cannot read the request's locale.
+  const STEPS = [
+    {
+      n: "01",
+      icon: MessageCircle,
+      title: c.step1Title,
+      body: c.step1Body,
+    },
+    {
+      n: "02",
+      icon: Zap,
+      title: c.step2Title,
+      body: c.step2Body,
+    },
+    {
+      n: "03",
+      icon: MousePointerClick,
+      title: c.step3Title,
+      body: c.step3Body,
+    },
+    {
+      n: "04",
+      icon: Bell,
+      title: c.step4Title,
+      body: c.step4Body,
+    },
+  ];
+
+  const FEATURES = [
+    {
+      icon: Smartphone,
+      title: c.feature1Title,
+      body: c.feature1Body,
+    },
+    {
+      icon: BadgeCheck,
+      title: c.feature2Title,
+      body: c.feature2Body,
+    },
+    {
+      icon: Globe,
+      title: c.feature3Title,
+      body: c.feature3Body,
+    },
+    {
+      icon: Bell,
+      title: c.feature4Title,
+      body: c.feature4Body,
+    },
+    {
+      icon: ShieldCheck,
+      title: c.feature5Title,
+      body: c.feature5Body,
+    },
+    {
+      icon: Sparkles,
+      title: c.feature6Title,
+      body: c.feature6Body,
+    },
+    {
+      icon: Inbox,
+      title: c.feature7Title,
+      body: c.feature7Body,
+    },
+    {
+      icon: BarChart3,
+      title: c.feature8Title,
+      body: c.feature8Body,
+    },
+  ];
+
+  const COMPARISON = [
+    {
+      label: c.comparisonRow1Label,
+      us: { v: shared.zeroPercentValue, good: true },
+      aggregator: { v: c.comparisonRow1Aggregator, good: false },
+      chatbot: { v: c.comparisonRow1Chatbot, good: false },
+    },
+    {
+      label: c.comparisonRow2Label,
+      us: { v: c.comparisonRow2Us, good: true },
+      aggregator: { v: c.comparisonValueYes, good: false },
+      chatbot: { v: c.comparisonValueNo, good: true },
+    },
+    {
+      label: c.comparisonRow3Label,
+      us: { v: c.comparisonRow3Us, good: true },
+      aggregator: { v: c.comparisonRow3Aggregator, good: false },
+      chatbot: { v: c.comparisonRow3Chatbot, good: false },
+    },
+    {
+      label: c.comparisonRow4Label,
+      us: { v: c.comparisonRow4Us, good: true },
+      aggregator: { v: c.comparisonRow4Aggregator, good: false },
+      chatbot: { v: c.comparisonRow4Chatbot, good: false },
+    },
+    {
+      label: c.comparisonRow5Label,
+      us: { v: c.comparisonValueYes, good: true },
+      aggregator: { v: c.comparisonValueNo, good: false },
+      chatbot: { v: c.comparisonRow5Chatbot, good: true },
+    },
+    {
+      label: c.comparisonRow6Label,
+      us: { v: c.comparisonRow6Us, good: true },
+      aggregator: { v: c.comparisonRow6Aggregator, good: false },
+      chatbot: { v: c.comparisonRow6Chatbot, good: false },
+    },
+    {
+      label: c.comparisonRow7Label,
+      us: { v: c.comparisonRow7Us, good: true },
+      aggregator: { v: c.comparisonValueNo, good: false },
+      chatbot: { v: c.comparisonRow7Chatbot, good: false },
+    },
+    {
+      label: c.comparisonRow8Label,
+      us: { v: c.comparisonRow8Us, good: true },
+      aggregator: { v: c.comparisonRow8Aggregator, good: false },
+      chatbot: { v: c.comparisonRow8Chatbot, good: false },
+    },
+  ];
+
+  const FAQ = [
+    { q: c.faq1Question, a: c.faq1Answer },
+    { q: c.faq2Question, a: c.faq2Answer },
+    { q: c.faq3Question, a: c.faq3Answer },
+    { q: c.faq4Question, a: c.faq4Answer },
+    { q: c.faq5Question, a: c.faq5Answer },
+    { q: c.faq6Question, a: c.faq6Answer },
+  ];
+
   const faqLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -218,12 +204,11 @@ export default function WhatsAppOrderingPage() {
   const productLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Menuthere WhatsApp Ordering",
+    name: c.structuredDataProductName,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web, WhatsApp",
     offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
-    description:
-      "WhatsApp ordering system for restaurants. Customers send 'Hi' to get an instant auto-login link, order from a visual web menu, and receive live order-status updates on WhatsApp.",
+    description: c.structuredDataProductDescription,
     url: CANONICAL,
   };
 
@@ -246,35 +231,31 @@ export default function WhatsAppOrderingPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#25D366]/30 bg-white px-3 py-1 text-[11.5px] font-semibold uppercase tracking-[0.07em] text-[#0f9d58] shadow-sm">
               <MessageCircle className="h-3.5 w-3.5" />
-              WhatsApp Ordering
+              {c.heroBadge}
               <span className="ml-1 rounded bg-[#25D366] px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
-                NEW
+                {c.heroBadgeNew}
               </span>
             </div>
 
             <h1 className="mt-6 text-4xl font-semibold leading-[1.05] tracking-tight text-stone-900 md:text-[3.4rem]">
-              Your customers order by{" "}
-              <span className="text-[#0f9d58]">just sending “Hi.”</span>
+              {c.heroTitle}
             </h1>
 
             <p className="mt-6 max-w-[520px] text-[16px] leading-relaxed text-stone-600">
-              Turn your WhatsApp number into your easiest ordering channel. A
-              single “Hi” gives every customer an instant, auto-login link to
-              your menu — no app to install, no signup, no OTP. You keep the
-              customer and pay zero commission.
+              {c.heroSubtitle}
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <ButtonV2 href="/get-started" variant="primary">
-                Get Started Free
+                {c.primaryCta}
               </ButtonV2>
               <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
-                Book a Demo
+                {shared.bookDemoCta}
               </ButtonV2>
             </div>
 
             <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2.5 text-[13.5px] font-medium text-stone-600">
-              {["No app download", "No signup or OTP", "0% commission"].map(
+              {[c.heroTrust1, c.heroTrust2, c.heroTrust3].map(
                 (b) => (
                   <span key={b} className="inline-flex items-center gap-1.5">
                     <span className="inline-grid h-4 w-4 place-items-center rounded-full bg-[#25D366]/15 text-[#0f9d58]">
@@ -300,12 +281,10 @@ export default function WhatsAppOrderingPage() {
       <section className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-24 lg:px-12">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
-            Send “Hi.” <span className="text-stone-500">That’s the funnel.</span>
+            {c.stepsHeading}
           </h2>
           <p className="mt-4 text-base leading-relaxed text-stone-500">
-            The biggest reason carts get abandoned is friction — downloads,
-            signups, passwords. WhatsApp ordering removes all of it. Four steps,
-            and the customer never leaves a channel they already trust.
+            {c.stepsSubheading}
           </p>
         </div>
 
@@ -338,12 +317,10 @@ export default function WhatsAppOrderingPage() {
       <section className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-24 lg:px-12">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
-            Built to convert,{" "}
-            <span className="text-stone-500">not just to chat.</span>
+            {c.featuresHeading}
           </h2>
           <p className="mt-4 text-base leading-relaxed text-stone-500">
-            Everything you need to run ordering over WhatsApp like a pro — on
-            your brand, on your terms.
+            {c.featuresSubheading}
           </p>
         </div>
 
@@ -375,27 +352,25 @@ export default function WhatsAppOrderingPage() {
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
             <div>
               <h2 className="text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
-                Count the taps.{" "}
-                <span className="text-stone-500">Customers do.</span>
+                {c.frictionHeading}
               </h2>
               <p className="mt-4 max-w-md text-base leading-relaxed text-stone-500">
-                Every extra step between hungry and ordered is a customer you
-                lose. Here’s the same order, two ways.
+                {c.frictionSubheading}
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="rounded-2xl border border-stone-200 bg-white p-5">
                 <p className="text-[12px] font-semibold uppercase tracking-wider text-stone-400">
-                  Aggregator app
+                  {c.frictionAggregatorLabel}
                 </p>
                 <ol className="mt-3 space-y-2 text-[13.5px] text-stone-500">
                   {[
-                    "Install the app",
-                    "Sign up + verify OTP",
-                    "Search for your restaurant",
-                    "Order (they pay 20–33%)",
-                    "You never see the customer",
+                    c.frictionAggregatorStep1,
+                    c.frictionAggregatorStep2,
+                    c.frictionAggregatorStep3,
+                    c.frictionAggregatorStep4,
+                    c.frictionAggregatorStep5,
                   ].map((t, i) => (
                     <li key={t} className="flex items-start gap-2">
                       <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-stone-100 text-[10px] font-bold text-stone-400">
@@ -409,13 +384,13 @@ export default function WhatsAppOrderingPage() {
 
               <div className="rounded-2xl border-2 border-[#25D366]/40 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(37,211,102,0.6)]">
                 <p className="text-[12px] font-semibold uppercase tracking-wider text-[#0f9d58]">
-                  WhatsApp ordering
+                  {c.frictionWhatsappLabel}
                 </p>
                 <ol className="mt-3 space-y-2 text-[13.5px] text-stone-700">
                   {[
-                    "Send “Hi”",
-                    "Tap Order Now (auto signed-in)",
-                    "Order on your menu",
+                    c.frictionWhatsappStep1,
+                    c.frictionWhatsappStep2,
+                    c.frictionWhatsappStep3,
                   ].map((t, i) => (
                     <li key={t} className="flex items-start gap-2">
                       <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-[#25D366]/15 text-[#0f9d58]">
@@ -426,7 +401,7 @@ export default function WhatsAppOrderingPage() {
                   ))}
                 </ol>
                 <p className="mt-4 rounded-lg bg-[#25D366]/10 px-3 py-2 text-[12.5px] font-semibold text-[#0f9d58]">
-                  100% of the order value stays with you.
+                  {c.frictionHighlight}
                 </p>
               </div>
             </div>
@@ -440,11 +415,10 @@ export default function WhatsAppOrderingPage() {
       <section className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-24 lg:px-12">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
-            How it stacks up.
+            {c.comparisonHeading}
           </h2>
           <p className="mt-4 text-base leading-relaxed text-stone-500">
-            Menuthere WhatsApp ordering vs. food aggregators vs. generic
-            “chatbot” ordering tools.
+            {c.comparisonSubheading}
           </p>
         </div>
 
@@ -462,10 +436,10 @@ export default function WhatsAppOrderingPage() {
                   </span>
                 </th>
                 <th className="w-[24%] px-4 py-4 text-[14px] font-semibold text-stone-500">
-                  Food aggregators
+                  {c.comparisonColAggregators}
                 </th>
                 <th className="w-[24%] px-4 py-4 text-[14px] font-semibold text-stone-500">
-                  Generic chatbots
+                  {c.comparisonColChatbots}
                 </th>
               </tr>
             </thead>
@@ -496,18 +470,18 @@ export default function WhatsAppOrderingPage() {
           {[
             {
               icon: Zap,
-              stat: "≈ 10 sec",
-              label: "From “Hi” to a live ordering link in the customer’s hand.",
+              stat: c.outcome1Value,
+              label: c.outcome1Label,
             },
             {
               icon: IndianRupee,
-              stat: "0%",
-              label: "Commission. Every rupee of the order value stays yours.",
+              stat: shared.zeroPercentValue,
+              label: c.outcome2Label,
             },
             {
               icon: Truck,
-              stat: "End-to-end",
-              label: "Placed → accepted → out for delivery → tracked, all on WhatsApp.",
+              stat: c.outcome3Value,
+              label: c.outcome3Label,
             },
           ].map((o) => (
             <div
@@ -531,7 +505,7 @@ export default function WhatsAppOrderingPage() {
       {/* ─────────────────────────── FAQ ─────────────────────────── */}
       <section className="mx-auto max-w-3xl px-6 py-16 md:py-24">
         <h2 className="text-center text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
-          Questions, answered.
+          {c.faqHeading}
         </h2>
         <Accordion type="single" collapsible className="mt-10 w-full">
           {FAQ.map((f, i) => (
@@ -547,18 +521,16 @@ export default function WhatsAppOrderingPage() {
         </Accordion>
 
         <div className="mt-12 flex flex-col items-center gap-3 text-center">
-          <p className="text-[15px] text-stone-500">
-            Ready to let customers order with a single “Hi”?
-          </p>
+          <p className="text-[15px] text-stone-500">{c.faqCtaPrompt}</p>
           <div className="flex items-center gap-3">
             <ButtonV2 href="/get-started" variant="primary">
-              Get Started Free
+              {c.primaryCta}
             </ButtonV2>
             <Link
               href="/solutions/petpooja"
               className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-600 hover:text-stone-900"
             >
-              Explore zero-commission ordering
+              {c.faqSecondaryLink}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -567,8 +539,8 @@ export default function WhatsAppOrderingPage() {
 
       <StartFreeTrailSection
         theme="whatsapp"
-        heading="Launch your WhatsApp ordering system in under 2 minutes."
-        description="Connect your WhatsApp number, upload your menu, and let customers order with a single “Hi” — auto-login link, live status updates, and zero commission. Join 600+ restaurants already growing with Menuthere."
+        heading={c.trialHeading}
+        description={c.trialDescription}
       />
       <Footer appName="Menuthere" />
       <WhatsAppButton />

@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
+import { interpolate } from "@/lib/i18n/dictionaries";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
@@ -1169,8 +1171,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  const { t } = await getT();
   const solution = SOLUTIONS_DATA[slug];
-  if (!solution) return { title: "Solution Not Found" };
+  if (!solution) return { title: t.solutionsSlug.notFoundMetaTitle };
 
   return {
     title: solution.metaTitle,
@@ -1191,6 +1194,7 @@ export default async function SolutionPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const { t } = await getT();
   const solution = SOLUTIONS_DATA[slug];
 
   if (!solution) {
@@ -1206,13 +1210,13 @@ export default async function SolutionPage({
       {
         "@type": "ListItem",
         position: 1,
-        name: "Home",
+        name: t.solutionsSlug.breadcrumbHome,
         item: "https://menuthere.com",
       },
       {
         "@type": "ListItem",
         position: 2,
-        name: "Solutions",
+        name: t.solutionsSlug.breadcrumbSolutions,
         item: "https://menuthere.com/solutions",
       },
       {
@@ -1243,10 +1247,10 @@ export default async function SolutionPage({
           </p>
           <div className="flex items-center gap-3 mt-8 justify-center">
             <ButtonV2 href="/get-started" variant="primary">
-              Get Started Free
+              {t.solutionsSlug.heroPrimaryCta}
             </ButtonV2>
             <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
-              Book a Demo
+              {t.solutionsSlug.heroSecondaryCta}
             </ButtonV2>
           </div>
         </div>
@@ -1292,13 +1296,17 @@ export default async function SolutionPage({
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            Why choose Menuthere{" "}
+            {t.solutionsSlug.benefitsHeadingLead}{" "}
             <span className="text-stone-500">
-              for {solution.title.split(" for ")[1]?.toLowerCase() || "your business"}?
+              {interpolate(t.solutionsSlug.benefitsHeadingIndustry, {
+                industry:
+                  solution.title.split(" for ")[1]?.toLowerCase() ||
+                  t.solutionsSlug.benefitsHeadingIndustryFallback,
+              })}
             </span>
           </h2>
           <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
-            Purpose-built features designed specifically for your industry.
+            {t.solutionsSlug.benefitsSubheading}
           </p>
         </div>
 
@@ -1330,12 +1338,13 @@ export default async function SolutionPage({
         <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
           <div>
             <h2 className="geist-font font-semibold text-2xl md:text-3xl text-stone-900 leading-tight mb-4">
-              Everything you need{" "}
-              <span className="text-stone-500">to succeed.</span>
+              {t.solutionsSlug.featuresHeadingLead}{" "}
+              <span className="text-stone-500">
+                {t.solutionsSlug.featuresHeadingEmphasis}
+              </span>
             </h2>
             <p className="text-base text-stone-500 mb-8 leading-relaxed">
-              A comprehensive toolkit designed to modernize your menu and
-              delight your customers.
+              {t.solutionsSlug.featuresSubheading}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {solution.features.map((feature, idx) => (
@@ -1348,16 +1357,17 @@ export default async function SolutionPage({
           </div>
           <div className="bg-orange-600 rounded-2xl p-8 text-white">
             <IconComponent className="w-12 h-12 mb-6 opacity-80" />
-            <h3 className="text-xl font-semibold mb-3">Ready to get started?</h3>
+            <h3 className="text-xl font-semibold mb-3">
+              {t.solutionsSlug.featuresCtaCardHeading}
+            </h3>
             <p className="text-white/80 mb-6">
-              Join thousands of businesses already using Menuthere to
-              transform their menu experience.
+              {t.solutionsSlug.featuresCtaCardBody}
             </p>
             <Link
               href="/get-started"
               className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium bg-white text-stone-900 rounded-full hover:bg-stone-100 transition-colors"
             >
-              Start Free Trial
+              {t.solutionsSlug.featuresCtaCardButton}
             </Link>
           </div>
         </div>
@@ -1370,9 +1380,13 @@ export default async function SolutionPage({
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12">
-            Perfect for every type{" "}
+            {t.solutionsSlug.useCasesHeadingLead}{" "}
             <span className="text-stone-500">
-              of {solution.title.split(" for ")[1]?.split(" ")[0]?.toLowerCase() || "business"}.
+              {interpolate(t.solutionsSlug.useCasesHeadingIndustry, {
+                industry:
+                  solution.title.split(" for ")[1]?.split(" ")[0]?.toLowerCase() ||
+                  t.solutionsSlug.useCasesHeadingIndustryFallback,
+              })}
             </span>
           </h2>
 
@@ -1427,8 +1441,10 @@ export default async function SolutionPage({
         <div className="max-w-3xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
-              Frequently asked{" "}
-              <span className="text-gray-400 italic">questions.</span>
+              {t.solutionsSlug.faqHeadingLead}{" "}
+              <span className="text-gray-400 italic">
+                {t.solutionsSlug.faqHeadingEmphasis}
+              </span>
             </h2>
           </div>
 

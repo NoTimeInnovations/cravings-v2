@@ -30,9 +30,7 @@ export default function Footer({
               />
             </Link>
             <p className="text-sm text-white/80 max-w-xs leading-relaxed">
-              The all-in-one online ordering and delivery platform for
-              restaurants. Launch your own website, skip aggregator commissions,
-              and grow your business.
+              {t.footerLinks.brandBlurb}
             </p>
           </div>
 
@@ -45,7 +43,7 @@ export default function Footer({
                   href="/solutions/google-business"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Google Business Sync
+                  {t.footerLinks.solutionsGoogleBusinessSync}
                 </Link>
               </li>
               <li>
@@ -53,7 +51,7 @@ export default function Footer({
                   href="/solutions/owners"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Owners
+                  {t.footerLinks.solutionsOwners}
                 </Link>
               </li>
               <li>
@@ -61,7 +59,7 @@ export default function Footer({
                   href="/solutions/agencies"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Agencies
+                  {t.footerLinks.solutionsAgencies}
                 </Link>
               </li>
               <li>
@@ -69,7 +67,7 @@ export default function Footer({
                   href="/solutions/petpooja"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  PetPooja Integration
+                  {t.footerLinks.solutionsPetpoojaIntegration}
                 </Link>
               </li>
               <li>
@@ -77,7 +75,7 @@ export default function Footer({
                   href="/solutions/restaurants"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Restaurants
+                  {t.footerLinks.solutionsRestaurants}
                 </Link>
               </li>
               <li>
@@ -85,7 +83,7 @@ export default function Footer({
                   href="/solutions/cafes"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Cafés
+                  {t.footerLinks.solutionsCafes}
                 </Link>
               </li>
             </ul>
@@ -100,7 +98,7 @@ export default function Footer({
                   href="/help-center"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Help Center
+                  {t.footerLinks.resourcesHelpCenter}
                 </Link>
               </li>
               <li>
@@ -108,7 +106,7 @@ export default function Footer({
                   href="/download-app"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Download App
+                  {t.footerLinks.resourcesDownloadApp}
                 </Link>
               </li>
               {/* TEMPORARILY HIDDEN for iOS App Store review (Guideline 3.1.1 - IAP). Re-enable after approval. */}
@@ -125,7 +123,7 @@ export default function Footer({
                   href="/get-started"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Get Started
+                  {t.footerLinks.resourcesGetStarted}
                 </Link>
               </li>
             </ul>
@@ -140,7 +138,7 @@ export default function Footer({
                   href="/privacy-policy"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Privacy Policy
+                  {t.footerLinks.legalPrivacyPolicy}
                 </Link>
               </li>
               <li>
@@ -148,7 +146,7 @@ export default function Footer({
                   href="/terms-and-conditions"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Terms of Service
+                  {t.footerLinks.legalTermsOfService}
                 </Link>
               </li>
               <li>
@@ -156,7 +154,7 @@ export default function Footer({
                   href="/refund-policy"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
-                  Refund Policy
+                  {t.footerLinks.legalRefundPolicy}
                 </Link>
               </li>
             </ul>
@@ -166,7 +164,7 @@ export default function Footer({
         {/* Bottom Bar */}
         <div className="pt-6 border-t border-white/20 flex flex-col md:flex-row justify-between items-center gap-4">
           <span className="text-xs text-white/80">
-            &copy; 2026 Menuthere. {t.footer.rights}
+            {t.footerLinks.copyright} {t.footer.rights}
           </span>
 
           <div className="flex items-center gap-4">

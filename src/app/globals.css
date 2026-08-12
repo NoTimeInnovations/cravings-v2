@@ -726,6 +726,31 @@ html[lang="hi"] * {
   text-transform: none !important;
 }
 
+/* Additional scripts. Same reasoning as Devanagari/Arabic above: the Latin
+   display families have no glyphs for these, so without an explicit stack the
+   text silently falls back to whatever the OS happens to ship. */
+html[lang="ml"], html[lang="ml"] body { font-family: var(--font-malayalam), var(--font-inter), system-ui, sans-serif; }
+html[lang="ta"], html[lang="ta"] body { font-family: var(--font-tamil), var(--font-inter), system-ui, sans-serif; }
+html[lang="bn"], html[lang="bn"] body { font-family: var(--font-bengali), var(--font-inter), system-ui, sans-serif; }
+/* Real system CJK faces come FIRST after the webfont: next/font cannot
+   guarantee Han coverage for Noto Sans SC (no selectable Han subset), so the
+   system stack is what actually guarantees Chinese renders. */
+html[lang="zh"], html[lang="zh"] body { font-family: var(--font-cjk), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", var(--font-inter), system-ui, sans-serif; }
+/* Urdu is written in the Arabic script, so it reuses that face. */
+html[lang="ur"], html[lang="ur"] body { font-family: var(--font-arabic), var(--font-inter), system-ui, sans-serif; }
+
+html[lang="ml"] :is(h1,h2,h3,h4,h5,h6), html[lang="ml"] .font-bricolage { font-family: var(--font-malayalam), sans-serif; }
+html[lang="ta"] :is(h1,h2,h3,h4,h5,h6), html[lang="ta"] .font-bricolage { font-family: var(--font-tamil), sans-serif; }
+html[lang="bn"] :is(h1,h2,h3,h4,h5,h6), html[lang="bn"] .font-bricolage { font-family: var(--font-bengali), sans-serif; }
+html[lang="zh"] :is(h1,h2,h3,h4,h5,h6), html[lang="zh"] .font-bricolage { font-family: var(--font-cjk), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+html[lang="ur"] :is(h1,h2,h3,h4,h5,h6), html[lang="ur"] .font-bricolage { font-family: var(--font-arabic), sans-serif; }
+
+/* Urdu joins cursively exactly as Arabic does, and none of these scripts have
+   letter case — so the same tracking/uppercase overrides must cover them. */
+html[lang="ur"] * { letter-spacing: normal !important; }
+html[lang="ml"] *, html[lang="ta"] *, html[lang="bn"] *, html[lang="ur"] *, html[lang="zh"] * { text-transform: none !important; }
+
+
 /* Mirror decorative arrows/chevrons that point "forward" in reading order. */
 html[dir="rtl"] .rtl-flip {
   transform: scaleX(-1);
