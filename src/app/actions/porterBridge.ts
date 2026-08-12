@@ -28,6 +28,7 @@ import {
   mergeDispatchIds,
   type DispatchHistoryRow,
 } from "@/lib/dispatchHistory";
+import { reportRiderToPetpooja } from "@/app/actions/petpoojaRider";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Config + transport
@@ -1084,6 +1085,10 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
   let storedState: string | null = null;
   let storedPickupPin: string | null = null;
   let storedDropPin: string | null = null;
+  // Which rider Petpooja has already been told about, keyed by phone. This
+  // function is polled by the admin rider panel, so without it every poll would
+  // re-report the same rider.
+  let ppReportedRiderPhone: string | null = null;
   try {
     const data = await fetchFromHasura(
       `query GetDispatchProg($id: uuid!) { orders_by_pk(id: $id) { delivery_provider_state delivery_provider_meta } }`,
@@ -1097,6 +1102,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
     storedState = data.orders_by_pk?.delivery_provider_state ?? null;
     storedPickupPin = meta?.pickupPin ?? null;
     storedDropPin = meta?.dropPin ?? null;
+    ppReportedRiderPhone = meta?.ppReportedRiderPhone ?? null;
   } catch (err) {
     return { ok: false, message: `hasura: ${(err as Error).message}` };
   }
@@ -1227,6 +1233,25 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
   if (dropPin && dropPin !== storedDropPin) pinMeta.dropPin = dropPin;
   if (Object.keys(pinMeta).length > 0) {
     await appendDispatchMeta(orderId, pinMeta);
+  }
+
+  // Tell Petpooja who won the booking. The bridge assigns a rider asynchronously,
+  // so this is the first place the name and number are known — and because the
+  // panel polls this function, the report is keyed on the rider's phone: the poll
+  // that first sees a driver sends it, later polls don't, and a re-dispatch to a
+  // DIFFERENT rider sends again. The marker is only written once Petpooja has
+  // actually accepted, so a failure retries on the next poll.
+  const bridgeRiderName = d.result?.driverName ?? d.booking?.driver?.name ?? null;
+  const bridgeRiderPhone = d.booking?.driver?.phone ?? null;
+  if (bridgeRiderName && bridgeRiderPhone && bridgeRiderPhone !== ppReportedRiderPhone) {
+    void reportRiderToPetpooja({
+      orderId,
+      status: "assigned",
+      riderName: bridgeRiderName,
+      riderPhone: bridgeRiderPhone,
+    }).then((r) => {
+      if (r.ok) void appendDispatchMeta(orderId, { ppReportedRiderPhone: bridgeRiderPhone });
+    });
   }
 
   return {

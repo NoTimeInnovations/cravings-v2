@@ -15,6 +15,7 @@ import {
   getActiveDeliveryBoysQuery,
   assignDeliveryBoyMutation,
 } from "@/api/deliveryBoys";
+import { reportRiderToPetpooja } from "@/app/actions/petpoojaRider";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { Order } from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
@@ -172,6 +173,19 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
 
       // Update local order state
       const assignedBoy = deliveryBoys.find((b) => b.id === selectedId);
+
+      // Tell Petpooja who is carrying it. Their POS only learns rider details
+      // for its OWN self-delivery orders, so a driver assigned here is otherwise
+      // invisible to the restaurant. Fire-and-forget: the assignment already
+      // succeeded and must not be undone by a POS hiccup.
+      if (assignedBoy) {
+        void reportRiderToPetpooja({
+          orderId: order.id,
+          status: "assigned",
+          riderName: assignedBoy.name,
+          riderPhone: assignedBoy.phone,
+        });
+      }
       const updatedOrders = orders.map((o) =>
         o.id === order.id
           ? {

@@ -14,6 +14,7 @@ import {
   getActiveDeliveryBoysQuery,
   assignDeliveryBoyMutation,
 } from "@/api/deliveryBoys";
+import { reportRiderToPetpooja } from "@/app/actions/petpoojaRider";
 import { Partner, useAuthStore } from "@/store/authStore";
 import useOrderStore, { Order } from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
@@ -115,6 +116,18 @@ export function AssignDriverDialog({
       }
 
       const boy = drivers.find((d) => d.id === selectedId);
+
+      // Tell Petpooja who is carrying it — see DeliveryBoyAssignment. Their POS
+      // only learns rider details for its own self-delivery orders.
+      if (boy) {
+        void reportRiderToPetpooja({
+          orderId: order.id,
+          status: "assigned",
+          riderName: boy.name,
+          riderPhone: boy.phone,
+        });
+      }
+
       setOrders(
         orders.map((o) =>
           o.id === order.id
