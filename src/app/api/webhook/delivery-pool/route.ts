@@ -132,6 +132,26 @@ export async function POST(req: NextRequest) {
         await awardLoyaltyForOrder(completedOrderId);
       }
     }
+    // Tell Petpooja who is carrying the order. Their POS otherwise has to poll
+    // for delivery progress, and for a pool order the restaurant has no other
+    // way to learn the rider's name or number. Routed through pp_menu_insert
+    // because the Petpooja credentials live there, and fire-and-forget: a POS
+    // that misses a rider update is degraded, not broken.
+    const riderOrderId =
+      sourceId && UUID_RE.test(sourceId) ? sourceId : null;
+    if (riderOrderId && payload.rider_name && process.env.NEXT_PUBLIC_PETPOOJA_BACKEND_URL) {
+      void fetch(`${process.env.NEXT_PUBLIC_PETPOOJA_BACKEND_URL}/api/webhook/rider-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: riderOrderId,
+          status: payload.status,          // pool vocabulary; mapped on that side
+          rider_name: payload.rider_name,
+          rider_phone: payload.rider_phone ?? null,
+        }),
+      }).catch((e) => console.warn("[delivery-pool-webhook] rider-status relay failed:", e));
+    }
+
     // Persist the assigned rider's contact so the order UIs can show a rider card.
     if (payload.rider_name) {
       const riderMeta = {
