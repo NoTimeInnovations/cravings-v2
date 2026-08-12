@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { EXCLUDED_PARTNER_IDS } from "../_excluded";
+import { getBlockedPartnerIds } from "../_blocklist";
 
 /**
  * Partner signups over time — how many restaurants have *joined* (partners.
@@ -121,10 +122,13 @@ export async function GET(req: NextRequest) {
     const prevTo = addDays(from, -1);
     const prevFrom = addDays(from, -days);
 
+    const blocked = await getBlockedPartnerIds();
+    const excluded = Array.from(new Set([...EXCLUDED_PARTNER_IDS, ...blocked]));
+
     const now = Date.now();
     const iso = (ms: number) => new Date(now - ms).toISOString();
     const vars = {
-      excluded: EXCLUDED_PARTNER_IDS,
+      excluded,
       rangeSince: istStart(prevFrom), // fetch prev period too, for the trend
       rangeUntil: istEnd(to),
       h24: iso(24 * HOUR_MS),

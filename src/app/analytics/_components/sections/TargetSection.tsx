@@ -45,6 +45,9 @@ import {
   Pencil,
   Sparkles,
   CalendarRange,
+  Ban,
+  ShieldBan,
+  Undo2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,6 +69,7 @@ import type {
   WatchlistEntry,
   WatchlistStatus,
   SignupsResponse,
+  BlocklistEntry,
 } from "../types";
 import { toast } from "sonner";
 
@@ -96,8 +100,6 @@ const STATUS_ORDER: WatchlistStatus[] = ["paid", "free_trial"];
 // ---------------------------------------------------------------- utils
 const nf = (n: number) => Math.round(n).toLocaleString("en-IN");
 const inr = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
-// signup rates: show one decimal when small, whole numbers once ≥ 10
-const fmtRate = (n: number) => (n >= 10 ? nf(n) : (Math.round(n * 10) / 10).toString());
 
 const istToday = () =>
   new Intl.DateTimeFormat("en-CA", {
@@ -125,6 +127,18 @@ const fmtDayFull = (s: string) => {
     month: "short",
     year: "numeric",
   });
+};
+// full ISO timestamp → "12 Aug 2026"
+const fmtStamp = (iso: string) => {
+  try {
+    return new Date(iso).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
 };
 
 // ---------------------------------------------------------------- component
@@ -190,8 +204,26 @@ export default function TargetSection() {
     return () => clearInterval(id);
   }, [load]);
 
+  // ---- block list (test / junk accounts kept out of every analytics number)
+  const [blocklist, setBlocklist] = useState<BlocklistEntry[] | null>(null);
+  const loadBlocklist = useCallback(async () => {
+    try {
+      const r = await fetch("/api/stats/blocklist", { cache: "no-store" });
+      const d = await r.json();
+      setBlocklist(d.entries ?? []);
+    } catch (e) {
+      console.error("blocklist load failed", e);
+      setBlocklist((prev) => prev ?? []);
+    }
+  }, []);
+  useEffect(() => {
+    loadBlocklist();
+  }, [loadBlocklist]);
+
   const list = entries ?? [];
+  const blocked = blocklist ?? [];
   const existingIds = useMemo(() => new Set(list.map((e) => e.partnerId)), [list]);
+  const blockedIds = useMemo(() => new Set(blocked.map((b) => b.partnerId)), [blocked]);
 
   // ---- watchlist mutations
   const addEntry = useCallback(
@@ -292,6 +324,44 @@ export default function TargetSection() {
     [load]
   );
 
+  // Block a partner (from a watchlist row or the block-list search): adds them to
+  // the block list and drops them from the watchlist. Returns success.
+  const blockPartner = useCallback(
+    async (partnerId: string, name: string): Promise<boolean> => {
+      setEntries((prev) => (prev ? prev.filter((e) => e.partnerId !== partnerId) : prev));
+      const r = await fetch("/api/stats/blocklist", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ partnerId }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast.error(d.error ?? "Couldn't block");
+        await load(true);
+        return false;
+      }
+      toast.success(`Blocked ${name}`);
+      await Promise.all([loadBlocklist(), load(true)]);
+      return true;
+    },
+    [load, loadBlocklist]
+  );
+
+  const unblockPartner = useCallback(
+    async (id: string, name: string) => {
+      if (!confirm(`Unblock ${name}? It can be added to the watchlist and counted again.`)) return;
+      setBlocklist((prev) => (prev ? prev.filter((b) => b.id !== id) : prev));
+      const r = await fetch(`/api/stats/blocklist?id=${id}`, { method: "DELETE" });
+      if (!r.ok) {
+        toast.error("Unblock failed");
+        await loadBlocklist();
+      } else {
+        toast.success(`Unblocked ${name}`);
+      }
+    },
+    [loadBlocklist]
+  );
+
   const sortedRows = useMemo(() => sortRows(list, sort), [list, sort]);
 
   // shared daily-progress summary (calls / free trials / paid customers)
@@ -390,7 +460,7 @@ export default function TargetSection() {
           right={
             <div className="flex items-center gap-3">
               <SortSelect value={sort} onChange={setSort} />
-              <AddRestaurant existingIds={existingIds} onAdd={addEntry} />
+              <AddRestaurant existingIds={existingIds} blockedIds={blockedIds} onAdd={addEntry} />
               <button
                 type="button"
                 onClick={syncActive}
@@ -456,7 +526,13 @@ export default function TargetSection() {
                 </thead>
                 <tbody>
                   {sortedRows.map((e) => (
-                    <WatchRow key={e.id} e={e} onPatch={patchEntry} onRemove={removeEntry} />
+                    <WatchRow
+                      key={e.id}
+                      e={e}
+                      onPatch={patchEntry}
+                      onRemove={removeEntry}
+                      onBlock={blockPartner}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -469,6 +545,48 @@ export default function TargetSection() {
           everyone. Order totals and trends are online orders, calculated live each time — nothing is
           cached or kept on this device.
         </p>
+      </div>
+
+      {/* Block list */}
+      <div className="space-y-4">
+        <SectionHeader
+          title="Block list"
+          subtitle="Test / junk accounts to keep out of analytics — never added to the watchlist or counted in signups."
+          right={
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{nf(blocked.length)} blocked</span>
+              <BlockRestaurant blockedIds={blockedIds} onBlock={blockPartner} />
+            </div>
+          }
+        />
+        <Card className="border bg-white p-0 overflow-hidden">
+          {blocklist === null ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              <Loader2 className="mx-auto mb-2 size-5 animate-spin" />
+              Loading block list…
+            </div>
+          ) : blocked.length === 0 ? (
+            <BlocklistEmpty />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <th className="px-3 py-2.5 text-left font-medium">Restaurant</th>
+                    <th className="px-3 py-2.5 text-left font-medium">Note</th>
+                    <th className="px-3 py-2.5 text-left font-medium">Blocked on</th>
+                    <th className="px-3 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {blocked.map((b) => (
+                    <BlockRow key={b.id} b={b} onUnblock={unblockPartner} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );
@@ -560,36 +678,31 @@ function SignupsPanel({
         </div>
       </div>
 
-      {/* headline + rates */}
-      <div className="grid gap-4 sm:grid-cols-[1.3fr_1fr_1fr_1fr]">
-        <div className="rounded-xl border bg-muted/30 p-4">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Joined in this period
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="text-3xl font-semibold tracking-tight tabular-nums text-primary">
-              {r ? nf(r.total) : "—"}
-            </span>
-            {r && (
-              <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", toneCls)}>
-                <Icon className="size-3.5" />
-                {r.prevTotal > 0 ? `${delta > 0 ? "+" : ""}${Math.round(pctv)}%` : r.total > 0 ? "new" : "—"}
-              </span>
-            )}
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {r ? (
-              <>
-                {nf(r.prevTotal)} in the previous {r.days} day{r.days === 1 ? "" : "s"}
-              </>
-            ) : (
-              "—"
-            )}
-          </div>
+      {/* Joined in this period — total for the selected 7 / 30 / 90-day (or custom) range */}
+      <div className="rounded-xl border bg-muted/30 p-4">
+        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Joined in this period
         </div>
-        <RateTile label="Per day" value={r ? fmtRate(r.perDay) : "—"} />
-        <RateTile label="Per week" value={r ? fmtRate(r.perWeek) : "—"} />
-        <RateTile label="Per month" value={r ? fmtRate(r.perMonth) : "—"} />
+        <div className="mt-1.5 flex items-baseline gap-2">
+          <span className="text-3xl font-semibold tracking-tight tabular-nums text-primary">
+            {r ? nf(r.total) : "—"}
+          </span>
+          {r && (
+            <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", toneCls)}>
+              <Icon className="size-3.5" />
+              {r.prevTotal > 0 ? `${delta > 0 ? "+" : ""}${Math.round(pctv)}%` : r.total > 0 ? "new" : "—"}
+            </span>
+          )}
+        </div>
+        <div className="mt-1 text-[11px] text-muted-foreground">
+          {r ? (
+            <>
+              {nf(r.prevTotal)} in the previous {r.days} day{r.days === 1 ? "" : "s"}
+            </>
+          ) : (
+            "—"
+          )}
+        </div>
       </div>
 
       {/* daily chart */}
@@ -646,18 +759,61 @@ function SignupsPanel({
         Based on the date each restaurant was created. Compared against the previous equal-length
         period so you can see whether joins are speeding up or slowing down.
       </p>
+
+      {/* Recent momentum — independent of the range above; each window vs its own previous period */}
+      <div className="mt-6 border-t pt-5">
+        <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <TrendingUp className="size-3.5" />
+          Recent momentum
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <MomentumTile label="Per day" pair={data?.kpis.last24h} prevLabel="the previous day" />
+          <MomentumTile label="Per week" pair={data?.kpis.last7} prevLabel="the previous 7 days" />
+          <MomentumTile label="Per month" pair={data?.kpis.last30} prevLabel="the previous 30 days" />
+        </div>
+      </div>
     </Card>
   );
 }
 
-function RateTile({ label, value }: { label: string; value: string }) {
+// A window (last 24h / 7d / 30d) shown against its own previous equal period.
+function MomentumTile({
+  label,
+  pair,
+  prevLabel,
+}: {
+  label: string;
+  pair?: { curr: number; prev: number };
+  prevLabel: string;
+}) {
+  const curr = pair?.curr ?? 0;
+  const prev = pair?.prev ?? 0;
+  const delta = curr - prev;
+  const pctv = prev > 0 ? (delta / prev) * 100 : curr > 0 ? 100 : 0;
+  const tone = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const Icon = tone === "up" ? TrendingUp : tone === "down" ? TrendingDown : Minus;
+  const toneCls =
+    tone === "up" ? "text-emerald-600" : tone === "down" ? "text-rose-600" : "text-muted-foreground";
+  const trend = prev > 0 ? `${delta > 0 ? "+" : ""}${Math.round(pctv)}%` : curr > 0 ? "new" : "—";
   return (
     <div className="rounded-xl border bg-muted/30 p-4">
       <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
-      <div className="mt-1 text-[11px] text-muted-foreground">avg over the period</div>
+      <div className="mt-1.5 flex items-baseline gap-2">
+        <span className="text-2xl font-semibold tracking-tight tabular-nums">
+          {pair ? nf(curr) : "—"}
+        </span>
+        {pair && (
+          <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", toneCls)}>
+            <Icon className="size-3.5" />
+            {trend}
+          </span>
+        )}
+      </div>
+      <div className="mt-1 text-[11px] text-muted-foreground">
+        {pair ? `${nf(prev)} in ${prevLabel}` : "—"}
+      </div>
     </div>
   );
 }
@@ -667,6 +823,7 @@ function WatchRow({
   e,
   onPatch,
   onRemove,
+  onBlock,
 }: {
   e: WatchlistEntry;
   onPatch: (
@@ -674,6 +831,7 @@ function WatchRow({
     patch: Partial<Pick<WatchlistEntry, "planInr" | "status" | "note">>
   ) => void;
   onRemove: (id: string, name: string) => void;
+  onBlock: (partnerId: string, name: string) => void;
 }) {
   const [editingNote, setEditingNote] = useState(false);
   const [noteVal, setNoteVal] = useState(e.note ?? "");
@@ -810,14 +968,31 @@ function WatchRow({
 
       {/* actions */}
       <td className="px-3 py-2.5 text-right">
-        <button
-          type="button"
-          onClick={() => onRemove(e.id, e.name)}
-          className="rounded p-1 text-muted-foreground hover:bg-rose-50 hover:text-rose-600"
-          title="Remove from watchlist"
-        >
-          <X className="size-3.5" />
-        </button>
+        <div className="inline-flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                confirm(
+                  `Block ${e.name}? It will be removed and never counted or re-added to the watchlist.`
+                )
+              )
+                onBlock(e.partnerId, e.name);
+            }}
+            className="rounded p-1 text-muted-foreground hover:bg-amber-50 hover:text-amber-600"
+            title="Block — remove and keep out of analytics"
+          >
+            <Ban className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onRemove(e.id, e.name)}
+            className="rounded p-1 text-muted-foreground hover:bg-rose-50 hover:text-rose-600"
+            title="Remove from watchlist"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -934,9 +1109,11 @@ type SearchResult = { id: string; name: string; district: string | null };
 
 function AddRestaurant({
   existingIds,
+  blockedIds,
   onAdd,
 }: {
   existingIds: Set<string>;
+  blockedIds: Set<string>;
   onAdd: (
     partnerId: string,
     planInr: number,
@@ -1064,15 +1241,17 @@ function AddRestaurant({
               )}
               {results.map((p) => {
                 const already = existingIds.has(p.id);
+                const isBlocked = blockedIds.has(p.id);
+                const disabled = already || isBlocked;
                 return (
                   <li key={p.id}>
                     <button
                       type="button"
-                      disabled={already}
+                      disabled={disabled}
                       onClick={() => choose(p)}
                       className={cn(
                         "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs",
-                        already
+                        disabled
                           ? "cursor-not-allowed text-muted-foreground"
                           : "hover:bg-neutral-100"
                       )}
@@ -1083,9 +1262,11 @@ function AddRestaurant({
                           <span className="text-muted-foreground"> · {p.district}</span>
                         )}
                       </span>
-                      {already && (
+                      {isBlocked ? (
+                        <span className="text-[10px] text-amber-600">blocked</span>
+                      ) : already ? (
                         <span className="text-[10px] text-muted-foreground">added</span>
-                      )}
+                      ) : null}
                     </button>
                   </li>
                 );
@@ -1187,6 +1368,208 @@ function WatchlistEmpty() {
       <div className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
         Hit "Sync watchlist" to auto-add every restaurant taking ≥ 2 online orders a week, or use
         "Add restaurant" to track one by hand.
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- block list
+function BlockRestaurant({
+  blockedIds,
+  onBlock,
+}: {
+  blockedIds: Set<string>;
+  onBlock: (partnerId: string, name: string) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [blockingId, setBlockingId] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!query || query.trim().length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const r = await fetch(
+          `/api/stats/partner-search?q=${encodeURIComponent(query.trim())}`,
+          { cache: "no-store" }
+        );
+        const d = await r.json();
+        setResults(d.partners ?? []);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query]);
+
+  const doBlock = async (p: SearchResult) => {
+    setBlockingId(p.id);
+    const ok = await onBlock(p.id, p.name);
+    setBlockingId(null);
+    if (ok) {
+      setOpen(false);
+      setQuery("");
+      setResults([]);
+    }
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          setQuery("");
+          setResults([]);
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-3 text-xs font-medium text-muted-foreground shadow-sm hover:bg-neutral-50"
+        >
+          <Ban className="size-3.5" />
+          Block a restaurant
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-[320px] p-0 bg-white"
+        onOpenAutoFocus={(ev) => ev.preventDefault()}
+      >
+        <div className="flex items-center gap-2 border-b px-2 py-1.5">
+          <Search className="size-3.5 text-muted-foreground" />
+          <Input
+            ref={inputRef}
+            value={query}
+            onChange={(ev) => setQuery(ev.target.value)}
+            placeholder="Search a test account to block…"
+            className="h-7 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+          />
+          {searching && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+        </div>
+        <ul className="max-h-[280px] overflow-y-auto py-1">
+          {query.trim().length < 2 && (
+            <li className="px-3 py-3 text-center text-[11px] text-muted-foreground">
+              Type at least 2 characters to search
+            </li>
+          )}
+          {query.trim().length >= 2 && !searching && results.length === 0 && (
+            <li className="px-3 py-3 text-center text-[11px] text-muted-foreground">
+              No restaurants match "{query}"
+            </li>
+          )}
+          {results.map((p) => {
+            const already = blockedIds.has(p.id);
+            const busy = blockingId === p.id;
+            return (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  disabled={already || busy}
+                  onClick={() => doBlock(p)}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs",
+                    already ? "cursor-not-allowed text-muted-foreground" : "hover:bg-neutral-100"
+                  )}
+                >
+                  <span className="truncate">
+                    {p.name}
+                    {p.district && (
+                      <span className="text-muted-foreground"> · {p.district}</span>
+                    )}
+                  </span>
+                  {already ? (
+                    <span className="text-[10px] text-amber-600">blocked</span>
+                  ) : busy ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">block</span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function BlockRow({
+  b,
+  onUnblock,
+}: {
+  b: BlocklistEntry;
+  onUnblock: (id: string, name: string) => void;
+}) {
+  return (
+    <tr className="border-b border-muted last:border-0 hover:bg-muted/30">
+      <td className="px-3 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-600">
+            <ShieldBan className="size-3.5" />
+          </div>
+          <div className="min-w-0">
+            {b.username ? (
+              <a
+                href={`/${b.username}`}
+                target="_blank"
+                rel="noreferrer"
+                className="truncate font-medium hover:text-primary hover:underline"
+              >
+                {b.name}
+              </a>
+            ) : (
+              <span className="truncate font-medium">{b.name}</span>
+            )}
+            <div className="text-[11px] text-muted-foreground truncate">{b.district ?? "—"}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-2.5 text-muted-foreground">{b.note ?? "—"}</td>
+      <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">{fmtStamp(b.createdAt)}</td>
+      <td className="px-3 py-2.5 text-right">
+        <button
+          type="button"
+          onClick={() => onUnblock(b.id, b.name)}
+          className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] text-muted-foreground hover:bg-neutral-50 hover:text-foreground"
+          title="Unblock"
+        >
+          <Undo2 className="size-3" />
+          Unblock
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function BlocklistEmpty() {
+  return (
+    <div className="p-8 text-center">
+      <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+        <ShieldBan className="size-5" />
+      </div>
+      <div className="text-base font-semibold">Nothing blocked</div>
+      <div className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+        Use "Block a restaurant" — or the block icon on any watchlist row — to keep test / junk
+        accounts out of the watchlist and the signup counts.
       </div>
     </div>
   );

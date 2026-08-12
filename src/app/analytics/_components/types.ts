@@ -257,6 +257,22 @@ export type WatchlistResponse = {
   syncedAt: string;
 };
 
+// block list — test/junk restaurants kept out of all analytics
+export type BlocklistEntry = {
+  id: string; // analytics_blocklist row id
+  partnerId: string;
+  name: string;
+  district: string | null;
+  username: string | null;
+  note: string | null;
+  createdAt: string;
+};
+
+export type BlocklistResponse = {
+  entries: BlocklistEntry[];
+  syncedAt?: string;
+};
+
 // current vs previous equal period
 export type TrendPair = { curr: number; prev: number };
 

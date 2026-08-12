@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { EXCLUDED_USER_IDS } from "../_excluded";
+import { getBlockedPartnerIds } from "../_blocklist";
 
 /**
  * Watchlist — DB-backed roster of restaurants tracked in the Target section.
@@ -190,6 +191,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     if (!VALID_STATUSES.has(status))
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+
+    const blocked = await getBlockedPartnerIds();
+    if (blocked.includes(partnerId))
+      return NextResponse.json(
+        { error: "This restaurant is on the block list. Unblock it first." },
+        { status: 409 }
+      );
 
     const res = await hasura(
       `mutation Add($obj: analytics_watchlist_insert_input!) {

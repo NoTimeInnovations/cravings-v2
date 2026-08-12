@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { EXCLUDED_PARTNER_IDS, EXCLUDED_USER_IDS } from "../../_excluded";
+import { getBlockedPartnerIds } from "../../_blocklist";
 
 /**
  * Watchlist sync — keep the Target watchlist to the restaurants that are
@@ -132,11 +133,16 @@ export async function POST() {
   try {
     const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString();
 
+    // Blocked (test/junk) partners never qualify — merge them into the excluded
+    // set so the scan skips them and they're never (re)added.
+    const blocked = await getBlockedPartnerIds();
+    const excludedPartners = Array.from(new Set([...EXCLUDED_PARTNER_IDS, ...blocked]));
+
     // 1) Scan active stores + read who we already track (in parallel).
     const [candRes, existRes] = await Promise.all([
       hasura(CANDIDATES_QUERY, {
         since,
-        excludedPartners: EXCLUDED_PARTNER_IDS,
+        excludedPartners,
         excludedUsers: EXCLUDED_USER_IDS,
       }),
       hasura(EXISTING_QUERY, {}),
