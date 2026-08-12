@@ -474,6 +474,37 @@ export default function OnboardingFlow({
     setStep("address");
   }, []);
 
+  // MUST stay above the early returns below. These three hooks used to sit at
+  // the bottom of the component, after `if (dismissed) return null` and after
+  // the V6 sheet return. Dismissing the order-type screen flips `dismissed`,
+  // the component then returns 21 hooks where it had rendered 24, and React
+  // throws "Rendered fewer hooks than during the previous render" straight to
+  // the root error boundary — the "Something went wrong" a customer saw on
+  // their FIRST visit to a store, because the very action that crashed also
+  // wrote the session cookie that stops the overlay appearing again.
+  // Is the shop shut right now — manually, or by its working hours? Computed
+  // here because this component already holds the partner row, the timezone and
+  // storefront_settings, and it decides whether the order-type question is worth
+  // asking at all. Re-checked on a timer so a customer sitting on this screen at
+  // 8:59 watches it come alive rather than being told to come back tomorrow.
+  const [storeClockTick, setStoreClockTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStoreClockTick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const storeSchedule = useMemo(
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => isStoreOpen(storeHoursFromSettings(storefrontSettings), hotelTimezone || "Asia/Kolkata"),
+    [storefrontSettings, hotelTimezone, storeClockTick],
+  );
+  const manuallyClosed = (hotelData as any)?.is_shop_open === false;
+  const storeClosed = manuallyClosed || !storeSchedule.open;
+  // Only the SCHEDULE knows when the doors open again; a manual close has no
+  // reopening time and must not be given an invented one.
+  const storeClosedNote = manuallyClosed
+    ? null
+    : describeNextOpen(storeSchedule, localNow(hotelTimezone || "Asia/Kolkata").date);
+
   if (dismissed) return null;
 
   // V6 bottom-sheet onboarding: a single popup with order-type tabs + the
@@ -521,28 +552,6 @@ export default function OnboardingFlow({
     );
   }
 
-  // Is the shop shut right now — manually, or by its working hours? Computed
-  // here because this component already holds the partner row, the timezone and
-  // storefront_settings, and it decides whether the order-type question is worth
-  // asking at all. Re-checked on a timer so a customer sitting on this screen at
-  // 8:59 watches it come alive rather than being told to come back tomorrow.
-  const [storeClockTick, setStoreClockTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setStoreClockTick((n) => n + 1), 30_000);
-    return () => clearInterval(t);
-  }, []);
-  const storeSchedule = useMemo(
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    () => isStoreOpen(storeHoursFromSettings(storefrontSettings), hotelTimezone || "Asia/Kolkata"),
-    [storefrontSettings, hotelTimezone, storeClockTick],
-  );
-  const manuallyClosed = (hotelData as any)?.is_shop_open === false;
-  const storeClosed = manuallyClosed || !storeSchedule.open;
-  // Only the SCHEDULE knows when the doors open again; a manual close has no
-  // reopening time and must not be given an invented one.
-  const storeClosedNote = manuallyClosed
-    ? null
-    : describeNextOpen(storeSchedule, localNow(hotelTimezone || "Asia/Kolkata").date);
 
   return (
     <div

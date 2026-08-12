@@ -37,7 +37,12 @@ export async function fetchHotelDataById(hotelId: string) {
   const getHotelData = unstable_cache(
     async (id: string) => {
       try {
-        return fetchFromHasura(getPartnerAndOffersQuery, {
+        // `return await`, not `return` — without the await the promise escapes
+        // the try block and a Hasura failure becomes an unhandled rejection
+        // during the server render instead of the null this catch intends.
+        // Only a cache MISS reaches Hasura at all, so the dead catch showed up
+        // as an occasional first-visit error and never on a reload.
+        return await fetchFromHasura(getPartnerAndOffersQuery, {
           id,
           offer_types: ["delivery", "all"],
         });
