@@ -15,12 +15,14 @@ import {
   ReceiptText,
   Target,
   NotebookPen,
+  Users,
 } from "lucide-react";
 
 export type Tab =
   | "overview"
   | "target"
   | "progress"
+  | "customers"
   | "live"
   | "orders"
   | "selected"
@@ -52,6 +54,12 @@ export const TABS: Array<{
     label: "Daily progress",
     icon: NotebookPen,
     description: "Log calls, free trials & paid customers",
+  },
+  {
+    id: "customers",
+    label: "All Customers",
+    icon: Users,
+    description: "Every partner's onboarding state & online orders",
   },
   {
     id: "live",

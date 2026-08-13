@@ -18,6 +18,7 @@ import UsageSection from "./sections/UsageSection";
 import DiscoverySection from "./sections/DiscoverySection";
 import TargetSection from "./sections/TargetSection";
 import ProgressSection from "./sections/ProgressSection";
+import CustomersSection from "./sections/CustomersSection";
 import type { PublicStats, PosthogStats, Range } from "./types";
 
 const REFRESH_MS = 30_000;
@@ -25,6 +26,7 @@ const VALID_TABS = new Set<Tab>([
   "overview",
   "target",
   "progress",
+  "customers",
   "live",
   "orders",
   "selected",
@@ -101,7 +103,7 @@ export default function Dashboard() {
               {activeTabMeta?.label}
             </div>
             <div className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
-              {tab === "target" || tab === "progress" ? (
+              {tab === "target" || tab === "progress" || tab === "customers" ? (
                 <span className="text-muted-foreground/80">{activeTabMeta?.description}</span>
               ) : (
                 <>
@@ -124,7 +126,8 @@ export default function Dashboard() {
             tab !== "selected" &&
             tab !== "orders" &&
             tab !== "target" &&
-            tab !== "progress" && <RangeSelector current={range} disabled={refreshing} />}
+            tab !== "progress" &&
+            tab !== "customers" && <RangeSelector current={range} disabled={refreshing} />}
           {(tab === "live" || tab === "selected" || tab === "orders") && (
             <div className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 text-sm">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -143,6 +146,8 @@ export default function Dashboard() {
           <TargetSection />
         ) : tab === "progress" ? (
           <ProgressSection />
+        ) : tab === "customers" ? (
+          <CustomersSection />
         ) : loading || !hasura ? (
           <SectionSkeleton />
         ) : (

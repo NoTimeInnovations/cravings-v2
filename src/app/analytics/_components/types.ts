@@ -257,6 +257,55 @@ export type WatchlistResponse = {
   syncedAt: string;
 };
 
+// ---- All Customers (CRM roster; stats computed only on Sync, never live)
+export type CustomerInterest = "warm" | "hot" | "active";
+
+export type CustomerEntry = {
+  id: string; // analytics_customers row id
+  partnerId: string;
+  name: string;
+  district: string | null;
+  username: string | null;
+  joinedAt: string | null; // partner created_at (when they joined)
+  interest: CustomerInterest;
+  menuCreated: boolean;
+  menuItemCount: number;
+  paymentGateway: string | null; // 'cashfree' | 'razorpay' | 'manual' | custom
+  pgStatus: string | null;
+  delivery: string | null; // 'porter' | 'rapido' | 'own' | 'mix'
+  deliveryNote: string | null; // free text, mainly for 'mix'
+  qrTable: boolean;
+  qrCounter: boolean;
+  qrSwiggyZomato: boolean;
+  qrOwnParcels: boolean;
+  totalOrders: number; // all-time ONLINE orders (POS excluded)
+  weekly: number[]; // [thisWeek, 1wk ago, … 7wk ago] online orders
+  statsSyncedAt: string | null;
+  createdAt: string;
+};
+
+export type CustomersResponse = {
+  entries: CustomerEntry[];
+  syncedAt: string | null; // most recent stats_synced_at across the roster
+};
+
+// editable manual fields (camelCase → sent to PATCH)
+export type CustomerPatch = Partial<
+  Pick<
+    CustomerEntry,
+    | "interest"
+    | "menuCreated"
+    | "paymentGateway"
+    | "pgStatus"
+    | "delivery"
+    | "deliveryNote"
+    | "qrTable"
+    | "qrCounter"
+    | "qrSwiggyZomato"
+    | "qrOwnParcels"
+  >
+>;
+
 // block list — test/junk restaurants kept out of all analytics
 export type BlocklistEntry = {
   id: string; // analytics_blocklist row id
