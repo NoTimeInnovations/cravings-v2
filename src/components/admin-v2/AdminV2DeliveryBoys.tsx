@@ -16,6 +16,7 @@ import {
     totalStats,
     type Period,
     type RiderStats,
+    type Scope,
     type StatsOrder,
 } from "@/lib/deliveryBoyStats";
 import {
@@ -46,6 +47,9 @@ export function AdminV2DeliveryBoys() {
     // Per-rider performance. Kept separate from the roster so editing a rider
     // never refetches orders, and a stats failure never blanks the list.
     const [period, setPeriod] = useState<Period>("day");
+    // Defaults to delivered-only: the safer reading when a number might justify
+    // a rider's pay. "all" additionally counts orders still out for delivery.
+    const [scope, setScope] = useState<Scope>("completed");
     const [statsOrders, setStatsOrders] = useState<StatsOrder[]>([]);
     const [partnerGeo, setPartnerGeo] = useState<any>(null);
     const [statsLoading, setStatsLoading] = useState(true);
@@ -108,7 +112,7 @@ export function AdminV2DeliveryBoys() {
         };
     }, [userData?.id, isDeliveryEnabled]);
 
-    const riderStats = statsByRider(statsOrders, partnerGeo, period);
+    const riderStats = statsByRider(statsOrders, partnerGeo, period, scope);
     const overall = totalStats(riderStats);
     const currency = (n: number) =>
         `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -346,6 +350,7 @@ export function AdminV2DeliveryBoys() {
                             {/* Period toggle. Slices the already-fetched 30 days,
                                 so switching is instant and makes no request. */}
                             <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                 <div className="inline-flex rounded-lg border p-0.5">
                                     {([
                                         ["day", "Today"],
@@ -365,6 +370,26 @@ export function AdminV2DeliveryBoys() {
                                             {label}
                                         </button>
                                     ))}
+                                </div>
+                                <div className="inline-flex rounded-lg border p-0.5">
+                                        {([
+                                            ["completed", "Delivered"],
+                                            ["all", "Incl. in progress"],
+                                        ] as [Scope, string][]).map(([value, label]) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                onClick={() => setScope(value)}
+                                                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                                    scope === value
+                                                        ? "bg-stone-800 text-white font-medium"
+                                                        : "text-muted-foreground hover:bg-black/[0.04]"
+                                                }`}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div className="text-sm text-muted-foreground">
                                     {statsLoading ? (
@@ -533,6 +558,12 @@ export function AdminV2DeliveryBoys() {
                                 trip — so treat this as a minimum, not a payout figure. Orders with no
                                 saved customer location add nothing and are marked{" "}
                                 <span className="text-amber-600">*</span>.
+                                <br />
+                                <span className="font-medium">Delivered</span> counts only orders that
+                                actually reached the customer — use it when the figures justify pay.{" "}
+                                <span className="font-medium">Incl. in progress</span> also counts orders
+                                still out for delivery, so it shows current workload but can fall again
+                                if one is cancelled. Cancelled orders never count in either.
                                 <br />
                                 <span className="font-medium">Delivery charge</span> is what customers
                                 actually paid for delivery on those orders. It is already part of

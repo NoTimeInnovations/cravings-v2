@@ -48,6 +48,20 @@ export function deliveryChargeOf(o: StatsOrder): number {
 
 export type Period = "day" | "week" | "month";
 
+/**
+ * Which orders a figure is built from.
+ *
+ *   "completed" — only orders actually delivered. Use when the number judges or
+ *                 pays a rider: nothing is credited before the work is done.
+ *   "all"       — completed PLUS still in flight, i.e. what a rider is currently
+ *                 handling. A live workload view, and it can go DOWN later if an
+ *                 in-flight order is cancelled.
+ *
+ * Cancelled orders are excluded from both — the rider earned no value and rode
+ * no distance — and are already filtered out server-side by the query.
+ */
+export type Scope = "completed" | "all";
+
 export type RiderStats = {
   orders: number;
   value: number;
@@ -98,7 +112,11 @@ const occurredAt = (o: StatsOrder): Date => new Date(o.delivered_at ?? o.created
 /** Cancelled orders are excluded everywhere: the rider neither earned the value
  *  nor rode the distance. Everything else — completed and still-in-flight —
  *  counts as work taken on. */
-const counts = (o: StatsOrder): boolean => (o.status ?? "").toLowerCase() !== "cancelled";
+const counts = (o: StatsOrder, scope: Scope): boolean => {
+  const st = (o.status ?? "").toLowerCase();
+  if (st === "cancelled") return false;
+  return scope === "all" || st === "completed";
+};
 
 /**
  * Aggregate orders per rider for one window.
@@ -114,6 +132,7 @@ export function statsByRider(
   orders: StatsOrder[] | null | undefined,
   partnerLocation: GeoPoint,
   period: Period,
+  scope: Scope = "completed",
   now: Date = new Date(),
 ): Record<string, RiderStats> {
   const from = periodStart(period, now).getTime();
@@ -121,7 +140,7 @@ export function statsByRider(
   const out: Record<string, RiderStats> = {};
 
   for (const o of orders ?? []) {
-    if (!o.delivery_boy_id || !counts(o)) continue;
+    if (!o.delivery_boy_id || !counts(o, scope)) continue;
     const when = occurredAt(o).getTime();
     if (!Number.isFinite(when) || when < from) continue;
 
