@@ -16,6 +16,10 @@ export type GeoPoint = { coordinates?: [number, number] | number[] } | null | un
 export type ExtraCharge = { name?: string | null; amount?: number | string | null };
 
 export type StatsOrder = {
+  id: string;
+  /** The short order number the admin shows everywhere else (AdminV2AllOrders). */
+  display_id: string | null;
+  delivery_address: string | null;
   delivery_boy_id: string | null;
   total_price: number | null;
   status: string | null;
@@ -149,8 +153,10 @@ export function statsByRider(
     s.value += Number(o.total_price) || 0;
     s.deliveryCharge += deliveryChargeOf(o);
 
+    // Accumulate the SAME rounded per-order figure the breakdown shows, so the
+    // rows always sum to this total exactly.
     const dest = toLatLng(o.delivery_location);
-    if (origin && dest) s.km += haversineKm(origin, dest);
+    if (origin && dest) s.km += Math.round(haversineKm(origin, dest) * 10) / 10;
     else s.ordersWithoutLocation += 1;
   }
 
@@ -160,6 +166,51 @@ export function statsByRider(
   }
   return out;
 }
+
+/**
+ * The individual orders behind one rider's figures — the breakdown shown when a
+ * number is clicked.
+ *
+ * Deliberately applies the SAME period/scope predicates as statsByRider rather
+ * than re-deriving them: if these two ever disagree, the breakdown would fail to
+ * add up to the total it claims to explain, which is worse than having no
+ * breakdown at all. Newest first, which is how someone auditing a figure reads.
+ */
+export function ordersForRider(
+  orders: StatsOrder[] | null | undefined,
+  riderId: string,
+  period: Period,
+  scope: Scope = "completed",
+  now: Date = new Date(),
+): StatsOrder[] {
+  const from = periodStart(period, now).getTime();
+  return (orders ?? [])
+    .filter((o) => {
+      if (o.delivery_boy_id !== riderId || !counts(o, scope)) return false;
+      const when = occurredAt(o).getTime();
+      return Number.isFinite(when) && when >= from;
+    })
+    .sort((a, b) => occurredAt(b).getTime() - occurredAt(a).getTime());
+}
+
+/** Straight-line km for one order, or null when the customer location is
+ *  missing — null renders as "not recorded" rather than a misleading 0.
+ *
+ *  Rounded to 1dp HERE, and the per-rider total sums these same rounded values.
+ *  Summing raw distances and rounding once at the end is more precise but leaves
+ *  the breakdown rows not adding up to the total printed directly beneath them,
+ *  which reads as a bug to anyone checking the figure. Consistency wins on a
+ *  number already labelled approximate. */
+export function orderKm(o: StatsOrder, partnerLocation: GeoPoint): number | null {
+  const origin = toLatLng(partnerLocation);
+  const dest = toLatLng(o.delivery_location);
+  if (!origin || !dest) return null;
+  return Math.round(haversineKm(origin, dest) * 10) / 10;
+}
+
+/** Timestamp a row is attributed to — exported so the breakdown shows the same
+ *  date that decided which period the order landed in. */
+export const orderOccurredAt = occurredAt;
 
 /** Totals across every rider, for the summary row. */
 export function totalStats(byRider: Record<string, RiderStats>): RiderStats {

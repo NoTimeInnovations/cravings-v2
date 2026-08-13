@@ -6,12 +6,23 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
     EMPTY_STATS,
+    deliveryChargeOf,
     periodStart,
+    orderKm,
+    orderOccurredAt,
+    ordersForRider,
     statsByRider,
     totalStats,
     type Period,
@@ -50,6 +61,8 @@ export function AdminV2DeliveryBoys() {
     // Defaults to delivered-only: the safer reading when a number might justify
     // a rider's pay. "all" additionally counts orders still out for delivery.
     const [scope, setScope] = useState<Scope>("completed");
+    // Which rider's order-by-order breakdown is open. Null = closed.
+    const [breakdownFor, setBreakdownFor] = useState<DeliveryBoy | null>(null);
     const [statsOrders, setStatsOrders] = useState<StatsOrder[]>([]);
     const [partnerGeo, setPartnerGeo] = useState<any>(null);
     const [statsLoading, setStatsLoading] = useState(true);
@@ -488,10 +501,36 @@ export function AdminV2DeliveryBoys() {
                                                                     {statsLoading ? "—" : st.orders}
                                                                 </TableCell>
                                                                 <TableCell className="text-right tabular-nums">
-                                                                    {statsLoading ? "—" : currency(st.value)}
+                                                                    {statsLoading ? (
+                                                                        "—"
+                                                                    ) : st.orders === 0 ? (
+                                                                        currency(st.value)
+                                                                    ) : (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setBreakdownFor(boy)}
+                                                                            className="underline decoration-dotted underline-offset-4 hover:text-orange-600 transition-colors"
+                                                                            title="See the orders behind this figure"
+                                                                        >
+                                                                            {currency(st.value)}
+                                                                        </button>
+                                                                    )}
                                                                 </TableCell>
                                                                 <TableCell className="text-right tabular-nums">
-                                                                    {statsLoading ? "—" : currency(st.deliveryCharge)}
+                                                                    {statsLoading ? (
+                                                                        "—"
+                                                                    ) : st.orders === 0 ? (
+                                                                        currency(st.deliveryCharge)
+                                                                    ) : (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setBreakdownFor(boy)}
+                                                                            className="underline decoration-dotted underline-offset-4 hover:text-orange-600 transition-colors"
+                                                                            title="See the orders behind this figure"
+                                                                        >
+                                                                            {currency(st.deliveryCharge)}
+                                                                        </button>
+                                                                    )}
                                                                 </TableCell>
                                                                 <TableCell className="text-right tabular-nums">
                                                                     {statsLoading ? (
@@ -574,6 +613,117 @@ export function AdminV2DeliveryBoys() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Order-by-order breakdown. Uses ordersForRider, which applies the
+                SAME period/scope predicates as the totals — a breakdown that did
+                not add up to the number it explains would be worse than none. */}
+            <Dialog open={!!breakdownFor} onOpenChange={(open) => !open && setBreakdownFor(null)}>
+                <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                    {breakdownFor && (() => {
+                        const rows = ordersForRider(statsOrders, breakdownFor.id, period, scope);
+                        const st = riderStats[breakdownFor.id] ?? EMPTY_STATS;
+                        const periodLabel =
+                            period === "day" ? "today" : period === "week" ? "the last 7 days" : "the last 30 days";
+                        return (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle>{breakdownFor.name}</DialogTitle>
+                                    <DialogDescription>
+                                        {rows.length} {rows.length === 1 ? "order" : "orders"} in {periodLabel}
+                                        {scope === "completed" ? " (delivered only)" : " (including in progress)"}
+                                        {" — "}
+                                        {currency(st.value)} order value, {currency(st.deliveryCharge)} delivery charge.
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Order</TableHead>
+                                                <TableHead>When</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead className="text-right">Order value</TableHead>
+                                                <TableHead className="text-right">Delivery charge</TableHead>
+                                                <TableHead className="text-right">Distance</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {rows.map((o: StatsOrder) => {
+                                                const km = orderKm(o, partnerGeo);
+                                                return (
+                                                    <TableRow key={o.id}>
+                                                        <TableCell className="font-medium">
+                                                            {Number(o.display_id) > 0 ? `#${o.display_id}` : "—"}
+                                                            {o.delivery_address && (
+                                                                <div className="max-w-[220px] truncate text-xs font-normal text-muted-foreground">
+                                                                    {o.delivery_address}
+                                                                </div>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="whitespace-nowrap text-sm">
+                                                            {orderOccurredAt(o).toLocaleString(undefined, {
+                                                                day: "2-digit",
+                                                                month: "short",
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                            })}
+                                                            {/* Flagged because this row was dated by created_at,
+                                                                not by when it was actually delivered. */}
+                                                            {!o.delivered_at && (
+                                                                <span
+                                                                    className="ml-1 text-amber-600"
+                                                                    title="No delivery time recorded — dated by when the order was placed."
+                                                                >
+                                                                    *
+                                                                </span>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="text-sm capitalize">{o.status}</TableCell>
+                                                        <TableCell className="text-right tabular-nums">
+                                                            {currency(Number(o.total_price) || 0)}
+                                                        </TableCell>
+                                                        <TableCell className="text-right tabular-nums">
+                                                            {currency(deliveryChargeOf(o))}
+                                                        </TableCell>
+                                                        <TableCell className="text-right tabular-nums">
+                                                            {km === null ? (
+                                                                <span
+                                                                    className="text-amber-600"
+                                                                    title="No customer location saved on this order, so it adds nothing to the distance total."
+                                                                >
+                                                                    not recorded
+                                                                </span>
+                                                            ) : (
+                                                                `${km} km`
+                                                            )}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                            {/* Totals must equal the row that was clicked. */}
+                                            <TableRow className="bg-muted/50 font-medium">
+                                                <TableCell colSpan={3}>Total</TableCell>
+                                                <TableCell className="text-right tabular-nums">{currency(st.value)}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{currency(st.deliveryCharge)}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{st.km} km</TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                <p className="text-xs text-muted-foreground">
+                                    Distance is straight-line from the restaurant to each customer, one
+                                    way, so the total is a minimum rather than the road distance
+                                    actually ridden. Rows marked{" "}
+                                    <span className="text-amber-600">*</span> have no recorded delivery
+                                    time and are dated by when the order was placed.
+                                </p>
+                            </>
+                        );
+                    })()}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

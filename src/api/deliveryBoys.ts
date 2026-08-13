@@ -183,6 +183,9 @@ export const getDeliveryBoyStatsOrdersQuery = `
       }
       order_by: { created_at: desc }
     ) {
+      id
+      display_id
+      delivery_address
       delivery_boy_id
       total_price
       status
