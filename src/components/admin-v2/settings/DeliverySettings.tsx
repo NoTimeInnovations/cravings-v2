@@ -410,7 +410,9 @@ export function DeliverySettings() {
     } | null>(null);
     const [connLoading, setConnLoading] = useState(false);
     const [connectDialog, setConnectDialog] = useState<ConnectProvider | null>(null);
-    const [loggingOut, setLoggingOut] = useState<ConnectProvider | null>(null);
+    // Keyed "provider:mobile" — a partner pooling several logins can log one out
+    // while the others stay untouched, so the spinner must be per-account.
+    const [loggingOut, setLoggingOut] = useState<string | null>(null);
 
     const currencySymbol = (userData as Partner)?.currency || "₹";
 
@@ -503,12 +505,20 @@ export function DeliverySettings() {
                 getDeliveryConnections({ partnerId: userData.id }),
                 guard,
             ]);
-            if (res && res.ok) setConnections({ porter: res.porter, rapido: res.rapido });
+            if (res && res.ok) {
+                const next = { porter: res.porter, rapido: res.rapido };
+                setConnections(next);
+                // Returned so callers that need the POST-refresh value (logout,
+                // which may have promoted a different account to primary) can read
+                // it without waiting for a re-render.
+                return next;
+            }
         } catch {
             /* leave prior status */
         } finally {
             setConnLoading(false);
         }
+        return null;
     }, [userData?.id, features?.porter_bridge?.access, features?.porter_bridge?.enabled]);
 
     useEffect(() => {
@@ -542,30 +552,37 @@ export function DeliverySettings() {
         [loadConnections],
     );
 
+    // Log out ONE account. The mobile is passed in per row: a partner pooling
+    // several logins needs to drop a specific one, and the old version could only
+    // ever target `{provider}_mobile` (the newest), leaving the rest stranded.
     const handleLogout = useCallback(
-        async (provider: ConnectProvider) => {
-            const mobile = provider === "porter" ? porterMobile : rapidoMobile;
+        async (provider: ConnectProvider, mobile: string) => {
             if (!mobile) {
                 toast.error("No connected number to log out");
                 return;
             }
             if (!userData?.id) return;
-            setLoggingOut(provider);
+            setLoggingOut(`${provider}:${mobile}`);
             try {
                 const res = await logoutDeliveryProvider({ partnerId: userData.id, provider, mobile });
                 if (!res.ok) {
                     toast.error(res.message);
                     return;
                 }
-                toast.success(`${provider === "porter" ? "Porter" : "Rapido"} logged out`);
-                await loadConnections();
+                toast.success(`${provider === "porter" ? "Porter" : "Rapido"} ••${mobile.slice(-4)} logged out`);
+                // The server may have moved the mobile column onto another account
+                // (or cleared it), so re-read rather than trusting local state.
+                const fresh = await loadConnections();
+                const next = fresh?.[provider]?.mobile ?? "";
+                if (provider === "porter") setPorterMobile(next);
+                else setRapidoMobile(next);
             } catch (e: any) {
                 toast.error(e?.message || "Logout failed");
             } finally {
                 setLoggingOut(null);
             }
         },
-        [porterMobile, rapidoMobile, loadConnections, userData?.id],
+        [loadConnections, userData?.id],
     );
 
     const handleSaveMerchantId = useCallback(async () => {
@@ -1027,36 +1044,78 @@ export function DeliverySettings() {
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-1.5 shrink-0">
-                                                    {conn?.mobile && (
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="px-2 text-muted-foreground"
-                                                            onClick={() => handleLogout(key)}
-                                                            disabled={loggingOut === key}
-                                                            title={`Log out ••${conn.mobile.slice(-4)}`}
-                                                        >
-                                                            {loggingOut === key ? (
-                                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                            ) : (
-                                                                <LogOut className="h-4 w-4" />
-                                                            )}
-                                                        </Button>
-                                                    )}
                                                     <Button type="button" size="sm" onClick={() => setConnectDialog(key)}>
                                                         <Link2 className="h-4 w-4 mr-1" />
-                                                        {conn?.connected || conn?.mobile ? "Add account" : "Connect"}
+                                                        {(conn?.accounts?.length ?? 0) > 0 ? "Add account" : "Connect"}
                                                     </Button>
                                                 </div>
                                             </div>
-                                            {(conn?.mobile || (conn?.groupAccounts ?? 0) > 0) && (
+
+                                            {/* Every connected login, each with its own logout. A partner
+                                                pooling several Rapido accounts (one live order apiece) needs
+                                                to see and drop a specific one; the old row showed only the
+                                                newest number and a bare count, and nothing else was
+                                                reachable. */}
+                                            {(conn?.accounts?.length ?? 0) > 0 && (
+                                                <div className="divide-y rounded-md border bg-muted/30">
+                                                    {conn!.accounts.map((acct) => {
+                                                        const busy = loggingOut === `${key}:${acct.mobile}`;
+                                                        // Tagged into a different group than the one configured
+                                                        // = this account is NOT in the pool dispatch books from.
+                                                        const drifted =
+                                                            !!conn!.group &&
+                                                            acct.groupNumber !== null &&
+                                                            acct.groupNumber !== conn!.group;
+                                                        return (
+                                                            <div
+                                                                key={acct.mobile}
+                                                                className="flex items-center justify-between gap-2 px-2.5 py-1.5"
+                                                            >
+                                                                <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                                                                    <span className="text-xs font-medium tabular-nums">
+                                                                        ••{acct.mobile.slice(-4)}
+                                                                    </span>
+                                                                    <span
+                                                                        className={`text-[10px] rounded px-1.5 py-0.5 ${
+                                                                            acct.status === "active"
+                                                                                ? "bg-emerald-50 text-emerald-700"
+                                                                                : acct.status === "unknown"
+                                                                                  ? "bg-gray-100 text-gray-600"
+                                                                                  : "bg-amber-50 text-amber-700"
+                                                                        }`}
+                                                                    >
+                                                                        {acct.status === "none" ? "not on bridge" : acct.status}
+                                                                    </span>
+                                                                    {drifted && (
+                                                                        <span className="text-[10px] rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">
+                                                                            in group {acct.groupNumber} — Save to move
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="px-2 text-muted-foreground shrink-0"
+                                                                    onClick={() => handleLogout(key, acct.mobile)}
+                                                                    disabled={busy}
+                                                                    title={`Log out ••${acct.mobile.slice(-4)}`}
+                                                                >
+                                                                    {busy ? (
+                                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                                    ) : (
+                                                                        <LogOut className="h-4 w-4" />
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            {(conn?.groupAccounts ?? 0) > 0 && (
                                                 <div className="text-xs text-muted-foreground">
-                                                    {conn?.mobile ? `••${conn.mobile.slice(-4)}` : ""}
-                                                    {conn?.mobile && (conn?.groupAccounts ?? 0) > 0 ? " · " : ""}
-                                                    {(conn?.groupAccounts ?? 0) > 0
-                                                        ? `${conn!.groupAccounts} account${conn!.groupAccounts === 1 ? "" : "s"} in group ${conn!.group}`
-                                                        : ""}
+                                                    {conn!.groupAccounts} account{conn!.groupAccounts === 1 ? "" : "s"} live in
+                                                    group {conn!.group} — dispatch books on whichever is free.
                                                 </div>
                                             )}
                                             <div>
@@ -1109,7 +1168,18 @@ export function DeliverySettings() {
                                     storeName={(userData as Partner)?.store_name}
                                     city={(userData as Partner)?.district}
                                     coords={pickupCoords}
-                                    initialMobile={connectDialog === "porter" ? porterMobile : rapidoMobile}
+                                    // Blank once anything is connected: this button is
+                                    // "Add account" then, and pre-filling the number
+                                    // already on file meant the partner re-OTP'd the
+                                    // SAME account instead of adding a second one —
+                                    // which is exactly why pooling never worked.
+                                    initialMobile={
+                                        (connections?.[connectDialog]?.accounts?.length ?? 0) > 0
+                                            ? ""
+                                            : connectDialog === "porter"
+                                              ? porterMobile
+                                              : rapidoMobile
+                                    }
                                     initialGroup={deliveryRules.delivery_provider_groups?.[connectDialog] ?? ""}
                                     onConnected={handleConnected}
                                 />

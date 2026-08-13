@@ -121,6 +121,55 @@ const PROVIDER_MOBILE_COLUMN: Record<ConnectProvider, string> = {
   rapido: "rapido_mobile",
 };
 
+/**
+ * Every mobile this partner has connected for a provider, newest first.
+ *
+ * Lives in delivery_rules (jsonb, no migration) under
+ * `delivery_provider_accounts: { porter: [...], rapido: [...] }`. The
+ * `{provider}_mobile` COLUMN only ever held the last-connected number, so a
+ * partner running several Rapido logins lost every earlier one: it vanished from
+ * the dashboard, could not be logged out, and Save re-tagged only the survivor —
+ * which silently split the dispatch pool.
+ *
+ * This list is the OWNERSHIP record and is deliberately not derived from the
+ * bridge's group membership. Group numbers are free text a partner types, so two
+ * stores can collide on one; trusting the group for ownership would let either
+ * of them log out the other's accounts. The bridge supplies live STATUS, this
+ * list decides what they're allowed to touch.
+ *
+ * Legacy rows have no list — fall back to the single column so an existing
+ * partner keeps managing the account they already connected.
+ */
+function readAccountList(
+  rules: Record<string, unknown>,
+  provider: ConnectProvider,
+  legacyMobile: string | null,
+): string[] {
+  const all = (rules.delivery_provider_accounts as Record<string, unknown>) || {};
+  const raw = Array.isArray(all[provider]) ? (all[provider] as unknown[]) : [];
+  const list: string[] = [];
+  for (const v of raw) {
+    const m = normaliseMobile(String(v));
+    if (m && !list.includes(m)) list.push(m);
+  }
+  const legacy = normaliseMobile(legacyMobile);
+  if (legacy && !list.includes(legacy)) list.push(legacy);
+  return list;
+}
+
+/** Write the list back into a delivery_rules object (mutates a copy's key). */
+function writeAccountList(
+  rules: Record<string, unknown>,
+  provider: ConnectProvider,
+  list: string[],
+): Record<string, unknown> {
+  const all = {
+    ...((rules.delivery_provider_accounts as Record<string, unknown>) || {}),
+  };
+  all[provider] = list;
+  return { ...rules, delivery_provider_accounts: all };
+}
+
 async function loadPartnerConn(partnerId: string): Promise<{
   delivery_rules: Record<string, unknown>;
   porter_mobile: string | null;
@@ -269,11 +318,25 @@ export async function verifyDeliveryOtp(
     }
   }
 
-  // 2c. Save the mobile (last-connected = the "primary" for logout) and, when a
-  //     group was given, persist it onto delivery_rules so dispatch sends it.
+  // 2c. Record the account. The mobile COLUMN keeps holding the newest one (the
+  //     charges screen and other existing readers still use it), but the account
+  //     is now ALSO appended to the per-provider list — otherwise connecting a
+  //     second Rapido login overwrote the first and orphaned it: invisible in the
+  //     dashboard and impossible to log out.
   const conn = await loadPartnerConn(input.partnerId);
-  const rules = { ...(conn?.delivery_rules ?? {}) } as Record<string, unknown>;
+  let rules = { ...(conn?.delivery_rules ?? {}) } as Record<string, unknown>;
   const mobileColumn = PROVIDER_MOBILE_COLUMN[input.provider];
+
+  const existing = readAccountList(
+    rules,
+    input.provider,
+    input.provider === "porter" ? conn?.porter_mobile ?? null : conn?.rapido_mobile ?? null,
+  );
+  // Newest first, and re-connecting a number already on file moves it up rather
+  // than duplicating it (a partner re-OTPs to clear an expired token).
+  const list = [mobile, ...existing.filter((m) => m !== mobile)];
+  rules = writeAccountList(rules, input.provider, list);
+
   const updates: Record<string, unknown> = {
     [mobileColumn]: mobile,
     updated_at: new Date().toISOString(),
@@ -284,8 +347,9 @@ export async function verifyDeliveryOtp(
     };
     groups[input.provider] = group;
     rules.delivery_provider_groups = groups;
-    updates.delivery_rules = rules;
   }
+  // Always persisted now — the account list changed even when no group was given.
+  updates.delivery_rules = rules;
   await fetchFromHasuraServer(
     `mutation SaveDeliveryConn($id: uuid!, $updates: partners_set_input!) {
       update_partners_by_pk(pk_columns: { id: $id }, _set: $updates) { id }
@@ -324,24 +388,40 @@ export async function setProviderGroups(input: {
 
   const results: Record<string, string> = {};
   for (const provider of ["porter", "rapido"] as ConnectProvider[]) {
-    const mobile = normaliseMobile(
+    // EVERY connected account, not just the newest. Re-tagging only one left the
+    // rest sitting in the previous group, so editing the group number quietly
+    // split the pool in half and dispatch lost the accounts it thought it had.
+    const mobiles = readAccountList(
+      conn.delivery_rules,
+      provider,
       provider === "porter" ? conn.porter_mobile : conn.rapido_mobile,
     );
-    if (!mobile) {
+    if (!mobiles.length) {
       results[provider] = "no connected account";
       continue;
     }
     const group = String(rawGroups[provider] ?? "").trim();
-    const acct = await resolveAccountId(provider, mobile);
-    if (!acct) {
-      results[provider] = "account not found on bridge";
-      continue;
+
+    // One accounts listing for the whole loop instead of one per mobile.
+    const done: string[] = [];
+    const failed: string[] = [];
+    for (const mobile of mobiles) {
+      const acct = await resolveAccountId(provider, mobile);
+      if (!acct) {
+        failed.push(`${mobile}: not on bridge`);
+        continue;
+      }
+      const res = await bridgeFetch(`/api/v1/accounts/${acct.accountId}/group`, {
+        method: "POST",
+        json: { groupNumber: group },
+      });
+      if (res.ok) done.push(mobile);
+      else failed.push(`${mobile}: ${res.message}`);
     }
-    const res = await bridgeFetch(`/api/v1/accounts/${acct.accountId}/group`, {
-      method: "POST",
-      json: { groupNumber: group },
-    });
-    results[provider] = res.ok ? (group ? `set ${group}` : "cleared") : `failed: ${res.message}`;
+    const verb = group ? `set ${group}` : "cleared";
+    results[provider] = failed.length
+      ? `${verb} on ${done.length}/${mobiles.length} — ${failed.join("; ")}`
+      : `${verb} on ${done.length} account${done.length === 1 ? "" : "s"}`;
   }
   return { ok: true, results };
 }
@@ -385,13 +465,16 @@ export async function logoutDeliveryProvider(input: {
   if (!auth.ok) return auth;
   const mobile = normaliseMobile(input.mobile);
   if (!mobile) return { ok: false, message: "No connected mobile to log out" };
-  // The mobile must actually be THIS partner's connected number for the provider
-  // — stops a partner logging out an account they don't own by passing any number.
+  // Ownership check, against the partner's OWN account list — not the bridge's
+  // group membership, which is a number the partner types and two stores can
+  // collide on. Previously this compared only against `{provider}_mobile`, so
+  // every account except the most recent was impossible to log out.
   const conn = await loadPartnerConn(input.partnerId);
-  const ownMobile = normaliseMobile(
-    input.provider === "porter" ? conn?.porter_mobile : conn?.rapido_mobile,
-  );
-  if (!ownMobile || ownMobile !== mobile) {
+  if (!conn) return { ok: false, message: "partner not found" };
+  const legacyMobile =
+    input.provider === "porter" ? conn.porter_mobile : conn.rapido_mobile;
+  const owned = readAccountList(conn.delivery_rules, input.provider, legacyMobile);
+  if (!owned.includes(mobile)) {
     return { ok: false, message: "That number isn't connected to your store" };
   }
   const acct = await resolveAccountId(input.provider, mobile);
@@ -403,6 +486,33 @@ export async function logoutDeliveryProvider(input: {
     json: {},
   });
   if (!res.ok) return { ok: false, message: res.message };
+
+  // Drop it from the list so the dashboard stops offering to manage it, and
+  // move the mobile COLUMN onto whichever account is now newest (or null when
+  // that was the last one) — leaving a logged-out number there would keep the
+  // charges screen pointing at a dead account.
+  const remaining = owned.filter((m) => m !== mobile);
+  const rules = writeAccountList(conn.delivery_rules, input.provider, remaining);
+  await fetchFromHasuraServer(
+    `mutation ClearDeliveryConn($id: uuid!, $updates: partners_set_input!) {
+      update_partners_by_pk(pk_columns: { id: $id }, _set: $updates) { id }
+    }`,
+    {
+      id: input.partnerId,
+      updates: {
+        delivery_rules: rules,
+        ...(normaliseMobile(legacyMobile) === mobile
+          ? { [PROVIDER_MOBILE_COLUMN[input.provider]]: remaining[0] ?? null }
+          : {}),
+        updated_at: new Date().toISOString(),
+      },
+    },
+  ).catch((e) => {
+    // The bridge logout already succeeded; a bookkeeping failure must not report
+    // the whole operation as failed.
+    console.error("[deliveryConnect] logout bookkeeping failed:", e);
+  });
+
   return { ok: true };
 }
 
@@ -434,18 +544,27 @@ export async function getDeliveryConnections(input: {
   const porterMobile = normaliseMobile(conn.porter_mobile);
   const rapidoMobile = normaliseMobile(conn.rapido_mobile);
 
+  const porterOwned = readAccountList(conn.delivery_rules, "porter", conn.porter_mobile);
+  const rapidoOwned = readAccountList(conn.delivery_rules, "rapido", conn.rapido_mobile);
+
   const notConnected = (provider: ConnectProvider): ProviderConnection => ({
     mobile: null,
     group: groups[provider] ?? null,
     status: "none",
     connected: false,
     groupAccounts: 0,
+    accounts: [],
   });
 
-  // Skip the bridge only when there's genuinely nothing to check — no saved
-  // mobile AND no group configured for either provider. (Avoids the old
+  // Skip the bridge only when there's genuinely nothing to check — no connected
+  // account AND no group configured for either provider. (Avoids the old
   // perpetual "Checking…" for brand-new partners.)
-  if (!porterMobile && !rapidoMobile && !groups.porter && !groups.rapido) {
+  if (
+    !porterOwned.length &&
+    !rapidoOwned.length &&
+    !groups.porter &&
+    !groups.rapido
+  ) {
     return { ok: true, porter: notConnected("porter"), rapido: notConnected("rapido") };
   }
 
@@ -459,20 +578,25 @@ export async function getDeliveryConnections(input: {
         : ((list.data as { data?: Array<Record<string, unknown>> }).data ?? []))
     : [];
 
-  const build = (provider: ConnectProvider, rawMobile: string | null): ProviderConnection => {
-    const mobile = normaliseMobile(rawMobile);
+  const build = (
+    provider: ConnectProvider,
+    rawMobile: string | null,
+    owned: string[],
+  ): ProviderConnection => {
+    const mobile = normaliseMobile(rawMobile) ?? owned[0] ?? null;
     const group = groups[provider] ?? null;
 
     if (!list.ok) {
       // Couldn't reach the bridge — treat anything configured as connected so we
-      // don't nag; we just can't show the live account count.
-      const configured = !!(mobile || group);
+      // don't nag; we just can't show live per-account status.
+      const configured = !!(owned.length || group);
       return {
         mobile,
         group,
         status: configured ? "unknown" : "none",
         connected: configured,
         groupAccounts: 0,
+        accounts: owned.map((m) => ({ mobile: m, status: "unknown", groupNumber: null })),
       };
     }
 
@@ -489,25 +613,44 @@ export async function getDeliveryConnections(input: {
         ).length
       : 0;
 
-    // The partner's own saved account (when a mobile is on file).
-    const match = mobile
-      ? rows.find(
-          (r) =>
-            ((r.service as string) ?? "porter") === provider &&
-            normaliseMobile(String(r.mobile)) === mobile,
-        )
-      : undefined;
-    const mobileStatus = match ? String(match.status ?? "none") : "none";
+    // Live status for EVERY account this partner owns, so the settings screen can
+    // list them individually instead of showing one number and a bare count.
+    const findRow = (m: string) =>
+      rows.find(
+        (r) =>
+          ((r.service as string) ?? "porter") === provider &&
+          normaliseMobile(String(r.mobile)) === m,
+      );
+    const accounts = owned.map((m) => {
+      const row = findRow(m);
+      return {
+        mobile: m,
+        status: row ? String(row.status ?? "none") : "none",
+        groupNumber: row?.groupNumber ? String(row.groupNumber) : null,
+      };
+    });
 
-    const connected = mobileStatus === "active" || groupAccounts > 0;
-    const status =
-      mobileStatus !== "none" ? mobileStatus : groupAccounts > 0 ? "active" : "none";
-    return { mobile, group, status, connected, groupAccounts };
+    const mobileStatus = mobile ? (findRow(mobile) ? String(findRow(mobile)!.status ?? "none") : "none") : "none";
+    // Connected when ANY owned account is live, or the group has members —
+    // previously only the single saved mobile counted, so a partner whose newest
+    // login had expired looked disconnected while other accounts were fine.
+    const anyActive = accounts.some((a) => a.status === "active");
+    const connected = anyActive || groupAccounts > 0;
+    const status = anyActive
+      ? "active"
+      : mobileStatus !== "none"
+        ? mobileStatus
+        : accounts[0]?.status && accounts[0].status !== "none"
+          ? accounts[0].status
+          : groupAccounts > 0
+            ? "active"
+            : "none";
+    return { mobile, group, status, connected, groupAccounts, accounts };
   };
 
   return {
     ok: true,
-    porter: build("porter", conn.porter_mobile),
-    rapido: build("rapido", conn.rapido_mobile),
+    porter: build("porter", conn.porter_mobile, porterOwned),
+    rapido: build("rapido", conn.rapido_mobile, rapidoOwned),
   };
 }

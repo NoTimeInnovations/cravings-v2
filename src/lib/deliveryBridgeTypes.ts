@@ -27,7 +27,21 @@ export interface VerifyOtpSuccess {
     deliveryRules: Record<string, unknown>;
 }
 
+/** One account this partner has OTP-connected for a provider. */
+export interface ConnectedAccount {
+    mobile: string;
+    /** Live bridge status: "active" | "token_expired" | "pending_otp" | … |
+     *  "none" when the bridge has no such account, "unknown" when unreachable. */
+    status: string;
+    /** Group the account is tagged into ON THE BRIDGE right now. Differs from the
+     *  partner's configured group until Save re-tags it — that drift is what
+     *  silently splits a pool, so the UI surfaces it. */
+    groupNumber: string | null;
+}
+
 export interface ProviderConnection {
+    /** Most recently connected account. Kept for the existing single-mobile
+     *  callers (deliveryCharges) — `accounts` is the real list. */
     mobile: string | null;
     group: string | null;
     /** "active" | "token_expired" | "pending_otp" | "blocked" | "disabled" | "none" | "unknown" */
@@ -37,6 +51,10 @@ export interface ProviderConnection {
      *  on the bridge — what dispatch actually pools from. 0 when no group is set
      *  or none are tagged. */
     groupAccounts: number;
+    /** EVERY account this partner connected for the provider, newest first.
+     *  A partner running several Rapido logins (one live order each) manages them
+     *  from here; before this existed only the last-connected one was reachable. */
+    accounts: ConnectedAccount[];
 }
 
 // ── charges ──────────────────────────────────────────────────────────────────
