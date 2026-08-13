@@ -2593,12 +2593,24 @@ const useOrderStore = create(
             totalPrice: 0,
           }));
 
-          if (!hotelData.petpooja_restaurant_id) {
-            try {
-              await Notification.partner.sendOrderNotification(newOrder);
-            } catch (notifError) {
-              console.error("Partner notification failed (order still placed):", notifError);
-            }
+          // Notify the restaurant's phone, Petpooja partner or not.
+          //
+          // This used to be wrapped in `if (!hotelData.petpooja_restaurant_id)`,
+          // which silently cut every Petpooja partner off from order alerts —
+          // 80 active partners, several with 3-5 phones running the Cravings
+          // app and receiving nothing. The order reaching their POS is not a
+          // substitute: the app is what actually rings in the kitchen.
+          //
+          // The exclusion looks accidental rather than deliberate. The Petpooja
+          // branch above still carries a commented-out copy of this same call
+          // whose note reads "Skip this too as per instructions? ... I'll keep
+          // it commented out ... based on 'dont send whatsapp message'" — the
+          // instruction was about the customer-facing WhatsApp message, and the
+          // partner's push got disabled along with it.
+          try {
+            await Notification.partner.sendOrderNotification(newOrder);
+          } catch (notifError) {
+            console.error("Partner notification failed (order still placed):", notifError);
           }
 
           // // Send WhatsApp order placed template (only if feature flag enabled)

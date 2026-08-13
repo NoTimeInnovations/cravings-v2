@@ -175,21 +175,28 @@ export async function finalizeCfOrder(
       }
       return { ok: false, error: e?.message || "petpooja push failed" };
     }
-  } else {
-    // Non-Petpooja partner: notify the restaurant of the new (now paid) order.
-    // Best-effort — a notification failure should NOT release the claim.
-    try {
-      await notifyPartnerNewOrder(
-        order.partner_id,
-        order.id,
-        (order.order_items || []).map((oi: any) => ({
-          name: oi?.item?.name || "Item",
-          quantity: oi?.quantity || 1,
-        })),
-      );
-    } catch (e) {
-      console.error(`[finalizeCfOrder] partner notification failed (order still finalized) order=${orderId}:`, e);
-    }
+  }
+
+  // Notify the restaurant of the new (now paid) order — Petpooja partner or
+  // not. This sat in an `else` on the Petpooja branch above, so a partner who
+  // runs Petpooja got no push for online-paid orders either; pushing the order
+  // to their POS is a different thing from ringing the phone in the kitchen.
+  // Mirrors the same fix in orderStore.placeOrder for cash/COD orders.
+  //
+  // Deliberately AFTER the Petpooja push and outside its try: best-effort, and
+  // a notification failure must never release the claim (that would re-push a
+  // real order to the POS twice).
+  try {
+    await notifyPartnerNewOrder(
+      order.partner_id,
+      order.id,
+      (order.order_items || []).map((oi: any) => ({
+        name: oi?.item?.name || "Item",
+        quantity: oi?.quantity || 1,
+      })),
+    );
+  } catch (e) {
+    console.error(`[finalizeCfOrder] partner notification failed (order still finalized) order=${orderId}:`, e);
   }
 
   // NOTE: stock is decremented at PLACEMENT now (orderStore.placeOrder, even for
