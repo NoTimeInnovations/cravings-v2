@@ -6,6 +6,7 @@ import { runOrderTriggeredFlows } from "@/lib/whatsappFlow/engine";
 import { isWhatsappEnabled } from "@/lib/whatsapp-features";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { customerOrderRef } from "@/lib/customerOrderRef";
+import { getDispatchTracking } from "@/app/actions/porterBridge";
 
 // Receives the Hasura event trigger on `orders` (INSERT/UPDATE). On a new order
 // or a status change it fires the partner's matching order-triggered WhatsApp
@@ -17,7 +18,7 @@ const Q_ORDER = `
     orders_by_pk(id: $id) {
       id short_id status total_price type table_name phone orderedby partner_id
       gst_included extra_charges discounts loyalty_redeem_value loyalty_points_redeemed
-      delivery_agent delivery_provider_meta
+      delivery_agent delivery_provider delivery_provider_state delivery_provider_meta
       delivery_boy { name phone }
       partner { store_name currency country_code }
       user { full_name phone }
@@ -182,50 +183,116 @@ export async function POST(req: NextRequest) {
         : {};
     const da: any =
       order.delivery_agent && typeof order.delivery_agent === "object" ? order.delivery_agent : {};
-    const driverName = String(
+    // `let`, not const: for a bridge order these are usually EMPTY, because
+    // dpm.driver rides the same never-polled write path as dpm.trackUrl. The
+    // bridge lookup below fetches the booking and back-fills them, so the rider's
+    // name and number reach {{driver_details}} instead of being silently dropped.
+    let driverName = String(
       order.delivery_boy?.name || da.name || dpm.driver?.name || dpm.riderName || "",
     ).trim();
-    const driverPhone = String(
+    let driverPhone = String(
       order.delivery_boy?.phone || da.phone || dpm.driver?.phone || dpm.riderPhone || "",
     ).trim();
 
-    // Tracking link from the provider, else a Porter share link extracted from
-    // shareText. Must be a real http(s) URL or the button degrades to text.
+    // ── Rider tracking link, chosen by the channel actually carrying the order ──
     //
-    // Three spellings, because each integration picked its own and they all land
-    // in the same jsonb column:
-    //   trackUrl     — Porter bridge   (porterBridge.ts)
-    //   trackingUrl  — delivery pool   (deliveryPoolDispatch.ts persistPool)
-    //   tracking_url — Shiprocket      (shiprocketDispatch.ts)
-    // Reading only trackUrl meant pool and Shiprocket parcels — which DO have a
-    // real courier tracking page — silently sent no link. Worse, the order-page
-    // fallback below would then have masked it with our own page.
-    const metaTrackUrl = [dpm.trackUrl, dpm.trackingUrl, dpm.tracking_url].find(
-      (v: unknown) => typeof v === "string" && v.trim(),
-    ) as string | undefined;
-    let trackingUrl = metaTrackUrl ? metaTrackUrl.trim() : "";
-    if (!trackingUrl && typeof dpm.shareText === "string") {
-      const m = dpm.shareText.match(/porter\.in\/rd\/[a-z0-9]+/i);
-      if (m) trackingUrl = `https://${m[0]}`;
-    }
-    if (trackingUrl && !/^https?:\/\//i.test(trackingUrl)) trackingUrl = "";
+    // Each channel has its OWN tracking link and they are not interchangeable:
+    //   menuthere_pool           → dpm.trackingUrl  (api.deliverypool.menuthere.com/track/…)
+    //   delivery bridge          → dpm.trackUrl, else a porter.in link in shareText
+    //     (porter | rapido | dispatch | uber)
+    //   adloggs                  → dpm.trackUrl
+    //   our own delivery app     → no provider link; /order/<id> IS the tracking
+    //                              page (it draws the rider's live position)
+    //
+    // Picking "first non-empty key wins" across the whole blob is WRONG, because
+    // delivery_provider_meta is written with jsonb `_append` — a merge. When a
+    // pool attempt fails and the order is re-dispatched to the bridge, the dead
+    // pool trackingUrl SURVIVES alongside the new bridge keys. Production has 6
+    // such orders right now: delivery_provider "dispatch", state failed/cancelled/
+    // no_rider, still carrying a deliverypool.menuthere.com/track/… URL. Keyed on
+    // the blob, those customers would be sent to a dead pool page to track a rider
+    // who is actually on a Porter/Rapido bike.
+    //
+    // So: read only the key belonging to the CURRENT provider, and only while that
+    // provider's attempt is still alive.
+    const provider = String(order.delivery_provider || "").trim().toLowerCase();
+    const providerState = String(order.delivery_provider_state || "").trim().toLowerCase();
+    // Terminal-failure states — the attempt is over, so its link is dead. The
+    // success states (ended/delivered) deliberately still resolve: the page
+    // remains a valid record of the delivery.
+    const DEAD_PROVIDER_STATES = new Set(["failed", "cancelled", "no_rider", "expired"]);
+    const providerLive = !!provider && !DEAD_PROVIDER_STATES.has(providerState);
 
-    // Fall back to our OWN order page whenever a rider is assigned but the
-    // provider gave us no link.
-    //
-    // Both sources above only ever fire for a third-party provider (Porter /
-    // pool / Shiprocket). Assigning the partner's own delivery boy writes no
-    // delivery_provider_meta at all, so {{tracking_url}} was empty and the
-    // "Track Order" button silently degraded to plain text — in production that
-    // was EVERY dispatch: of 1,914 dispatched orders, 1,764 were own-rider and
-    // not one had a trackUrl or shareText, so the button has never once rendered
-    // for any of the 241 partners that carry it.
-    //
-    // /order/<id> is the right destination: it subscribes to the order and
-    // renders the rider's live position (useLiveAgentLocation, seeded from
+    const asUrl = (v: unknown): string => {
+      const s = typeof v === "string" ? v.trim() : "";
+      return /^https?:\/\//i.test(s) ? s : "";
+    };
+
+    let trackingUrl = "";
+    if (providerLive) {
+      if (provider === "menuthere_pool") {
+        trackingUrl = asUrl(dpm.trackingUrl);
+      } else if (provider === "adloggs") {
+        trackingUrl = asUrl(dpm.trackUrl);
+      } else {
+        // Delivery bridge (porter | rapido | dispatch | uber).
+        trackingUrl = asUrl(dpm.trackUrl);
+        if (!trackingUrl && typeof dpm.shareText === "string") {
+          const m = dpm.shareText.match(/porter\.in\/rd\/[a-z0-9]+/i);
+          if (m) trackingUrl = `https://${m[0]}`;
+        }
+
+        // Nothing stored — ask the bridge for it now.
+        //
+        // The bridge DOES expose the rider's track link (booking.trackUrl on
+        // GET /api/v1/dispatch/{id}), and getDispatchTracking was written to
+        // persist it. It was simply never called from anywhere: the only pollers
+        // are two CLIENT panels that read the URL into the browser and never save
+        // it. That is why 0 of 314 bridge orders in production carry a tracking
+        // key, and why these customers were being handed our order page instead
+        // of Porter/Rapido's live rider map.
+        //
+        // Calling it here also PERSISTS trackUrl + driver + pins and upgrades
+        // delivery_provider from the placeholder "dispatch" to the real provider,
+        // so the order page and admin light up too.
+        //
+        // Strictly best-effort: a short deadline (this route is maxDuration 30 and
+        // still has to send the messages) and every failure just falls through to
+        // the order-page link below.
+        if (!trackingUrl && dpm.dispatchId) {
+          try {
+            const live = await getDispatchTracking(order.id, { timeoutMs: 6_000 });
+            if (live.ok) {
+              const booking = (
+                live.data as
+                  | {
+                      booking?: {
+                        trackUrl?: string | null;
+                        driver?: { name?: string | null; phone?: string | null } | null;
+                      } | null;
+                    }
+                  | undefined
+              )?.booking;
+              trackingUrl = asUrl(booking?.trackUrl);
+              // Same call is the only place a bridge rider's identity exists, so
+              // take it while we have it — otherwise the message names no rider.
+              if (!driverName) driverName = String(booking?.driver?.name || "").trim();
+              if (!driverPhone) driverPhone = String(booking?.driver?.phone || "").trim();
+            }
+          } catch (e) {
+            console.error(`[order-event] bridge tracking lookup failed order=${order.id}:`, e);
+          }
+        }
+      }
+    }
+
+    // Our own delivery app — and any channel whose provider gave us no usable
+    // link — tracks on /order/<id>. That page subscribes to the order and draws
+    // the rider's live position (useLiveAgentLocation, seeded from
     // delivery_boys.current_lat/lng), plus rider name, phone and the status
-    // timeline. It handles the third-party delivery_agent shape too, so this
-    // covers an Adloggs agent that came without a link.
+    // timeline, so for the partner's own delivery boy it IS the tracking link
+    // rather than a stand-in. It also renders the third-party rider panels, so a
+    // bridge order with no provider URL still lands somewhere useful.
     //
     // Keyed on a rider actually being assigned, not on the status: "dispatched"
     // alone can mean a takeaway that never has anyone to track.

@@ -1020,7 +1020,13 @@ export async function clearDelayedDispatch(orderId: string): Promise<Result> {
  * delivery_provider to that provider (porter/uber/rapido) so the existing
  * tracking UI lights up; stores trackUrl + driver into meta.
  */
-export async function getDispatchTracking(orderId: string): Promise<Result> {
+export async function getDispatchTracking(
+  orderId: string,
+  /** Tighter deadline for callers on a latency-sensitive path (the WhatsApp
+   *  dispatched message polls this to obtain the rider's track link). Defaults
+   *  to bridgeFetch's own 25s, which is far too long to sit inside a 30s route. */
+  opts?: { timeoutMs?: number },
+): Promise<Result> {
   if (!orderId) return { ok: false, message: "orderId required" };
   let dispatchId: string | null = null;
   try {
@@ -1036,7 +1042,10 @@ export async function getDispatchTracking(orderId: string): Promise<Result> {
   }
   if (!dispatchId) return { ok: false, status: 404, message: "no dispatch on this order" };
 
-  const res = await bridgeFetch(`/api/v1/dispatch/${dispatchId}`, { method: "GET" });
+  const res = await bridgeFetch(`/api/v1/dispatch/${dispatchId}`, {
+    method: "GET",
+    ...(opts?.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
+  });
   if (!res.ok) return res;
   const d = res.data as {
     status: string;
