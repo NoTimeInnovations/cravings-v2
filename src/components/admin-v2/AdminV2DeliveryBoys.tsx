@@ -10,6 +10,16 @@ import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
+    EMPTY_STATS,
+    periodStart,
+    statsByRider,
+    totalStats,
+    type Period,
+    type RiderStats,
+    type StatsOrder,
+} from "@/lib/deliveryBoyStats";
+import {
+    getDeliveryBoyStatsOrdersQuery,
     getDeliveryBoysQuery,
     createDeliveryBoyMutation,
     deleteDeliveryBoyMutation,
@@ -33,6 +43,12 @@ interface DeliveryBoy {
 export function AdminV2DeliveryBoys() {
     const { userData } = useAuthStore();
     const [deliveryBoys, setDeliveryBoys] = useState<DeliveryBoy[]>([]);
+    // Per-rider performance. Kept separate from the roster so editing a rider
+    // never refetches orders, and a stats failure never blanks the list.
+    const [period, setPeriod] = useState<Period>("day");
+    const [statsOrders, setStatsOrders] = useState<StatsOrder[]>([]);
+    const [partnerGeo, setPartnerGeo] = useState<any>(null);
+    const [statsLoading, setStatsLoading] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -59,6 +75,43 @@ export function AdminV2DeliveryBoys() {
             setIsLoading(false);
         }
     }, [userData, isDeliveryEnabled]);
+
+    // Orders are read for the LONGEST window on screen (30 days) and the shorter
+    // periods are sliced from that in memory, so flipping Today/Week/Month is
+    // instant and costs no extra request. Deliberately NOT on the 5s roster
+    // poll — a month of orders every five seconds would be wasteful.
+    useEffect(() => {
+        if (!userData?.id || !isDeliveryEnabled) {
+            setStatsLoading(false);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetchFromHasura(getDeliveryBoyStatsOrdersQuery, {
+                    partner_id: userData.id,
+                    from: periodStart("month").toISOString(),
+                });
+                if (cancelled) return;
+                setStatsOrders(res?.orders ?? []);
+                setPartnerGeo(res?.partners_by_pk?.geo_location ?? null);
+            } catch (error) {
+                // Non-fatal: the roster still renders, the stats columns just
+                // stay empty rather than taking the whole screen down.
+                console.error("Error fetching delivery stats:", error);
+            } finally {
+                if (!cancelled) setStatsLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [userData?.id, isDeliveryEnabled]);
+
+    const riderStats = statsByRider(statsOrders, partnerGeo, period);
+    const overall = totalStats(riderStats);
+    const currency = (n: number) =>
+        `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
     const fetchDeliveryBoys = async (silent = false) => {
         try {
@@ -289,13 +342,63 @@ export function AdminV2DeliveryBoys() {
                             No delivery boys found. Add one to get started.
                         </div>
                     ) : (
-                        <div className="rounded-md border">
+                        <div className="space-y-3">
+                            {/* Period toggle. Slices the already-fetched 30 days,
+                                so switching is instant and makes no request. */}
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="inline-flex rounded-lg border p-0.5">
+                                    {([
+                                        ["day", "Today"],
+                                        ["week", "Last 7 days"],
+                                        ["month", "Last 30 days"],
+                                    ] as [Period, string][]).map(([value, label]) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() => setPeriod(value)}
+                                            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                                period === value
+                                                    ? "bg-orange-500 text-white font-medium"
+                                                    : "text-muted-foreground hover:bg-black/[0.04]"
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                    {statsLoading ? (
+                                        "Loading stats…"
+                                    ) : (
+                                        <>
+                                            <span className="font-medium text-foreground">{overall.orders}</span> orders
+                                            {" · "}
+                                            <span className="font-medium text-foreground">{currency(overall.value)}</span>
+                                            {" · "}
+                                            <span className="font-medium text-foreground">{overall.km} km</span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="rounded-md border">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Name</TableHead>
                                         <TableHead>Phone</TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Orders</TableHead>
+                                        <TableHead className="text-right">Order value</TableHead>
+                                        <TableHead
+                                            className="text-right"
+                                            title="Total straight-line distance from the restaurant to each customer, one way, summed over the period. Real road distance is higher."
+                                        >
+                                            Distance
+                                            <span className="ml-1 font-normal text-muted-foreground">
+                                                (straight-line)
+                                            </span>
+                                        </TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -313,6 +416,9 @@ export function AdminV2DeliveryBoys() {
                                                     <TableCell>
                                                         <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="New password (optional)" className="h-8 w-40" type="password" />
                                                     </TableCell>
+                                                    {/* Placeholder for the three stats columns so the
+                                                        edit row still lines up with the header. */}
+                                                    <TableCell colSpan={3} />
                                                     <TableCell className="text-right space-x-1">
                                                         <Button variant="outline" size="sm" onClick={() => handleEditSave(boy)}>Save</Button>
                                                         <Button variant="ghost" size="sm" onClick={cancelEdit}>Cancel</Button>
@@ -341,6 +447,39 @@ export function AdminV2DeliveryBoys() {
                                                             onCheckedChange={() => handleToggleActive(boy)}
                                                         />
                                                     </TableCell>
+                                                    {(() => {
+                                                        const st: RiderStats = riderStats[boy.id] ?? EMPTY_STATS;
+                                                        return (
+                                                            <>
+                                                                <TableCell className="text-right tabular-nums">
+                                                                    {statsLoading ? "—" : st.orders}
+                                                                </TableCell>
+                                                                <TableCell className="text-right tabular-nums">
+                                                                    {statsLoading ? "—" : currency(st.value)}
+                                                                </TableCell>
+                                                                <TableCell className="text-right tabular-nums">
+                                                                    {statsLoading ? (
+                                                                        "—"
+                                                                    ) : st.orders === 0 ? (
+                                                                        <span className="text-muted-foreground">0</span>
+                                                                    ) : (
+                                                                        <span
+                                                                            title={
+                                                                                st.ordersWithoutLocation > 0
+                                                                                    ? `${st.ordersWithoutLocation} of ${st.orders} orders have no saved customer location, so they add nothing to this figure.`
+                                                                                    : undefined
+                                                                            }
+                                                                        >
+                                                                            {st.km} km
+                                                                            {st.ordersWithoutLocation > 0 && (
+                                                                                <span className="ml-1 text-amber-600">*</span>
+                                                                            )}
+                                                                        </span>
+                                                                    )}
+                                                                </TableCell>
+                                                            </>
+                                                        );
+                                                    })()}
                                                     <TableCell className="text-right space-x-1">
                                                         <Button
                                                             variant="ghost"
@@ -369,6 +508,21 @@ export function AdminV2DeliveryBoys() {
                                     ))}
                                 </TableBody>
                             </Table>
+                            </div>
+
+                            {/* Stated in the open, not just in a tooltip: someone
+                                may pay riders on this number. */}
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                <span className="font-medium">About distance:</span> this is the total
+                                distance covered across all of a rider&apos;s orders in the selected
+                                period, measured as a <span className="font-medium">straight line</span>{" "}
+                                from the restaurant to each customer,{" "}
+                                <span className="font-medium">one way</span>. Real road distance is
+                                always higher — it ignores the route actually ridden and the return
+                                trip — so treat this as a minimum, not a payout figure. Orders with no
+                                saved customer location add nothing and are marked{" "}
+                                <span className="text-amber-600">*</span>.
+                            </p>
                         </div>
                     )}
                 </CardContent>

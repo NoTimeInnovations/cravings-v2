@@ -159,3 +159,39 @@ export const getDeliveryBoyByIdQuery = `
     }
   }
 `;
+
+/**
+ * Orders behind the per-rider stats on the Delivery Boys screen.
+ *
+ * Fetches raw rows rather than a Hasura aggregate because two of the three
+ * numbers cannot be aggregated server-side: distance needs each order's
+ * coordinates, and the day/week/month split needs `delivered_at` with a
+ * created_at fallback, which SQL-side would mean three separate aggregates.
+ * One windowed read is simpler and stays correct.
+ *
+ * `from` bounds the read so this never pulls a partner's whole order history.
+ * Cancelled orders are filtered here so they cost nothing to transfer.
+ */
+export const getDeliveryBoyStatsOrdersQuery = `
+  query GetDeliveryBoyStatsOrders($partner_id: uuid!, $from: timestamptz!) {
+    orders(
+      where: {
+        partner_id: { _eq: $partner_id }
+        delivery_boy_id: { _is_null: false }
+        status: { _neq: "cancelled" }
+        created_at: { _gte: $from }
+      }
+      order_by: { created_at: desc }
+    ) {
+      delivery_boy_id
+      total_price
+      status
+      created_at
+      delivered_at
+      delivery_location
+    }
+    partners_by_pk(id: $partner_id) {
+      geo_location
+    }
+  }
+`;
