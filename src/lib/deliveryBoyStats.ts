@@ -12,6 +12,9 @@ import { haversineKm, type LatLng } from "./roadDistance";
 /** A GeoJSON Point as Hasura returns it: coordinates are [lng, lat], NOT [lat, lng]. */
 export type GeoPoint = { coordinates?: [number, number] | number[] } | null | undefined;
 
+/** One line in an order's `extra_charges` array. */
+export type ExtraCharge = { name?: string | null; amount?: number | string | null };
+
 export type StatsOrder = {
   delivery_boy_id: string | null;
   total_price: number | null;
@@ -19,13 +22,38 @@ export type StatsOrder = {
   created_at: string;
   delivered_at: string | null;
   delivery_location: GeoPoint;
+  extra_charges: ExtraCharge[] | null;
 };
+
+/**
+ * The delivery fee charged to the customer, identified by the exact line name.
+ *
+ * Name-matching looks brittle, but it IS this codebase's convention rather than
+ * a guess: the fee is written as `{ name: "Delivery Charge" }` by orderStore and
+ * both checkout modals, and deliveryPoolDispatch already reads it back the same
+ * way. Matching only that line is deliberate — "Parcel Charge" and "Round Off"
+ * ride in the same array and are not delivery revenue.
+ *
+ * A missing or empty array means no fee was levied, not missing data: the
+ * checkout only pushes the line when the amount is greater than zero.
+ */
+export const DELIVERY_CHARGE_LINE = "Delivery Charge";
+
+export function deliveryChargeOf(o: StatsOrder): number {
+  for (const c of o.extra_charges ?? []) {
+    if (c?.name === DELIVERY_CHARGE_LINE) return Number(c.amount) || 0;
+  }
+  return 0;
+}
 
 export type Period = "day" | "week" | "month";
 
 export type RiderStats = {
   orders: number;
   value: number;
+  /** Delivery fees collected from customers on this rider's orders. A subset of
+   *  `value`, not an addition to it — `total_price` already includes the fee. */
+  deliveryCharge: number;
   km: number;
   /** Orders in the window whose customer location is missing, so they add
    *  nothing to `km`. Surfaced so a low distance reads as "not recorded"
@@ -33,7 +61,7 @@ export type RiderStats = {
   ordersWithoutLocation: number;
 };
 
-export const EMPTY_STATS: RiderStats = { orders: 0, value: 0, km: 0, ordersWithoutLocation: 0 };
+export const EMPTY_STATS: RiderStats = { orders: 0, value: 0, deliveryCharge: 0, km: 0, ordersWithoutLocation: 0 };
 
 /** Hasura GeoJSON → the {lat,lng} shape roadDistance expects. Order matters:
  *  GeoJSON is [longitude, latitude] and swapping them silently yields a
@@ -100,13 +128,17 @@ export function statsByRider(
     const s = (out[o.delivery_boy_id] ??= { ...EMPTY_STATS });
     s.orders += 1;
     s.value += Number(o.total_price) || 0;
+    s.deliveryCharge += deliveryChargeOf(o);
 
     const dest = toLatLng(o.delivery_location);
     if (origin && dest) s.km += haversineKm(origin, dest);
     else s.ordersWithoutLocation += 1;
   }
 
-  for (const s of Object.values(out)) s.km = Math.round(s.km * 10) / 10;
+  for (const s of Object.values(out)) {
+    s.km = Math.round(s.km * 10) / 10;
+    s.deliveryCharge = Math.round(s.deliveryCharge * 100) / 100;
+  }
   return out;
 }
 
@@ -116,6 +148,7 @@ export function totalStats(byRider: Record<string, RiderStats>): RiderStats {
     (a, s) => ({
       orders: a.orders + s.orders,
       value: a.value + s.value,
+      deliveryCharge: Math.round((a.deliveryCharge + s.deliveryCharge) * 100) / 100,
       km: Math.round((a.km + s.km) * 10) / 10,
       ordersWithoutLocation: a.ordersWithoutLocation + s.ordersWithoutLocation,
     }),

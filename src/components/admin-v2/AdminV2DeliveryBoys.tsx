@@ -375,6 +375,8 @@ export function AdminV2DeliveryBoys() {
                                             {" · "}
                                             <span className="font-medium text-foreground">{currency(overall.value)}</span>
                                             {" · "}
+                                            <span className="font-medium text-foreground">{currency(overall.deliveryCharge)}</span>{" "}delivery
+                                            {" · "}
                                             <span className="font-medium text-foreground">{overall.km} km</span>
                                         </>
                                     )}
@@ -390,6 +392,12 @@ export function AdminV2DeliveryBoys() {
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Orders</TableHead>
                                         <TableHead className="text-right">Order value</TableHead>
+                                        <TableHead
+                                            className="text-right"
+                                            title="Delivery fees collected from customers on this rider's orders. Already included in Order value, not additional to it."
+                                        >
+                                            Delivery charge
+                                        </TableHead>
                                         <TableHead
                                             className="text-right"
                                             title="Total straight-line distance from the restaurant to each customer, one way, summed over the period. Real road distance is higher."
@@ -416,9 +424,9 @@ export function AdminV2DeliveryBoys() {
                                                     <TableCell>
                                                         <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="New password (optional)" className="h-8 w-40" type="password" />
                                                     </TableCell>
-                                                    {/* Placeholder for the three stats columns so the
+                                                    {/* Placeholder for the four stats columns so the
                                                         edit row still lines up with the header. */}
-                                                    <TableCell colSpan={3} />
+                                                    <TableCell colSpan={4} />
                                                     <TableCell className="text-right space-x-1">
                                                         <Button variant="outline" size="sm" onClick={() => handleEditSave(boy)}>Save</Button>
                                                         <Button variant="ghost" size="sm" onClick={cancelEdit}>Cancel</Button>
@@ -456,6 +464,9 @@ export function AdminV2DeliveryBoys() {
                                                                 </TableCell>
                                                                 <TableCell className="text-right tabular-nums">
                                                                     {statsLoading ? "—" : currency(st.value)}
+                                                                </TableCell>
+                                                                <TableCell className="text-right tabular-nums">
+                                                                    {statsLoading ? "—" : currency(st.deliveryCharge)}
                                                                 </TableCell>
                                                                 <TableCell className="text-right tabular-nums">
                                                                     {statsLoading ? (
@@ -522,6 +533,11 @@ export function AdminV2DeliveryBoys() {
                                 trip — so treat this as a minimum, not a payout figure. Orders with no
                                 saved customer location add nothing and are marked{" "}
                                 <span className="text-amber-600">*</span>.
+                                <br />
+                                <span className="font-medium">Delivery charge</span> is what customers
+                                actually paid for delivery on those orders. It is already part of
+                                Order value, not extra to it, and it excludes parcel and packing
+                                charges. Orders placed with free delivery contribute nothing.
                             </p>
                         </div>
                     )}

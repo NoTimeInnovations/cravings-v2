@@ -189,6 +189,7 @@ export const getDeliveryBoyStatsOrdersQuery = `
       created_at
       delivered_at
       delivery_location
+      extra_charges
     }
     partners_by_pk(id: $partner_id) {
       geo_location
