@@ -54,7 +54,6 @@ function sampleOrderVars(
   status: string,
 ): Record<string, unknown> {
   const cur = partner.currency || "₹";
-  const site = partner.username ? `https://menuthere.com/${partner.username}` : "https://menuthere.com";
   return {
     store_name: partner.store_name || "your store",
     order_id: "TEST1234",
@@ -67,12 +66,20 @@ function sampleOrderVars(
     discount: `${cur}0`,
     total: `${cur}300`,
     bill: `Veg Meals × 2 — ${cur}240\nPayasam × 1 — ${cur}60\nTotal: ${cur}300`,
-    order_url: `${site}/order/TEST1234`,
-    review_url: `${site}?review=TEST1234`,
+    // These must mirror what the order-event route actually injects, or the
+    // partner previews a message that differs from the one customers receive.
+    // They were built under the storefront path (/{username}/...), which is not
+    // where these pages live, and /track has never existed at all — so every
+    // preview of the dispatched flow offered a dead "Track Order" button.
+    order_url: "https://menuthere.com/order/TEST1234",
+    review_url: "https://menuthere.com/review/TEST1234",
     driver_name: "Suresh",
     driver_phone: "9876543210",
-    driver_details: "Suresh · 9876543210",
-    tracking_url: `${site}/track/TEST1234`,
+    // Same block shape the real route builds, so the preview wraps identically.
+    driver_details: "\n\n🛵 *Rider:* Suresh\n📞 9876543210",
+    // Own-rider deliveries (the overwhelming majority) track on the order page;
+    // only a third-party provider supplies its own link.
+    tracking_url: "https://menuthere.com/order/TEST1234",
     order_type: "delivery",
     currency: cur,
   };

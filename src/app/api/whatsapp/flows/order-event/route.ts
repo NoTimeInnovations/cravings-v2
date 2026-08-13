@@ -189,14 +189,47 @@ export async function POST(req: NextRequest) {
       order.delivery_boy?.phone || da.phone || dpm.driver?.phone || dpm.riderPhone || "",
     ).trim();
 
-    // Tracking link: provider meta trackUrl, else a Porter share link extracted
-    // from shareText. Must be a real http(s) URL or the button degrades to text.
-    let trackingUrl = typeof dpm.trackUrl === "string" ? dpm.trackUrl.trim() : "";
+    // Tracking link from the provider, else a Porter share link extracted from
+    // shareText. Must be a real http(s) URL or the button degrades to text.
+    //
+    // Three spellings, because each integration picked its own and they all land
+    // in the same jsonb column:
+    //   trackUrl     — Porter bridge   (porterBridge.ts)
+    //   trackingUrl  — delivery pool   (deliveryPoolDispatch.ts persistPool)
+    //   tracking_url — Shiprocket      (shiprocketDispatch.ts)
+    // Reading only trackUrl meant pool and Shiprocket parcels — which DO have a
+    // real courier tracking page — silently sent no link. Worse, the order-page
+    // fallback below would then have masked it with our own page.
+    const metaTrackUrl = [dpm.trackUrl, dpm.trackingUrl, dpm.tracking_url].find(
+      (v: unknown) => typeof v === "string" && v.trim(),
+    ) as string | undefined;
+    let trackingUrl = metaTrackUrl ? metaTrackUrl.trim() : "";
     if (!trackingUrl && typeof dpm.shareText === "string") {
       const m = dpm.shareText.match(/porter\.in\/rd\/[a-z0-9]+/i);
       if (m) trackingUrl = `https://${m[0]}`;
     }
     if (trackingUrl && !/^https?:\/\//i.test(trackingUrl)) trackingUrl = "";
+
+    // Fall back to our OWN order page whenever a rider is assigned but the
+    // provider gave us no link.
+    //
+    // Both sources above only ever fire for a third-party provider (Porter /
+    // pool / Shiprocket). Assigning the partner's own delivery boy writes no
+    // delivery_provider_meta at all, so {{tracking_url}} was empty and the
+    // "Track Order" button silently degraded to plain text — in production that
+    // was EVERY dispatch: of 1,914 dispatched orders, 1,764 were own-rider and
+    // not one had a trackUrl or shareText, so the button has never once rendered
+    // for any of the 241 partners that carry it.
+    //
+    // /order/<id> is the right destination: it subscribes to the order and
+    // renders the rider's live position (useLiveAgentLocation, seeded from
+    // delivery_boys.current_lat/lng), plus rider name, phone and the status
+    // timeline. It handles the third-party delivery_agent shape too, so this
+    // covers an Adloggs agent that came without a link.
+    //
+    // Keyed on a rider actually being assigned, not on the status: "dispatched"
+    // alone can mean a takeaway that never has anyone to track.
+    if (!trackingUrl && (driverName || driverPhone)) trackingUrl = orderUrl;
 
     // A ready-to-drop block, blank when no driver is assigned yet.
     let driverDetails = "";
