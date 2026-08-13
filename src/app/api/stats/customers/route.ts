@@ -46,8 +46,10 @@ const LIST_QUERY = `
       id
       partner_id
       interest
+      note
       menu_created
       menu_item_count
+      whatsapp_connected
       payment_gateway
       pg_status
       delivery
@@ -112,8 +114,10 @@ export async function GET() {
         username: p?.username ?? null,
         joinedAt: p?.created_at ?? null, // when the partner was created (joined)
         interest: r.interest,
+        note: r.note ?? null,
         menuCreated: !!r.menu_created,
         menuItemCount: Number(r.menu_item_count ?? 0),
+        whatsappConnected: !!r.whatsapp_connected,
         paymentGateway: r.payment_gateway ?? null,
         pgStatus: r.pg_status ?? null,
         delivery: r.delivery ?? null,
@@ -138,6 +142,7 @@ export async function GET() {
 
 // map camelCase input keys → DB columns for the editable manual fields
 const TEXT_FIELDS: Record<string, string> = {
+  note: "note",
   paymentGateway: "payment_gateway",
   pgStatus: "pg_status",
   delivery: "delivery",
@@ -145,6 +150,7 @@ const TEXT_FIELDS: Record<string, string> = {
 };
 const BOOL_FIELDS: Record<string, string> = {
   menuCreated: "menu_created",
+  whatsappConnected: "whatsapp_connected",
   qrTable: "qr_table",
   qrCounter: "qr_counter",
   qrSwiggyZomato: "qr_swiggy_zomato",
@@ -170,7 +176,8 @@ export async function PATCH(req: NextRequest) {
     for (const [key, col] of Object.entries(TEXT_FIELDS)) {
       if (body[key] !== undefined) {
         const raw = body[key];
-        set[col] = raw == null ? null : String(raw).trim().slice(0, 300) || null;
+        const max = key === "note" ? 2000 : 300;
+        set[col] = raw == null ? null : String(raw).trim().slice(0, max) || null;
       }
     }
     for (const [key, col] of Object.entries(BOOL_FIELDS)) {

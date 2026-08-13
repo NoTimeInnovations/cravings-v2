@@ -268,8 +268,10 @@ export type CustomerEntry = {
   username: string | null;
   joinedAt: string | null; // partner created_at (when they joined)
   interest: CustomerInterest;
+  note: string | null; // free-text CRM note
   menuCreated: boolean;
   menuItemCount: number;
+  whatsappConnected: boolean;
   paymentGateway: string | null; // 'cashfree' | 'razorpay' | 'manual' | custom
   pgStatus: string | null;
   delivery: string | null; // 'porter' | 'rapido' | 'own' | 'mix'
@@ -294,7 +296,9 @@ export type CustomerPatch = Partial<
   Pick<
     CustomerEntry,
     | "interest"
+    | "note"
     | "menuCreated"
+    | "whatsappConnected"
     | "paymentGateway"
     | "pgStatus"
     | "delivery"

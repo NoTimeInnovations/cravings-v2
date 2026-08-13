@@ -35,10 +35,12 @@ import {
   X,
   Search,
   SlidersHorizontal,
+  MessageCircle,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -96,6 +98,7 @@ const QR_FIELDS: { key: keyof CustomerEntry; label: string }[] = [
 type Filters = {
   interest: string;
   menu: string;
+  whatsapp: string;
   payment: string;
   delivery: string;
   qr: string;
@@ -105,6 +108,7 @@ type Filters = {
 const DEFAULT_FILTERS: Filters = {
   interest: "all",
   menu: "all",
+  whatsapp: "all",
   payment: "all",
   delivery: "all",
   qr: "all",
@@ -133,6 +137,15 @@ const FILTER_FACETS: {
       { v: "all", label: "All" },
       { v: "created", label: "Created" },
       { v: "pending", label: "Pending" },
+    ],
+  },
+  {
+    key: "whatsapp",
+    label: "WhatsApp",
+    options: [
+      { v: "all", label: "All" },
+      { v: "connected", label: "Connected" },
+      { v: "not", label: "Not connected" },
     ],
   },
   {
@@ -200,6 +213,8 @@ function matchesFilters(e: CustomerEntry, f: Filters): boolean {
   if (f.interest !== "all" && e.interest !== f.interest) return false;
   if (f.menu === "created" && !e.menuCreated) return false;
   if (f.menu === "pending" && e.menuCreated) return false;
+  if (f.whatsapp === "connected" && !e.whatsappConnected) return false;
+  if (f.whatsapp === "not" && e.whatsappConnected) return false;
 
   if (f.payment !== "all") {
     const pg = e.paymentGateway;
@@ -430,7 +445,8 @@ export default function CustomersSection() {
         matchesFilters(e, filters) &&
         (!q ||
           e.name.toLowerCase().includes(q) ||
-          (e.district ?? "").toLowerCase().includes(q))
+          (e.district ?? "").toLowerCase().includes(q) ||
+          (e.note ?? "").toLowerCase().includes(q))
     );
     return sortRows(filtered, sort);
   }, [list, filters, search, sort]);
@@ -731,13 +747,14 @@ function CustomerTable({
   onBlock: (partnerId: string, name: string) => void;
 }) {
   return (
-    <table className="w-full min-w-[1820px] border-separate border-spacing-0 text-sm">
+    <table className="w-full min-w-[2000px] border-separate border-spacing-0 text-sm">
       <thead>
         <tr>
           <th className={NAME_HEAD}>Restaurant</th>
           <th className={HEAD}>Joined</th>
           <th className={HEAD}>Interest</th>
           <th className={HEAD}>Menu</th>
+          <th className={HEAD}>WhatsApp</th>
           <th className={HEAD}>Payment gateway</th>
           <th className={HEAD}>PG status</th>
           <th className={HEAD}>Delivery</th>
@@ -834,40 +851,50 @@ const CustomerRow = memo(function CustomerRow({
 
   return (
     <tr className="group">
-      {/* sticky name + block */}
+      {/* sticky name (name + block on one row) + note underneath */}
       <td className={NAME_CELL}>
         <div className="flex items-start gap-2.5">
           <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
             <Building2 className="size-3.5" />
           </div>
-          <div className="min-w-0">
-            {e.username ? (
-              <a
-                href={`/${e.username}`}
-                target="_blank"
-                rel="noreferrer"
-                className="block max-w-[190px] truncate font-medium hover:text-primary hover:underline"
-                title={e.name}
+          <div className="w-[240px] min-w-0">
+            {/* name + block, same row */}
+            <div className="flex items-center gap-2">
+              {e.username ? (
+                <a
+                  href={`/${e.username}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="min-w-0 flex-1 truncate font-medium hover:text-primary hover:underline"
+                  title={e.name}
+                >
+                  {e.name}
+                </a>
+              ) : (
+                <span className="min-w-0 flex-1 truncate font-medium" title={e.name}>
+                  {e.name}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => onBlock(e.partnerId, e.name)}
+                className="inline-flex shrink-0 items-center gap-1 rounded border border-transparent px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/80 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+                title="Block — hide and keep out of analytics"
               >
-                {e.name}
-              </a>
-            ) : (
-              <span className="block max-w-[190px] truncate font-medium" title={e.name}>
-                {e.name}
-              </span>
-            )}
-            <div className="max-w-[190px] truncate text-[11px] text-muted-foreground">
-              {e.district ?? "—"}
+                <Ban className="size-2.5" />
+                Block
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => onBlock(e.partnerId, e.name)}
-              className="mt-1 inline-flex items-center gap-1 rounded border border-transparent px-1 py-0.5 text-[10px] font-medium text-muted-foreground/80 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700"
-              title="Block — hide and keep out of analytics"
-            >
-              <Ban className="size-2.5" />
-              Block
-            </button>
+            <div className="truncate text-[11px] text-muted-foreground">{e.district ?? "—"}</div>
+            <div className="mt-1.5">
+              <TextAreaCell
+                value={e.note}
+                placeholder="note about them…"
+                onSave={(v) => save({ note: v })}
+                widthClass="w-full"
+                maxLength={2000}
+              />
+            </div>
           </div>
         </div>
       </td>
@@ -899,6 +926,26 @@ const CustomerRow = memo(function CustomerRow({
           />
           <span className="whitespace-nowrap text-[11px] text-muted-foreground">
             {e.menuCreated ? "Created" : "Pending"} · {nf(e.menuItemCount)} items
+          </span>
+        </label>
+      </td>
+
+      {/* whatsapp */}
+      <td className={CELL}>
+        <label className="flex cursor-pointer items-center gap-2">
+          <Switch
+            checked={e.whatsappConnected}
+            onCheckedChange={(v) => save({ whatsappConnected: v })}
+            className="data-[state=checked]:bg-green-500"
+          />
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 whitespace-nowrap text-[11px]",
+              e.whatsappConnected ? "font-medium text-green-600" : "text-muted-foreground"
+            )}
+          >
+            <MessageCircle className="size-3" />
+            {e.whatsappConnected ? "Connected" : "Not connected"}
           </span>
         </label>
       </td>
@@ -1096,10 +1143,14 @@ function TextAreaCell({
   value,
   placeholder,
   onSave,
+  widthClass = "w-[150px]",
+  maxLength = 300,
 }: {
   value: string | null;
   placeholder?: string;
   onSave: (v: string | null) => void;
+  widthClass?: string;
+  maxLength?: number;
 }) {
   const [v, setV] = useState(value ?? "");
   useEffect(() => setV(value ?? ""), [value]);
@@ -1107,13 +1158,16 @@ function TextAreaCell({
     <textarea
       value={v}
       placeholder={placeholder}
-      maxLength={300}
+      maxLength={maxLength}
       rows={2}
       onChange={(e) => setV(e.target.value)}
       onBlur={() => {
         if ((value ?? "") !== v.trim()) onSave(v.trim() || null);
       }}
-      className="min-h-[2.2rem] w-[150px] resize-y rounded-md border border-input bg-background px-2 py-1 text-[11px] shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      className={cn(
+        "min-h-[2.2rem] resize-y rounded-md border border-input bg-background px-2 py-1 text-[11px] shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring",
+        widthClass
+      )}
     />
   );
 }

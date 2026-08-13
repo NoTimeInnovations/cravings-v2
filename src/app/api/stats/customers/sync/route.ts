@@ -114,6 +114,15 @@ const MENU_COUNTS_SQL = `
   GROUP BY partner_id;
 `;
 
+// "WhatsApp connected" = the partner has a WhatsApp Business integration with the
+// automation flow turned on (flow_enabled) — the same gate the inbound webhook
+// uses to decide whether to run flows.
+const WA_CONNECTED_SQL = `
+  SELECT DISTINCT partner_id::text AS pid
+  FROM whatsapp_business_integrations
+  WHERE flow_enabled = true AND partner_id IS NOT NULL;
+`;
+
 const PARTNER_IDS_QUERY = `
   query AllPartnerIds($excluded: [uuid!]!) {
     partners(where: { id: { _nin: $excluded } }, limit: 100000) { id }
@@ -130,7 +139,7 @@ const UPSERT_MUTATION = `
       objects: $objects,
       on_conflict: {
         constraint: analytics_customers_partner_unique,
-        update_columns: [total_orders, weekly, menu_item_count, stats_synced_at, updated_at]
+        update_columns: [total_orders, weekly, menu_item_count, whatsapp_connected, stats_synced_at, updated_at]
       }
     ) {
       affected_rows
@@ -144,10 +153,11 @@ export async function POST() {
     const blocked = await getBlockedPartnerIds();
     const excluded = Array.from(new Set([...EXCLUDED_PARTNER_IDS, ...blocked]));
 
-    // Fan out the three reads.
-    const [statsRows, menuRows, idsRes, existRes] = await Promise.all([
+    // Fan out the reads.
+    const [statsRows, menuRows, waRows, idsRes, existRes] = await Promise.all([
       runSql(orderStatsSql()),
       runSql(MENU_COUNTS_SQL),
+      runSql(WA_CONNECTED_SQL),
       graphql(PARTNER_IDS_QUERY, { excluded }),
       graphql(EXISTING_QUERY, {}),
     ]);
@@ -166,6 +176,9 @@ export async function POST() {
     const menuByPid = new Map<string, number>();
     for (const r of menuRows) menuByPid.set(r.pid, Number(r.c ?? 0) || 0);
 
+    // partners whose WhatsApp is connected AND has the flow turned on
+    const waConnected = new Set<string>(waRows.map((r) => r.pid));
+
     const existing = new Set<string>(
       (existRes.data?.analytics_customers ?? []).map((r: any) => r.partner_id as string)
     );
@@ -176,7 +189,9 @@ export async function POST() {
     const objects = partnerIds.map((pid) => {
       const s = statsByPid.get(pid);
       const menuCount = menuByPid.get(pid) ?? 0;
-      // first-appearance seed only; on-conflict never updates menu_created
+      // menu_created is a first-appearance seed only (on-conflict never updates it,
+      // so a hand edit survives — the menu-size heuristic is fuzzy). whatsapp_connected
+      // is an objective signal, so it's refreshed on every sync (in update_columns).
       const menuCreatedSeed = menuCount > 0 && menuCount !== SAMPLE_MENU_SIZE;
       return {
         partner_id: pid,
@@ -184,6 +199,7 @@ export async function POST() {
         weekly: s?.weekly ?? Array(WEEKS).fill(0),
         menu_item_count: menuCount,
         menu_created: menuCreatedSeed,
+        whatsapp_connected: waConnected.has(pid),
         stats_synced_at: nowIso,
         updated_at: nowIso,
       };
