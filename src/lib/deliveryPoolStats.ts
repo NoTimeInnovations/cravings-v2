@@ -17,11 +17,11 @@
  * are the same shape. They are not.
  */
 
-import type { ExtraCharge, Period, Scope } from "./deliveryBoyStats";
-import { deliveryChargeOf as boyDeliveryChargeOf, periodStart } from "./deliveryBoyStats";
+import type { DateRange, ExtraCharge, Period, Scope } from "./deliveryBoyStats";
+import { deliveryChargeOf as boyDeliveryChargeOf, periodStart, rangeFor } from "./deliveryBoyStats";
 
-export type { Period, Scope };
-export { periodStart };
+export type { DateRange, Period, Scope };
+export { periodStart, rangeFor };
 
 /** The dispatcher's snapshot of a pool delivery, as written to
  *  `orders.delivery_provider_meta`. Every field is optional: an order that never
@@ -147,18 +147,18 @@ function counts(o: PoolOrder, scope: Scope): boolean {
 /** Aggregate pool orders per rider for one window. */
 export function poolStatsByRider(
   orders: PoolOrder[] | null | undefined,
-  period: Period,
+  range: DateRange,
   scope: Scope = "completed",
-  now: Date = new Date(),
 ): PoolRiderStats[] {
-  const from = periodStart(period, now).getTime();
+  const from = range.from.getTime();
+  const to = range.to.getTime();
   const out = new Map<string, PoolRiderStats>();
 
   for (const o of orders ?? []) {
     const key = riderKeyOf(o);
     if (!key || !counts(o, scope)) continue;
     const when = occurredAt(o).getTime();
-    if (!Number.isFinite(when) || when < from) continue;
+    if (!Number.isFinite(when) || when < from || when > to) continue;
 
     const m = poolMetaOf(o);
     const s =
@@ -190,16 +190,16 @@ export function poolStatsByRider(
 export function poolOrdersForRider(
   orders: PoolOrder[] | null | undefined,
   riderKey: string,
-  period: Period,
+  range: DateRange,
   scope: Scope = "completed",
-  now: Date = new Date(),
 ): PoolOrder[] {
-  const from = periodStart(period, now).getTime();
+  const from = range.from.getTime();
+  const to = range.to.getTime();
   return (orders ?? [])
     .filter((o) => {
       if (riderKeyOf(o) !== riderKey || !counts(o, scope)) return false;
       const when = occurredAt(o).getTime();
-      return Number.isFinite(when) && when >= from;
+      return Number.isFinite(when) && when >= from && when <= to;
     })
     .sort((a, b) => occurredAt(b).getTime() - occurredAt(a).getTime());
 }
@@ -225,14 +225,14 @@ export function poolTotals(rows: PoolRiderStats[]): Omit<PoolRiderStats, "rider"
  */
 export function unassignedCount(
   orders: PoolOrder[] | null | undefined,
-  period: Period,
-  now: Date = new Date(),
+  range: DateRange,
 ): number {
-  const from = periodStart(period, now).getTime();
+  const from = range.from.getTime();
+  const to = range.to.getTime();
   return (orders ?? []).filter((o) => {
     if (riderKeyOf(o)) return false;
     if ((o.delivery_provider_state ?? "").toLowerCase() === "cancelled") return false;
     const when = occurredAt(o).getTime();
-    return Number.isFinite(when) && when >= from;
+    return Number.isFinite(when) && when >= from && when <= to;
   }).length;
 }

@@ -50,7 +50,62 @@ export function deliveryChargeOf(o: StatsOrder): number {
   return 0;
 }
 
-export type Period = "day" | "week" | "month";
+export type Period = "day" | "week" | "month" | "custom";
+
+/** An inclusive window in LOCAL time. Every figure on these screens is computed
+ *  against one of these rather than against a `Period` directly, so a custom
+ *  range is not a special case bolted onto the presets — it is the same shape. */
+export type DateRange = { from: Date; to: Date };
+
+const startOfDay = (d: Date): Date => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+
+const endOfDay = (d: Date): Date => {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+};
+
+/**
+ * The window a period means. Presets end at today; "custom" uses the dates given.
+ *
+ * A custom range with the ends the wrong way round is SWAPPED rather than
+ * returning nothing — a date picker makes that trivially easy to do, and an
+ * empty table reads as "no deliveries" rather than "you picked backwards".
+ * Missing custom dates fall back to today, so the table is never blank while
+ * someone is still choosing.
+ */
+export function rangeFor(
+  period: Period,
+  custom?: { from?: string | null; to?: string | null } | null,
+  now: Date = new Date(),
+): DateRange {
+  if (period === "custom") {
+    const a = parseLocalDate(custom?.from) ?? now;
+    const b = parseLocalDate(custom?.to) ?? now;
+    const from = startOfDay(a);
+    const to = endOfDay(b);
+    return from <= to ? { from, to } : { from: startOfDay(b), to: endOfDay(a) };
+  }
+  return { from: periodStart(period, now), to: endOfDay(now) };
+}
+
+/**
+ * Parse the "YYYY-MM-DD" an <input type="date"> produces as a LOCAL calendar
+ * date. `new Date("2026-08-14")` would parse it as UTC midnight, which in any
+ * timezone behind UTC lands on the previous day — so a partner in the Americas
+ * picking the 14th would silently get the 13th. Constructing from the parts
+ * avoids that everywhere, not just where the offset happens to be positive.
+ */
+function parseLocalDate(v: string | null | undefined): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((v ?? "").trim());
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 /**
  * Which orders a figure is built from.
@@ -93,8 +148,8 @@ export function toLatLng(p: GeoPoint): LatLng | null {
   return { lat, lng };
 }
 
-/** Start of the window, in LOCAL time — a partner asking for "today" means
- *  their day, not UTC's. */
+/** Start of a PRESET window, in LOCAL time — a partner asking for "today" means
+ *  their day, not UTC's. "custom" has no fixed start; use rangeFor. */
 export function periodStart(period: Period, now: Date = new Date()): Date {
   const d = new Date(now);
   d.setHours(0, 0, 0, 0);
@@ -135,18 +190,18 @@ const counts = (o: StatsOrder, scope: Scope): boolean => {
 export function statsByRider(
   orders: StatsOrder[] | null | undefined,
   partnerLocation: GeoPoint,
-  period: Period,
+  range: DateRange,
   scope: Scope = "completed",
-  now: Date = new Date(),
 ): Record<string, RiderStats> {
-  const from = periodStart(period, now).getTime();
+  const from = range.from.getTime();
+  const to = range.to.getTime();
   const origin = toLatLng(partnerLocation);
   const out: Record<string, RiderStats> = {};
 
   for (const o of orders ?? []) {
     if (!o.delivery_boy_id || !counts(o, scope)) continue;
     const when = occurredAt(o).getTime();
-    if (!Number.isFinite(when) || when < from) continue;
+    if (!Number.isFinite(when) || when < from || when > to) continue;
 
     const s = (out[o.delivery_boy_id] ??= { ...EMPTY_STATS });
     s.orders += 1;
@@ -179,16 +234,16 @@ export function statsByRider(
 export function ordersForRider(
   orders: StatsOrder[] | null | undefined,
   riderId: string,
-  period: Period,
+  range: DateRange,
   scope: Scope = "completed",
-  now: Date = new Date(),
 ): StatsOrder[] {
-  const from = periodStart(period, now).getTime();
+  const from = range.from.getTime();
+  const to = range.to.getTime();
   return (orders ?? [])
     .filter((o) => {
       if (o.delivery_boy_id !== riderId || !counts(o, scope)) return false;
       const when = occurredAt(o).getTime();
-      return Number.isFinite(when) && when >= from;
+      return Number.isFinite(when) && when >= from && when <= to;
     })
     .sort((a, b) => occurredAt(b).getTime() - occurredAt(a).getTime());
 }

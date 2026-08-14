@@ -23,8 +23,10 @@ import {
     orderKm,
     orderOccurredAt,
     ordersForRider,
+    rangeFor,
     statsByRider,
     totalStats,
+    type DateRange,
     type Period,
     type RiderStats,
     type Scope,
@@ -63,6 +65,14 @@ export function AdminV2DeliveryBoys() {
     const [scope, setScope] = useState<Scope>("completed");
     // Which rider's order-by-order breakdown is open. Null = closed.
     const [breakdownFor, setBreakdownFor] = useState<DeliveryBoy | null>(null);
+    // Custom range. Empty strings until the partner picks, which rangeFor reads
+    // as "today" so the table is never blank mid-selection.
+    const [customFrom, setCustomFrom] = useState("");
+    const [customTo, setCustomTo] = useState("");
+    // How far back the orders currently in memory reach. A custom range earlier
+    // than this needs a new read — otherwise the screen would quietly show an
+    // empty period instead of admitting it never fetched that far.
+    const [fetchedFrom, setFetchedFrom] = useState<Date | null>(null);
     const [statsOrders, setStatsOrders] = useState<StatsOrder[]>([]);
     const [partnerGeo, setPartnerGeo] = useState<any>(null);
     const [statsLoading, setStatsLoading] = useState(true);
@@ -97,21 +107,29 @@ export function AdminV2DeliveryBoys() {
     // periods are sliced from that in memory, so flipping Today/Week/Month is
     // instant and costs no extra request. Deliberately NOT on the 5s roster
     // poll — a month of orders every five seconds would be wasteful.
+    const range: DateRange = rangeFor(period, { from: customFrom, to: customTo });
+
     useEffect(() => {
         if (!userData?.id || !isDeliveryEnabled) {
             setStatsLoading(false);
             return;
         }
+        // Re-read only when the window starts EARLIER than what is already in
+        // memory; narrowing or shifting forward is served from the same rows.
+        if (fetchedFrom && range.from >= fetchedFrom) return;
+        const readFrom = fetchedFrom && fetchedFrom < range.from ? fetchedFrom : range.from;
         let cancelled = false;
+        setStatsLoading(true);
         (async () => {
             try {
                 const res = await fetchFromHasura(getDeliveryBoyStatsOrdersQuery, {
                     partner_id: userData.id,
-                    from: periodStart("month").toISOString(),
+                    from: readFrom.toISOString(),
                 });
                 if (cancelled) return;
                 setStatsOrders(res?.orders ?? []);
                 setPartnerGeo(res?.partners_by_pk?.geo_location ?? null);
+                setFetchedFrom(readFrom);
             } catch (error) {
                 // Non-fatal: the roster still renders, the stats columns just
                 // stay empty rather than taking the whole screen down.
@@ -123,9 +141,9 @@ export function AdminV2DeliveryBoys() {
         return () => {
             cancelled = true;
         };
-    }, [userData?.id, isDeliveryEnabled]);
+    }, [userData?.id, isDeliveryEnabled, range.from.getTime(), fetchedFrom]);
 
-    const riderStats = statsByRider(statsOrders, partnerGeo, period, scope);
+    const riderStats = statsByRider(statsOrders, partnerGeo, range, scope);
     const overall = totalStats(riderStats);
     const currency = (n: number) =>
         `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -369,6 +387,7 @@ export function AdminV2DeliveryBoys() {
                                         ["day", "Today"],
                                         ["week", "Last 7 days"],
                                         ["month", "Last 30 days"],
+                                        ["custom", "Custom"],
                                     ] as [Period, string][]).map(([value, label]) => (
                                         <button
                                             key={value}
@@ -620,10 +639,20 @@ export function AdminV2DeliveryBoys() {
             <Dialog open={!!breakdownFor} onOpenChange={(open) => !open && setBreakdownFor(null)}>
                 <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
                     {breakdownFor && (() => {
-                        const rows = ordersForRider(statsOrders, breakdownFor.id, period, scope);
+                        const rows = ordersForRider(statsOrders, breakdownFor.id, range, scope);
                         const st = riderStats[breakdownFor.id] ?? EMPTY_STATS;
                         const periodLabel =
-                            period === "day" ? "today" : period === "week" ? "the last 7 days" : "the last 30 days";
+(() => {
+                                const d = (x: Date) =>
+                                    x.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+                                if (period === "day") return "today";
+                                if (period === "week") return "the last 7 days";
+                                if (period === "month") return "the last 30 days";
+                                // Custom: say the actual dates, since "custom" tells the reader nothing.
+                                return d(range.from) === d(range.to)
+                                    ? d(range.from)
+                                    : `${d(range.from)} – ${d(range.to)}`;
+                            })();
                         return (
                             <>
                                 <DialogHeader>

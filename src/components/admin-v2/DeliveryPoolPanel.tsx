@@ -53,7 +53,9 @@ import {
   poolOrdersForRider,
   poolStatsByRider,
   poolTotals,
+  rangeFor,
   unassignedCount,
+  type DateRange,
   type Period,
   type PoolOrder,
   type PoolRiderStats,
@@ -124,6 +126,11 @@ export default function DeliveryPoolPanel() {
   const [period, setPeriod] = useState<Period>("day");
   const [scope, setScope] = useState<Scope>("completed");
   const [breakdownFor, setBreakdownFor] = useState<PoolRiderStats | null>(null);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  // How far back the cached rows reach; a custom range starting earlier forces
+  // a re-read rather than silently showing an empty period.
+  const [fetchedFrom, setFetchedFrom] = useState<Date | null>(null);
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [docRider, setDocRider] = useState<{ id: string; name?: string } | null>(null);
@@ -142,18 +149,24 @@ export default function DeliveryPoolPanel() {
     if (od.ok) setOrders(od.data?.data ?? []);
   }, [rid]);
 
+  const range: DateRange = rangeFor(period, { from: customFrom, to: customTo });
+
   useEffect(() => {
     if (!rid) {
       setStatsLoading(false);
       return;
     }
+    if (fetchedFrom && range.from >= fetchedFrom) return;
+    const readFrom = fetchedFrom && fetchedFrom < range.from ? fetchedFrom : range.from;
     let cancelled = false;
+    setStatsLoading(true);
     (async () => {
       try {
         const res = await fetchFromHasura(getPoolStatsOrdersQuery, {
           partner_id: rid,
-          from: periodStart("month").toISOString(),
+          from: readFrom.toISOString(),
         });
+        if (!cancelled) setFetchedFrom(readFrom);
         if (!cancelled) setStatsOrders(res?.orders ?? []);
       } catch (e) {
         // Non-fatal: the rest of the panel still works, performance just stays empty.
@@ -165,11 +178,11 @@ export default function DeliveryPoolPanel() {
     return () => {
       cancelled = true;
     };
-  }, [rid]);
+  }, [rid, range.from.getTime(), fetchedFrom]);
 
-  const riderStats = poolStatsByRider(statsOrders, period, scope);
+  const riderStats = poolStatsByRider(statsOrders, range, scope);
   const poolOverall = poolTotals(riderStats);
-  const unassigned = unassignedCount(statsOrders, period);
+  const unassigned = unassignedCount(statsOrders, range);
   const money = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
   useEffect(() => {
@@ -474,7 +487,7 @@ export default function DeliveryPoolPanel() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg border p-0.5">
-                {([["day", "Today"], ["week", "Last 7 days"], ["month", "Last 30 days"]] as [Period, string][]).map(
+                {([["day", "Today"], ["week", "Last 7 days"], ["month", "Last 30 days"], ["custom", "Custom"]] as [Period, string][]).map(
                   ([v, label]) => (
                     <button
                       key={v}
@@ -490,6 +503,27 @@ export default function DeliveryPoolPanel() {
                   ),
                 )}
               </div>
+              {period === "custom" && (
+                <div className="inline-flex items-center gap-1.5 rounded-lg border px-2 py-1">
+                  <input
+                    type="date"
+                    value={customFrom}
+                    max={customTo || undefined}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className="bg-transparent text-sm outline-none"
+                    aria-label="From date"
+                  />
+                  <span className="text-muted-foreground">→</span>
+                  <input
+                    type="date"
+                    value={customTo}
+                    min={customFrom || undefined}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className="bg-transparent text-sm outline-none"
+                    aria-label="To date"
+                  />
+                </div>
+              )}
               <div className="inline-flex rounded-lg border p-0.5">
                 {([["completed", "Delivered"], ["all", "Incl. in progress"]] as [Scope, string][]).map(([v, label]) => (
                   <button
@@ -618,8 +652,14 @@ export default function DeliveryPoolPanel() {
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           {breakdownFor && (() => {
             const key = breakdownFor.phone ?? breakdownFor.rider;
-            const rows = poolOrdersForRider(statsOrders, key, period, scope);
-            const label = period === "day" ? "today" : period === "week" ? "the last 7 days" : "the last 30 days";
+            const rows = poolOrdersForRider(statsOrders, key, range, scope);
+            const label = (() => {
+              const d = (x: Date) => x.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+              if (period === "day") return "today";
+              if (period === "week") return "the last 7 days";
+              if (period === "month") return "the last 30 days";
+              return d(range.from) === d(range.to) ? d(range.from) : `${d(range.from)} – ${d(range.to)}`;
+            })();
             return (
               <>
                 <DialogHeader>
