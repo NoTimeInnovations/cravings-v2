@@ -513,10 +513,7 @@ export default function DeliveryPoolPanel() {
                 <>
                   <span className="font-medium text-foreground">{poolOverall.orders}</span> orders ·{" "}
                   <span className="font-medium text-foreground">{money(poolOverall.value)}</span> ·{" "}
-                  <span className={cn("font-medium", poolOverall.unrecovered > 0 ? "text-amber-700" : "text-foreground")}>
-                    {money(poolOverall.unrecovered)}
-                  </span>{" "}
-                  unrecovered ·{" "}
+
                   <span className="font-medium text-foreground">{poolOverall.km} km</span>
                 </>
               )}
@@ -537,12 +534,6 @@ export default function DeliveryPoolPanel() {
                       <TableHead className="text-right">Orders</TableHead>
                       <TableHead className="text-right">Order value</TableHead>
                       <TableHead className="text-right">Charged to customer</TableHead>
-                      <TableHead
-                        className="text-right"
-                        title="Pool fee the customer did not cover. Zero when you charged for delivery, because that charge is passed straight to the pool."
-                      >
-                        Not recovered
-                      </TableHead>
                       <TableHead className="text-right">Distance</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -576,19 +567,6 @@ export default function DeliveryPoolPanel() {
                             {money(st.deliveryCharge)}
                           </button>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          <button
-                            type="button"
-                            onClick={() => setBreakdownFor(st)}
-                            className={cn(
-                              "underline decoration-dotted underline-offset-4 transition-colors hover:text-orange-600",
-                              st.unrecovered > 0 && "text-amber-700",
-                            )}
-                            title="See the orders behind this figure"
-                          >
-                            {money(st.unrecovered)}
-                          </button>
-                        </TableCell>
                         <TableCell className="text-right tabular-nums">{st.km} km</TableCell>
                       </TableRow>
                     ))}
@@ -599,13 +577,8 @@ export default function DeliveryPoolPanel() {
               <p className="text-xs text-muted-foreground leading-relaxed">
                 <span className="font-medium">Charged to customer</span> is the delivery fee on the
                 bill and is already part of Order value.{" "}
-                <span className="font-medium">Not recovered</span> is the pool&apos;s fee that the
-                customer did not pay for. It is ₹0 whenever you charge for delivery, because that
-                exact charge is passed straight through to the pool as the rider&apos;s fee — showing
-                both would just be the same number twice. It goes above zero only when delivery was
-                free for the customer: you collected nothing and the pool still billed its
-                distance-based fee, so that amount came out of your own pocket. Open a row to see
-                both figures per order.
+                Open a rider&apos;s row to see the orders behind these figures, including what each
+                delivery cost you in pool fees.
                 <br />
                 <span className="font-medium">Distance</span> is the real delivered distance from the
                 pool service, not a straight-line estimate — but it is only as good as the customer
@@ -654,8 +627,7 @@ export default function DeliveryPoolPanel() {
                   <DialogDescription>
                     {rows.length} {rows.length === 1 ? "delivery" : "deliveries"} in {label}
                     {scope === "completed" ? " (delivered only)" : " (including in progress)"} —{" "}
-                    {money(breakdownFor.value)} order value, {money(breakdownFor.poolFee)} paid to pool,{" "}
-                    {money(breakdownFor.unrecovered)} not recovered.
+                    {money(breakdownFor.value)} order value, {money(breakdownFor.poolFee)} paid to pool.
                   </DialogDescription>
                 </DialogHeader>
 
