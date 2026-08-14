@@ -589,10 +589,20 @@ export default function DeliveryPoolPanel() {
                 <span className="font-medium">Charged to customer</span> is the delivery fee on the
                 bill and is already part of Order value.{" "}
                 <span className="font-medium">Paid to pool</span> is what this restaurant owes the
-                pool for those deliveries — a cost, not revenue — so the gap between the two is your
-                margin on delivery.{" "}
-                <span className="font-medium">Distance</span> is the real distance reported by the
-                pool service, not a straight-line estimate.
+                pool — a cost, not revenue.
+                <br />
+                <span className="font-medium">Why those two often match:</span> when you charge for
+                delivery, that exact amount is passed to the pool as the rider&apos;s fee — so the two
+                columns are equal <em>by design</em>, always, and your delivery margin is zero. They
+                differ only when delivery is free for the customer: you collect nothing and the pool
+                still bills its own distance-based fee, which comes straight out of your pocket. That
+                free-delivery case is where this column earns its place — everywhere else it is the
+                same number twice.
+                <br />
+                <span className="font-medium">Distance</span> is the real delivered distance from the
+                pool service, not a straight-line estimate — but it is only as good as the customer
+                location on the order, so an implausibly long trip usually means a bad saved address
+                rather than a long ride.
                 {unassigned > 0 && (
                   <>
                     {" "}

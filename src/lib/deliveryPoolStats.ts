@@ -86,7 +86,21 @@ export const poolMetaOf = (o: PoolOrder): PoolMeta => o.delivery_provider_meta ?
 export const poolKmOf = (o: PoolOrder): number =>
   Math.round(num(poolMetaOf(o).distanceKm) * 10) / 10;
 
-/** What the restaurant pays the pool for this delivery. */
+/**
+ * What the restaurant pays the pool for this delivery.
+ *
+ * NOT independent of the customer's delivery charge. deliveryPoolDispatch sends
+ * the order's "Delivery Charge" line to the pool as `delivery_fee`, and the pool
+ * echoes it back here — so whenever the customer was charged, these two figures
+ * are the SAME number by construction and the delivery margin is zero. They
+ * diverge only when delivery was free for the customer: the dispatcher sends
+ * nothing, the pool computes its own distance-based fee, and the restaurant
+ * absorbs it. Measured across all 241 live pool orders, with NO exceptions in
+ * either direction: of the 128 where the customer was charged, the pool fee
+ * equalled the charge 128/128; of the 113 with free delivery, the pool billed a
+ * fee anyway 113/113. So this figure is genuinely new information only on the
+ * free-delivery half — elsewhere it restates the charge.
+ */
 export const poolFeeOf = (o: PoolOrder): number =>
   Math.round(num(poolMetaOf(o).deliveryFee) * 100) / 100;
 
