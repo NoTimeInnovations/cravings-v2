@@ -60,8 +60,16 @@ export type PoolRiderStats = {
   value: number;
   /** Delivery fees collected FROM customers. A subset of `value`. */
   deliveryCharge: number;
-  /** What the restaurant paid the POOL for these deliveries. A cost, not revenue. */
+  /** What the restaurant paid the POOL for these deliveries. A cost, not revenue.
+   *  Kept for the order-level breakdown; the summary table shows `unrecovered`
+   *  instead, because poolFee restates deliveryCharge whenever the customer was
+   *  charged (see poolFeeOf). */
   poolFee: number;
+  /** Pool fee the customer did NOT cover — poolFee minus deliveryCharge, floored
+   *  at zero. Zero on a pass-through order, positive when delivery was free and
+   *  the restaurant absorbed the pool's fee. This is the only part of poolFee
+   *  that is not a restatement of the charge. */
+  unrecovered: number;
   /** Real km reported by the pool service. */
   km: number;
 };
@@ -71,6 +79,7 @@ export const EMPTY_POOL_STATS: Omit<PoolRiderStats, "rider" | "phone"> = {
   value: 0,
   deliveryCharge: 0,
   poolFee: 0,
+  unrecovered: 0,
   km: 0,
 };
 
@@ -166,14 +175,20 @@ export function poolStatsByRider(
     s.value += num(o.total_price);
     s.deliveryCharge += customerDeliveryChargeOf(o);
     s.poolFee += poolFeeOf(o);
+    s.unrecovered += Math.max(0, poolFeeOf(o) - customerDeliveryChargeOf(o));
     s.km += poolKmOf(o);
     out.set(key, s);
   }
 
   for (const s of out.values()) {
+    // Derived AFTER summing, not per order: a rider with one free delivery and
+    // one paid one should show the free one's shortfall, and per-order flooring
+    // then summing gives exactly that. Flooring the summed difference instead
+    // would let a paid order mask a free one.
     s.value = Math.round(s.value * 100) / 100;
     s.deliveryCharge = Math.round(s.deliveryCharge * 100) / 100;
     s.poolFee = Math.round(s.poolFee * 100) / 100;
+    s.unrecovered = Math.round(s.unrecovered * 100) / 100;
     s.km = Math.round(s.km * 10) / 10;
   }
   return [...out.values()].sort((a, b) => b.orders - a.orders);
@@ -210,6 +225,7 @@ export function poolTotals(rows: PoolRiderStats[]): Omit<PoolRiderStats, "rider"
       value: Math.round((a.value + s.value) * 100) / 100,
       deliveryCharge: Math.round((a.deliveryCharge + s.deliveryCharge) * 100) / 100,
       poolFee: Math.round((a.poolFee + s.poolFee) * 100) / 100,
+      unrecovered: Math.round((a.unrecovered + s.unrecovered) * 100) / 100,
       km: Math.round((a.km + s.km) * 10) / 10,
     }),
     { ...EMPTY_POOL_STATS },
