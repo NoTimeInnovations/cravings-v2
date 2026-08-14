@@ -400,7 +400,13 @@ const V4ItemCard = ({
               </span>
             )}
           </div>
-          <h3 className="mt-1.5 text-[15px] font-bold leading-snug text-gray-900">
+          {/* dir="auto" so an Arabic-primary menu reads correctly: the browser
+              takes the paragraph direction from the first strong character, which
+              puts numbers and punctuation in the right place on names like
+              "دجاج 65". A no-op for Latin names. There is no `name_rtl` column —
+              only name_secondary_rtl — because the schema assumed the SECONDARY
+              name was the RTL one; partners running Arabic-first invert that. */}
+          <h3 className="mt-1.5 text-[15px] font-bold leading-snug text-gray-900 text-left" dir="auto">
             {offerData?.variant && !hasMultipleVariantsOnOffer
               ? `${item.name} (${offerData.variant.name})`
               : item.name}
@@ -616,7 +622,7 @@ const V4ItemCard = ({
                 </span>
               )}
             </div>
-            <h2 className="mt-1.5 text-lg font-extrabold tracking-tight text-gray-900">{item.name}</h2>
+            <h2 className="mt-1.5 text-lg font-extrabold tracking-tight text-gray-900 text-left" dir="auto">{item.name}</h2>
             {item.name_secondary && (
               <p
                 dir={item.name_secondary_rtl ? "rtl" : "ltr"}
@@ -704,7 +710,7 @@ const V4ItemCard = ({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 {item.is_veg !== null && item.is_veg !== undefined && <VegMark isVeg={item.is_veg} />}
-                <h3 className="font-bold text-lg text-gray-900">{item.name}</h3>
+                <h3 className="font-bold text-lg text-gray-900 text-left" dir="auto">{item.name}</h3>
               </div>
               {item.name_secondary && (
                 <p
