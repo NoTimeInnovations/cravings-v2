@@ -35,6 +35,30 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { confirmDialog, promptDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getPoolStatsOrdersQuery } from "@/api/deliveryBoys";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  customerDeliveryChargeOf,
+  periodStart,
+  poolFeeOf,
+  poolKmOf,
+  poolOccurredAt,
+  poolOrdersForRider,
+  poolStatsByRider,
+  poolTotals,
+  unassignedCount,
+  type Period,
+  type PoolOrder,
+  type PoolRiderStats,
+  type Scope,
+} from "@/lib/deliveryPoolStats";
 
 type Row = Record<string, any>;
 type Res = { ok: boolean; data?: any; error?: string };
@@ -92,7 +116,14 @@ export default function DeliveryPoolPanel() {
   const [requests, setRequests] = useState<Row[]>([]);
   const [riders, setRiders] = useState<Row[]>([]);
   const [orders, setOrders] = useState<Row[]>([]);
-  const [tab, setTab] = useState<"riders" | "availability" | "orders">("riders");
+  const [tab, setTab] = useState<"riders" | "availability" | "orders" | "performance">("riders");
+  // Historical pool orders for the performance tab. Read from OUR orders table
+  // rather than the pool API, whose /orders endpoint only returns live jobs.
+  const [statsOrders, setStatsOrders] = useState<PoolOrder[]>([]);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>("day");
+  const [scope, setScope] = useState<Scope>("completed");
+  const [breakdownFor, setBreakdownFor] = useState<PoolRiderStats | null>(null);
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [docRider, setDocRider] = useState<{ id: string; name?: string } | null>(null);
@@ -110,6 +141,36 @@ export default function DeliveryPoolPanel() {
     if (rd.ok) setRiders(rd.data?.data ?? []);
     if (od.ok) setOrders(od.data?.data ?? []);
   }, [rid]);
+
+  useEffect(() => {
+    if (!rid) {
+      setStatsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchFromHasura(getPoolStatsOrdersQuery, {
+          partner_id: rid,
+          from: periodStart("month").toISOString(),
+        });
+        if (!cancelled) setStatsOrders(res?.orders ?? []);
+      } catch (e) {
+        // Non-fatal: the rest of the panel still works, performance just stays empty.
+        console.error("Error loading pool stats:", e);
+      } finally {
+        if (!cancelled) setStatsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rid]);
+
+  const riderStats = poolStatsByRider(statsOrders, period, scope);
+  const poolOverall = poolTotals(riderStats);
+  const unassigned = unassignedCount(statsOrders, period);
+  const money = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
   useEffect(() => {
     load();
@@ -263,6 +324,7 @@ export default function DeliveryPoolPanel() {
             ["riders", `Linked riders (${riders.length})`],
             ["availability", "Availability"],
             ["orders", `Live orders (${orders.length})`],
+            ["performance", "Rider performance"],
           ] as const).map(([v, label]) => (
             <TabsTrigger
               key={v}
@@ -406,6 +468,144 @@ export default function DeliveryPoolPanel() {
             </>
           )}
         </TabsContent>
+
+        {/* Rider performance — historical, unlike "Live orders" above. */}
+        <TabsContent value="performance" className="mt-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg border p-0.5">
+                {([["day", "Today"], ["week", "Last 7 days"], ["month", "Last 30 days"]] as [Period, string][]).map(
+                  ([v, label]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setPeriod(v)}
+                      className={cn(
+                        "px-3 py-1.5 text-sm rounded-md transition-colors",
+                        period === v ? "bg-orange-600 text-white font-medium" : "text-muted-foreground hover:bg-black/[0.04]",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
+              </div>
+              <div className="inline-flex rounded-lg border p-0.5">
+                {([["completed", "Delivered"], ["all", "Incl. in progress"]] as [Scope, string][]).map(([v, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setScope(v)}
+                    className={cn(
+                      "px-3 py-1.5 text-sm rounded-md transition-colors",
+                      scope === v ? "bg-stone-800 text-white font-medium" : "text-muted-foreground hover:bg-black/[0.04]",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {statsLoading ? (
+                "Loading…"
+              ) : (
+                <>
+                  <span className="font-medium text-foreground">{poolOverall.orders}</span> orders ·{" "}
+                  <span className="font-medium text-foreground">{money(poolOverall.value)}</span> ·{" "}
+                  <span className="font-medium text-foreground">{money(poolOverall.poolFee)}</span> pool fee ·{" "}
+                  <span className="font-medium text-foreground">{poolOverall.km} km</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {statsLoading ? (
+            <Empty>Loading rider performance…</Empty>
+          ) : !riderStats.length ? (
+            <Empty>No pool deliveries with an assigned rider in this period.</Empty>
+          ) : (
+            <>
+              <Card className="overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rider</TableHead>
+                      <TableHead className="text-right">Orders</TableHead>
+                      <TableHead className="text-right">Order value</TableHead>
+                      <TableHead className="text-right">Charged to customer</TableHead>
+                      <TableHead className="text-right">Paid to pool</TableHead>
+                      <TableHead className="text-right">Distance</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {riderStats.map((st) => (
+                      <TableRow key={st.phone ?? st.rider}>
+                        <TableCell className="font-medium">
+                          {st.rider}
+                          {st.phone && (
+                            <div className="text-xs font-normal text-muted-foreground">{st.phone}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{st.orders}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <button
+                            type="button"
+                            onClick={() => setBreakdownFor(st)}
+                            className="underline decoration-dotted underline-offset-4 hover:text-orange-600 transition-colors"
+                            title="See the orders behind this figure"
+                          >
+                            {money(st.value)}
+                          </button>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <button
+                            type="button"
+                            onClick={() => setBreakdownFor(st)}
+                            className="underline decoration-dotted underline-offset-4 hover:text-orange-600 transition-colors"
+                            title="See the orders behind this figure"
+                          >
+                            {money(st.deliveryCharge)}
+                          </button>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <button
+                            type="button"
+                            onClick={() => setBreakdownFor(st)}
+                            className="underline decoration-dotted underline-offset-4 hover:text-orange-600 transition-colors"
+                            title="See the orders behind this figure"
+                          >
+                            {money(st.poolFee)}
+                          </button>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{st.km} km</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <span className="font-medium">Charged to customer</span> is the delivery fee on the
+                bill and is already part of Order value.{" "}
+                <span className="font-medium">Paid to pool</span> is what this restaurant owes the
+                pool for those deliveries — a cost, not revenue — so the gap between the two is your
+                margin on delivery.{" "}
+                <span className="font-medium">Distance</span> is the real distance reported by the
+                pool service, not a straight-line estimate.
+                {unassigned > 0 && (
+                  <>
+                    {" "}
+                    <span className="text-amber-600">
+                      {unassigned} pool {unassigned === 1 ? "order" : "orders"} in this period never
+                      got a rider, so they appear in no row above.
+                    </span>
+                  </>
+                )}
+              </p>
+            </>
+          )}
+        </TabsContent>
       </Tabs>
 
       <p className="text-xs text-muted-foreground">Auto-refreshes every 6s.</p>
@@ -421,6 +621,95 @@ export default function DeliveryPoolPanel() {
           return { docs: j?.data ?? [], fullName: j?.full_name, kyc: j?.kyc_status };
         }}
       />
+
+      {/* Order-by-order breakdown for one pool rider. */}
+      <Dialog open={!!breakdownFor} onOpenChange={(open) => !open && setBreakdownFor(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          {breakdownFor && (() => {
+            const key = breakdownFor.phone ?? breakdownFor.rider;
+            const rows = poolOrdersForRider(statsOrders, key, period, scope);
+            const label = period === "day" ? "today" : period === "week" ? "the last 7 days" : "the last 30 days";
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{breakdownFor.rider}</DialogTitle>
+                  <DialogDescription>
+                    {rows.length} {rows.length === 1 ? "delivery" : "deliveries"} in {label}
+                    {scope === "completed" ? " (delivered only)" : " (including in progress)"} —{" "}
+                    {money(breakdownFor.value)} order value, {money(breakdownFor.poolFee)} paid to pool.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <Card className="overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order</TableHead>
+                        <TableHead>When</TableHead>
+                        <TableHead>Pool state</TableHead>
+                        <TableHead className="text-right">Order value</TableHead>
+                        <TableHead className="text-right">Charged</TableHead>
+                        <TableHead className="text-right">Paid to pool</TableHead>
+                        <TableHead className="text-right">Distance</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((od) => (
+                        <TableRow key={od.id}>
+                          <TableCell className="font-medium">
+                            {Number(od.display_id) > 0 ? `#${od.display_id}` : "—"}
+                            {od.delivery_address && (
+                              <div className="max-w-[200px] truncate text-xs font-normal text-muted-foreground">
+                                {od.delivery_address}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {poolOccurredAt(od).toLocaleString(undefined, {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {!od.delivered_at && (
+                              <span
+                                className="ml-1 text-amber-600"
+                                title="No delivery time recorded — dated by when the order was placed."
+                              >
+                                *
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm capitalize">
+                            {str(od.delivery_provider_state).replace(/_/g, " ")}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">{money(Number(od.total_price) || 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{money(customerDeliveryChargeOf(od))}</TableCell>
+                          <TableCell className="text-right tabular-nums">{money(poolFeeOf(od))}</TableCell>
+                          <TableCell className="text-right tabular-nums">{poolKmOf(od)} km</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-muted/50 font-medium">
+                        <TableCell colSpan={3}>Total</TableCell>
+                        <TableCell className="text-right tabular-nums">{money(breakdownFor.value)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{money(breakdownFor.deliveryCharge)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{money(breakdownFor.poolFee)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{breakdownFor.km} km</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </Card>
+
+                <p className="text-xs text-muted-foreground">
+                  Distance comes from the pool service and is the real delivered distance. Rows
+                  marked <span className="text-amber-600">*</span> have no recorded delivery time and
+                  are dated by when the order was placed.
+                </p>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

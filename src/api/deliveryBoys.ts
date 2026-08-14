@@ -199,3 +199,37 @@ export const getDeliveryBoyStatsOrdersQuery = `
     }
   }
 `;
+
+/**
+ * Pool-dispatched orders behind the per-rider stats on the Delivery Pool panel.
+ *
+ * These are read from OUR orders table, not the pool service: the pool's
+ * /orders endpoint returns only live jobs, so it cannot answer "last 30 days".
+ * The dispatcher writes a snapshot of the rider, the real distance and the pool
+ * fee into delivery_provider_meta at assignment time, and that snapshot is what
+ * makes historical attribution possible at all.
+ */
+export const getPoolStatsOrdersQuery = `
+  query GetPoolStatsOrders($partner_id: uuid!, $from: timestamptz!) {
+    orders(
+      where: {
+        partner_id: { _eq: $partner_id }
+        delivery_provider: { _eq: "menuthere_pool" }
+        created_at: { _gte: $from }
+      }
+      order_by: { created_at: desc }
+    ) {
+      id
+      display_id
+      delivery_address
+      total_price
+      status
+      created_at
+      delivered_at
+      extra_charges
+      delivery_provider
+      delivery_provider_state
+      delivery_provider_meta
+    }
+  }
+`;
