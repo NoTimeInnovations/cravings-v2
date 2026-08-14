@@ -22,6 +22,7 @@ import { useReactToPrint } from "react-to-print";
 import QRCode from "qrcode";
 import "./print-css.css"; // Import the CSS for printing
 import { bxgyOrderLabel } from "@/lib/bxgy";
+import { hasInvoiceNo } from "@/lib/invoiceNumber";
 
 // Array of partner IDs to exclude "Powered By Cravings" text
 const DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS: string[] = [];
@@ -308,7 +309,7 @@ const PrintOrderPage = () => {
             {
               id: formattedOrder.id,
               display_id:
-                (Number(formattedOrder.display_id) ?? 0) > 0
+                hasInvoiceNo(formattedOrder.display_id)
                   ? `${formattedOrder.display_id}-${getDateOnly(
                     formattedOrder.created_at,
                     tz
@@ -621,7 +622,7 @@ const PrintOrderPage = () => {
             <br />
             <span>
               {" "}
-              {(Number(order.display_id) ?? 0) > 0
+              {hasInvoiceNo(order.display_id)
                 ? `${order.display_id}-${getDateOnly(order.created_at, tz)}`
                 : order.id.slice(0, 8)}
             </span>
@@ -892,7 +893,7 @@ const PrintOrderPage = () => {
                 : ""}
             </p>
           )}
-          {(Number(order.display_id) ?? 0) > 0 && (
+          {hasInvoiceNo(order.display_id) && (
             <h2 className="text-sm font-light text-center mt-1">
               ID: {order.id.slice(0, 8)}
             </h2>

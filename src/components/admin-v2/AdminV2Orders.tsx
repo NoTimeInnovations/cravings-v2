@@ -75,6 +75,7 @@ import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { hasInvoiceNo, isDraftInvoiceNo } from "@/lib/invoiceNumber";
 
 // Payment label for the orders list. POS orders show their chosen method
 // (Cash / UPI / Card / "Not selected"); customer orders show "Prepaid" (paid
@@ -973,7 +974,7 @@ export function AdminV2Orders() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-bold">
-                      {(Number(order.display_id) ?? 0) > 0
+                      {hasInvoiceNo(order.display_id)
                         ? `Invoice ${order.display_id}`
                         : `#${order.id.slice(0, 8)}`}
                     </span>
@@ -1094,9 +1095,18 @@ export function AdminV2Orders() {
                       >
                     <TableCell className="font-medium">
                       <div className="flex flex-col gap-1">
-                        {(Number(order.display_id) ?? 0) > 0 ? (
+                        {hasInvoiceNo(order.display_id) ? (
                           <div className="flex w-fit flex-col items-start gap-0.5">
-                            <Badge className="bg-orange-100 px-2 py-0.5 text-sm font-bold text-orange-800 hover:bg-orange-100">
+                            {/* Drafts carry their own "D3" number, not an
+                                invoice number — tinted so the two sequences are
+                                never read as the same run. */}
+                            <Badge
+                              className={
+                                isDraftInvoiceNo(order.display_id)
+                                  ? "bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-600 hover:bg-slate-100"
+                                  : "bg-orange-100 px-2 py-0.5 text-sm font-bold text-orange-800 hover:bg-orange-100"
+                              }
+                            >
                               {order.display_id}
                             </Badge>
                             <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -1304,7 +1314,7 @@ export function AdminV2Orders() {
                   <div className="flex justify-between items-center">
                     <div>
                       <CardTitle className="text-sm font-medium">
-                        {(Number(order.display_id) ?? 0) > 0
+                        {hasInvoiceNo(order.display_id)
                           ? `Invoice No: ${order.display_id}-${getDateOnly(order.createdAt)}`
                           : `Order #${order.id.slice(0, 8)}`}
                       </CardTitle>

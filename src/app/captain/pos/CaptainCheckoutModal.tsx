@@ -20,6 +20,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { taxLabel } from "@/lib/taxLabel";
 import { toast } from "sonner";
 import { formatDate, getDateOnly } from "@/lib/formatDate";
+import { hasInvoiceNo } from "@/lib/invoiceNumber";
 
 export const CaptainCheckoutModal = () => {
   const {
@@ -103,11 +104,11 @@ export const CaptainCheckoutModal = () => {
                 <DialogTitle>
                   <div className="text-xl sm:text-2xl">
                     Order{" "}
-                    {(Number(order.display_id) ?? 0) > 0
+                    {hasInvoiceNo(order.display_id)
                       ? `${order.display_id}-${getDateOnly(order.createdAt, tz)}`
                       : order.id.slice(0, 8)}
                   </div>
-                  {(Number(order.display_id) ?? 0) > 0 && (
+                  {hasInvoiceNo(order.display_id) && (
                     <h2 className="text-sm text-gray-800 ">
                       ID: {order.id.slice(0, 8)}
                     </h2>
