@@ -26,7 +26,7 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { MenuPrice } from "../MenuPrice";
-import { getTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment } from "@/lib/takeawayPricing";
+import { getTakeawayAdjustment, takeawayChargeForItems, takeawayUnitAdjustment, type PriceAdjustment } from "@/lib/takeawayPricing";
 import { computeParcelCharge } from "@/lib/parcelCharge";
 import { computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -582,7 +582,7 @@ const ItemsCard = ({
   removeItem: (id: string) => void;
   currency: string;
   onAddMore?: () => void;
-  takeawayAdjPerItem?: number;
+  takeawayAdjPerItem?: number | PriceAdjustment;
 }) => {
   return (
     <div>
@@ -711,7 +711,7 @@ interface BillCardProps {
   /** ₹ value of loyalty points the customer is redeeming on this order. */
   loyaltyRedeemValue?: number;
   /** Per-item takeaway surcharge baked into prices (0 when not takeaway). */
-  takeawayAdjPerItem?: number;
+  takeawayAdjPerItem?: number | PriceAdjustment;
 }
 
 const BillCard = ({

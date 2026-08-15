@@ -2066,6 +2066,40 @@ export function DeliverySettings() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <div className="space-y-2">
+                        <Label>Charge type</Label>
+                        <Select
+                            value={(deliveryRules as any).takeaway_price_adjustment_mode === "percent" ? "percent" : "flat"}
+                            onValueChange={(v) =>
+                                setDeliveryRules((prev) => ({ ...prev, takeaway_price_adjustment_mode: v } as any))
+                            }
+                        >
+                            <SelectTrigger className="max-w-[220px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="flat">Fixed amount ({currencySymbol})</SelectItem>
+                                <SelectItem value="percent">Percentage (%)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {(deliveryRules as any).takeaway_price_adjustment_mode === "percent" ? (
+                        <div className="space-y-2">
+                            <Label>Extra per item (%)</Label>
+                            <Input
+                                type="number"
+                                step="0.1"
+                                placeholder="e.g. 10"
+                                value={(deliveryRules as any).takeaway_price_adjustment_percent ?? ""}
+                                onChange={(e) =>
+                                    setDeliveryRules((prev) => ({
+                                        ...prev,
+                                        takeaway_price_adjustment_percent: e.target.value === "" ? undefined : Number(e.target.value),
+                                    } as any))
+                                }
+                            />
+                            <p className="text-sm text-muted-foreground">A share of each item&apos;s own price, added per unit when Takeaway is selected. Because the hotel-link markup is already baked into the menu price, this compounds on top of it.</p>
+                        </div>
+                    ) : (
+                    <div className="space-y-2">
                         <Label>Extra per item ({currencySymbol})</Label>
                         <Input
                             type="number"
@@ -2077,6 +2111,7 @@ export function DeliverySettings() {
                             Added to each item&apos;s price (per unit) when a customer or cashier selects Takeaway — applies in both online ordering and POS. Leave blank for no adjustment.
                         </p>
                     </div>
+                    )}
                 </CardContent>
             </Card>
 

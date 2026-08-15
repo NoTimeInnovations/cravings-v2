@@ -36,7 +36,7 @@ const posScopeArgs = (lines: any[]) => ({
       ?.category?.id,
 });
 import { getExtraCharge } from "@/lib/getExtraCharge";
-import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems } from "@/lib/takeawayPricing";
+import { getTakeawayAdjustment, applyTakeawayAdjustment, takeawayChargeForItems, type PriceAdjustment } from "@/lib/takeawayPricing";
 import { findOrCreateUserByPhone } from "@/lib/whatsappFlow/silentUser";
 import { ROUND_OFF_NAME, computeRoundOff, isRoundOffEnabled } from "@/lib/roundOff";
 import { isCompletedOrderLockEnabled } from "@/lib/orderStatus";
@@ -58,7 +58,7 @@ interface QrCodeData {
 
 // Per-item takeaway surcharge configured on the partner. Resolves the value from
 // the logged-in user (partner directly, or a captain's parent partner).
-const resolveTakeawayAdjustment = (): number => {
+const resolveTakeawayAdjustment = (): PriceAdjustment => {
   const userData = useAuthStore.getState().userData;
   const partner =
     userData?.role === "captain"
