@@ -5020,23 +5020,27 @@ const PlaceOrderModal = ({
               {user?.role !== "superadmin" ? (
                 <div className="flex items-center gap-2">
                   {/* Left: Pay Using selector */}
+                  {/* Shrinkable, and every line truncates — this side yields when
+                      the row runs short of width, so the button keeps its price and
+                      label intact. Was shrink-0, which pushed the overflow onto the
+                      button. */}
                   <div
-                    className="shrink-0 min-w-0"
+                    className="min-w-0"
                     onClick={() => {
                       if (hasCashfree && hasCod) setShowPaymentSheet(true);
                     }}
                     style={{ cursor: hasCashfree && hasCod ? "pointer" : "default" }}
                   >
-                    <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
                       <CreditCard size={14} style={{ color: "var(--pom-text-muted, #78716c)", flexShrink: 0 }} />
-                      <span className="text-[11px] font-semibold tracking-wide whitespace-nowrap" style={{ color: "var(--pom-text-muted, #78716c)" }}>
+                      <span className="text-[11px] font-semibold tracking-wide truncate" style={{ color: "var(--pom-text-muted, #78716c)" }}>
                         PAY USING {hasCashfree && hasCod && "▲"}
                       </span>
                     </div>
-                    <p className="font-bold text-[13px] leading-tight whitespace-nowrap" style={{ color: "var(--pom-accent, #ea580c)" }}>
+                    <p className="font-bold text-[13px] leading-tight truncate" style={{ color: "var(--pom-accent, #ea580c)" }}>
                       {selectedPaymentMethod === "cashfree" ? "Pay Online" : "Pay on delivery"}
                     </p>
-                    <p className="text-[11px] whitespace-nowrap" style={{ color: "var(--pom-accent, #ea580c)", opacity: 0.7 }}>
+                    <p className="text-[11px] truncate" style={{ color: "var(--pom-accent, #ea580c)", opacity: 0.7 }}>
                       {selectedPaymentMethod === "cashfree" ? "Cards/UPI/Net Banking" : "UPI/Cash"}
                     </p>
                   </div>
@@ -5061,7 +5065,11 @@ const PlaceOrderModal = ({
                       items?.length === 0 ||
                       (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)
                     }
-                    className="flex-1 min-w-0 py-3 rounded-xl text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between px-4 active:scale-[0.98]"
+                    /* flex-[1_0_auto], not flex-1: still grows into spare width,
+                       but never shrinks below the total + label. flex-1 is `1 1 0%`,
+                       so the row could squeeze it until the label spilled past the
+                       button's rounded edge on narrow phones. */
+                    className="flex-[1_0_auto] min-w-0 py-3 rounded-xl text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between gap-2 px-4 active:scale-[0.98]"
                     style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
                   >
                     {(orderStatus === "loading" || orderStatus === "verifying") ? (
@@ -5075,7 +5083,14 @@ const PlaceOrderModal = ({
                           <span className="block text-[14px] font-bold leading-tight"><MenuPrice currency={hotelData?.currency || "₹"} amount={payableTotal.toFixed(2)} /></span>
                           <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
                         </span>
-                        <span className="flex items-center gap-1 text-[14px] font-bold whitespace-nowrap">
+                        {/* Sized per label: "Continue to Payment" is nearly twice
+                            as long as "Place Order" and crowds the total at the
+                            shared size. Only the long label steps down. */}
+                        <span
+                          className={`flex items-center gap-1 font-bold whitespace-nowrap ${
+                            selectedPaymentMethod === "cashfree" ? "text-[12.5px]" : "text-[14px]"
+                          }`}
+                        >
                           {/* Online payment sends the customer to the gateway next,
                               and the order stays unpaid until it confirms — so
                               "Place Order" overpromises: nothing is ordered yet from

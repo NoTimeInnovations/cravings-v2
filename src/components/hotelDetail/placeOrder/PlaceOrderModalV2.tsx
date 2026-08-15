@@ -4593,18 +4593,23 @@ const PlaceOrderModalV2 = ({
             onClick={() => { if (canSwitchPayment) openPaymentSheet(); }}
             disabled={!canSwitchPayment}
             aria-label="Change payment method"
-            className="shrink-0 min-w-0 text-left disabled:cursor-default"
+            /* Shrinkable, and every line truncates. This side is what YIELDS when
+               the row runs out of width: it is a status display plus a switcher,
+               and an ellipsis on "Cards, UPI & Netbanking" costs nothing, whereas
+               a clipped CTA hides the price or the action. Was shrink-0, which
+               forced the overflow onto the button instead. */
+            className="min-w-0 text-left disabled:cursor-default"
           >
-            <div className="flex items-center gap-1.5 mb-0.5">
+            <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
               <Wallet size={13} className="shrink-0 text-gray-500" />
-              <span className="text-[11px] font-semibold tracking-wide whitespace-nowrap text-gray-500">
+              <span className="text-[11px] font-semibold tracking-wide truncate text-gray-500">
                 PAY USING{canSwitchPayment ? " ▲" : ""}
               </span>
             </div>
-            <p className="font-bold text-[13px] leading-tight whitespace-nowrap" style={{ color: accent }}>
+            <p className="font-bold text-[13px] leading-tight truncate" style={{ color: accent }}>
               {payMethodTitle}
             </p>
-            <p className="text-[11px] leading-tight whitespace-nowrap" style={{ color: accent, opacity: 0.7 }}>
+            <p className="text-[11px] leading-tight truncate" style={{ color: accent, opacity: 0.7 }}>
               {payMethodSubtitle}
             </p>
           </button>
@@ -4614,14 +4619,26 @@ const PlaceOrderModalV2 = ({
             type="button"
             onClick={() => handlePay(paymentMethod)}
             disabled={placementDisabled}
-            className="flex-1 min-w-0 py-3 rounded-xl text-white font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-between px-4 active:scale-[0.98]"
+            /* flex-[1_0_auto], not flex-1: grow into spare width as before, but
+               never shrink below the total + label. flex-1 is `1 1 0%`, which let
+               the row squeeze the button until the label spilled past its rounded
+               edge — 38px past it on a 375px phone with the online label. */
+            className="flex-[1_0_auto] min-w-0 py-3 rounded-xl text-white font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-between gap-2 px-4 active:scale-[0.98]"
             style={{ backgroundColor: accent }}
           >
             <span className="text-left shrink-0">
               <span className="block text-[15px] font-extrabold leading-tight"><MenuPrice currency={currency} amount={payableTotal.toFixed(0)} /></span>
               <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
             </span>
-            <span className="flex items-center gap-1 text-[15px] font-bold whitespace-nowrap">
+            {/* Sized per label, not once for both: "Continue to Payment" is nearly
+                twice as long as "Place Order" and at 15px it crowds the total on a
+                narrow phone. Only the long label steps down — shrinking "Place
+                Order" too would cost legibility to fix a problem it doesn't have. */}
+            <span
+              className={`flex items-center gap-1 font-bold whitespace-nowrap ${
+                paymentMethod === "online" ? "text-[13px]" : "text-[15px]"
+              }`}
+            >
               {/* Online payment hands off to the gateway next and the order is not
                   paid until it confirms, so the button names the next STEP rather
                   than promising the order is done. Cash keeps "Place Order", where
