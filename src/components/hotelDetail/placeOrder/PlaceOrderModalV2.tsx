@@ -73,6 +73,7 @@ import {
   incrementDiscountUsageMutation,
   getUserDiscountUsageQuery,
   discountFields,
+  couponCodePattern,
 } from "@/api/discounts";
 import {
   createCashfreeOrderForPartner,
@@ -170,6 +171,8 @@ type AvailableDiscount = {
   usage_limit?: number | null;
   used_count?: number | null;
   per_user_usage_limit?: number | null;
+  /** False = a private code: never listed here, only applicable by typing it. */
+  show_in_checkout?: boolean | null;
 };
 
 // Three paths apply a discount here — auto-apply, a typed coupon, and the
@@ -408,6 +411,16 @@ const PlaceOrderModalV2 = ({
   const [discountInput, setDiscountInput] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
+  /**
+   * The verdict on the last TYPED coupon code, shown as a popup. A code the
+   * customer typed is the one case where silence is unacceptable: they can't see
+   * it in any list, so "nothing happened" is indistinguishable from "it worked".
+   * `ok` carries the applied code — what it's worth is read live off stackResult
+   * at render, so the figure in the popup is the one on the bill.
+   */
+  const [couponResult, setCouponResult] = useState<
+    { ok: true; code: string } | { ok: false; code: string; message: string } | null
+  >(null);
 
   // Loyalty points state (mirrors PlaceOrderModal). Redemption is finalized
   // server-side after the order exists; this only drives the UI + the requested amount.
@@ -1635,7 +1648,7 @@ const PlaceOrderModalV2 = ({
     if (!open_place_order_modal || !hotelData?.id) return;
     fetchFromHasura(
       `query GetActiveDiscountsV2($partner_id: uuid!) {
-        discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _and: [{ _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, { _or: [{ starts_at: { _is_null: true } }, { starts_at: { _lte: "now()" } }] }] }, order_by: [{ rank: asc_nulls_last }], limit: 10) {
+        discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, show_in_checkout: { _eq: true }, _and: [{ _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, { _or: [{ starts_at: { _is_null: true } }, { starts_at: { _lte: "now()" } }] }] }, order_by: [{ rank: asc_nulls_last }], limit: 10) {
           ${discountFields}
         }
       }`,
@@ -1650,7 +1663,12 @@ const PlaceOrderModalV2 = ({
         const now = Date.now();
         setAvailableDiscounts(
           (res?.discounts ?? []).filter(
-            (d: any) => !d.starts_at || new Date(d.starts_at).getTime() <= now,
+            (d: any) =>
+              (!d.starts_at || new Date(d.starts_at).getTime() <= now) &&
+              // A coupon the partner marked private must never be advertised
+              // here. `!== false` so a row that predates the column (or any
+              // caller that forgets to select it) still lists, as before.
+              d.show_in_checkout !== false,
           ),
         );
       })
@@ -1800,33 +1818,41 @@ const PlaceOrderModalV2 = ({
     const trimmed = code.trim().toUpperCase();
     if (!trimmed) return;
     if (!hotelData?.id) return;
+    // Every rejection below reports through here, so the reason reaches BOTH
+    // surfaces: inline under the discounts screen's input, and the popup that is
+    // the only feedback the Savings Corner's inline box has.
+    const fail = (message: string) => {
+      setDiscountError(message);
+      setCouponResult({ ok: false, code: trimmed, message });
+    };
     setDiscountError("");
+    setCouponResult(null);
     setValidatingCode(true);
     try {
       const res = await fetchFromHasura(validateDiscountQuery, {
         partner_id: hotelData.id,
-        code: trimmed,
+        code: couponCodePattern(code),
       });
       const disc = res?.discounts?.[0];
       if (!disc) {
-        setDiscountError("Invalid code.");
+        fail("This coupon isn't available.");
         return;
       }
       // Shared with applyFromList — the two drifted once and a coupon starting
       // on the 15th became applicable on the 12th from the list.
       const validity = couponValidityError(disc);
       if (validity) {
-        setDiscountError(validity);
+        fail(validity);
         return;
       }
       if (disc.min_order_value && subtotal < Number(disc.min_order_value)) {
-        setDiscountError(`Minimum order of ${currency}${disc.min_order_value} required.`);
+        fail(`Minimum order of ${currency}${disc.min_order_value} required.`);
         return;
       }
       // Name the items instead of applying the code for ₹0.
       if (!givesGift(disc as StackableDiscount) && scopedBaseFor(disc, discountLines, categoryOf) === 0) {
         const names = scopeNamesOf(disc.category_item_ids);
-        setDiscountError(
+        fail(
           names.length
             ? `Only valid on ${names.slice(0, 3).join(", ")}${names.length > 3 ? " and more" : ""}.`
             : "Not valid for the items in your cart.",
@@ -1836,7 +1862,7 @@ const PlaceOrderModalV2 = ({
       // Say WHY a BXGY code bounced — "Buy 2 of Pizza, get a free Coke" is far
       // more useful than applying it for ₹0 and leaving the customer guessing.
       if (disc.discount_type === "bxgy" && !bxgyRepeatCount(disc, items, discountBase)) {
-        setDiscountError(
+        fail(
           "Not eligible yet — " + describeBxgy(disc, {
             currency,
             nameOf: (id) => hotelData?.menus?.find((m) => m.id === id)?.name,
@@ -1850,14 +1876,14 @@ const PlaceOrderModalV2 = ({
         const code = isQrScan ? "3" : orderType === "takeaway" ? "2" : "1";
         const allowed = disc.discount_order_types.split(",").map((t: string) => t.trim());
         if (!allowed.includes(code)) {
-          setDiscountError("This code isn't valid for this order type.");
+          fail("This code isn't valid for this order type.");
           return;
         }
       }
       if (disc.valid_days && disc.valid_days !== "All") {
         const today = new Date().toLocaleDateString("en-US", { weekday: "short" });
         if (!disc.valid_days.split(",").map((x: string) => x.trim()).includes(today)) {
-          setDiscountError("This code isn't valid today.");
+          fail("This code isn't valid today.");
           return;
         }
       }
@@ -1870,18 +1896,18 @@ const PlaceOrderModalV2 = ({
           });
           const userUsed = usageRes?.orders_aggregate?.aggregate?.count ?? 0;
           if (userUsed >= Number(disc.per_user_usage_limit)) {
-            setDiscountError(`You've already used this code ${userUsed} time${userUsed === 1 ? "" : "s"}.`);
+            fail(`You've already used this code ${userUsed} time${userUsed === 1 ? "" : "s"}.`);
             return;
           }
         } catch {
-          setDiscountError("Failed to validate code. Please try again.");
+          fail("Failed to validate code. Please try again.");
           return;
         }
       }
       const applied = toAppliedDiscount(disc);
       if (!canStack(appliedDiscounts as StackableDiscount[], applied as StackableDiscount, stackingEnabled)) {
         if (stackingEnabled) {
-          setDiscountError("That discount is already applied.");
+          fail("That discount is already applied.");
           return;
         }
         setAppliedDiscounts([applied]);
@@ -1890,9 +1916,9 @@ const PlaceOrderModalV2 = ({
       }
       setDiscountInput("");
       setView("main");
-      toast.success(`Applied ${disc.code}`);
+      setCouponResult({ ok: true, code: disc.code });
     } catch {
-      setDiscountError("Failed to validate code. Please try again.");
+      fail("Failed to validate code. Please try again.");
     } finally {
       setValidatingCode(false);
     }
@@ -1976,7 +2002,10 @@ const PlaceOrderModalV2 = ({
       setAppliedDiscounts((prev) => [...prev, applied]);
     }
     setView("main");
-    toast.success(`Applied ${d.code}`);
+    // Same popup as a typed code: picking from the list lands the customer back
+    // on a long checkout screen, where a toast is easy to miss and the savings
+    // line is several sections down.
+    setCouponResult({ ok: true, code: d.code });
   };
 
   // Address handling
@@ -4186,6 +4215,11 @@ const PlaceOrderModalV2 = ({
                       Your items are already on offer
                     </div>
                   )}
+                  {!nothingDiscountable && !appliedDiscount && availableDiscounts.length > 0 && (
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {availableDiscounts.length} offer{availableDiscounts.length === 1 ? "" : "s"} available
+                    </div>
+                  )}
                   {appliedDiscount && discountSavings > 0 && (
                     <div className="text-xs font-medium mt-0.5" style={{ color: accent }}>
                       You save <MenuPrice currency={currency} amount={discountSavings.toFixed(0)} />
@@ -4194,6 +4228,38 @@ const PlaceOrderModalV2 = ({
                 </div>
                 <ChevronDown className="h-5 w-5 -rotate-90 text-gray-400" />
               </button>
+
+              {/* Type a code without leaving the checkout. The list above only
+                  advertises the coupons the partner chose to show, so a private
+                  code needs a way in that doesn't depend on being listed. */}
+              {!nothingDiscountable && (!appliedDiscount?.has_coupon || stackingEnabled) && (
+                <div className="px-4 pb-4 pt-0.5">
+                  <div className="flex items-stretch rounded-xl border border-dashed border-gray-300 bg-gray-50 overflow-hidden">
+                    <input
+                      type="text"
+                      value={discountInput}
+                      onChange={(e) => {
+                        setDiscountInput(e.target.value.toUpperCase());
+                        setDiscountError("");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") validateAndApplyCode(discountInput);
+                      }}
+                      placeholder="Enter coupon code"
+                      className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm outline-none text-gray-900 placeholder-gray-400 uppercase"
+                    />
+                    <button
+                      type="button"
+                      disabled={!discountInput.trim() || validatingCode}
+                      onClick={() => validateAndApplyCode(discountInput)}
+                      className="px-4 text-sm font-bold uppercase tracking-wide disabled:opacity-40 flex items-center"
+                      style={{ color: accent }}
+                    >
+                      {validatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {stackResult.perDiscount
                 .filter((r) => !(r.discount as AppliedDiscount).has_coupon)
@@ -4636,6 +4702,100 @@ const PlaceOrderModalV2 = ({
         </div>
       </div>
     )}
+
+    {/* Coupon verdict popup. Worth is read off stackResult HERE rather than
+        captured when the code was applied, so the figure shown is the one the
+        bill is charging — including the stack's cap and any later cart edit. */}
+    {couponResult && (() => {
+      const row = couponResult.ok
+        ? stackResult.perDiscount.find(
+            (r) =>
+              (r.discount as AppliedDiscount).code?.toUpperCase() ===
+              couponResult.code.toUpperCase(),
+          )
+        : null;
+      const saved = row ? row.moneyOff + row.giftValue : 0;
+      return (
+        <div
+          className="fixed inset-0 z-[570] flex items-center justify-center px-8"
+          onClick={() => setCouponResult(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="relative w-full max-w-sm rounded-2xl bg-white p-6 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setCouponResult(null)}
+              aria-label="Close"
+              className="absolute right-3 top-3 p-1 text-gray-400"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div
+              className="mx-auto mb-3 h-14 w-14 rounded-full flex items-center justify-center"
+              style={{
+                backgroundColor: couponResult.ok ? `${accent}1a` : "#fee2e2",
+              }}
+            >
+              {couponResult.ok ? (
+                <Check className="h-7 w-7" style={{ color: accent }} strokeWidth={3} />
+              ) : (
+                <AlertCircle className="h-7 w-7 text-red-500" />
+              )}
+            </div>
+
+            {couponResult.ok ? (
+              <>
+                <div className="text-lg font-bold text-gray-900">Coupon applied</div>
+                <div className="mt-1 font-mono font-bold uppercase tracking-widest text-sm text-gray-500">
+                  {couponResult.code}
+                </div>
+                {saved > 0 ? (
+                  <div className="mt-3 text-2xl font-extrabold" style={{ color: accent }}>
+                    &minus;<MenuPrice currency={currency} amount={saved.toFixed(0)} />
+                  </div>
+                ) : (
+                  // A gift-only coupon that the stack values at 0 still did
+                  // something; don't flash a meaningless "−₹0" at the customer.
+                  <div className="mt-3 text-sm font-semibold text-gray-700">
+                    Your reward has been added
+                  </div>
+                )}
+                <div className="mt-1 text-xs text-gray-500">
+                  {row && row.giftValue > 0
+                    ? "Free item added to your order"
+                    : "Taken off your bill total"}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-lg font-bold text-gray-900">Coupon not available</div>
+                <div className="mt-1 font-mono font-bold uppercase tracking-widest text-sm text-gray-500">
+                  {couponResult.code}
+                </div>
+                <div className="mt-3 text-sm text-gray-600 leading-relaxed">
+                  {couponResult.message}
+                </div>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setCouponResult(null)}
+              className="mt-5 w-full rounded-xl py-3 text-sm font-bold uppercase tracking-wide text-white"
+              style={{ backgroundColor: accent }}
+            >
+              {couponResult.ok ? "Done" : "Try another code"}
+            </button>
+          </div>
+        </div>
+      );
+    })()}
 
     {/* Address overlays — rendered outside scrollable container */}
 

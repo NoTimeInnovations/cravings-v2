@@ -30,6 +30,7 @@ export const discountFields = `
   freebie_item_count
   freebie_item_ids
   show_on_storefront
+  show_in_checkout
   banner_text
   bxgy_buy_type
   bxgy_buy_item_ids
@@ -76,12 +77,28 @@ export const deleteDiscountMutation = `
   }
 `;
 
+/**
+ * A typed coupon code as an ILIKE pattern for validateDiscountQuery.
+ *
+ * Matching is case-INSENSITIVE on purpose. The customer types this by hand, and
+ * the stored codes are not reliably upper-case: the dashboard upper-cases what
+ * it saves, but Petpooja sync keeps the POS's own casing, and older rows predate
+ * the rule — 8 of 66 live codes are mixed/lower case. Both checkouts upper-cased
+ * the input before an `_eq` lookup, so those codes came back "invalid" no matter
+ * how they were typed.
+ *
+ * `%` and `_` are ILIKE wildcards, so they are escaped here: a code is always
+ * matched whole, never as a pattern.
+ */
+export const couponCodePattern = (code: string) =>
+  code.trim().replace(/([\\%_])/g, "\\$1");
+
 export const validateDiscountQuery = `
   query ValidateDiscount($partner_id: uuid!, $code: String!) {
     discounts(
       where: {
         partner_id: { _eq: $partner_id }
-        code: { _eq: $code }
+        code: { _ilike: $code }
         is_active: { _eq: true }
         has_coupon: { _eq: true }
         _or: [

@@ -51,7 +51,7 @@ import {
   getPhoneValidationError,
 } from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
-import { validateDiscountQuery, incrementDiscountUsageMutation, getUserDiscountUsageQuery, discountFields } from "@/api/discounts";
+import { validateDiscountQuery, incrementDiscountUsageMutation, getUserDiscountUsageQuery, discountFields, couponCodePattern } from "@/api/discounts";
 import { Tag } from "lucide-react";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
 import AddressManagementModal, { type SavedAddress, type AddressModalTheme } from "./AddressManagementModal";
@@ -2633,20 +2633,33 @@ const PlaceOrderModal = ({
   useEffect(() => {
     if (!showDiscountSection || !hotelData?.id) return;
     fetchFromHasura(
+      // Two reads, deliberately: the LIST only advertises coupons the partner
+      // marked show_in_checkout, but the aggregate counts every usable coupon —
+      // including the hidden ones. hasActiveCodes gates this whole section, code
+      // box included, so counting only the advertised ones would leave a partner
+      // whose codes are all private with nowhere for a customer to type one.
       `query GetActiveDiscounts($partner_id: uuid!) {
-        discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _and: [{ _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, { _or: [{ starts_at: { _is_null: true } }, { starts_at: { _lte: "now()" } }] }] }, order_by: [{ rank: asc_nulls_last }], limit: 5) {
+        discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, show_in_checkout: { _eq: true }, _and: [{ _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, { _or: [{ starts_at: { _is_null: true } }, { starts_at: { _lte: "now()" } }] }] }, order_by: [{ rank: asc_nulls_last }], limit: 5) {
           ${discountFields}
+        }
+        discounts_aggregate(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _and: [{ _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, { _or: [{ starts_at: { _is_null: true } }, { starts_at: { _lte: "now()" } }] }] }) {
+          aggregate { count }
         }
       }`,
       { partner_id: hotelData.id }
     ).then((res) => {
-      // Client-side twin of the query's starts_at clause — see the V2 modal.
+      // Client-side twin of the query's starts_at / show_in_checkout clauses —
+      // see the V2 modal.
       const now = Date.now();
       const discs = (res?.discounts ?? []).filter(
-        (d: any) => !d.starts_at || new Date(d.starts_at).getTime() <= now,
+        (d: any) =>
+          (!d.starts_at || new Date(d.starts_at).getTime() <= now) &&
+          d.show_in_checkout !== false,
       );
       setAvailableDiscounts(discs);
-      setHasActiveCodes(discs.length > 0);
+      setHasActiveCodes(
+        (res?.discounts_aggregate?.aggregate?.count ?? discs.length) > 0,
+      );
     }).catch(() => { });
   }, [hotelData?.id, showDiscountSection]);
 
@@ -3071,7 +3084,7 @@ const PlaceOrderModal = ({
       const subtotal = totalPrice || 0;
       const res = await fetchFromHasura(validateDiscountQuery, {
         partner_id: hotelData.id,
-        code: discountInput.trim().toUpperCase(),
+        code: couponCodePattern(discountInput),
       });
       const disc = res?.discounts?.[0];
       if (!disc) {

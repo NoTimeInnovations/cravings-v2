@@ -57,6 +57,9 @@ type Discount = {
     pp_discount_id: string | null;
     pp_overwrite_enabled: boolean;
     show_on_storefront: boolean;
+    /** Lists this coupon in the checkout's coupon list. Off = the customer only
+     *  gets it if they already know the code and type it in. */
+    show_in_checkout: boolean;
     banner_text: string | null;
     // BXGY — the condition that earns the reward, and the reward itself. All
     // NULL on the other three types.
@@ -99,6 +102,7 @@ const emptyForm = {
     freebie_item_ids: "",
     freebie_item_count: "",
     show_on_storefront: true,
+    show_in_checkout: true,
     banner_text: "",
     bxgy_buy_type: "items" as BxgyBuyType,
     bxgy_buy_item_ids: "",
@@ -385,6 +389,7 @@ export function DiscountCodeSettings() {
                     : 1
                 : null,
             show_on_storefront: form.show_on_storefront,
+            show_in_checkout: form.show_in_checkout,
             banner_text: form.banner_text.trim() || null,
             // Every bxgy_* column is cleared on the other types, so switching an
             // existing discount away from BXGY doesn't leave a stale condition
@@ -452,6 +457,7 @@ export function DiscountCodeSettings() {
             freebie_item_ids: disc.freebie_item_ids ?? "",
             freebie_item_count: disc.freebie_item_count != null ? String(disc.freebie_item_count) : "",
             show_on_storefront: disc.show_on_storefront ?? true,
+            show_in_checkout: disc.show_in_checkout ?? true,
             banner_text: disc.banner_text ?? "",
             bxgy_buy_type: (disc.bxgy_buy_type as BxgyBuyType) ?? "items",
             bxgy_buy_item_ids: disc.bxgy_buy_item_ids ?? "",
@@ -1183,6 +1189,7 @@ export function DiscountCodeSettings() {
                             </div>
 
                             {/* Switches */}
+                            <div className="space-y-2">
                             <div className="flex flex-wrap gap-6">
                                 <div className="flex items-center gap-2">
                                     <Switch
@@ -1208,6 +1215,26 @@ export function DiscountCodeSettings() {
                                     />
                                     <Label htmlFor="show-on-storefront">Show on store page</Label>
                                 </div>
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        id="show-in-checkout"
+                                        checked={form.show_in_checkout}
+                                        disabled={!form.has_coupon}
+                                        onCheckedChange={(checked) => setForm({ ...form, show_in_checkout: checked })}
+                                    />
+                                    <Label
+                                        htmlFor="show-in-checkout"
+                                        className={!form.has_coupon ? "text-muted-foreground" : undefined}
+                                    >
+                                        Show in checkout
+                                    </Label>
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {form.has_coupon
+                                    ? "“Show in checkout” lists this coupon for every customer on the checkout’s discount screen. Turn it off for a private code — it still works when a customer types it in, it just isn’t advertised."
+                                    : "“Show in checkout” only applies to coupon codes. This discount applies automatically, so it never appears in the coupon list."}
+                            </p>
                             </div>
 
                             <div className="flex gap-2 pt-2">
@@ -1270,6 +1297,11 @@ export function DiscountCodeSettings() {
                                                 {notStarted && !isExpired && <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-600">Scheduled</Badge>}
                                                 {isLimitReached && !isExpired && <Badge variant="destructive" className="text-xs">Limit reached</Badge>}
                                                 {!disc.has_coupon && <Badge variant="outline" className="text-xs">Auto-apply</Badge>}
+                                                {disc.has_coupon && disc.show_in_checkout === false && (
+                                                    <Badge variant="outline" className="text-xs" title="Not listed at checkout — customers must type the code.">
+                                                        Hidden at checkout
+                                                    </Badge>
+                                                )}
                                                 {disc.pp_discount_id && (
                                                     <Badge variant="outline" className="text-xs">Petpooja</Badge>
                                                 )}
