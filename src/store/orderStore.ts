@@ -25,6 +25,13 @@ import {
 } from "@/api/orders";
 import { getOrderChannel } from "@/lib/orderChannel";
 import {
+  dayInvoiceNumbersQuery,
+  nextDraftInvoiceNo,
+  nextRealInvoiceNo,
+  storeDayBounds,
+  type InvoiceNumberRow,
+} from "@/lib/invoiceNumber";
+import {
   draftOrdersSubscription,
   paginatedOrdersSubscription,
   subscriptionQuery,
@@ -2145,9 +2152,15 @@ const useOrderStore = create(
             }
           }
 
-          const getNextDisplayOrderNumber = await getNextOrderNumber(
-            hotelData.id
-          );
+          // Drafts (online orders inserted before the payment lands) draw from
+          // their own "D1, D2, …" sequence. Most are never paid, and a real
+          // invoice number burned on an abandoned draft leaves a permanent gap
+          // in the day's 1, 2, 3 run — which is exactly what partners were
+          // seeing. finalizeCfOrder issues the real number once payment confirms.
+          const partnerTimezone = (hotelData as any)?.timezone ?? null;
+          const displayId = deferForPayment
+            ? await getNextDraftOrderNumber(hotelData.id, partnerTimezone)
+            : String(await getNextOrderNumber(hotelData.id, partnerTimezone));
 
           const orderId = uuidv4();
 
@@ -2230,7 +2243,7 @@ const useOrderStore = create(
               deliveryAddress:
                 type === "delivery" && !isTakeaway ? state.userAddress : null,
               notes: notes || null,
-              display_id: getNextDisplayOrderNumber.toString(),
+              display_id: displayId,
               tableName: tableName || null,
             };
 
@@ -2277,7 +2290,7 @@ const useOrderStore = create(
               status_history: null,
               captain_id: null,
               payment_details: null,
-              display_id: getNextDisplayOrderNumber.toString(),
+              display_id: displayId,
               table_name: tableName || null,
               // Online (Cashfree/Razorpay) orders defer the push until payment
               // confirms — mark them as an online method (mirrors the persisted
@@ -2459,7 +2472,7 @@ const useOrderStore = create(
                   }
                   : null,
               notes: notes || null,
-              display_id: getNextDisplayOrderNumber.toString(),
+              display_id: displayId,
               discounts: asDiscountList(discounts).length ? asDiscountList(discounts) : null,
               source: "customer",
               cashfree_order_id: cashfreeOrderId || null,
@@ -2933,64 +2946,50 @@ function transformOrderFromHasura(order: any): Order {
   };
 }
 
-export const getNextOrderNumber = async (partnerId: string) => {
-  // today's date
-  const today = new Date();
-  const todayStart = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
-  const todayEnd = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
+const PARTNER_TIMEZONE_QUERY = `
+  query PartnerTimezone($partnerId: uuid!) {
+    partners_by_pk(id: $partnerId) { timezone }
+  }
+`;
 
-  //get last of today
-  const { orders } = await fetchFromHasura(
-    `
-    query GetLastOrderOfToday($partnerId: uuid!) {
-      # Deliberately NOT filtered by deletion_status: this drives the next
-      # display_id. Skipping soft-deleted orders would hand out a number that
-      # is already printed on a bill/KOT.
-      orders(
-        where: {
-          partner_id: { _eq: $partnerId },
-          created_at: { _gte: "${todayStart.toISOString()}", _lte: "${todayEnd.toISOString()}" }
-        },
-        order_by: { created_at: desc },
-        limit: 1
-      ) {
-        id
-        display_id
-      }
-    }
-  `,
-    {
-      partnerId: partnerId,
-    }
-  );
-
-  if (orders.length === 0) {
-    return 1;
-  } else {
-    const lastOrder = orders[0];
-    if (lastOrder.display_id !== null && lastOrder.display_id !== undefined) {
-      const lastDisplayId = parseInt(lastOrder.display_id, 10);
-      return lastDisplayId + 1;
-    } else {
-      return 1;
+/**
+ * Every invoice/draft number already handed out on the partner's current day.
+ *
+ * The day resets at the STORE's midnight (see storeDayBounds) — using the
+ * browser's meant a partner on a trip, or a payment webhook on a UTC server,
+ * numbered orders into a different day than the dashboard showed them in.
+ */
+const fetchDayInvoiceRows = async (
+  partnerId: string,
+  timezone?: string | null,
+): Promise<InvoiceNumberRow[]> => {
+  let tz = timezone ?? null;
+  if (!tz) {
+    try {
+      const { partners_by_pk } = await fetchFromHasura(PARTNER_TIMEZONE_QUERY, { partnerId });
+      tz = partners_by_pk?.timezone ?? null;
+    } catch {
+      tz = null; // storeDayBounds falls back on its own
     }
   }
+  const { from, to } = storeDayBounds(tz);
+  const { orders } = await fetchFromHasura(dayInvoiceNumbersQuery, { partnerId, from, to });
+  return (orders || []) as InvoiceNumberRow[];
 };
+
+/**
+ * The partner's next real invoice number. Drafts are excluded, so an online
+ * order the customer abandons never burns a number out of the 1, 2, 3 run.
+ */
+export const getNextOrderNumber = async (
+  partnerId: string,
+  timezone?: string | null,
+): Promise<number> => nextRealInvoiceNo(await fetchDayInvoiceRows(partnerId, timezone));
+
+/** The next draft number ("D3") — a separate sequence from real invoices. */
+export const getNextDraftOrderNumber = async (
+  partnerId: string,
+  timezone?: string | null,
+): Promise<string> => nextDraftInvoiceNo(await fetchDayInvoiceRows(partnerId, timezone));
 
 export default useOrderStore;

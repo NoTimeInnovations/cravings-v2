@@ -2,6 +2,13 @@
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { restockOrderStock } from "@/app/actions/restockOrder";
+import {
+  dayInvoiceNumbersQuery,
+  isInvoiceNoTaken,
+  nextRealInvoiceNo,
+  parseRealInvoiceNo,
+  storeDayBounds,
+} from "@/lib/invoiceNumber";
 
 // Partner push-notification server (same one the client Notification helper
 // uses). We notify inline here instead of importing the client-only
@@ -69,6 +76,9 @@ async function notifyPartnerNewOrder(
  * does the side-effects (Petpooja push + partner notification). If a side
  * effect that actually delivers the order to the kitchen (the Petpooja push)
  * fails, the claim is RELEASED so a later trigger retries.
+ *
+ * This is also where the order stops being a draft and earns a real invoice
+ * number — see issueRealInvoiceNo below.
  */
 
 const FINALIZE_CLAIM = `
@@ -88,11 +98,89 @@ const FINALIZE_CLAIM = `
         id
         partner_id
         cf_pp_payload
+        created_at
+        display_id
+        partner { timezone }
         order_items { quantity item }
       }
     }
   }
 `;
+
+const SET_INVOICE_NO = `
+  mutation SetOrderInvoiceNo($id: uuid!, $display_id: String!, $cf_pp_payload: jsonb) {
+    update_orders_by_pk(
+      pk_columns: { id: $id },
+      _set: { display_id: $display_id, cf_pp_payload: $cf_pp_payload }
+    ) { id }
+  }
+`;
+
+/**
+ * Trade the order's draft number ("D7") for a real invoice number.
+ *
+ * A draft is inserted before the customer pays and most drafts are never paid,
+ * so numbering one out of the partner's 1, 2, 3 sequence left a permanent gap in
+ * their day. Drafts are numbered "D1, D2, …" instead, and the real number is
+ * issued here — the first moment the order is an order.
+ *
+ * Numbered in the sequence of the day it was PLACED, not the day the payment
+ * happened to land: `created_at` is what the dashboard sorts and groups by, so a
+ * payment confirming just after midnight must still fall in the day the partner
+ * sees it under.
+ *
+ * Mutates `order` in place so the caller pushes the corrected Petpooja payload.
+ * Returns null if numbering failed — a paid order with a stale draft number is
+ * far better than a failed finalization.
+ */
+async function issueRealInvoiceNo(order: any): Promise<string | null> {
+  try {
+    const { from, to } = storeDayBounds(
+      order?.partner?.timezone ?? null,
+      new Date(order?.created_at || Date.now()),
+    );
+    const { orders } = await fetchFromHasura(dayInvoiceNumbersQuery, {
+      partnerId: order.partner_id,
+      from,
+      to,
+    });
+    const rows = orders || [];
+
+    // Already carrying a real number, and nothing else holds it: either a retry
+    // after a released claim (renumbering would walk the order up the sequence
+    // once per attempt), or a draft placed before drafts had their own "D"
+    // namespace, whose number is still free. Keep it either way.
+    const existing = parseRealInvoiceNo(order?.display_id);
+    if (existing !== null && !isInvoiceNoTaken(rows, existing, order.id)) {
+      return String(existing);
+    }
+
+    const invoiceNo = String(nextRealInvoiceNo(rows));
+
+    // The Petpooja payload was built at draft time and carries the "D7" number;
+    // the POS has to show the real one. Null here only when the order already
+    // had no payload, so writing null back is a no-op rather than a wipe.
+    const payload = order?.cf_pp_payload
+      ? { ...order.cf_pp_payload, display_id: invoiceNo }
+      : null;
+
+    await fetchFromHasura(SET_INVOICE_NO, {
+      id: order.id,
+      display_id: invoiceNo,
+      cf_pp_payload: payload,
+    });
+
+    order.display_id = invoiceNo;
+    if (payload) order.cf_pp_payload = payload;
+    return invoiceNo;
+  } catch (e: any) {
+    console.error(
+      `[finalizeCfOrder] invoice numbering failed order=${order?.id} (order still finalized):`,
+      e?.message || e,
+    );
+    return null;
+  }
+}
 
 const RELEASE_CLAIM = `
   mutation ReleaseCfOrderClaim($id: uuid!) {
@@ -141,6 +229,13 @@ export async function finalizeCfOrder(
   console.log(
     `[finalizeCfOrder] claimed order=${orderId} partner=${order?.partner_id} petpooja=${!!order?.cf_pp_payload}`,
   );
+
+  // Before the Petpooja push: the payload still carries the draft number, and
+  // the POS must receive the invoice number the partner will print.
+  const invoiceNo = await issueRealInvoiceNo(order);
+  if (invoiceNo) {
+    console.log(`[finalizeCfOrder] invoice no ${invoiceNo} issued order=${orderId}`);
+  }
 
   let pushedToPetpooja = false;
 

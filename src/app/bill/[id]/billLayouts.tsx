@@ -11,6 +11,7 @@
 // geometry is unchanged.
 
 import React from "react";
+import { hasInvoiceNo } from "@/lib/invoiceNumber";
 
 // Subset of the logged "Bill Contents JSON" payload these layouts consume. The
 // /bill page builds this from the order and passes it in, so the on-screen render
@@ -110,8 +111,8 @@ export function InvoiceLayout({
   const grand = Number(c.grand_total) || 0;
   const productValue = Math.max(0, grand - vat);
   const discount = Number(c.discount_amount) || 0;
-  const invoiceNo = Number(data.display_id) > 0 ? String(data.display_id) : String(data.id || "").slice(0, 8);
-  const orderNo = Number(data.display_id) > 0 ? String(data.display_id) : String(data.id || "").slice(0, 4);
+  const invoiceNo = hasInvoiceNo(data.display_id) ? String(data.display_id) : String(data.id || "").slice(0, 8);
+  const orderNo = hasInvoiceNo(data.display_id) ? String(data.display_id) : String(data.id || "").slice(0, 4);
   const dateTime = `${data.created_at || ""} ${data.time || ""}`.trim();
   const typeText = invoiceTypeLabel(data.type, fullArabic);
   const payMethod = String(data.payment_method || "cash").toUpperCase();
@@ -272,7 +273,7 @@ export function UaeInvoiceLayout({
   // Item prices are VAT-inclusive, so the pre-VAT amount is grand - vat.
   const beforeVat = Math.max(0, grand - vat);
   const discount = Number(c.discount_amount) || 0;
-  const invoiceNo = Number(data.display_id) > 0 ? String(data.display_id) : String(data.id || "").slice(0, 8);
+  const invoiceNo = hasInvoiceNo(data.display_id) ? String(data.display_id) : String(data.id || "").slice(0, 8);
   const dateTime = `${data.created_at || ""} ${data.time || ""}`.trim();
   const typeText = uaeTypeLabel(data.type, fullArabic);
 

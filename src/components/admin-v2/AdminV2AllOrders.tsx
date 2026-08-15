@@ -63,6 +63,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
 import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings } from "@/lib/prebooking";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { hasInvoiceNo } from "@/lib/invoiceNumber";
 
 export function AdminV2AllOrders() {
   const {
@@ -501,7 +502,7 @@ export function AdminV2AllOrders() {
                   >
                     <TableCell className="font-medium">
                       <div className="flex flex-col gap-1">
-                        {(Number(order.display_id) ?? 0) > 0 ? (
+                        {hasInvoiceNo(order.display_id) ? (
                           <div className="flex w-fit flex-col items-start gap-0.5">
                             <Badge className="bg-orange-100 px-2 py-0.5 text-sm font-bold text-orange-800 hover:bg-orange-100">
                               {order.display_id}
@@ -683,7 +684,7 @@ export function AdminV2AllOrders() {
                   <div className="flex justify-between items-center">
                     <div>
                       <CardTitle className="text-sm font-medium">
-                        {(Number(order.display_id) ?? 0) > 0
+                        {hasInvoiceNo(order.display_id)
                           ? `Invoice No: ${order.display_id}-${getDateOnly(order.createdAt)}`
                           : `Order #${order.id.slice(0, 8)}`}
                       </CardTitle>
