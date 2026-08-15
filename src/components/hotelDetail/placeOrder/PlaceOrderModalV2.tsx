@@ -4622,7 +4622,11 @@ const PlaceOrderModalV2 = ({
               <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
             </span>
             <span className="flex items-center gap-1 text-[15px] font-bold whitespace-nowrap">
-              Place Order
+              {/* Online payment hands off to the gateway next and the order is not
+                  paid until it confirms, so the button names the next STEP rather
+                  than promising the order is done. Cash keeps "Place Order", where
+                  the tap genuinely completes it. */}
+              {paymentMethod === "online" ? "Continue to Payment" : "Place Order"}
               <ChevronDown size={16} className="-rotate-90" />
             </span>
           </button>

@@ -5076,7 +5076,12 @@ const PlaceOrderModal = ({
                           <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
                         </span>
                         <span className="flex items-center gap-1 text-[14px] font-bold whitespace-nowrap">
-                          Place Order
+                          {/* Online payment sends the customer to the gateway next,
+                              and the order stays unpaid until it confirms — so
+                              "Place Order" overpromises: nothing is ordered yet from
+                              the customer's point of view. Cash keeps the old label,
+                              where the tap really is the last step. */}
+                          {selectedPaymentMethod === "cashfree" ? "Continue to Payment" : "Place Order"}
                           <ArrowLeft size={14} className="rotate-180" />
                         </span>
                       </>
