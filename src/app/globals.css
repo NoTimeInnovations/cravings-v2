@@ -41,10 +41,23 @@ html {
 body {
   margin: 0;
   padding: 0;
-  min-width: 100vw;
-  min-height: 100vh;
+  /* NOT min-width: 100vw. `vw` counts the vertical scrollbar, so on any browser
+     with classic (non-overlay) scrollbars the body ends up ~8-17px wider than
+     the space it actually has, and the page scrolls sideways. Measured on the
+     landing page before this change: 8px of horizontal overflow. `overflow-x:
+     hidden` below only HID the scrollbar, it did not stop the overflow — and
+     hiding one axis forces the other to compute to `auto`, which quietly turns
+     body into a scroll container. 100% is what was meant. */
+  min-width: 100%;
+  /* dvh, not vh: on mobile browsers and the Android WebView, 100vh is the
+     LARGEST viewport (toolbar retracted), so a 100vh app shell is taller than
+     what is actually on screen. The page then scrolls past the shell and shows
+     bare body underneath — the white band below the admin content. */
+  min-height: 100dvh;
   overflow-x: hidden;
-  background-color: #FFFF;
+  /* Was #FFFF — four hex digits, which CSS reads as #RGBA, i.e. white with
+     alpha F. It happened to resolve to opaque white, but it was a typo. */
+  background-color: #FFFFFF;
 }
 
 @layer base {

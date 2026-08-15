@@ -171,7 +171,15 @@ export default function AdminPage() {
 
     return (
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-            <div className="h-screen flex flex-col bg-orange-50 dark:bg-background overflow-hidden">
+            {/* h-[100dvh], not h-screen. h-screen is 100vh = the viewport with the
+                browser toolbar RETRACTED, so on a phone and in the Cravings
+                Android WebView the shell is taller than what is actually
+                visible. The document then scrolls past the shell and exposes the
+                white body beneath it — the empty white band under the menu-item
+                form. dvh tracks the real visible height, so the shell always
+                ends exactly where the screen does. Already the pattern used by
+                televeryLogin, /review, /[username]/info and QrPayment. */}
+            <div className="h-[100dvh] flex flex-col bg-orange-50 dark:bg-background overflow-hidden">
                 <AdminNavbar
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     isSidebarOpen={isSidebarOpen}
