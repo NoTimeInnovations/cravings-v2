@@ -171,15 +171,22 @@ export default function AdminPage() {
 
     return (
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-            {/* h-[100dvh], not h-screen. h-screen is 100vh = the viewport with the
-                browser toolbar RETRACTED, so on a phone and in the Cravings
-                Android WebView the shell is taller than what is actually
-                visible. The document then scrolls past the shell and exposes the
-                white body beneath it — the empty white band under the menu-item
-                form. dvh tracks the real visible height, so the shell always
-                ends exactly where the screen does. Already the pattern used by
-                televeryLogin, /review, /[username]/info and QrPayment. */}
-            <div className="h-[100dvh] flex flex-col bg-orange-50 dark:bg-background overflow-hidden">
+            {/* Height is set inline, not with h-screen, for two reasons:
+                  • dvh, not vh — 100vh is the viewport with the browser toolbar
+                    RETRACTED, so on a phone and in the Cravings Android WebView a
+                    100vh shell is taller than what is actually on screen; the
+                    document then scrolls past it and exposes white body beneath.
+                  • minus --tv-bar-h — when a superadmin or Televery user is
+                    impersonating a partner, ManagingOutletBanner sits ABOVE this
+                    shell and publishes its height as that variable. Without the
+                    subtraction the document is exactly one banner taller than the
+                    window: an outer scrollbar appears and a white band opens up
+                    under the dashboard. The fallback 0px is the normal, un-
+                    impersonated case, where the variable is simply not set. */}
+            <div
+                style={{ height: "calc(100dvh - var(--tv-bar-h, 0px))" }}
+                className="flex flex-col bg-orange-50 dark:bg-background overflow-hidden"
+            >
                 <AdminNavbar
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     isSidebarOpen={isSidebarOpen}

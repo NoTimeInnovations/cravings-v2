@@ -67,14 +67,21 @@ export function ManagingOutletBanner({
   return (
     <>
       {/*
-        The dashboard shell under this bar is a full-viewport `h-screen` column.
-        Shrink it by exactly the bar height so the page still ends at the fold —
-        otherwise the window grows 44px taller and the floating Save button /
-        mobile action bars sit below it. Scoped to the managing wrapper, and to
-        DIRECT children only, so no modal or inner pane is affected.
+        The dashboard shell under this bar is a full-viewport column. Publish the
+        bar height so the shell can subtract it — otherwise the document grows
+        44px taller than the window, the page scrolls, and bare white body shows
+        below the dashboard (plus the floating Save button / mobile action bars
+        end up under the fold).
+
+        This USED to be `.tv-managing-shell > .h-screen { height: calc(100vh -
+        44px) }` — a rule in this file reaching across to a Tailwind utility
+        class in admin-v2/page.tsx. That coupling is invisible from the other
+        side: renaming the shell's height utility (h-screen -> h-[100dvh], to fix
+        the mobile viewport) silently stopped matching and brought the white band
+        straight back. A variable the shell reads by name cannot drift that way.
       */}
       <style>{`
-        .tv-managing-shell > .h-screen { height: calc(100vh - ${BAR_HEIGHT_PX}px); }
+        .tv-managing-shell { --tv-bar-h: ${BAR_HEIGHT_PX}px; }
       `}</style>
 
       <div
