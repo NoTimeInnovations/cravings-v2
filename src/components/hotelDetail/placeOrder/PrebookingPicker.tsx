@@ -584,20 +584,39 @@ export function PrebookingPicker({
     return (
         <div className={className}>
             {optional ? (
-                // Opt-in row: ticking adds a slot; un-ticking removes it (order ASAP).
-                <label className="flex items-center gap-3 cursor-pointer select-none">
-                    <input
-                        type="checkbox"
-                        checked={opted}
-                        onChange={toggleOpted}
-                        className="h-4 w-4 rounded border-gray-300"
-                        style={{ accentColor }}
+                // Opt-in CARD: the whole card is the control — tap to add a slot,
+                // tap again to drop it and order ASAP. Previously a bare
+                // checkbox, which read as a form field in a sheet made entirely
+                // of tappable cards and gave a ~16px target on mobile; the card
+                // is the same gesture as every other choice on this screen.
+                //
+                // A <button aria-pressed> rather than a div: it stays reachable
+                // by keyboard and announces its on/off state, which the checkbox
+                // gave for free and a click handler on a div would silently lose.
+                <button
+                    type="button"
+                    onClick={toggleOpted}
+                    aria-pressed={opted}
+                    className="flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors"
+                    style={
+                        opted
+                            ? { borderColor: accentColor, backgroundColor: `${accentColor}14` }
+                            : { borderColor: "#e5e7eb", backgroundColor: "#fff" }
+                    }
+                >
+                    <CalendarClock
+                        className="h-4 w-4 shrink-0"
+                        style={{ color: opted ? accentColor : "#6b7280" }}
                     />
-                    <span className="flex items-center gap-2 text-sm font-medium text-gray-800">
-                        <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1 text-sm font-medium text-gray-800">
                         {reservation ? "Book a table slot" : "Prebook for later"}
                     </span>
-                </label>
+                    {/* Without a checkbox the selected state has to be visible
+                        some other way, or the only feedback is the panel below. */}
+                    {opted && (
+                        <Check className="h-4 w-4 shrink-0" style={{ color: accentColor }} />
+                    )}
+                </button>
             ) : (
                 <div className="flex items-center gap-2">
                     <CalendarClock className="h-4 w-4 text-muted-foreground" />
