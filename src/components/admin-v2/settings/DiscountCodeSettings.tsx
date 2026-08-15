@@ -371,8 +371,16 @@ export function DiscountCodeSettings() {
             discount_order_types: form.discount_order_types.join(","),
             description: form.description.trim() || null,
             terms_conditions: form.terms_conditions.trim() || null,
-            min_order_value: form.min_order_value ? Number(form.min_order_value) : null,
-            max_discount_amount: capsApply && form.max_discount_amount ? Number(form.max_discount_amount) : null,
+            // A typed "0" means "no minimum" / "no cap", which is what NULL already
+            // means to every consumer — they all test `min_order_value &&`. Storing a
+            // literal 0 changes nothing about the money but is not harmless: React
+            // renders `{0 && <span/>}` as a visible "0", which is how a stray zero
+            // ended up on the storefront discount card.
+            min_order_value: Number(form.min_order_value) > 0 ? Number(form.min_order_value) : null,
+            max_discount_amount:
+              capsApply && Number(form.max_discount_amount) > 0
+                ? Number(form.max_discount_amount)
+                : null,
             usage_limit: form.usage_limit ? Number(form.usage_limit) : null,
             per_user_usage_limit: form.per_user_usage_limit ? Number(form.per_user_usage_limit) : null,
             starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
@@ -1315,10 +1323,10 @@ export function DiscountCodeSettings() {
                                                 <p className="text-xs text-muted-foreground truncate">{disc.description}</p>
                                             )}
                                             <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                                                {disc.min_order_value && <span>Min: ₹{disc.min_order_value}</span>}
-                                                {disc.max_discount_amount && <span>Max: ₹{disc.max_discount_amount}</span>}
+                                                {Number(disc.min_order_value) > 0 && <span>Min: ₹{disc.min_order_value}</span>}
+                                                {Number(disc.max_discount_amount) > 0 && <span>Max: ₹{disc.max_discount_amount}</span>}
                                                 <span>Used: {disc.used_count}{disc.usage_limit ? ` / ${disc.usage_limit}` : ""}</span>
-                                                {disc.per_user_usage_limit && <span>Per customer: {disc.per_user_usage_limit}</span>}
+                                                {Number(disc.per_user_usage_limit) > 0 && <span>Per customer: {disc.per_user_usage_limit}</span>}
                                                 {disc.discount_order_types && <span>Types: {formatOrderTypes(disc.discount_order_types)}</span>}
                                                 {disc.valid_days && disc.valid_days !== "All" && <span>Days: {disc.valid_days}</span>}
                                                 {disc.starts_at && (

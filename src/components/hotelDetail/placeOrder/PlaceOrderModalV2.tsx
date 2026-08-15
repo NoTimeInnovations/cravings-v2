@@ -5055,7 +5055,7 @@ const DiscountsView = ({
                       <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
                         {d.description || d.terms_conditions || "No description"}
                       </div>
-                      {d.min_order_value && (
+                      {Number(d.min_order_value) > 0 && (
                         <div className="mt-1 text-xs text-gray-400">
                           Min order: <MenuPrice currency={currency} amount={Number(d.min_order_value).toFixed(0)} />
                         </div>

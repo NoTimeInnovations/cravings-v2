@@ -387,12 +387,12 @@ const DiscountBanner = ({
                         {bxgyRepeatSuffix(disc)}
                       </span>
                     )}
-                    {disc.min_order_value && (
+                    {Number(disc.min_order_value) > 0 && (
                       <span className="text-[10px] opacity-60">
                         Purchase above <MenuPrice currency={currency} amount={disc.min_order_value} /> to apply
                       </span>
                     )}
-                    {disc.max_discount_amount && disc.discount_type === "percentage" && (
+                    {Number(disc.max_discount_amount) > 0 && disc.discount_type === "percentage" && (
                       <span className="text-[10px] opacity-60">
                         · Max <MenuPrice currency={currency} amount={disc.max_discount_amount} />
                       </span>
@@ -531,10 +531,10 @@ const DiscountBanner = ({
                             Auto Apply
                           </span>
                         )}
-                        {disc.min_order_value && (
+                        {Number(disc.min_order_value) > 0 && (
                           <span>Min order <MenuPrice currency={currency} amount={disc.min_order_value} /></span>
                         )}
-                        {disc.max_discount_amount && disc.discount_type === "percentage" && (
+                        {Number(disc.max_discount_amount) > 0 && disc.discount_type === "percentage" && (
                           <span>· Max <MenuPrice currency={currency} amount={disc.max_discount_amount} /></span>
                         )}
                         {disc.per_user_usage_limit != null && (user as any)?.id && (
