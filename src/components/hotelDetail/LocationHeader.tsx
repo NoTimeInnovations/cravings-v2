@@ -9,6 +9,11 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { createPortal } from "react-dom";
 import { calculateDeliveryDistanceAndCost } from "./OrderDrawer";
+import { setOnboardingDataCookie } from "@/app/auth/actions";
+import {
+  saveLastDeliveryLocation,
+  OPEN_LOCATION_PICKER_EVENT,
+} from "@/lib/deliveryLocation";
 import { isVideoUrl } from "@/lib/mediaUtils";
 import { useLoadScript } from "@react-google-maps/api";
 
@@ -102,6 +107,15 @@ const LocationHeader = ({
     } catch {}
   }, []);
 
+  // The delivery-location confirm sheet (View Cart) asks for the picker by
+  // event rather than holding a ref, because it renders from OrderDrawer — a
+  // different subtree, and in some layouts a different portal.
+  useEffect(() => {
+    const onRequest = () => setShowPicker(true);
+    window.addEventListener(OPEN_LOCATION_PICKER_EVENT, onRequest);
+    return () => window.removeEventListener(OPEN_LOCATION_PICKER_EVENT, onRequest);
+  }, []);
+
   // Set display address from userAddress or coords
   useEffect(() => {
     if (userAddress) {
@@ -122,12 +136,29 @@ const LocationHeader = ({
   };
 
   const selectLocation = useCallback(async (lat: number, lng: number, name: string, address: string) => {
+    const chosen = address || name;
     setUserCoordinates({ lat, lng });
-    setUserAddress(address || name);
-    setDisplayAddress(address || name);
+    setUserAddress(chosen);
+    setDisplayAddress(chosen);
 
     // Update geolocation store too
     useLocationStore.getState().setCoords({ lat, lng });
+
+    // Persist the choice, or it survives only until the next reload: the order
+    // store IS persisted, but OnboardingFlow restores `onboarding_data` over it
+    // on every mount, and this picker never used to write that. The customer saw
+    // their new address revert to the old one — see src/lib/deliveryLocation.ts.
+    // localStorage first (synchronous, so the restore has it immediately), then
+    // the cookie, which is what the server reads for the SSR skip decision.
+    saveLastDeliveryLocation(hoteldata?.id, chosen, { lat, lng });
+    if (hoteldata?.id) {
+      // Fire-and-forget: a failed cookie write must not block the picker
+      // closing, and localStorage above already carries the restore.
+      setOnboardingDataCookie(hoteldata.id, {
+        address: chosen,
+        coords: { lat, lng },
+      }).catch(() => {});
+    }
 
     saveRecentLocation({ name, address, lat, lng });
     setShowPicker(false);

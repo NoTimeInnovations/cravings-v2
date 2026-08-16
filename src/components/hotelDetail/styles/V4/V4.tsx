@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { setOnboardingDataCookie } from "@/app/auth/actions";
 import Link from "next/link";
 import {
   MapPin, Phone, Star, ShoppingBag, Search, Store, ChevronDown,
@@ -18,6 +19,7 @@ import { isCustomDomainHost } from "@/lib/domain-utils";
 import DiscountBanner from "../../DiscountBanner";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import useOrderStore from "@/store/orderStore";
+import { saveLastDeliveryLocation } from "@/lib/deliveryLocation";
 import { useAuthStore } from "@/store/authStore";
 // V4 reuses V3's search / orders / address sheets verbatim — they are
 // layout-agnostic overlays, so there's no need to fork them.
@@ -947,6 +949,15 @@ const V4 = ({
               if (addr) {
                 useOrderStore.getState().setUserAddress(addr);
                 if (coords) useOrderStore.getState().setUserCoordinates(coords);
+                // Persist, or a reload replays the older onboarding address
+                // over this one. See src/lib/deliveryLocation.ts.
+                saveLastDeliveryLocation(hoteldata?.id, addr, coords ?? null);
+                if (hoteldata?.id) {
+                  setOnboardingDataCookie(hoteldata.id, {
+                    address: addr,
+                    coords: coords ?? null,
+                  }).catch(() => {});
+                }
               }
               setAddressSheetOpen(false);
             }}

@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { setOnboardingDataCookie } from "@/app/auth/actions";
 import Link from "next/link";
 import { MapPin, Phone, Star, ShoppingBag, Search, Store, ChevronDown, X, ArrowLeft, User } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
@@ -15,6 +16,7 @@ import DiscountBanner from "../../DiscountBanner";
 import { DefaultBannerCarousel } from "../Default/HotelBanner";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import useOrderStore from "@/store/orderStore";
+import { saveLastDeliveryLocation } from "@/lib/deliveryLocation";
 import { useAuthStore } from "@/store/authStore";
 import V3SearchItems from "./V3SearchItems";
 import V3Orders from "./V3Orders";
@@ -838,6 +840,15 @@ const V3 = ({
               if (addr) {
                 useOrderStore.getState().setUserAddress(addr);
                 if (coords) useOrderStore.getState().setUserCoordinates(coords);
+                // Persist, or a reload replays the older onboarding address
+                // over this one. See src/lib/deliveryLocation.ts.
+                saveLastDeliveryLocation(hoteldata?.id, addr, coords ?? null);
+                if (hoteldata?.id) {
+                  setOnboardingDataCookie(hoteldata.id, {
+                    address: addr,
+                    coords: coords ?? null,
+                  }).catch(() => {});
+                }
               }
               setAddressSheetOpen(false);
             }}

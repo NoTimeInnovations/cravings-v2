@@ -14,6 +14,7 @@ import { getFeatures } from "@/lib/getFeatures";
 import { parseOrderTypesEnabled, parsePrebookingSettings } from "@/lib/prebooking";
 import { canSkipOnboarding, getSessionOrderType, setSessionOrderType } from "@/lib/onboardingSession";
 import { setOnboardingDataCookie, getOnboardingDataCookie } from "@/app/auth/actions";
+import { saveLastDeliveryLocation, readLastDeliveryLocation } from "@/lib/deliveryLocation";
 import StorefrontScreen from "./StorefrontScreen";
 import DeliveryAddressScreen from "./DeliveryAddressScreen";
 import OrderTypeScreen from "./OrderTypeScreen";
@@ -269,8 +270,28 @@ export default function OnboardingFlow({
   // On mount, restore saved address/coords from cookie and any previously chosen
   // order type from sessionStorage (per-tab only).
   useEffect(() => {
+    // The device's last-used location wins over the cookie, and is applied
+    // SYNCHRONOUSLY. The cookie read is a server-action round trip, so restoring
+    // from it alone made a freshly-picked address visibly flip back to the older
+    // one a moment after load — the "it keeps changing my location" report. Any
+    // picker that changes the location now writes both, so in the steady state
+    // they agree; this ordering only decides who wins while they disagree.
+    const local = readLastDeliveryLocation(partnerId);
+    if (local) {
+      if (local.address) setUserAddress(local.address);
+      if (local.coords) {
+        setUserCoordinates(local.coords);
+        useLocationStore.getState().setCoords(local.coords);
+      }
+    }
+
     getOnboardingDataCookie(partnerId).then((saved) => {
       if (!saved) return;
+      // Do NOT overwrite what the device already restored — that is precisely
+      // the clobber this whole change exists to stop. The cookie is the fallback
+      // for a device with no local record (new browser, cleared storage, or a
+      // link opened in an in-app browser with its own storage).
+      if (local) return;
       if (saved.address) {
         setUserAddress(saved.address);
       }
@@ -296,6 +317,10 @@ export default function OnboardingFlow({
     try {
       localStorage.setItem("onboarding_address", JSON.stringify({ address: addr, coords }));
     } catch {}
+    // Mirror to the device as well: the restore prefers the local record, so
+    // onboarding must keep it current or a later reload would resurrect an
+    // older locally-saved address over the one just entered here.
+    saveLastDeliveryLocation(partnerId, addr, coords);
     await setOnboardingDataCookie(partnerId, { address: addr, coords });
     dismissWithAnimation();
   }, [setUserAddress, setUserCoordinates, partnerId, dismissWithAnimation]);
@@ -312,6 +337,10 @@ export default function OnboardingFlow({
     try {
       localStorage.setItem("onboarding_address", JSON.stringify({ address: addr, coords }));
     } catch {}
+    // Mirror to the device as well: the restore prefers the local record, so
+    // onboarding must keep it current or a later reload would resurrect an
+    // older locally-saved address over the one just entered here.
+    saveLastDeliveryLocation(partnerId, addr, coords);
     await setOnboardingDataCookie(partnerId, { address: addr, coords });
   }, [setUserAddress, setUserCoordinates, partnerId]);
 

@@ -1,7 +1,7 @@
 "use client";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import useOrderStore from "@/store/orderStore";
 import {
   pushEcommerceEvent,
@@ -28,6 +28,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import DeliveryLocationConfirmSheet from "./DeliveryLocationConfirmSheet";
+import { requestLocationPicker } from "@/lib/deliveryLocation";
 import {
   validatePhoneNumber,
   getPhoneValidationError,
@@ -310,6 +312,9 @@ const OrderDrawer = ({
 
   const pathname = usePathname();
   const [isQrScan, setIsQrScan] = useState(false);
+  // "Deliver to this address?" before checkout, for delivery orders only.
+  const [showDeliveryConfirm, setShowDeliveryConfirm] = useState(false);
+  const [deliveryLocationConfirmed, setDeliveryLocationConfirmed] = useState(false);
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
 
   // Client timezone (used for formatting times in messages)
@@ -665,22 +670,45 @@ const OrderDrawer = ({
     }${number}&text=${encodeURIComponent(whatsappMsg)}`;
   };
 
+  // Open checkout for real. Split out of handlePlaceOrder so the delivery
+  // location confirmation can call it after the customer approves the address.
+  const proceedToCheckout = useCallback(() => {
+    if (!user) {
+      // Show full-screen login modal
+      setShowLoginModal(true);
+      setOpenDrawerBottom(false);
+      return;
+    }
+    setOpenPlaceOrderModal(true);
+    setOpenOrderDrawer(false);
+    setOpenDrawerBottom(false);
+  }, [user, setOpenPlaceOrderModal, setOpenOrderDrawer, setOpenDrawerBottom]);
+
   // Modified: Intercept "View Order" click
   const handlePlaceOrder = async () => {
     // Close search overlay if open
     window.dispatchEvent(new CustomEvent("close-search-overlay"));
 
-    if (!user) {
-      // Show full-screen login modal
-      setShowLoginModal(true);
+    // Delivery orders get one look at the address before checkout opens. It is
+    // chosen early — often at the onboarding overlay — and then sits behind a
+    // single line of text while the customer browses for several minutes; by
+    // checkout it competes with the bill, payment method and slot picker and
+    // stops being read. Asked once per cart, and only when there is something
+    // to confirm: takeaway and dine-in have no delivery address.
+    if (orderType === "delivery" && !deliveryLocationConfirmed) {
+      setShowDeliveryConfirm(true);
       setOpenDrawerBottom(false);
-    } else {
-      // User is logged in → proceed
-      setOpenPlaceOrderModal(true);
-      setOpenOrderDrawer(false);
-      setOpenDrawerBottom(false);
+      return;
     }
+
+    proceedToCheckout();
   };
+
+  // A changed address must be re-confirmed: the whole point is that the
+  // customer saw the address the order will actually go to.
+  useEffect(() => {
+    setDeliveryLocationConfirmed(false);
+  }, [userAddress]);
 
   // Allow a caller (e.g. the V6 top cart pill) to open checkout via a window
   // event instead of the floating bar. Runs the same login-gated flow. Opt-in:
@@ -886,6 +914,31 @@ const OrderDrawer = ({
           </div>
         );
       })()}
+
+      {/* Confirm the delivery address before checkout opens. */}
+      <DeliveryLocationConfirmSheet
+        open={showDeliveryConfirm}
+        address={userAddress || ""}
+        accent={styles?.accent || "#ea580c"}
+        onConfirm={() => {
+          setDeliveryLocationConfirmed(true);
+          setShowDeliveryConfirm(false);
+          proceedToCheckout();
+        }}
+        onChange={() => {
+          // Hand off to the picker and stop here. Choosing an address rewrites
+          // userAddress, which resets the confirmed flag, so the next View Cart
+          // shows the sheet again with the NEW address — which is the point.
+          setShowDeliveryConfirm(false);
+          requestLocationPicker();
+        }}
+        onClose={() => {
+          // Dismissed without deciding: put the cart bar back so the customer
+          // isn't stranded with no way to reach checkout.
+          setShowDeliveryConfirm(false);
+          setOpenDrawerBottom(true);
+        }}
+      />
 
       {/* Full-Screen Login Modal - Mobile First */}
       {showLoginModal && (
