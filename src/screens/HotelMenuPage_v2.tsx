@@ -8,6 +8,8 @@ import { Category, formatStorageName } from "@/store/categoryStore_hasura";
 import OrderDrawer from "@/components/hotelDetail/OrderDrawer";
 import ItemCustomizationSheet from "@/components/hotelDetail/ItemCustomizationSheet";
 import useOrderStore from "@/store/orderStore";
+import { saveLastDeliveryLocation } from "@/lib/deliveryLocation";
+import { setOnboardingDataCookie } from "@/app/auth/actions";
 // Import useMemo and useCallback
 import { useEffect, useMemo, useCallback, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -440,6 +442,69 @@ const HotelMenuPage = ({
       addToRecent(hoteldata.id);
     }
   }, [hoteldata?.id, setHotelId, genOrderId]);
+
+  // Mirror every delivery-address change to the per-device record that survives
+  // a reload (src/lib/deliveryLocation.ts).
+  //
+  // This is a single subscription rather than a call in each picker because
+  // roughly two dozen places set the delivery address — six layouts, both
+  // checkout modals, the onboarding sheets, the reorder handler, the
+  // browser-geolocation store — and a picker that forgets to write the record
+  // does not fail loudly. It silently resurrects the PREVIOUS address on the
+  // next load, because OnboardingFlow's restore replays the record over
+  // whatever the store holds.
+  //
+  // That is exactly how "add a new address, reload, get the old one back"
+  // happened: the add-new-address paths (persistDeliveryAddress in V3/V4/V5,
+  // commitDeliveryFromSheet in V6) set the store but never wrote the record.
+  // Subscribing here fixes the whole class instead of the four call sites we
+  // know about today, and then waiting for the fifth.
+  //
+  // It lives HERE, and not in the store itself, because the store's own
+  // `hotelId` is set from an effect on this component — and child effects run
+  // before the parent's (see ReorderHandler.tsx:97). On a visit to partner B
+  // right after partner A, `hotelId` is still A during that window, so keying
+  // the record off it would file B's address under A. `hoteldata.id` is right
+  // by construction.
+  useEffect(() => {
+    const partnerId = hoteldata?.id;
+    if (!partnerId) return;
+    return useOrderStore.subscribe((state, prev) => {
+      const addressChanged = state.userAddress !== prev.userAddress;
+      const coordsChanged = state.coordinates !== prev.coordinates;
+      if (!addressChanged && !coordsChanged) return;
+      // Write-only: an empty address is also what a FAILED reverse-geocode
+      // produces while the coordinates are perfectly good
+      // (geolocationStore.ts:79), so treating it as "forget my address" would
+      // discard a location the customer really did choose. The one genuine
+      // clear — deleting the address currently selected — calls
+      // clearLastDeliveryLocation at its own site, where the intent is plain.
+      if (!state.userAddress?.trim()) return;
+      saveLastDeliveryLocation(
+        partnerId,
+        state.userAddress,
+        state.coordinates ?? null,
+      );
+      // The cookie has to move WITH the record, not after it. It is a second
+      // reader of the same fact with a different audience: the server reads it
+      // to decide whether the onboarding overlay renders at all
+      // (evaluateSkipOnboarding in src/lib/onboardingSession.ts), and
+      // OnboardingFlow replays it when the customer picks "delivery" without an
+      // address step. Updating only the local record leaves the cookie holding
+      // the previous address, which then reappears through those paths — the
+      // same bug, one door further along. Only on an address change: coords
+      // alone move during map dragging and are not worth a round trip each.
+      if (addressChanged) {
+        setOnboardingDataCookie(partnerId, {
+          address: state.userAddress,
+          coords: state.coordinates ?? null,
+        }).catch(() => {
+          // Fire-and-forget: the local record above is synchronous and is what
+          // the restore prefers, so a failed cookie write costs nothing here.
+        });
+      }
+    });
+  }, [hoteldata?.id]);
 
   // Filter menus by order type visibility, then resolve visibility state so items
   // from inactive categories with hideItems=false remain (marked unavailable),

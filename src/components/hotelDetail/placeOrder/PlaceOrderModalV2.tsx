@@ -40,6 +40,7 @@ import {
   sortNewestFirst,
   mergeAddresses,
 } from "@/lib/localAddresses";
+import { clearLastDeliveryLocation } from "@/lib/deliveryLocation";
 import AddressPickerV2 from "./AddressPickerV2";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
 import { MenuPrice } from "../MenuPrice";
@@ -2105,8 +2106,13 @@ const PlaceOrderModalV2 = ({
     toast.success("Address deleted");
     if (removed && address === (removed.address || "")) {
       useOrderStore.getState().setUserAddress("");
+      // The store mirror deliberately never clears the remembered location (an
+      // empty address is also what a failed reverse-geocode looks like), so the
+      // one place with unambiguous intent has to say so — otherwise the address
+      // the customer just deleted comes back on the next reload.
+      clearLastDeliveryLocation(hotelData?.id);
     }
-  }, [savedAddresses, persistAddresses, address]);
+  }, [savedAddresses, persistAddresses, address, hotelData?.id]);
 
   const [closing, setClosing] = useState(false);
 

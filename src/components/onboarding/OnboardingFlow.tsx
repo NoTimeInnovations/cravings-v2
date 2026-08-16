@@ -360,6 +360,19 @@ export default function OnboardingFlow({
     if (type === "delivery" && needsAddress) {
       // If a delivery address from a prior session is already saved, skip
       // the address step — the user shouldn't be re-prompted on every reload.
+      // Device record first, cookie second — the same ordering as the mount
+      // restore above. HotelMenuPage_v2 keeps the two in step, so normally they
+      // agree; this ordering only decides who wins if the cookie write ever
+      // failed (offline, blocked), where replaying the cookie would resurrect
+      // the address the customer had already replaced.
+      const local = readLastDeliveryLocation(partnerId);
+      if (local?.address && local?.coords) {
+        setUserAddress(local.address);
+        setUserCoordinates(local.coords);
+        useLocationStore.getState().setCoords(local.coords);
+        dismissWithAnimation();
+        return;
+      }
       try {
         const saved = await getOnboardingDataCookie(partnerId);
         if (saved?.address && saved?.coords) {
@@ -450,6 +463,15 @@ export default function OnboardingFlow({
     setSessionOrderType(partnerId, preselectedOrderType);
     if (preselectedOrderType === "delivery" && needsAddress) {
       (async () => {
+        // Device record first, cookie second — see handleOrderTypeSelect above.
+        const local = readLastDeliveryLocation(partnerId);
+        if (local?.address && local?.coords) {
+          setUserAddress(local.address);
+          setUserCoordinates(local.coords);
+          useLocationStore.getState().setCoords(local.coords);
+          dismissWithAnimation();
+          return;
+        }
         try {
           const saved = await getOnboardingDataCookie(partnerId);
           if (saved?.address && saved?.coords) {

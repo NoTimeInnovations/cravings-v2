@@ -281,6 +281,7 @@ const OrderDrawer = ({
   hideCartBar = false, // When true, suppress the floating "View Cart" bar (caller
   // provides its own cart affordance and opens checkout via the
   // "open-cart-drawer" window event). Opt-in; other styles are unaffected.
+  onChangeDeliveryLocation,
 }: {
   styles: Styles;
   hotelData: HotelData;
@@ -290,6 +291,18 @@ const OrderDrawer = ({
   hasBottomNav?: boolean; // Added type
   v3Style?: boolean;
   hideCartBar?: boolean;
+  /**
+   * Opens the layout's own address picker, for the "Change location" button on
+   * the pre-checkout confirm sheet.
+   *
+   * Needed because there is no single picker. Default/Compact/Sidebar mount
+   * LocationHeader, which owns one and listens for OPEN_LOCATION_PICKER_EVENT.
+   * V3/V4/V5/V6 do not mount LocationHeader at all — they each render their own
+   * "Select Your Location" sheet — so the window event reached no listener there
+   * and the button did nothing. Those layouts pass this instead; the event stays
+   * as the fallback for the ones that do have LocationHeader.
+   */
+  onChangeDeliveryLocation?: () => void;
 }) => {
   const {
     userAddress,
@@ -930,7 +943,8 @@ const OrderDrawer = ({
           // userAddress, which resets the confirmed flag, so the next View Cart
           // shows the sheet again with the NEW address — which is the point.
           setShowDeliveryConfirm(false);
-          requestLocationPicker();
+          if (onChangeDeliveryLocation) onChangeDeliveryLocation();
+          else requestLocationPicker();
         }}
         onClose={() => {
           // Dismissed without deciding: put the cart bar back so the customer

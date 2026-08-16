@@ -919,6 +919,10 @@ const V4 = ({
           qrId={qrId || undefined}
           qrGroup={qrGroup}
           hasBottomNav={showBottomNav}
+          // This layout has no LocationHeader, so the confirm sheet's
+          // "Change location" cannot reach a picker by window event — hand
+          // it this layout's own "Select Your Location" sheet directly.
+          onChangeDeliveryLocation={() => setAddressSheetOpen(true)}
           v3Style
         />
 
