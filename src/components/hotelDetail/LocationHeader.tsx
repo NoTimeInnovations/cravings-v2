@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { trackMaps } from "@/lib/mapsUsage";
-import { MapPin, ChevronDown, Navigation, Clock, Search, X } from "lucide-react";
+import { MapPin, ChevronDown, X } from "lucide-react";
 import { useLocationStore } from "@/store/geolocationStore";
 import useOrderStore from "@/store/orderStore";
+import { useAuthStore } from "@/store/authStore";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { createPortal } from "react-dom";
@@ -13,7 +14,15 @@ import { setOnboardingDataCookie } from "@/app/auth/actions";
 import {
   saveLastDeliveryLocation,
   OPEN_LOCATION_PICKER_EVENT,
+  type LocationPickerRequest,
 } from "@/lib/deliveryLocation";
+import AddressPickerBody from "./placeOrder/AddressPickerBody";
+import AddressPickerV2 from "./placeOrder/AddressPickerV2";
+import type { SavedAddress } from "./placeOrder/AddressManagementModal";
+import { upsertLocalAddress } from "@/lib/localAddresses";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { updateUserAddressesMutation } from "@/api/auth";
+import { toast } from "sonner";
 import { isVideoUrl } from "@/lib/mediaUtils";
 import { useLoadScript } from "@react-google-maps/api";
 
@@ -33,13 +42,24 @@ interface LocationHeaderProps {
   } | null;
 }
 
-interface RecentLocation {
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-}
-
+/**
+ * The "DELIVER TO" bar on the Default / Compact / Sidebar layouts, and the
+ * address picker behind it.
+ *
+ * The picker body is AddressPickerBody — the SAME component V3/V4/V5/V6 and both
+ * checkouts use. It used to be a bespoke sheet here: a Places search box plus a
+ * "Recent Locations" list kept under its own `recent-delivery-locations`
+ * localStorage key. That sheet showed the customer's saved addresses nowhere at
+ * all, so on these three layouts "Change location" — from the header, or from
+ * the "Deliver to this address?" confirm sheet before checkout — offered a
+ * history of places recently USED and no way to pick the Home or Office address
+ * they had already saved. Everything it wrote also landed in a key no other
+ * screen read, so a location chosen here never became a saved address and never
+ * showed as selected at checkout.
+ *
+ * Sharing the component makes one address list, ordered by what was last
+ * SELECTED, reachable from every layout.
+ */
 const LocationHeader = ({
   hoteldata,
   styles,
@@ -50,36 +70,37 @@ const LocationHeader = ({
 }: LocationHeaderProps) => {
   const [showPicker, setShowPicker] = useState(false);
   const [showUnavailable, setShowUnavailable] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [recentLocations, setRecentLocations] = useState<RecentLocation[]>([]);
   const [displayAddress, setDisplayAddress] = useState<string>("");
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
-  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  // Map fine-tune / new-address form, for search results and "Add New Address".
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [mapInitial, setMapInitial] = useState<
+    { address?: string; coords: { lat: number; lng: number } } | null
+  >(null);
 
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
-  const { coords, isLoading: isGeoLoading } = useLocationStore();
+  const { coords } = useLocationStore();
   const { userAddress, setUserAddress, setUserCoordinates } = useOrderStore();
+  const { userData: authUser } = useAuthStore();
+
+  const savedAddresses = useMemo(
+    () => (((authUser as any)?.addresses || []) as SavedAddress[]),
+    [(authUser as any)?.addresses],
+  );
+
+  const partnerCoords = useMemo(() => {
+    const c = (hoteldata?.geo_location as any)?.coordinates;
+    // GeoJSON is [lng, lat]; swapping them yields a plausible but wrong distance.
+    return Array.isArray(c) && c.length >= 2 ? { lat: c[1], lng: c[0] } : null;
+  }, [hoteldata?.geo_location]);
 
   const deliveryRadius = hoteldata?.delivery_rules?.delivery_radius || 0;
   const storeName = hoteldata?.store_name || "";
-  const storeLocation = hoteldata?.location_details || hoteldata?.district || hoteldata?.country || "";
-
-  // Initialize Google services once the maps script is loaded
-  useEffect(() => {
-    if (isLoaded && !autocompleteServiceRef.current) {
-      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
-      sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
-    }
-  }, [isLoaded]);
+  const storeLocation =
+    hoteldata?.location_details || hoteldata?.district || hoteldata?.country || "";
 
   const googleReverseGeocode = useCallback(
     (lat: number, lng: number): Promise<string | null> => {
@@ -88,30 +109,24 @@ const LocationHeader = ({
         const geocoder = new google.maps.Geocoder();
         void trackMaps({ api: "geocode", partnerId: hoteldata?.id, source: "location_header" });
         geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-          if (status === "OK" && results && results[0]) {
-            resolve(results[0].formatted_address);
-          } else {
-            resolve(null);
-          }
+          resolve(status === "OK" && results?.[0] ? results[0].formatted_address : null);
         });
       });
     },
-    [isLoaded]
+    [isLoaded, hoteldata?.id],
   );
-
-  // Load recent locations from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("recent-delivery-locations");
-      if (saved) setRecentLocations(JSON.parse(saved));
-    } catch {}
-  }, []);
 
   // The delivery-location confirm sheet (View Cart) asks for the picker by
   // event rather than holding a ref, because it renders from OrderDrawer — a
   // different subtree, and in some layouts a different portal.
   useEffect(() => {
-    const onRequest = () => setShowPicker(true);
+    const onRequest = (e: Event) => {
+      // Tell the caller a picker really opened — it falls back to checkout
+      // otherwise, since this component is not mounted on every screen.
+      const detail = (e as CustomEvent<LocationPickerRequest>).detail;
+      if (detail) detail.handled = true;
+      setShowPicker(true);
+    };
     window.addEventListener(OPEN_LOCATION_PICKER_EVENT, onRequest);
     return () => window.removeEventListener(OPEN_LOCATION_PICKER_EVENT, onRequest);
   }, []);
@@ -127,132 +142,108 @@ const LocationHeader = ({
     }
   }, [userAddress, coords, isLoaded, googleReverseGeocode]);
 
-  const saveRecentLocation = (loc: RecentLocation) => {
-    const updated = [loc, ...recentLocations.filter(
-      (r) => r.lat !== loc.lat || r.lng !== loc.lng
-    )].slice(0, 5);
-    setRecentLocations(updated);
-    try { localStorage.setItem("recent-delivery-locations", JSON.stringify(updated)); } catch {}
-  };
-
-  const selectLocation = useCallback(async (lat: number, lng: number, name: string, address: string) => {
-    const chosen = address || name;
-    setUserCoordinates({ lat, lng });
-    setUserAddress(chosen);
-    setDisplayAddress(chosen);
-
-    // Update geolocation store too
-    useLocationStore.getState().setCoords({ lat, lng });
-
-    // Persist the choice, or it survives only until the next reload: the order
-    // store IS persisted, but OnboardingFlow restores `onboarding_data` over it
-    // on every mount, and this picker never used to write that. The customer saw
-    // their new address revert to the old one — see src/lib/deliveryLocation.ts.
-    // localStorage first (synchronous, so the restore has it immediately), then
-    // the cookie, which is what the server reads for the SSR skip decision.
-    saveLastDeliveryLocation(hoteldata?.id, chosen, { lat, lng });
-    if (hoteldata?.id) {
-      // Fire-and-forget: a failed cookie write must not block the picker
-      // closing, and localStorage above already carries the restore.
-      setOnboardingDataCookie(hoteldata.id, {
-        address: chosen,
-        coords: { lat, lng },
-      }).catch(() => {});
-    }
-
-    saveRecentLocation({ name, address, lat, lng });
-    setShowPicker(false);
-    setSearchQuery("");
-    setPredictions([]);
-
-    // Check delivery radius
-    await calculateDeliveryDistanceAndCost(hoteldata);
-
-    // Check if out of range after calculation
-    setTimeout(() => {
-      const info = useOrderStore.getState().deliveryInfo;
-      if (info?.isOutOfRange) {
-        setShowUnavailable(true);
+  /**
+   * Commit a chosen delivery location: store, device record, cookie, then the
+   * radius check.
+   *
+   * Coords are optional because a partner that doesn't require a pin can deliver
+   * to a plain address; the distance check is simply skipped there rather than
+   * the choice being rejected.
+   */
+  const commitLocation = useCallback(
+    async (chosen: string, next: { lat: number; lng: number } | null) => {
+      if (!chosen.trim() && !next) return;
+      if (next) {
+        setUserCoordinates(next);
+        useLocationStore.getState().setCoords(next);
       }
-    }, 500);
-  }, [hoteldata]);
+      setUserAddress(chosen);
+      setDisplayAddress(chosen);
 
-  const handleUseCurrentLocation = async () => {
-    const result = await useLocationStore.getState().refreshLocation();
-    if (result) {
-      const addr = await googleReverseGeocode(result.lat, result.lng);
-      await selectLocation(result.lat, result.lng, "Current Location", addr || "Your current location");
-    }
-  };
+      // Persist the choice, or it survives only until the next reload: the order
+      // store IS persisted, but OnboardingFlow restores `onboarding_data` over it
+      // on every mount, and this picker never used to write that. The customer saw
+      // their new address revert to the old one — see src/lib/deliveryLocation.ts.
+      // localStorage first (synchronous, so the restore has it immediately), then
+      // the cookie, which is what the server reads for the SSR skip decision.
+      saveLastDeliveryLocation(hoteldata?.id, chosen, next);
+      if (hoteldata?.id) {
+        // Fire-and-forget: a failed cookie write must not block the picker
+        // closing, and localStorage above already carries the restore.
+        setOnboardingDataCookie(hoteldata.id, { address: chosen, coords: next }).catch(
+          () => {},
+        );
+      }
 
-  // Google Places Autocomplete search
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+      setShowPicker(false);
 
-    if (query.trim().length < 3 || !isLoaded || !autocompleteServiceRef.current) {
-      setPredictions([]);
-      return;
-    }
+      if (!next) return;
+      await calculateDeliveryDistanceAndCost(hoteldata, next);
+      // Read the result after the store settles rather than trusting a return
+      // value the function doesn't give us.
+      setTimeout(() => {
+        if (useOrderStore.getState().deliveryInfo?.isOutOfRange) setShowUnavailable(true);
+      }, 500);
+    },
+    [hoteldata, setUserAddress, setUserCoordinates],
+  );
 
-    searchTimeout.current = setTimeout(() => {
-      setIsSearching(true);
-
-      // Bias predictions toward the store location when available
-      const storeCoords = hoteldata?.geo_location?.coordinates;
-      const location = storeCoords
-        ? new google.maps.LatLng(storeCoords[1], storeCoords[0])
-        : undefined;
-
-      void trackMaps({ api: "autocomplete", partnerId: hoteldata?.id, source: "location_header" });
-      autocompleteServiceRef.current!.getPlacePredictions(
-        {
-          input: query,
-          sessionToken: sessionTokenRef.current || undefined,
-          ...(location && { location, radius: 50000 }),
-        },
-        (results, status) => {
-          setIsSearching(false);
-          if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-            setPredictions(results);
-          } else {
-            setPredictions([]);
-          }
-        }
-      );
-    }, 500);
-  };
-
-  const handleSelectPrediction = (prediction: google.maps.places.AutocompletePrediction) => {
-    if (!isLoaded) return;
-
-    if (!placesServiceRef.current) {
-      const div = document.createElement("div");
-      placesServiceRef.current = new google.maps.places.PlacesService(div);
-    }
-
-    void trackMaps({ api: "place_details", partnerId: hoteldata?.id, source: "location_header" });
-    placesServiceRef.current.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: ["geometry", "name", "formatted_address"],
-        sessionToken: sessionTokenRef.current || undefined,
-      },
-      (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
-          const lat = place.geometry.location.lat();
-          const lng = place.geometry.location.lng();
-          const name = prediction.structured_formatting.main_text || place.name || prediction.description;
-          const address = place.formatted_address || prediction.description;
-
-          // Reset session token after place details fetch (closes the billing session)
-          sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
-
-          selectLocation(lat, lng, name, address);
+  /** A freshly-entered address from the map/details form: save it to the
+   *  customer's list (local always, DB when signed in) and select it. */
+  const persistAndCommit = useCallback(
+    async (saved: SavedAddress) => {
+      const fullAddress =
+        saved.address ||
+        [saved.flat_no, saved.house_no, saved.area, saved.city].filter(Boolean).join(", ");
+      const next =
+        saved.latitude != null && saved.longitude != null
+          ? { lat: saved.latitude, lng: saved.longitude }
+          : null;
+      const stamped = { ...saved, savedAt: Date.now() };
+      upsertLocalAddress(stamped, Date.now());
+      if (authUser && (authUser as any).role === "user") {
+        const existing = [...savedAddresses];
+        const idx = existing.findIndex((x) => x.id === stamped.id);
+        if (idx >= 0) existing[idx] = stamped;
+        else existing.push(stamped);
+        try {
+          await fetchFromHasura(updateUserAddressesMutation, {
+            id: authUser.id,
+            addresses: existing,
+          });
+          useAuthStore.setState({
+            userData: { ...(authUser as any), addresses: existing } as any,
+          });
+        } catch {
+          toast.error("Failed to save address");
         }
       }
-    );
-  };
+      setMapPickerOpen(false);
+      setMapInitial(null);
+      await commitLocation(fullAddress, next);
+    },
+    [authUser, savedAddresses, commitLocation],
+  );
+
+  const deleteSavedAddress = useCallback(
+    async (id: string) => {
+      if (!authUser || (authUser as any).role !== "user") return;
+      const updated = savedAddresses.filter((a) => a.id !== id);
+      try {
+        await fetchFromHasura(updateUserAddressesMutation, {
+          id: authUser.id,
+          addresses: updated,
+        });
+        useAuthStore.setState({
+          userData: { ...(authUser as any), addresses: updated } as any,
+        });
+        toast.success("Address deleted");
+      } catch {
+        toast.error("Failed to delete address");
+      }
+    },
+    [authUser, savedAddresses],
+  );
 
   const shortAddress = displayAddress
     ? displayAddress.length > 35
@@ -290,9 +281,7 @@ const LocationHeader = ({
             <span className="text-white text-[13px] font-medium opacity-80">Location</span>
             <ChevronDown size={12} className="text-white/60" />
           </div>
-          <p className="text-white text-[14px] font-semibold truncate">
-            {shortAddress}
-          </p>
+          <p className="text-white text-[14px] font-semibold truncate">{shortAddress}</p>
         </div>
       </div>
 
@@ -301,15 +290,16 @@ const LocationHeader = ({
         <div className="fixed inset-0 z-[9999]" onClick={() => setShowPicker(false)}>
           <div className="absolute inset-0 bg-black/50" />
           <div
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[80vh] overflow-hidden animate-in slide-in-from-bottom duration-300"
+            className="absolute bottom-0 left-0 right-0 bg-gray-50 rounded-t-2xl flex flex-col max-h-[80vh] overflow-hidden animate-in slide-in-from-bottom duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b">
+            <div className="shrink-0 bg-white flex items-center justify-between px-5 py-4 border-b">
               <h3 className="text-lg font-bold text-gray-900">Choose a Location</h3>
               <button
                 onClick={() => setShowPicker(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
+                aria-label="Close"
               >
                 <X size={20} className="text-gray-500" />
               </button>
@@ -320,7 +310,7 @@ const LocationHeader = ({
               <button
                 type="button"
                 onClick={() => { setShowPicker(false); brandHeader.onChange(); }}
-                className="w-full flex items-center gap-3 px-5 py-3 bg-gray-50 border-b hover:bg-gray-100 transition-colors text-left"
+                className="shrink-0 w-full flex items-center gap-3 px-5 py-3 bg-white border-b hover:bg-gray-100 transition-colors text-left"
               >
                 <MapPin size={18} className="text-gray-500 shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -342,93 +332,47 @@ const LocationHeader = ({
               </button>
             )}
 
-            {/* Search Input */}
-            <div className="px-5 pt-4 pb-3">
-              <div className="flex items-center gap-2 border rounded-xl px-3 py-2.5" style={{ borderColor: `${accent}40` }}>
-                <Search size={18} className="text-gray-400 flex-shrink-0" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Search for any location"
-                  className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
-                  autoFocus
-                />
-                {searchQuery && (
-                  <button onClick={() => { setSearchQuery(""); setPredictions([]); }}>
-                    <X size={16} className="text-gray-400" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Use Current Location */}
-            <button
-              onClick={handleUseCurrentLocation}
-              className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
-              disabled={isGeoLoading || !isLoaded}
-            >
-              <Navigation size={18} style={{ color: accent }} />
-              <span className="text-sm font-medium" style={{ color: accent }}>
-                {isGeoLoading ? "Getting location..." : "Use your current location"}
-              </span>
-            </button>
-
-            <div className="border-t mx-5" />
-
-            {/* Search Results or Recent Locations */}
-            <div className="overflow-y-auto max-h-[45vh] pb-6">
-              {searchQuery && predictions.length > 0 ? (
-                <div>
-                  <p className="px-5 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase">Search Results</p>
-                  {predictions.map((p) => (
-                    <button
-                      key={p.place_id}
-                      onClick={() => handleSelectPrediction(p)}
-                      className="w-full flex items-start gap-3 px-5 py-3 hover:bg-gray-50 text-left transition-colors"
-                    >
-                      <MapPin size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {p.structured_formatting?.main_text || p.description}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate mt-0.5">
-                          {p.structured_formatting?.secondary_text || p.description}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : searchQuery && isSearching ? (
-                <p className="px-5 py-6 text-sm text-gray-400 text-center">Searching...</p>
-              ) : searchQuery && !isSearching && predictions.length === 0 ? (
-                <p className="px-5 py-6 text-sm text-gray-400 text-center">No results found</p>
-              ) : (
-                <>
-                  {recentLocations.length > 0 && (
-                    <div>
-                      <p className="px-5 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase">Recent Locations</p>
-                      {recentLocations.map((loc, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => selectLocation(loc.lat, loc.lng, loc.name, loc.address)}
-                          className="w-full flex items-start gap-3 px-5 py-3 hover:bg-gray-50 text-left transition-colors"
-                        >
-                          <Clock size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{loc.name}</p>
-                            <p className="text-xs text-gray-500 truncate mt-0.5">{loc.address}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
+            {/* Saved addresses + search + current location — the same body the
+                other layouts and both checkouts render. */}
+            <div className="flex min-h-0 flex-1 flex-col pt-3">
+              <AddressPickerBody
+                currentAddress={userAddress || ""}
+                onSelect={(addr, next) => { void commitLocation(addr, next); }}
+                onPickForMap={(addr, next) => {
+                  setMapInitial(next ? { address: addr, coords: next } : null);
+                  setMapPickerOpen(true);
+                }}
+                onAddNew={() => {
+                  setMapInitial(null);
+                  setMapPickerOpen(true);
+                }}
+                savedAddresses={savedAddresses}
+                onDeleteSaved={deleteSavedAddress}
+                partnerCoords={partnerCoords}
+                partnerId={hoteldata?.id}
+                accent={accent}
+              />
             </div>
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Map picker for new / searched delivery addresses.
+          Mounted only while open: its useLoadScript sits ABOVE its own
+          `if (!open) return null`, so keeping it mounted would run the maps
+          loader on every page view of these three layouts — the busiest ones —
+          for a sheet most customers never open. A fresh mount per open is also
+          the correct starting state for a form. */}
+      {mapPickerOpen && (
+        <AddressPickerV2
+          open
+          onClose={() => { setMapPickerOpen(false); setMapInitial(null); }}
+          onSaved={(saved) => { void persistAndCommit(saved); }}
+          hotelData={hoteldata}
+          accent={accent}
+          initialPick={mapInitial}
+        />
       )}
 
       {/* Delivery Unavailable Modal */}

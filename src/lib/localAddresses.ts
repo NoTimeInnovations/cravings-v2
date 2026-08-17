@@ -59,6 +59,52 @@ export function removeLocalAddress(id: string): SavedAddress[] {
   return list;
 }
 
+/**
+ * Which saved address the customer last SELECTED for this partner.
+ *
+ * `savedAt` already orders the list newest-first, but that answers "which was
+ * touched last", not "which is the delivery address right now" — saving a new
+ * address for later touches it too. The picker's real question is the second
+ * one, and it normally answers it by matching the row text against the current
+ * delivery address. That match is textual, so it fails whenever the two strings
+ * drift apart — a saved address whose `address` field was written by the map
+ * picker, versus the store's copy assembled from parts, differ by a comma and
+ * stop matching. The row then renders unselected and the list falls back to
+ * newest-first, i.e. the last address *used* rather than the one *chosen*.
+ *
+ * Recording the id removes the guesswork for the one case that matters. It is a
+ * FALLBACK, not the primary key: if some row does match the current address,
+ * that wins — the customer may have picked a plain search result since, and the
+ * id would then point at a saved address they are no longer delivering to.
+ *
+ * Per partner, for the same reason the delivery location itself is
+ * (src/lib/deliveryLocation.ts): two restaurants, two different doors.
+ */
+const selectedKeyFor = (partnerId: string) => `last-selected-address:${partnerId}`;
+
+export function setLastSelectedAddressId(
+  partnerId: string | null | undefined,
+  id: string | null | undefined,
+): void {
+  if (!partnerId || !id || typeof window === "undefined") return;
+  try {
+    localStorage.setItem(selectedKeyFor(partnerId), id);
+  } catch {
+    /* storage unavailable — the text match still covers the common case */
+  }
+}
+
+export function getLastSelectedAddressId(
+  partnerId: string | null | undefined,
+): string | null {
+  if (!partnerId || typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(selectedKeyFor(partnerId));
+  } catch {
+    return null;
+  }
+}
+
 /** Merge DB + local, dedupe, newest-first. Used to reconcile on open. */
 export function mergeAddresses(
   local: SavedAddress[],

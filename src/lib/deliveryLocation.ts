@@ -97,7 +97,24 @@ export function clearLastDeliveryLocation(partnerId: string | null | undefined):
  */
 export const OPEN_LOCATION_PICKER_EVENT = "open-location-picker";
 
-export function requestLocationPicker(): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(OPEN_LOCATION_PICKER_EVENT));
+/** What the event carries, so a listener can report that it acted on it. */
+export type LocationPickerRequest = { handled: boolean };
+
+/**
+ * Ask for the location picker. Returns whether anything actually opened.
+ *
+ * The return value exists because a window event fired at no listener is
+ * indistinguishable from one that worked, and "no listener" is a real state
+ * rather than a theoretical one: every layout mounts LocationHeader
+ * CONDITIONALLY — Default drops it while the checkout modal is open, Compact
+ * only renders it on the Food tab, Sidebar swaps it for a "Pickup from" block on
+ * takeaway. A customer who opens the cart from Compact's Offers tab reached a
+ * "Change location" button that did nothing at all. The caller now knows, and
+ * can route the customer somewhere the address is still editable.
+ */
+export function requestLocationPicker(): boolean {
+  if (typeof window === "undefined") return false;
+  const detail: LocationPickerRequest = { handled: false };
+  window.dispatchEvent(new CustomEvent(OPEN_LOCATION_PICKER_EVENT, { detail }));
+  return detail.handled;
 }

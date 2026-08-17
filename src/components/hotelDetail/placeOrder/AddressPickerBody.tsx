@@ -7,7 +7,14 @@ import { useLoadScript } from "@react-google-maps/api";
 import type { SavedAddress } from "./AddressManagementModal";
 import { getRecentSearches, saveRecentSearch, removeRecentSearch, type RecentSearch } from "@/lib/recentSearches";
 import { extractPlaceName, stripPlusCode, isPlusCode } from "@/lib/placeName";
-import { getLocalAddresses, mergeAddresses, upsertLocalAddress, removeLocalAddress } from "@/lib/localAddresses";
+import {
+  getLocalAddresses,
+  mergeAddresses,
+  upsertLocalAddress,
+  removeLocalAddress,
+  setLastSelectedAddressId,
+  getLastSelectedAddressId,
+} from "@/lib/localAddresses";
 
 /**
  * The reusable address-selection UI: a Google-Places search box, "Use Current
@@ -104,11 +111,15 @@ export default function AddressPickerBody({
   const [showAllSaved, setShowAllSaved] = useState(false);
   const [recents, setRecents] = useState<RecentSearch[]>([]);
   const [localSaved, setLocalSaved] = useState<SavedAddress[]>([]);
+  /** The address this customer last CHOSE here, read once on open. Survives a
+   *  reload, which is the whole point — see setLastSelectedAddressId. */
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     setRecents(getRecentSearches());
     setLocalSaved(getLocalAddresses());
-  }, []);
+    setLastSelectedId(getLastSelectedAddressId(partnerId));
+  }, [partnerId]);
 
   const autocompleteRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesRef = useRef<google.maps.places.PlacesService | null>(null);
@@ -194,9 +205,13 @@ export default function AddressPickerBody({
   const selectSaved = useCallback(
     (a: SavedAddress, text: string, coords: { lat: number; lng: number } | null) => {
       upsertLocalAddress({ ...a, savedAt: Date.now() }, Date.now());
+      // Remember WHICH one, not just that it was touched. `savedAt` alone can't
+      // tell a pick apart from a save, and the text match below can drift.
+      setLastSelectedAddressId(partnerId, a.id);
+      setLastSelectedId(a.id);
       onSelect(text, coords);
     },
-    [onSelect],
+    [onSelect, partnerId],
   );
 
   const useCurrentLocation = () => {
@@ -226,10 +241,18 @@ export default function AddressPickerBody({
   };
 
   const mergedSaved = mergeAddresses(localSaved, savedAddresses || []);
-  const isMatch = (a: SavedAddress) => {
+  const matchesCurrentText = (a: SavedAddress) => {
     const text = formatSavedAddress(a);
     return !!currentAddress && (text === currentAddress || a.address === currentAddress);
   };
+  // The current delivery address wins whenever any row carries it. Only when
+  // none does — the strings drifted, or the address came from somewhere with no
+  // saved entry — does the remembered id decide, so a reload still shows the
+  // customer the address they picked rather than whichever was saved most
+  // recently.
+  const anyTextMatch = mergedSaved.some(matchesCurrentText);
+  const isMatch = (a: SavedAddress) =>
+    anyTextMatch ? matchesCurrentText(a) : !!lastSelectedId && a.id === lastSelectedId;
   const orderedSaved = [...mergedSaved.filter(isMatch), ...mergedSaved.filter((a) => !isMatch(a))];
   const visibleSaved = showAllSaved ? orderedSaved : orderedSaved.slice(0, 3);
   const hiddenSaved = orderedSaved.length - visibleSaved.length;

@@ -943,8 +943,19 @@ const OrderDrawer = ({
           // userAddress, which resets the confirmed flag, so the next View Cart
           // shows the sheet again with the NEW address — which is the point.
           setShowDeliveryConfirm(false);
-          if (onChangeDeliveryLocation) onChangeDeliveryLocation();
-          else requestLocationPicker();
+          if (onChangeDeliveryLocation) {
+            onChangeDeliveryLocation();
+            return;
+          }
+          // No layout picker, so fall back to the window event — and if THAT
+          // reached no listener (LocationHeader is mounted conditionally; e.g.
+          // Compact hides it outside the Food tab), continue to checkout rather
+          // than leave the customer on a button that does nothing. The address
+          // row there opens the same picker, one tap further along.
+          if (!requestLocationPicker()) {
+            setDeliveryLocationConfirmed(true);
+            proceedToCheckout();
+          }
         }}
         onClose={() => {
           // Dismissed without deciding: put the cart bar back so the customer
