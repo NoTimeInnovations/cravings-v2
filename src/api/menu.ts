@@ -13,6 +13,7 @@ export const getMenu = `
                 priority
                 is_active
                 visibility_config
+                parent_id
             }
             image_url
             image_source
@@ -122,6 +123,7 @@ export const addMenu = `
                 id
                 name
                 priority
+                parent_id
             }
             image_url
             image_source
@@ -153,6 +155,7 @@ export const updateMenu = `
                 id
                 name
                 priority
+                parent_id
             }
             image_url
             image_source

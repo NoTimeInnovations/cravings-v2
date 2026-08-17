@@ -7,6 +7,13 @@ import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { applyVisibilityState, getItemDisplayState } from "@/lib/visibility";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
+import {
+  collectCategories,
+  topLevelCategories,
+  sectionsForCategory,
+  categoryIdsUnder,
+  type CategoryNode,
+} from "@/lib/categoryTree";
 import V3ItemCard from "./V3ItemCard";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
@@ -231,8 +238,28 @@ const V3 = ({
     scrollCategoryIntoView(index);
   };
 
+  // Two-level categories. `categories` is derived from the ITEMS, so a group
+  // heading like "Mess" — which holds no items of its own — is missing from it;
+  // it arrives on each child's `category.parent`, which collectCategories digs
+  // out. With no parents anywhere this yields the same flat list as before, so
+  // a partner not using groups sees no change at all.
+  const categoryTree = useMemo(
+    () => topLevelCategories(collectCategories((hoteldata?.menus || []) as any, categories as any)),
+    [hoteldata?.menus, categories],
+  );
+  const nodeById = useMemo(() => {
+    const m = new Map<string, CategoryNode>();
+    for (const n of categoryTree) m.set(n.id, n);
+    return m;
+  }, [categoryTree]);
+
   const allCategoriesUnfiltered = useMemo(() => {
-    let cats = [...categories];
+    let cats: any[] = categoryTree.map((n) => ({
+      id: n.id,
+      name: n.name,
+      priority: n.priority,
+      is_active: true,
+    }));
     if (hasOffers) {
       cats = cats.filter((c) => {
         const name = c.name.toLowerCase().trim();
@@ -244,7 +271,7 @@ const V3 = ({
       cats.push({ id: "must-try", name: "Must Try", priority: -1 } as any);
     }
     return cats.sort((a, b) => (a.priority || 0) - (b.priority || 0));
-  }, [categories, hasOffers, topItems]);
+  }, [categoryTree, hasOffers, topItems]);
 
   // Compute the items each category will render once. Drives both the chip
   // list (categories with zero items disappear) and the section list. Items
@@ -262,7 +289,11 @@ const V3 = ({
       } else if (category.id === "must-try") {
         pool = topItems;
       } else {
-        pool = (hoteldata?.menus || []).filter((item) => item.category.id === category.id);
+        // A group chip collects its own items AND its children's, so opening
+        // "Mess" shows all four packages instead of an empty section.
+        const node = nodeById.get(category.id);
+        const ids = new Set(node ? categoryIdsUnder(node) : [category.id]);
+        pool = (hoteldata?.menus || []).filter((item) => ids.has(item.category.id));
       }
       // Top/bestseller items stay visible in "Must Try" even when the partner
       // hides unavailable items — they show the Unavailable badge instead of
@@ -279,7 +310,7 @@ const V3 = ({
       if (items.length > 0) result.push({ category, items });
     }
     return result;
-  }, [allCategoriesUnfiltered, hoteldata, offers, topItems]);
+  }, [allCategoriesUnfiltered, hoteldata, offers, topItems, nodeById]);
 
   // Veg-only filter (design's Veg toggle) — drops non-veg items and any category
   // left empty. Chip list and section list stay index-aligned for scroll-spy.
@@ -730,8 +761,30 @@ const V3 = ({
                   />
                 </div>
 
+                {/* One block per subcategory when this chip is a group, else a
+                    single unnamed block — so the item renderer below is written
+                    once. Sub-headings sit INSIDE the parent's single section on
+                    purpose: scroll-spy pairs chips to sections BY INDEX, and one
+                    chip owning four sections would drift the highlight. */}
+                {(nodeById.get(category.id)?.children.length
+                  ? sectionsForCategory(nodeById.get(category.id)!, itemsToDisplay as any)
+                  : [{ category: { id: category.id, name: category.name, priority: 0, children: [] }, items: itemsToDisplay }]
+                ).map((sub: any, _si: number, subArr: any[]) => (
+                <div key={sub.category.id}>
+                {subArr.length > 1 && (
+                  <div className="mx-0.5 mb-1.5 mt-2.5 flex items-center gap-2">
+                    <span className="text-[12px] font-bold text-[#5a5a5a]">
+                      {formatDisplayName(sub.category.name)}{" "}
+                      <span className="text-[#b5b5b5]">({sub.items.length})</span>
+                    </span>
+                    <span
+                      className="h-px flex-1"
+                      style={{ background: "linear-gradient(90deg,#ececea,transparent)" }}
+                    />
+                  </div>
+                )}
                 <div className="divide-y divide-[#ececea]">
-                  {itemsToDisplay.map((item) => {
+                  {sub.items.map((item: any) => {
                     const itemOffers = offers?.filter((offer) => offer.menu.id === item.id) || [];
                     let offerData: any = undefined;
                     let hasMultipleVariantsOnOffer = false;
@@ -790,6 +843,8 @@ const V3 = ({
                     );
                   })}
                 </div>
+                </div>
+                ))}
 
                 {itemsToDisplay.length === 0 && (
                   <p className="py-4 text-center text-xs text-gray-400">No items available.</p>

@@ -1,4 +1,10 @@
-import { addCategory, getCategory, getPartnerCategories } from "@/api/category";
+import {
+  addCategory,
+  getCategory,
+  getPartnerCategories,
+  getPartnerCategoryTree,
+  update_category_parent,
+} from "@/api/category";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { create } from "zustand";
 import { useAuthStore } from "@/store/authStore";
@@ -13,6 +19,17 @@ export interface Category {
   priority?: number;
   is_active?: boolean;
   visibility_config?: any;
+  /**
+   * Parent category id, or null/undefined for a top-level category.
+   *
+   * The tree is deliberately capped at TWO levels — a category that has a
+   * parent may not itself become one (see `canBeParent` in src/lib/categoryTree.ts).
+   * Deeper nesting would have to be rendered by seven separate storefront
+   * layouts, each with its own category rail, for no case anyone has asked for.
+   */
+  parent_id?: string | null;
+  /** Populated only by queries that select the `parent` relationship. */
+  parent?: { id: string; name: string; priority?: number; is_active?: boolean } | null;
 }
 
 // Helper function to format category name for display
@@ -30,8 +47,27 @@ export const formatStorageName = (name: string): string => {
 interface CategoryState {
   categories: Category[];
   fetchCategories: (addedBy: string) => Promise<Category[] | void>;
-  addCategory: (cat: string , userId?: string | null) => Promise<Category | void>;
+  /**
+   * Every category the partner owns, including empty ones.
+   *
+   * Separate from `fetchCategories` because that one filters to categories
+   * that contain at least one menu item — a parent category holds none of its
+   * own, so it would be missing from the very picker meant to offer it as a
+   * parent. Returns fresh rows and does NOT touch `categories`, so no existing
+   * screen changes behaviour.
+   */
+  fetchCategoryTree: (partnerId: string) => Promise<Category[]>;
+  addCategory: (cat: string , userId?: string | null, parentId?: string | null) => Promise<Category | void>;
   updateCategory: (cat: Category) => Promise<void>;
+  /**
+   * Re-parent a category, or pass null to promote it back to top level.
+   *
+   * Deliberately its own mutation rather than a field on `updateCategory`:
+   * that one writes `_set` from named variables, so a caller that didn't know
+   * about parents — the rename box, the on/off toggle, the availability
+   * manager — would send `parent_id: null` and silently flatten the tree.
+   */
+  setCategoryParent: (categoryId: string, parentId: string | null) => Promise<void>;
 }
 
 export const useCategoryStore = create<CategoryState>((set, get) => ({
@@ -68,7 +104,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     }
   },
 
-  addCategory: async (cat , userId) => {
+  addCategory: async (cat , userId, parentId) => {
     try {
       if (!cat) throw new Error("Category name is required");
 
@@ -105,13 +141,20 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
           category: {
             name: formattedName,
             partner_id: userId || userData?.id,
+            // Omitted (not null) when there's no parent, so the column keeps its
+            // default for every existing caller that knows nothing about trees.
+            ...(parentId ? { parent_id: parentId } : {}),
           },
         }).then((res) => res.insert_category.returning[0]);
 
         set({
           categories: [
             ...get().categories,
-            { name: formatDisplayName(formattedName), id: addedCat.id },
+            {
+              name: formatDisplayName(formattedName),
+              id: addedCat.id,
+              parent_id: addedCat.parent_id ?? null,
+            },
           ],
         });
 
@@ -120,6 +163,32 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     } catch (error: unknown) {
       console.error(error);
     }
+  },
+
+  fetchCategoryTree: async (partnerId: string) => {
+    try {
+      const res = await fetchFromHasura(getPartnerCategoryTree, { partner_id: partnerId });
+      return (res.category || []).map((c: Category) => ({
+        ...c,
+        name: formatDisplayName(c.name),
+        is_active: c.is_active !== false,
+        parent_id: c.parent_id ?? null,
+      })) as Category[];
+    } catch (error) {
+      console.error("Fetch category tree error:", error);
+      return [];
+    }
+  },
+
+  setCategoryParent: async (categoryId: string, parentId: string | null) => {
+    const user = useAuthStore.getState().userData;
+    await fetchFromHasura(update_category_parent, { id: categoryId, parent_id: parentId });
+    set({
+      categories: get().categories.map((c) =>
+        c.id === categoryId ? { ...c, parent_id: parentId } : c,
+      ),
+    });
+    revalidateTag(user?.id as string);
   },
 
   updateCategory: async (cat: Category) => {

@@ -246,6 +246,13 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
         priority
         is_active
         visibility_config
+        parent_id
+        parent {
+          id
+          name
+          priority
+          is_active
+        }
       }
       priority
       description

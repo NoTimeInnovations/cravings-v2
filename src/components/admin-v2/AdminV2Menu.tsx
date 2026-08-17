@@ -35,6 +35,7 @@ import {
   Plus,
   ChevronRight,
   ArrowUpDown,
+  FolderTree,
   Power,
   Check,
   X,
@@ -51,6 +52,7 @@ import { AdminV2EditMenuItem } from "./AdminV2EditMenuItem";
 import { AdminV2ItemRecommendations } from "./AdminV2ItemRecommendations";
 import { AdminV2AddMenuItem } from "./AdminV2AddMenuItem";
 import { AdminV2PriorityChanger } from "./AdminV2PriorityChanger";
+import AdminV2CategoryTree from "./AdminV2CategoryTree";
 import { AdminV2AvailabilityManager } from "./AdminV2AvailabilityManager";
 import { AdminV2AddCategory } from "./AdminV2AddCategory";
 import { toast } from "sonner";
@@ -83,6 +85,7 @@ export function AdminV2Menu() {
   const [lastEditedItemId, setLastEditedItemId] = useState<string | null>(null);
   const [isPriorityMode, setIsPriorityMode] = useState(false);
   const [isAvailabilityMode, setIsAvailabilityMode] = useState(false);
+  const [isCategoryTreeMode, setIsCategoryTreeMode] = useState(false);
 
   // Quick-access deep link from the dashboard: ?menuPanel=availability|priority
   // auto-opens that sub-panel. The param is consumed (removed) once handled so
@@ -447,6 +450,10 @@ export function AdminV2Menu() {
     return <AdminV2PriorityChanger onBack={() => setIsPriorityMode(false)} />;
   }
 
+  if (isCategoryTreeMode) {
+    return <AdminV2CategoryTree onBack={() => setIsCategoryTreeMode(false)} />;
+  }
+
   if (isAvailabilityMode) {
     return (
       <AdminV2AvailabilityManager
@@ -556,6 +563,15 @@ export function AdminV2Menu() {
                 <Crown className="h-3.5 w-3.5 ml-1 text-yellow-500" />
               )}
             </Button>
+            {!isPetpooja && (
+              <Button
+                variant="outline"
+                onClick={() => setIsCategoryTreeMode(true)}
+              >
+                <FolderTree className="h-4 w-4 mr-2" />
+                Organise Categories
+              </Button>
+            )}
             {!isPetpooja && (
               <>
                 <Button
