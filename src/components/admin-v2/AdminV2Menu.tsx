@@ -563,15 +563,20 @@ export function AdminV2Menu() {
                 <Crown className="h-3.5 w-3.5 ml-1 text-yellow-500" />
               )}
             </Button>
-            {!isPetpooja && (
-              <Button
-                variant="outline"
-                onClick={() => setIsCategoryTreeMode(true)}
-              >
-                <FolderTree className="h-4 w-4 mr-2" />
-                Organise Categories
-              </Button>
-            )}
+            {/* Shown for Petpooja partners too. Petpooja owns category names,
+                priority, active state and item membership — but not the parent
+                link: its sync upserts on category_pp_id_key with update_columns
+                [name, priority, is_active, deletion_status, partner_id], so
+                parent_id is never written and a re-sync leaves grouping intact.
+                A group created here carries no pp_id, and NULLs don't collide in
+                that unique index, so the sync never adopts it either. */}
+            <Button
+              variant="outline"
+              onClick={() => setIsCategoryTreeMode(true)}
+            >
+              <FolderTree className="h-4 w-4 mr-2" />
+              Organise Categories
+            </Button>
             {!isPetpooja && (
               <>
                 <Button
