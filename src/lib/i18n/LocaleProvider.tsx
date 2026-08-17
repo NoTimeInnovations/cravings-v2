@@ -48,9 +48,12 @@ export function LocaleProvider({
 
     setLocaleState(next);
 
-    // <html> lives above React's tree, so it is updated directly. Both matter:
-    // `lang` drives screen-reader pronunciation and font fallback, `dir` flips
-    // the entire layout for Arabic.
+    // <html> lives above React's tree, so it is updated directly. `lang` drives
+    // screen-reader pronunciation and the font stack in globals.css and does
+    // change per language. `dir` is written too, but always "ltr" (see dirOf) —
+    // assigning it explicitly is the point rather than a leftover, because it
+    // overrides any direction the browser or a translation extension would
+    // otherwise apply to the document.
     const html = document.documentElement;
     html.lang = next;
     html.dir = dirOf(next);

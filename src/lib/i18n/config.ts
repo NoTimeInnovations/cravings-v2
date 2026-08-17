@@ -29,11 +29,47 @@ export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "en";
 
-/** Locales written right-to-left. Drives <html dir> and the logical-property CSS. */
+/**
+ * Locales written right-to-left.
+ *
+ * Still recorded even though the document no longer flips (see dirOf): it is a
+ * true fact about these languages, the Arabic/Urdu font and letter-spacing rules
+ * in globals.css depend on knowing it, and deleting it would make restoring RTL
+ * a research task rather than a one-line change.
+ */
 const RTL_LOCALES = new Set<Locale>(["ar", "ur"]);
 
 export const isRtl = (locale: Locale): boolean => RTL_LOCALES.has(locale);
-export const dirOf = (locale: Locale): "ltr" | "rtl" => (isRtl(locale) ? "rtl" : "ltr");
+
+/**
+ * The document direction — deliberately "ltr" for EVERY locale, Arabic and Urdu
+ * included.
+ *
+ * <html dir> is set in the ROOT layout, so it never applied only to the
+ * translated marketing pages this module was written for: it applied to the
+ * whole product. A visitor resolved to ar or ur — GCC and Pakistan are
+ * country-mapped, so this needed no action on the visitor's part — had their
+ * STOREFRONT and ADMIN mirrored as well. Those surfaces hold partner-authored
+ * content that is stored in one language and never translated, so flipping them
+ * reversed the layout without reversing anything it contained: menus, cart,
+ * checkout and every admin table laid out backwards around English and Malayalam
+ * text. A whole product mirrored to suit copy it does not contain.
+ *
+ * So the direction is now fixed. The cost is real and accepted: Arabic and Urdu
+ * MARKETING copy left-aligns, and its punctuation sits on the wrong end of the
+ * line. That is a deliberate trade for a product that cannot mirror by accident.
+ *
+ * Two things this does NOT do, both worth knowing before "fixing" it:
+ *   - Arabic still reads right-to-left WITHIN its own line. That is the Unicode
+ *     bidirectional algorithm, which `dir` does not switch off.
+ *   - Partner-authored Arabic item names keep their own per-element dir
+ *     (`name_secondary_rtl`, see the V3/V4/V5/V6 ItemCards). An element-level
+ *     dir works perfectly well inside an ltr document, so those are untouched.
+ *
+ * To restore per-locale direction, put back `isRtl(locale) ? "rtl" : "ltr"`.
+ * This is the only line that decides it.
+ */
+export const dirOf = (_locale: Locale): "ltr" | "rtl" => "ltr";
 
 export const isLocale = (v: unknown): v is Locale =>
   typeof v === "string" && (LOCALES as readonly string[]).includes(v);

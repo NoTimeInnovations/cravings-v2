@@ -764,7 +764,12 @@ html[lang="ur"] * { letter-spacing: normal !important; }
 html[lang="ml"] *, html[lang="ta"] *, html[lang="bn"] *, html[lang="ur"] *, html[lang="zh"] * { text-transform: none !important; }
 
 
-/* Mirror decorative arrows/chevrons that point "forward" in reading order. */
+/* Mirror decorative arrows/chevrons that point "forward" in reading order.
+   Currently INERT: the document direction is pinned to ltr for every locale
+   (see dirOf in src/lib/i18n/config.ts), so this selector never matches. Kept
+   because it is correct, and because it is the other half of restoring RTL —
+   deleting it would leave the arrows pointing the wrong way if dirOf is ever
+   put back. */
 html[dir="rtl"] .rtl-flip {
   transform: scaleX(-1);
 }
