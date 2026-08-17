@@ -66,6 +66,16 @@ const V3 = ({
 
   const categoryHeadersRef = useRef<(HTMLHeadingElement | null)[]>([]);
   const categoriesContainerRef = useRef<HTMLDivElement>(null);
+  const stickyBarRef = useRef<HTMLDivElement>(null);
+  /**
+   * Where a subcategory heading sticks: the bottom edge of the control bar
+   * (Veg + search + category pills) once that bar is itself stuck.
+   *
+   * Measured, not hardcoded — the bar's height moves with the search row, the
+   * pill wrap and the font size, and a stale constant would either float the
+   * heading over the pills or leave a gap beneath them.
+   */
+  const [subHeadTop, setSubHeadTop] = useState(0);
   const categoryElementsRef = useRef<(HTMLDivElement | null)[]>([]);
   const hasOffers = offers && offers.length > 0;
   const { orderType, items: cartItems, userAddress } = useOrderStore();
@@ -375,6 +385,23 @@ const V3 = ({
   // search + back stay reachable.)
   const showHeroSearch = !hasOrderingOrDelivery && !hideStoreIdentity;
 
+  useEffect(() => {
+    const el = stickyBarRef.current;
+    if (!el) return;
+    // The bar sticks below the 56px header, or at 0 when that header is hidden
+    // (view-only menus move search into the hero).
+    const barSticksAt = showHeroSearch ? 0 : 56;
+    const measure = () => setSubHeadTop(barSticksAt + el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [showHeroSearch]);
+
   // Social links
   const phoneHref = socialLinks?.phone ? `tel:${socialLinks.phone}` : null;
   const whatsappHref = socialLinks?.whatsapp || null;
@@ -683,7 +710,7 @@ const V3 = ({
         )}
 
         {/* Sticky control bar: Veg toggle + Search + category pills */}
-        <div className={`sticky ${showHeroSearch ? "top-0" : "top-14"} z-20 mt-1 bg-[#f4f4f2] px-3 pb-2 pt-3.5`}>
+        <div ref={stickyBarRef} className={`sticky ${showHeroSearch ? "top-0" : "top-14"} z-20 mt-1 bg-[#f4f4f2] px-3 pb-2 pt-3.5`}>
           <div className="flex items-center gap-2.5">
             {/* Veg toggle */}
             <button
@@ -772,10 +799,17 @@ const V3 = ({
                 ).map((sub: any, _si: number, subArr: any[]) => (
                 <div key={sub.category.id}>
                 {subArr.length > 1 && (
-                  <div className="mx-0.5 mb-1.5 mt-2.5 flex items-center gap-2">
-                    <span className="text-[12px] font-bold text-[#5a5a5a]">
+                  <div
+                    // Sticks under the category pills while its own block is on
+                    // screen; the next subcategory then pushes it out. z-10 keeps
+                    // it BELOW the pill bar (z-20) so it slides under, not over.
+                    // Full-bleed opaque background, or rows show through as it moves.
+                    className="sticky z-10 -mx-3 mb-1.5 flex items-center gap-2 bg-[#f4f4f2] px-3 py-2"
+                    style={{ top: subHeadTop }}
+                  >
+                    <span className="text-[14px] font-bold text-[#2d2d2d]">
                       {formatDisplayName(sub.category.name)}{" "}
-                      <span className="text-[#b5b5b5]">({sub.items.length})</span>
+                      <span className="text-[13px] font-semibold text-[#a3a3a3]">({sub.items.length})</span>
                     </span>
                     <span
                       className="h-px flex-1"
