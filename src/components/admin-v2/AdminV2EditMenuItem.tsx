@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import { VisibilityEditor } from "@/components/admin-v2/availability/VisibilityEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, X, Edit, Trash2, Plus } from "lucide-react";
 import { useMenuStore, MenuItem, ModifierGroup } from "@/store/menuStore_hasura";
 import { ModifierGroupsEditor, sanitizeModifierGroups } from "./ModifierGroupsEditor";
@@ -54,6 +55,11 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
         show_on_takeaway: item.show_on_takeaway !== false,
         show_on_dine_in: item.show_on_dine_in !== false,
         tax_inclusive: item.tax_inclusive || false,
+        // `is_available` is the manual in-stock switch; `visibility_config` is the
+        // schedule. Both were only reachable from the separate Availability
+        // screen, which meant leaving the item you were already editing.
+        is_available: (item as any).is_available !== false,
+        visibility_config: (item as any).visibility_config ?? null,
     });
 
     const [variants, setVariants] = useState<Variant[]>(item.variants || []);
@@ -126,6 +132,8 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                 show_on_takeaway: editingItem.show_on_takeaway,
                 show_on_dine_in: editingItem.show_on_dine_in,
                 tax_inclusive: editingItem.tax_inclusive,
+                is_available: editingItem.is_available,
+                visibility_config: editingItem.visibility_config,
             });
             // Only leave the editor when the save actually succeeded. updateItem
             // shows its own success/error toast; navigating away on failure is
@@ -465,6 +473,47 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                     />
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Availability lived only on the separate Availability screen,
+                        so marking one item out of stock meant leaving the item you
+                        were already editing and finding it again in a list. */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Manage Availability</CardTitle>
+                            <CardDescription>
+                                Whether this item can be ordered right now, and the hours it appears.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between border rounded-lg p-3">
+                                <div className="space-y-0.5">
+                                    <label className="text-sm font-medium">Available</label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Off marks it out of stock — it stays on the menu but can&apos;t be added
+                                        to an order.
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={editingItem.is_available}
+                                    onCheckedChange={(checked) =>
+                                        setEditingItem({ ...editingItem, is_available: checked })
+                                    }
+                                />
+                            </div>
+
+                            {/* Same editor the Availability screen uses, so a schedule
+                                set here and one set there cannot diverge in shape. */}
+                            <VisibilityEditor
+                                value={editingItem.visibility_config}
+                                onChange={(next) =>
+                                    setEditingItem({ ...editingItem, visibility_config: next })
+                                }
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                An item with no schedule of its own follows its category&apos;s hours.
+                            </p>
                         </CardContent>
                     </Card>
 
