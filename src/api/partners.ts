@@ -232,6 +232,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     delivery_qr_method
     price_adjustment
     takeaway_price_adjustment
+    webhook_settings
     subscription_details
     storefront_settings
     prebooking_settings

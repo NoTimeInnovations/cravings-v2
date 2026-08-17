@@ -15,6 +15,7 @@ import {
   getActiveDeliveryBoysQuery,
   assignDeliveryBoyMutation,
 } from "@/api/deliveryBoys";
+import { sendDeliveryStatusWebhook } from "@/app/actions/sendPartnerWebhook";
 import { reportRiderToPetpooja } from "@/app/actions/petpoojaRider";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { Order } from "@/store/orderStore";
@@ -142,6 +143,18 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
         order_id: order.id,
         delivery_boy_id: selectedId,
       });
+
+      // Partner's own webhook: a rider was assigned. Fire-and-forget — their
+      // endpoint must never fail an assignment their own staff just made.
+      try {
+        const picked = deliveryBoys.find((b: any) => b.id === selectedId);
+        void sendDeliveryStatusWebhook(order.id, "assigned", {
+          name: picked?.name ?? null,
+          phone: picked?.phone ?? null,
+        });
+      } catch {
+        /* never block an assignment on a partner's endpoint */
+      }
 
       // Send notification to customer
       try {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { markOrderDeliveredMutation } from "@/api/deliveryBoys";
+import { sendOrderStatusWebhook, sendDeliveryStatusWebhook } from "@/app/actions/sendPartnerWebhook";
 import { setStatusHistory } from "@/lib/statusHistory";
 
 const NOTIFICATION_SERVER_URL = "https://notification-server-khaki.vercel.app";
@@ -21,6 +22,10 @@ export async function POST(request: NextRequest) {
                     delivery_boy_id
                     status
                     status_history
+                    delivery_boy {
+                        name
+                        phone
+                    }
                     user_id
                     partner_id
                     partner {
@@ -55,6 +60,24 @@ export async function POST(request: NextRequest) {
             order_id,
             status_history: updatedStatusHistory,
         });
+
+        // Partner's own webhook: their POS has no other way to learn that one of
+        // THEIR OWN riders finished the job — the pool path emits this, the
+        // own-driver path never did.
+        //
+        // Two events on purpose: the order reached "completed" (which the
+        // mutation above actually wrote) and the delivery leg ended. A POS may
+        // care about either, and inferring one from the other would make us guess
+        // which. Both fire-and-forget: the rider's app must still get its 200.
+        try {
+            void sendOrderStatusWebhook(order_id, "completed", order.status ?? null);
+            void sendDeliveryStatusWebhook(order_id, "delivered", {
+                name: order.delivery_boy?.name ?? null,
+                phone: order.delivery_boy?.phone ?? null,
+            });
+        } catch {
+            /* a partner's endpoint must never fail a rider's completion */
+        }
 
         // Send FCM notification to customer
         if (order.user_id) {

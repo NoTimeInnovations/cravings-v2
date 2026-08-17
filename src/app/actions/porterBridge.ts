@@ -21,6 +21,7 @@
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { carrierLabel, describeBand, hybridBandForDistance } from "@/lib/hybridDelivery";
+import { sendDeliveryStatusWebhook } from "@/app/actions/sendPartnerWebhook";
 import { roadDistanceKm, haversineKm } from "@/lib/roadDistance";
 import {
   MAX_PRIOR_DISPATCH_FETCH,
@@ -200,6 +201,37 @@ async function persistProvider(
     });
   } catch (err) {
     console.warn("[porter-bridge] persistProvider failed:", err);
+    return;
+  }
+
+  // Every provider state change funnels through here — booking, driver assigned,
+  // picked up, delivered, and the hybrid "own_delivery" decision. Hooking this
+  // one function covers the whole 3PL lifecycle, where hooking the individual
+  // call sites would have missed whichever one is added next.
+  //
+  // Driver details are read defensively: the meta shape differs per state (a
+  // hybrid decision carries a reason and a distance, a booking carries a driver),
+  // so anything absent is reported as null rather than guessed at.
+  try {
+    const driver = (meta as { driver?: Record<string, unknown> } | null)?.driver;
+    void sendDeliveryStatusWebhook(
+      orderId,
+      state,
+      driver
+        ? {
+            name: driver.name ? String(driver.name) : null,
+            phone: driver.phone ? String(driver.phone) : null,
+            vehicleNumber: driver.vehicleNumber
+              ? String(driver.vehicleNumber)
+              : driver.vehicle_number
+                ? String(driver.vehicle_number)
+                : null,
+          }
+        : null,
+      (meta as { trackingUrl?: string | null } | null)?.trackingUrl ?? null,
+    );
+  } catch {
+    /* a partner's endpoint must never affect a dispatch */
   }
 }
 

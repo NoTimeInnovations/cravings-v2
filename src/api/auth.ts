@@ -62,6 +62,7 @@ export const partnerIdQuery = `
       delivery_rules
       price_adjustment
       takeaway_price_adjustment
+      webhook_settings
       country_code
       location_details
       hide_unavailable
@@ -138,6 +139,7 @@ export const partnerLoginQuery = `
       delivery_rules
       price_adjustment
       takeaway_price_adjustment
+      webhook_settings
       country_code
       location_details
       hide_unavailable

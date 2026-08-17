@@ -52,6 +52,8 @@ import {
   fullPriceOf,
 } from "@/lib/offerLimit";
 import { restockOrderStock } from "@/app/actions/restockOrder";
+import { sendOrderWebhook } from "@/app/actions/sendOrderWebhook";
+import { sendOrderStatusWebhook, sendPaymentStatusWebhook } from "@/app/actions/sendPartnerWebhook";
 import { ymd } from "@/lib/prebooking";
 import { usePOSStore } from "./posStore";
 import { v4 as uuidv4 } from "uuid";
@@ -999,6 +1001,15 @@ const useOrderStore = create(
 
           if (response.errors) throw new Error(response.errors[0].message);
 
+          // Tell the partner's own POS the order moved. Fire-and-forget: their
+          // endpoint must never be able to fail a status change their staff made.
+          try {
+            const prev = orders.find((o) => o.id === orderId)?.status ?? null;
+            void sendOrderStatusWebhook(orderId, newStatus, prev);
+          } catch {
+            /* a partner's webhook must never block a status change */
+          }
+
           if (newStatus === "cancelled") {
             // Stock is decremented at PLACEMENT (for every order type, including
             // pending online), so a cancel must add it back. Idempotent via the
@@ -1233,6 +1244,12 @@ const useOrderStore = create(
           );
 
           setOrders(updatedOrders);
+          // Payment state changed — a POS reconciling takings needs to know.
+          try {
+            void sendPaymentStatusWebhook(orderId);
+          } catch {
+            /* a partner's webhook must never block a payment update */
+          }
           toast.success("Payment method updated");
         } catch (error) {
           console.error(error);
@@ -2531,6 +2548,15 @@ const useOrderStore = create(
             }
           } catch {
             /* usage attribution must never block order placement */
+          }
+
+          // Notify the partner's own POS, if they configured a webhook. Strictly
+          // fire-and-forget: their endpoint being down or slow must never fail a
+          // customer's order, and the action self-gates when nothing is set up.
+          try {
+            void sendOrderWebhook(orderId);
+          } catch {
+            /* a partner's webhook must never block order placement */
           }
 
           // Prepare new order object

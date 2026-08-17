@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
+import { sendDeliveryStatusWebhook } from "@/app/actions/sendPartnerWebhook";
 
 /* ──────────────────────────────────────────────────────────────
  * Menuthere Delivery Pool — inbound webhook.
@@ -150,6 +151,26 @@ export async function POST(req: NextRequest) {
           rider_phone: payload.rider_phone ?? null,
         }),
       }).catch((e) => console.warn("[delivery-pool-webhook] rider-status relay failed:", e));
+    }
+
+    // Same news, to the partner's OWN endpoint if they configured one. Petpooja
+    // partners get it through the relay above; everyone else has had no way to
+    // learn who is carrying the order.
+    if (riderOrderId) {
+      void sendDeliveryStatusWebhook(
+        riderOrderId,
+        // Same coercion the mapping above uses — the payload is untyped JSON
+        // from the pool service.
+        String(payload.status ?? ""),
+        payload.rider_name
+          ? {
+              name: String(payload.rider_name),
+              phone: payload.rider_phone ? String(payload.rider_phone) : null,
+              vehicleNumber: payload.rider_vehicle ? String(payload.rider_vehicle) : null,
+            }
+          : null,
+        (payload as { tracking_url?: string | null }).tracking_url ?? null,
+      );
     }
 
     // Persist the assigned rider's contact so the order UIs can show a rider card.
