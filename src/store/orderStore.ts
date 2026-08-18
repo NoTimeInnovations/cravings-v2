@@ -52,7 +52,6 @@ import {
   fullPriceOf,
 } from "@/lib/offerLimit";
 import { restockOrderStock } from "@/app/actions/restockOrder";
-import { sendOrderWebhook } from "@/app/actions/sendOrderWebhook";
 import { sendOrderStatusWebhook, sendPaymentStatusWebhook } from "@/app/actions/sendPartnerWebhook";
 import { ymd } from "@/lib/prebooking";
 import { usePOSStore } from "./posStore";
@@ -2550,29 +2549,15 @@ const useOrderStore = create(
             /* usage attribution must never block order placement */
           }
 
-          // order.created is owned by the Hasura event trigger on `orders`
-          // (src/app/api/webhooks/hasura/order-event/route.ts). Firing from here
-          // covered only THIS path — POS, the captain app, the public API and
-          // admin-side creation all sent nothing.
+          // order.created is fired by the Hasura event trigger on `orders`
+          // (src/app/api/webhooks/hasura/order-event/route.ts), never from here.
           //
-          // This client call is kept ONLY as a transitional safety net so cash
-          // orders cannot go silent in the window before the trigger is live in
-          // an environment. It is harmless once the trigger is up: the handler
-          // skips any delivery_id already recorded as delivered, so whichever
-          // gets there first wins and the other no-ops. Delete this block once
-          // the trigger is verified in production.
-          //
-          // Deliberately NOT fired for deferred (online) payments: at this point
-          // the row is `pending_payment` and unpaid, and firing here is exactly
-          // the bug that told a POS about orders nobody had paid for. Those are
-          // the trigger's job, on the transition to a real status.
-          if (!deferForPayment) {
-            try {
-              void sendOrderWebhook(orderId);
-            } catch {
-              /* a partner's webhook must never block order placement */
-            }
-          }
+          // A transitional copy of this call lived here so cash orders could not
+          // go silent before the trigger was live. Once both were running they
+          // duplicated: the trigger's "already delivered" guard is check-then-act,
+          // and with the two firing within the same second neither saw the
+          // other's row yet, so partners received the same order twice. The
+          // trigger is verified in production, so the fallback is gone.
 
           // Prepare new order object
           const newOrder: Order = {
