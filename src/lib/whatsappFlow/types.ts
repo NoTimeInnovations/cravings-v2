@@ -63,7 +63,11 @@ export type TriggerMatchType =
   | "any"
   | "default"
   | "order"
-  | "loyalty";
+  | "loyalty"
+  /** Fires when the inbound named one of THIS partner's real tables — including
+   *  by its own name ("order from AC 1"), which no keyword can cover because the
+   *  names are per-partner data. Resolved by the webhook before the engine runs. */
+  | "table";
 
 export interface TriggerDef {
   matchType: TriggerMatchType;
@@ -83,6 +87,11 @@ export const TRIGGER_PRIORITY: Record<TriggerMatchType, number> = {
   exact: 0,
   order: 5,
   loyalty: 6,
+  // Beats `contains` so a confirmed table wins over a generic keyword flow: the
+  // customer named a specific table, which is more specific than "says 'table'".
+  // 7 rather than 8 because 41 live table flows already store their `contains`
+  // trigger at 8 — a tie would leave which one wins up to array order.
+  table: 7,
   contains: 10,
   welcome: 20,
   any: 30,

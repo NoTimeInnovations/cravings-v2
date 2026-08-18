@@ -5,9 +5,9 @@ import { getPartnerByPhoneNumberIdCached, type BranchCandidate } from "@/lib/wha
 import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
 import { normalizePhone } from "@/lib/whatsapp-broadcast";
 import {
-  extractTableLabel,
   matchTableCandidate,
   buildTableOrderLink,
+  mayNameTable,
   type TableCandidate,
 } from "@/lib/whatsappTableMatch";
 import { getBusinessCurrency } from "@/lib/whatsapp-cost";
@@ -1141,7 +1141,10 @@ export async function POST(req: NextRequest) {
               // costs no query.
               let orderLinkOverride: string | undefined;
               let tableLabelOverride: string | undefined;
-              if (flowInput.type === "text" && extractTableLabel(flowInput.normalized || "")) {
+              // mayNameTable, not extractTableLabel: the latter only sees the
+              // word "table", so a partner whose tables are called "AC 1" never
+              // got as far as the lookup.
+              if (flowInput.type === "text" && mayNameTable(flowInput.normalized || "")) {
                 try {
                   const { rows, storeName, countryCode } = await getPartnerTablesCached(runPartnerId);
                   const m = matchTableCandidate(flowInput.normalized || "", rows);

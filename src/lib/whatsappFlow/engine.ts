@@ -397,7 +397,14 @@ function firstEdgeTarget(graph: FlowGraph, nodeId: string, handle?: string): str
 // event-driven ones (order/loyalty) are excluded so only a real greeting gets
 // the blue tick + typing, and every other message stays unread.
 function isGreetingTrigger(matchType: string): boolean {
-  return matchType === "welcome" || matchType === "exact" || matchType === "contains";
+  return (
+    matchType === "welcome" ||
+    matchType === "exact" ||
+    matchType === "contains" ||
+    // Naming your table IS how you open the conversation at a dine-in table, so
+    // it gets the same blue tick + "typing…" as any other greeting.
+    matchType === "table"
+  );
 }
 
 function triggerMatches(
@@ -405,6 +412,11 @@ function triggerMatches(
   normalized: string,
   firstContact: boolean,
   type?: string,
+  /** True when the webhook already resolved this inbound to one of the partner's
+   *  tables. Table names are per-partner DATA ("AC 1", "T3"), so no static
+   *  keyword list can express them — the resolution has to happen before trigger
+   *  matching and be handed in here. */
+  tableMatched = false,
 ): boolean {
   switch (t.matchType) {
     case "exact":
@@ -413,6 +425,8 @@ function triggerMatches(
       return (t.keywords || []).some((k) => normalized.includes(k));
     case "welcome":
       return firstContact;
+    case "table":
+      return tableMatched;
     case "any":
       // Any inbound message: non-empty text, OR a non-text message (image,
       // video, audio, document, location, …) that may carry no caption.
@@ -1415,11 +1429,15 @@ async function startNewRun(
   const candidates = flows
     .flatMap((f) => (f.triggers || []).map((t) => ({ flow: f, t })))
     .sort((a, b) => a.t.priority - b.t.priority);
+  // The webhook only sets tableLabelOverride on a CONFIRMED table hit, so its
+  // presence is exactly the "this inbound named a table" signal a `table`
+  // trigger needs — no extra parameter to keep in sync.
+  const tableMatched = !!tableLabelOverride;
   const matchedCand = candidates.find(
     (c) =>
       !suppressed.has(c.flow.id) &&
       !flowBlockedFor(c.flow, lastRunByFlow) &&
-      triggerMatches(c.t, input.normalized, firstContact, input.type),
+      triggerMatches(c.t, input.normalized, firstContact, input.type, tableMatched),
   );
   if (!matchedCand) return;
   const matched = matchedCand.flow;

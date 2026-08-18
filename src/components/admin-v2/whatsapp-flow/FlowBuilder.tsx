@@ -87,6 +87,7 @@ const MESSAGE_TRIGGER_TYPES = new Set([
   "contains",
   "any",
   "default",
+  "table",
 ]);
 
 const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; accent: string }> = {
@@ -228,6 +229,7 @@ function nodeSummary(type: FlowNodeType, data: any): string {
     case "trigger": {
       const mt = data?.matchType || "any";
       if (mt === "order") return `on order: ${data?.orderStatus || "?"}`;
+      if (mt === "table") return "names a table";
       const kw = (data?.keywords || []).join(", ");
       return mt === "exact" || mt === "contains" ? `${mt}: ${kw || "—"}` : `on ${mt}`;
     }
@@ -808,11 +810,22 @@ function Inspector({
                 <SelectItem value="exact">Exact keyword</SelectItem>
                 <SelectItem value="contains">Message contains</SelectItem>
                 <SelectItem value="welcome">First-ever message</SelectItem>
+                <SelectItem value="table">Names one of your tables</SelectItem>
                 <SelectItem value="order">Order status update</SelectItem>
                 {showLoyalty && <SelectItem value="loyalty">Loyalty points</SelectItem>}
               </SelectContent>
             </Select>
           </Field>
+          {data.matchType === "table" && (
+            <p className="rounded-md border bg-muted/40 p-2 text-[11px] leading-relaxed text-muted-foreground">
+              Fires when the customer names one of your tables — by number
+              (&ldquo;order from table 5&rdquo;) or by the name printed on it
+              (&ldquo;i want to order from AC 1&rdquo;). No keywords needed: your
+              own table names are matched. <span className="font-mono">{"{{table_name}}"}</span>{" "}
+              holds the table, and <span className="font-mono">{"{{order_link}}"}</span>{" "}
+              links straight to it.
+            </p>
+          )}
           {(data.matchType === "exact" || data.matchType === "contains") && (
             <Field label="Keywords (comma separated)">
               <KeywordsInput

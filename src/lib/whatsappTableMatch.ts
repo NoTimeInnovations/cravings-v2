@@ -23,6 +23,13 @@ import { encryptPhoneToken, identityTokensAllowed } from "@/lib/whatsappFlow/ord
  * every menu, variant and offer price on the qrScan render, so linking the wrong
  * table changes what the customer PAYS. That is why an ambiguous label refuses
  * rather than guesses.
+ *
+ * A SECOND form exists because the rules above only fire on the word "table":
+ * partners name their tables "AC 1", "T1", "F 10", and the customer is reading
+ * that name off the tent card, so that is what they type. 5 partners and 61
+ * tables in production are named this way, and every one of those messages used
+ * to get silence. matchBareTableName handles the no-table-word case — see the
+ * guards on it, which are what keep it from eating ordinary traffic.
  */
 
 export interface TableCandidate {
@@ -106,10 +113,122 @@ export function extractTableLabel(normalizedText: string): string | null {
     if (j < tokens.length && TABLE_QUALIFIERS.has(tokens[j])) j++;
     if (j >= tokens.length) continue;
 
+    // "table G 1" — partners label tables with a space ("G 1", "F 10"), which
+    // is how it reads on the table tent, so that is what customers type. Join a
+    // short bare letter to the digits that follow it. Bounded to 1-2 letters so
+    // ordinary words can't be swallowed, and the qualifier skip above already
+    // consumed "no"/"number", which would otherwise glue into "no5".
+    if (/^[a-z]{1,2}$/.test(tokens[j]) && j + 1 < tokens.length && /^\d{1,3}$/.test(tokens[j + 1])) {
+      return tokens[j] + tokens[j + 1];
+    }
+
     const label = labelFromToken(tokens[j]);
     if (label) return label;
   }
   return null;
+}
+
+/** Words that signal the customer is trying to ORDER, required for a bare
+ *  (no "table" word) match. Measured against 91,343 real inbound messages: the
+ *  bare rules below fire 91 times without this gate and 5 times with it — and
+ *  all 5 are genuine table requests. It is what rejects "606, B5, Chandragiri
+ *  BDA", a delivery address at a partner whose tables really are named B5. */
+const ORDER_INTENT = new Set([
+  "order", "orders", "ordering", "oder", "ordr", "odr", "menu", "want", "need",
+  "book", "booking",
+]);
+
+/** Never the letter half of a spaced label. "a" is the English article, and
+ *  "order a 2 cups" / "the cost of a 24-day meal plan" would otherwise resolve
+ *  to tables A2 and A24. This single exclusion removes the large majority of
+ *  spaced-form false positives. */
+const BARE_LETTER_STOP = new Set([
+  "a", "i", "e", "o", "u", "an", "the", "to", "of", "my", "me", "we", "is", "it",
+  "in", "on", "at",
+]);
+
+/**
+ * Match a table the customer named WITHOUT any table word — "i want to order
+ * from AC 1", "order T3".
+ *
+ * Safe only because it matches against the partner's ACTUAL table names, never
+ * a pattern: "ac1" means something here purely because this partner has a table
+ * called "AC 1". Three further guards, each earning its place against real
+ * traffic:
+ *
+ *  1. The name must contain BOTH a letter and a digit. A bare "5" is a quantity,
+ *     a price or a time far more often than a table, so purely numeric names
+ *     keep requiring the word "table".
+ *  2. The message must carry an ORDER_INTENT word.
+ *  3. The label must END the message. "order a 2 cups" and "a 24-day meal plan"
+ *     both die here.
+ */
+function matchBareTableName(
+  normalizedText: string,
+  usable: TableCandidate[],
+): TableMatch {
+  const byName = new Map<string, TableCandidate[]>();
+  for (const c of usable) {
+    if (!c.table_name) continue;
+    const key = canonical(c.table_name);
+    // Guard 1 — letter AND digit.
+    if (!/[a-z]/.test(key) || !/\d/.test(key)) continue;
+    const arr = byName.get(key) || [];
+    arr.push(c);
+    byName.set(key, arr);
+  }
+  if (!byName.size) return null;
+
+  const tokens = tokenize(normalizedText);
+  if (!tokens.length || tokens.length > MAX_TOKENS) return null;
+  // Guard 2 — the customer has to be asking to order.
+  if (!tokens.some((t) => ORDER_INTENT.has(t))) return null;
+
+  const resolve = (key: string): TableMatch => {
+    const hits = byName.get(key);
+    if (!hits) return null;
+    // Same refusal as the table-word path: a duplicated name must not be guessed,
+    // because the wrong table rewrites prices.
+    if (hits.length > 1) return { kind: "ambiguous", label: key };
+    return { kind: "hit", table: hits[0], label: hits[0].table_name!.trim() };
+  };
+
+  // Guard 3 — only the label at the very end of the message is considered.
+  const last = tokens.length - 1;
+  const glued = resolve(tokens[last]);
+  if (glued) return glued;
+
+  // Spaced form, "… ac 1" — the letter half must not be an article.
+  if (
+    tokens.length >= 2 &&
+    /^[a-z]{1,3}$/.test(tokens[last - 1]) &&
+    !BARE_LETTER_STOP.has(tokens[last - 1]) &&
+    /^\d{1,3}$/.test(tokens[last])
+  ) {
+    return resolve(tokens[last - 1] + tokens[last]);
+  }
+  return null;
+}
+
+/**
+ * Cheap "is it worth looking up this partner's tables?" test — string work only,
+ * no query. The webhook runs this on EVERY inbound message, so it must stay
+ * cheap; matchTableCandidate is what actually decides.
+ */
+export function mayNameTable(normalizedText: string): boolean {
+  if (extractTableLabel(normalizedText)) return true;
+  const tokens = tokenize(normalizedText);
+  if (!tokens.length || tokens.length > MAX_TOKENS) return false;
+  if (!tokens.some((t) => ORDER_INTENT.has(t))) return false;
+  const last = tokens.length - 1;
+  // A trailing "a1"-shaped token, or a trailing "a 1"-shaped pair.
+  if (/^[a-z]{1,3}\d{1,3}$/.test(tokens[last])) return true;
+  return (
+    tokens.length >= 2 &&
+    /^[a-z]{1,3}$/.test(tokens[last - 1]) &&
+    !BARE_LETTER_STOP.has(tokens[last - 1]) &&
+    /^\d{1,3}$/.test(tokens[last])
+  );
 }
 
 /**
@@ -125,16 +244,18 @@ export function matchTableCandidate(
   normalizedText: string,
   candidates: TableCandidate[],
 ): TableMatch {
+  const usable = candidates.filter(
+    (c) => c.table_number !== null && c.table_number !== 0,
+  );
+
   const label = extractTableLabel(normalizedText);
-  if (!label) return null;
+  // No table word at all — the customer may still have named the table by the
+  // name printed on it ("order from AC 1").
+  if (!label) return matchBareTableName(normalizedText, usable);
 
   // table_number 0 is the storefront/delivery QR sentinel, never a real table.
   const asNumber = /^\d+$/.test(label) ? parseInt(label, 10) : null;
   if (asNumber !== null && (asNumber === 0 || asNumber > 9999)) return null;
-
-  const usable = candidates.filter(
-    (c) => c.table_number !== null && c.table_number !== 0,
-  );
 
   let hits =
     asNumber === null
@@ -150,7 +271,9 @@ export function matchTableCandidate(
 
   if (hits.length === 1) return { kind: "hit", table: hits[0], label };
   if (hits.length > 1) return { kind: "ambiguous", label };
-  return null;
+  // The message said "table" but the label matched nothing — it may still name
+  // the table the other way ("table AC 1" at a partner numbering 1..N).
+  return matchBareTableName(normalizedText, usable);
 }
 
 /** The order link for a scanned table, matching what the printed QR encodes. */
