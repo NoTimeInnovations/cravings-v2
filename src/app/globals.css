@@ -764,6 +764,22 @@ html[lang="ur"] * { letter-spacing: normal !important; }
 html[lang="ml"] *, html[lang="ta"] *, html[lang="bn"] *, html[lang="ur"] *, html[lang="zh"] * { text-transform: none !important; }
 
 
+/* Pin the document direction, defensively.
+   dirOf already renders <html dir="ltr">, but `dir` is an ATTRIBUTE, and things
+   we do not control rewrite it at runtime: the admin and the storefront both
+   load the Google Translate widget, which mirrors the document when the target
+   language is right-to-left. Its selection is remembered per browser in the
+   googtrans cookie, which is why that state follows one person around and is
+   invisible to everyone else — it is their browser, not the deployment.
+   A CSS declaration cannot be overwritten by setting an attribute, so this holds
+   the layout regardless.
+   Scoped to html/body ON PURPOSE. A descendant that declares its own direction —
+   partner-authored Arabic item names carry dir="rtl" (name_secondary_rtl) — still
+   wins for itself, because an element's own declaration always beats an inherited
+   one. Arabic also still reads right-to-left within its line; that is the Unicode
+   bidi algorithm, which this does not touch. */
+html, body { direction: ltr !important; }
+
 /* Mirror decorative arrows/chevrons that point "forward" in reading order.
    Currently INERT: the document direction is pinned to ltr for every locale
    (see dirOf in src/lib/i18n/config.ts), so this selector never matches. Kept
