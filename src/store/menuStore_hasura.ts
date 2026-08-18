@@ -319,6 +319,14 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           tax_inclusive: mi.tax_inclusive ?? false,
           recommendations: Array.isArray(mi.recommendations) ? mi.recommendations : [],
           reactivate_at: mi.reactivate_at ?? null,
+          // The query has always SELECTED this; the mapping just never copied
+          // it, so every item reached the admin with visibility_config
+          // undefined. Two things broke on that: the Availability screen showed
+          // every item as having no schedule, and the item editor — which seeds
+          // `?? null` and submits the field on every save — sent an explicit
+          // null, which Hasura's jsonb scalar rejects ("unexpected null value
+          // for type 'jsonb'"), failing the WHOLE save whatever else was edited.
+          visibility_config: mi.visibility_config ?? null,
         };
 
         // Add optional fields if they exist
@@ -450,6 +458,20 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       const fetchCategories = useCategoryStore.getState().fetchCategories;
       const allCategories = await fetchCategories(userData.id) || [];
       const { category, ...otherItems } = updatedItem;
+
+      // Hasura's jsonb scalar refuses an explicit null inside a variable
+      // ("unexpected null value for type 'jsonb'"), and because these all ride
+      // one _set, a single null jsonb fails the ENTIRE update — the caller sees
+      // "Failed to update item" with no clue which field did it. Dropping the key
+      // instead leaves that column untouched, which is what a caller passing null
+      // for "no value" means anyway; clearing one is expressed as an empty object.
+      // Guarded here rather than at each call site because every jsonb column on
+      // this table has the same trap and a new one is a silent regression.
+      for (const key of ["visibility_config", "variants", "addon_groups", "tags", "recommendations"] as const) {
+        if ((otherItems as Record<string, unknown>)[key] === null) {
+          delete (otherItems as Record<string, unknown>)[key];
+        }
+      }
 
 
       let catid: string | undefined;

@@ -133,7 +133,15 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                 show_on_dine_in: editingItem.show_on_dine_in,
                 tax_inclusive: editingItem.tax_inclusive,
                 is_available: editingItem.is_available,
-                visibility_config: editingItem.visibility_config,
+                // Only send a schedule when there IS one. Hasura's jsonb scalar
+                // rejects an explicit null inside a variable — "unexpected null
+                // value for type 'jsonb'" — and that kills the ENTIRE save, so a
+                // missing schedule made every other edit on the item unsavable.
+                // Nothing needs null to reach the column: VisibilityEditor spells
+                // "no schedule" as { type: "default" }, never as null.
+                ...(editingItem.visibility_config != null && {
+                    visibility_config: editingItem.visibility_config,
+                }),
             });
             // Only leave the editor when the save actually succeeded. updateItem
             // shows its own success/error toast; navigating away on failure is
