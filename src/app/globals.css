@@ -773,12 +773,27 @@ html[lang="ml"] *, html[lang="ta"] *, html[lang="bn"] *, html[lang="ur"] *, html
    invisible to everyone else — it is their browser, not the deployment.
    A CSS declaration cannot be overwritten by setting an attribute, so this holds
    the layout regardless.
-   Scoped to html/body ON PURPOSE. A descendant that declares its own direction —
-   partner-authored Arabic item names carry dir="rtl" (name_secondary_rtl) — still
-   wins for itself, because an element's own declaration always beats an inherited
-   one. Arabic also still reads right-to-left within its line; that is the Unicode
-   bidi algorithm, which this does not touch. */
-html, body { direction: ltr !important; }
+   It covers html and body so the DOCUMENT cannot be mirrored, and any element
+   carrying dir="rtl"/"auto" so no INDIVIDUAL block can be either — including the
+   partner-authored Arabic item names (name_secondary_rtl on the V3/V4/V5/V6 item
+   cards) and the Arabic name inputs in the admin. Those attributes are left in
+   the markup on purpose: they still describe the content for assistive tech, and
+   deleting this rule is the single step that restores them.
+
+   Because it is a declaration rather than an attribute, it also holds when the
+   DEVICE is right-to-left — an Arabic phone, an RTL WebView, a browser whose UI
+   locale is RTL. Nothing there can win against it, and it applies even if the
+   dir attribute is stripped entirely.
+
+   What it does NOT do, because nothing can: Arabic still reads right-to-left
+   within its own line. That is the Unicode bidirectional algorithm operating on
+   the characters themselves, not a layout direction. */
+html,
+body,
+[dir="rtl"],
+[dir="auto"] {
+  direction: ltr !important;
+}
 
 /* Mirror decorative arrows/chevrons that point "forward" in reading order.
    Currently INERT: the document direction is pinned to ltr for every locale
