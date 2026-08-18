@@ -20,6 +20,7 @@ import { LoyaltyPointsSettings } from "./settings/LoyaltyPointsSettings";
 import { ThirdPartyChargesSettings } from "./settings/ThirdPartyChargesSettings";
 import { ShiprocketSettings } from "./settings/ShiprocketSettings";
 import { WebhookSettings } from "./settings/WebhookSettings";
+import { ApiSettings } from "./settings/ApiSettings";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -175,7 +176,7 @@ export function AdminV2Settings() {
         {
             key: "integrations",
             label: "Integrations",
-            desc: "Google Business, WhatsApp, delivery platforms & order webhooks",
+            desc: "Google Business, WhatsApp, delivery platforms, webhooks & API keys",
             icon: Plug,
             sections: [
                 { key: "integrations", label: "Integrations", Component: IntegrationsSettings },
@@ -183,6 +184,7 @@ export function AdminV2Settings() {
                     ? [{ key: "shiprocket", label: "Shiprocket", Component: ShiprocketSettings }]
                     : []),
                 { key: "webhooks", label: "Webhooks", Component: WebhookSettings },
+                { key: "api", label: "API", Component: ApiSettings },
             ],
         },
         {
