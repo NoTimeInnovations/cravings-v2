@@ -33,6 +33,7 @@ const Q_ORDER = `
       payment_method
       delivery_provider
       delivery_provider_meta
+      partner_id
       partner { currency webhook_settings }
     }
   }
@@ -40,6 +41,7 @@ const Q_ORDER = `
 
 type OrderRow = {
   id: string;
+  partner_id: string | null;
   display_id: number | string | null;
   status: string | null;
   type: string | null;
@@ -84,6 +86,7 @@ async function fire(
     event,
     build(found.order),
     `${event}:${orderId}:${discriminator}`,
+    { partnerId: found.order.partner_id, orderId },
   );
   if (!result.ok) {
     console.warn(`[webhook] ${event} ${orderId} failed:`, result.error ?? result.status);
@@ -134,6 +137,7 @@ export async function sendPaymentStatusWebhook(orderId: string): Promise<void> {
     "payment.status_updated",
     payload,
     `payment.status_updated:${orderId}:${payload.is_paid ? "paid" : "unpaid"}:${payload.payment_method ?? "none"}`,
+    { partnerId: found.order.partner_id, orderId },
   );
   if (!result.ok) {
     console.warn(`[webhook] payment.status_updated ${orderId} failed:`, result.error ?? result.status);

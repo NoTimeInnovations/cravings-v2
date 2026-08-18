@@ -2550,13 +2550,28 @@ const useOrderStore = create(
             /* usage attribution must never block order placement */
           }
 
-          // Notify the partner's own POS, if they configured a webhook. Strictly
-          // fire-and-forget: their endpoint being down or slow must never fail a
-          // customer's order, and the action self-gates when nothing is set up.
-          try {
-            void sendOrderWebhook(orderId);
-          } catch {
-            /* a partner's webhook must never block order placement */
+          // order.created is owned by the Hasura event trigger on `orders`
+          // (src/app/api/webhooks/hasura/order-event/route.ts). Firing from here
+          // covered only THIS path — POS, the captain app, the public API and
+          // admin-side creation all sent nothing.
+          //
+          // This client call is kept ONLY as a transitional safety net so cash
+          // orders cannot go silent in the window before the trigger is live in
+          // an environment. It is harmless once the trigger is up: the handler
+          // skips any delivery_id already recorded as delivered, so whichever
+          // gets there first wins and the other no-ops. Delete this block once
+          // the trigger is verified in production.
+          //
+          // Deliberately NOT fired for deferred (online) payments: at this point
+          // the row is `pending_payment` and unpaid, and firing here is exactly
+          // the bug that told a POS about orders nobody had paid for. Those are
+          // the trigger's job, on the transition to a real status.
+          if (!deferForPayment) {
+            try {
+              void sendOrderWebhook(orderId);
+            } catch {
+              /* a partner's webhook must never block order placement */
+            }
           }
 
           // Prepare new order object

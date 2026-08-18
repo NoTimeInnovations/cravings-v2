@@ -201,27 +201,99 @@ export type DeliveryStatusPayload = {
   changed_at: string;
 };
 
+/** Attempt schedule. Three tries over ~7s — long enough to ride out a restart or
+ *  a cold start on the partner's side, short enough not to hold a serverless
+ *  invocation open. Anything still failing after this is visible in the log. */
+const RETRY_DELAYS_MS = [0, 1500, 5000];
+const ATTEMPT_TIMEOUT_MS = 8000;
+
 /**
- * Deliver one event. Returns a result rather than throwing: a partner's endpoint
- * being down must never fail the customer's order, so every caller treats this
- * as fire-and-forget and the outcome is only for logging.
+ * Is this failure worth trying again?
  *
- * A short timeout for the same reason — a slow endpoint should not hold a
- * serverless function open.
+ * A 4xx means the endpoint understood us and said no — a bad path, a rejected
+ * signature, a validation error. Repeating it only doubles their error rate and
+ * ours. 5xx, 429 and transport failures are the ones a retry actually fixes.
+ */
+function isRetryable(status: number | undefined, hadError: boolean): boolean {
+  if (hadError) return true; // network / timeout / DNS
+  if (status === undefined) return true;
+  if (status === 408 || status === 429) return true;
+  return status >= 500;
+}
+
+/**
+ * Record one attempt. Best-effort: having the log is what makes a failed
+ * delivery debuggable, but failing to write it must never turn a successful
+ * webhook into a failed one.
+ *
+ * Imported lazily because this module is also pulled into the CLIENT bundle
+ * (WebhookSettings reads the header names from here), and the Hasura server
+ * client — which carries the admin secret — must not follow it there.
+ */
+async function logDelivery(row: {
+  partnerId?: string | null;
+  orderId?: string | null;
+  event: WebhookEvent;
+  deliveryId: string;
+  url: string;
+  attempt: number;
+  statusCode?: number;
+  ok: boolean;
+  error?: string;
+  durationMs: number;
+  isTest: boolean;
+}): Promise<void> {
+  if (!row.partnerId) return; // nothing to file it under
+  try {
+    const { fetchFromHasuraServer } = await import("@/lib/hasuraServerClient");
+    await fetchFromHasuraServer(
+      `mutation LogWebhookDelivery($o: webhook_deliveries_insert_input!) {
+         insert_webhook_deliveries_one(object: $o) { id }
+       }`,
+      {
+        o: {
+          partner_id: row.partnerId,
+          order_id: row.orderId ?? null,
+          event: row.event,
+          delivery_id: row.deliveryId,
+          url: row.url,
+          attempt: row.attempt,
+          status_code: row.statusCode ?? null,
+          ok: row.ok,
+          error: row.error ?? null,
+          duration_ms: row.durationMs,
+          is_test: row.isTest,
+        },
+      },
+    );
+  } catch {
+    /* logging is diagnostics, never a gate */
+  }
+}
+
+/**
+ * Deliver one event, retrying transient failures and recording every attempt.
+ *
+ * Returns a result rather than throwing: a partner's endpoint being down must
+ * never fail the customer's order.
+ *
+ * Pass `partnerId` to get delivery logging — without it the attempt still
+ * happens, it just has nothing to be filed under.
  */
 export async function deliverWebhook(
   settings: WebhookSettings,
   event: WebhookEvent,
   data: unknown,
   deliveryId: string,
-  opts?: { test?: boolean },
-): Promise<{ ok: boolean; status?: number; error?: string }> {
+  opts?: { test?: boolean; partnerId?: string | null; orderId?: string | null },
+): Promise<{ ok: boolean; status?: number; error?: string; attempts?: number }> {
   if (!settings.enabled) return { ok: false, error: "disabled" };
   const guard = isSafeWebhookUrl(settings.url);
   if (!guard.ok) return { ok: false, error: guard.reason };
   const secret = (settings.secret || "").trim();
   if (!secret) return { ok: false, error: "No secret set" };
 
+  const url = settings.url!.trim();
   const envelope: WebhookEnvelope<unknown> = {
     event,
     id: deliveryId,
@@ -229,26 +301,54 @@ export async function deliverWebhook(
     ...(opts?.test ? { test: true } : {}),
     data,
   };
-  // Serialise ONCE and sign those bytes — see signWebhookBody.
+  // Serialise ONCE and sign those bytes — see signWebhookBody. Reused verbatim
+  // across retries so the signature stays valid on every attempt.
   const body = JSON.stringify(envelope);
-  const timestamp = String(Math.floor(Date.now() / 1000));
 
-  try {
-    const res = await fetch(settings.url!.trim(), {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        [SIGNATURE_HEADER]: signWebhookBody(body, secret),
-        [TIMESTAMP_HEADER]: timestamp,
-        [EVENT_HEADER]: event,
-        "user-agent": "Menuthere-Webhook/1",
-      },
-      body,
-      signal: AbortSignal.timeout(8000),
-      cache: "no-store",
-    });
-    return { ok: res.ok, status: res.status };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "request failed" };
+  let last: { ok: boolean; status?: number; error?: string } = {
+    ok: false,
+    error: "not attempted",
+  };
+
+  for (let attempt = 1; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    const wait = RETRY_DELAYS_MS[attempt - 1];
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+
+    // Stamped per attempt: a receiver comparing the timestamp against its own
+    // clock would reject a retry that still carried the original one.
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const startedAt = Date.now();
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          [SIGNATURE_HEADER]: signWebhookBody(body, secret),
+          [TIMESTAMP_HEADER]: timestamp,
+          [EVENT_HEADER]: event,
+          "user-agent": "Menuthere-Webhook/1",
+        },
+        body,
+        signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+        cache: "no-store",
+      });
+      last = { ok: res.ok, status: res.status };
+      await logDelivery({
+        partnerId: opts?.partnerId, orderId: opts?.orderId, event, deliveryId, url,
+        attempt, statusCode: res.status, ok: res.ok,
+        durationMs: Date.now() - startedAt, isTest: !!opts?.test,
+      });
+      if (res.ok) return { ...last, attempts: attempt };
+      if (!isRetryable(res.status, false)) return { ...last, attempts: attempt };
+    } catch (e) {
+      const error = e instanceof Error ? e.message : "request failed";
+      last = { ok: false, error };
+      await logDelivery({
+        partnerId: opts?.partnerId, orderId: opts?.orderId, event, deliveryId, url,
+        attempt, ok: false, error,
+        durationMs: Date.now() - startedAt, isTest: !!opts?.test,
+      });
+    }
   }
+  return { ...last, attempts: RETRY_DELAYS_MS.length };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { listWebhookDeliveries, type WebhookDelivery } from "@/app/actions/webhookDeliveries";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -134,6 +135,19 @@ function CopyBox({ title, code }: { title: string; code: string }) {
 }
 
 export function WebhookSettings() {
+    // Delivery history — the answer to "did it fire?", which nothing recorded before.
+    const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
+    const [deliveriesLoading, setDeliveriesLoading] = useState(false);
+    const loadDeliveries = useCallback(async () => {
+        setDeliveriesLoading(true);
+        const res = await listWebhookDeliveries(20);
+        if (res.ok) setDeliveries(res.deliveries);
+        setDeliveriesLoading(false);
+    }, []);
+    useEffect(() => {
+        void loadDeliveries();
+    }, [loadDeliveries]);
+
     const { userData, setState } = useAuthStore();
     const { setSaveAction, setHasChanges, setIsSaving } = useAdminSettingsStore();
 
@@ -388,10 +402,92 @@ ${SIGNATURE_HEADER}: 9f2c…    ← HMAC-SHA256 of the raw body, hex`}</code>
                             a duplicate doesn&apos;t become a second ticket in your kitchen.
                         </p>
                         <p>
-                            <span className="font-medium">Reply 2xx fast.</span> We wait 8 seconds, then give up —
-                            v1 does not retry. Acknowledge first, then do the slow work.
+                            <span className="font-medium">Reply 2xx fast.</span> We wait 8 seconds per try and
+                            retry twice on a timeout or a 5xx — a 4xx we take as a deliberate no and stop.
+                            Acknowledge first, then do the slow work.
                         </p>
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* ── Recent deliveries ──────────────────────────────────────────
+                Added because "did my webhook actually fire?" was previously
+                unanswerable: the delivery result was discarded and nothing was
+                recorded, so a failed send left no trace for the partner OR for
+                us. Every attempt now lands here. */}
+            <Card>
+                <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+                    <div>
+                        <CardTitle className="text-base">Recent deliveries</CardTitle>
+                        <CardDescription>
+                            The last 20 attempts, newest first. A failure is retried twice
+                            automatically — each try is its own row.
+                        </CardDescription>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 shrink-0"
+                        onClick={loadDeliveries}
+                        disabled={deliveriesLoading}
+                    >
+                        {deliveriesLoading ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <RefreshCw className="h-3.5 w-3.5" />
+                        )}
+                        <span className="ml-1.5">Refresh</span>
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    {deliveriesLoading && deliveries.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+                    ) : deliveries.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-muted-foreground">
+                            Nothing sent yet. Place an order, or use &ldquo;Send test event&rdquo; above.
+                        </p>
+                    ) : (
+                        <div className="divide-y rounded-lg border">
+                            {deliveries.map((d) => (
+                                <div key={d.id} className="flex items-center gap-3 px-3 py-2.5">
+                                    {d.ok ? (
+                                        <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+                                    ) : (
+                                        <XCircle className="h-4 w-4 shrink-0 text-red-600" />
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            <code className="text-xs font-medium">{d.event}</code>
+                                            {d.is_test && (
+                                                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">
+                                                    test
+                                                </span>
+                                            )}
+                                            {d.attempt > 1 && (
+                                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                                    retry {d.attempt}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                                            {new Date(d.created_at).toLocaleString()}
+                                            {d.duration_ms != null && ` · ${d.duration_ms}ms`}
+                                            {d.error && ` · ${d.error}`}
+                                        </p>
+                                    </div>
+                                    <span
+                                        className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] ${
+                                            d.ok
+                                                ? "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400"
+                                                : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400"
+                                        }`}
+                                    >
+                                        {d.status_code ?? "—"}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

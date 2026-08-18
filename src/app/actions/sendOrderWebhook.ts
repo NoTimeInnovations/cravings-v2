@@ -30,8 +30,7 @@ const Q_ORDER = `
       created_at
       total_price
       gst_included
-      delivery_charge
-      packing_charge
+      extra_charges
       discounts
       notes
       phone
@@ -98,14 +97,36 @@ export async function sendOrderWebhook(orderId: string): Promise<{ ok: boolean; 
   );
   const grand = numberOrNull(order.total_price);
   const gst = numberOrNull(order.gst_included);
-  const delivery = numberOrNull(order.delivery_charge);
-  const packing = numberOrNull(order.packing_charge);
+  // `orders` has no delivery_charge / packing_charge columns — asking for them
+  // made this query fail GraphQL validation, so EVERY order.created errored at
+  // the lookup and no partner ever received one. The amounts live as named lines
+  // inside extra_charges: [{ name, amount, charge_type }].
+  const charges: any[] = Array.isArray(order.extra_charges) ? order.extra_charges : [];
+  const sumNamed = (match: (n: string) => boolean): number | null => {
+    const hit = charges.filter((c) => match(String(c?.name ?? "").toLowerCase()));
+    if (!hit.length) return null;
+    return Number(hit.reduce((s, c) => s + (numberOrNull(c?.amount) ?? 0), 0).toFixed(2));
+  };
+  const isDelivery = (n: string) => n.includes("delivery");
+  const isPacking = (n: string) => n.includes("packing") || n.includes("packaging");
+  const delivery = sumNamed(isDelivery);
+  const packing = sumNamed(isPacking);
+  // Everything else on the order (service fee, round-off, …) still has to come
+  // out of the subtotal, or the numbers will not reconcile for the receiver.
+  const otherCharges = charges
+    .filter((c) => {
+      const n = String(c?.name ?? "").toLowerCase();
+      return !isDelivery(n) && !isPacking(n);
+    })
+    .reduce((s, c) => s + (numberOrNull(c?.amount) ?? 0), 0);
   // Subtotal is derived, not stored: total_price is the grand total, so the food
   // component is what remains once the add-ons are taken back off.
   const subtotal =
     grand === null
       ? null
-      : Number((grand - (gst ?? 0) - (delivery ?? 0) - (packing ?? 0) + discountTotal).toFixed(2));
+      : Number(
+          (grand - (gst ?? 0) - (delivery ?? 0) - (packing ?? 0) - otherCharges + discountTotal).toFixed(2),
+        );
 
   const payload: OrderWebhookPayload = {
     order_id: order.id,
@@ -138,7 +159,10 @@ export async function sendOrderWebhook(orderId: string): Promise<{ ok: boolean; 
 
   // Delivery id is derived from the order + event, so a repeat call for the same
   // order carries the SAME id and a partner keying on it can drop the duplicate.
-  const result = await deliverWebhook(settings, "order.created", payload, `order.created:${order.id}`);
+  const result = await deliverWebhook(settings, "order.created", payload, `order.created:${order.id}`, {
+    partnerId: order.partner_id,
+    orderId: order.id,
+  });
   if (!result.ok) {
     console.warn(`[webhook] order.created ${orderId} failed:`, result.error ?? result.status);
   }
