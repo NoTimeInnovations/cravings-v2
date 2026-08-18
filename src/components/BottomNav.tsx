@@ -68,6 +68,7 @@ const BottomNav = () => {
       "actions",
       "admin",
       "admin-v2",
+      "admin-v3",
       "api",
       "auth",
       "bill",
@@ -249,6 +250,7 @@ const BottomNav = () => {
     !pathname.startsWith("/whatsappQr") &&
     !pathname.startsWith("/get-started") &&
     !pathname.startsWith("/admin-v2") &&
+    !pathname.startsWith("/admin-v3") &&
     !pathname.startsWith("/pricing") &&
     !pathname.startsWith("/business") &&
     !pathname.startsWith("/order/") &&

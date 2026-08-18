@@ -31,6 +31,7 @@ const RESERVED_SEGMENTS = new Set([
   "",
   "admin",
   "admin-v2",
+  "admin-v3",
   "superadmin",
   "analytics",
   "reel-analytics",

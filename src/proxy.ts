@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { decryptText } from "./lib/encrtption";
+import { getDashboardVersionEdge, isDashboardEntryUrl } from "./lib/dashboardVersionEdge";
 import { cookies } from "next/headers";
 import {
   LOCALE_COOKIE,
@@ -136,6 +137,12 @@ export async function proxy(request: NextRequest) {
   }
 
   requestHeaders.set("x-pathname", pathname);
+  // The query string, for Server Components that need it. Layouts are never
+  // handed searchParams by Next, and /admin-v2's layout has to tell a bare
+  // visit (forward a v3 partner to /admin-v3) apart from a deep link that came
+  // FROM v3 (?view=Orders — stay on v2 and render that section). Reading it off
+  // a header is the only way a layout can see it.
+  requestHeaders.set("x-search", request.nextUrl.search);
 
   let country = request.headers.get('cf-ipcountry') || request.headers.get('x-vercel-ip-country') || "IN";
 
@@ -353,6 +360,7 @@ export async function proxy(request: NextRequest) {
       allowed: [
         "/admin",
         "/admin-v2",
+        "/admin-v3",
         "/partner",
         "/profile",
         "/admin/orders",
@@ -364,6 +372,7 @@ export async function proxy(request: NextRequest) {
       allowed: [
         "/superadmin",
         "/admin",
+        "/admin-v3",
         "/profile",
         "/superadmin/create-partner",
         "/test",
@@ -389,6 +398,7 @@ export async function proxy(request: NextRequest) {
   const inactivePartnerAllowedRoutes = [
     "/admin", // Only exact match, not /admin/*
     "/admin-v2", // Allow admin-v2 for partners with subscription_details
+    "/admin-v3", // ...and its redesign, or a v3 partner going inactive is locked out
     "/profile",
     "/offers",
     "/explore",
@@ -444,6 +454,29 @@ export async function proxy(request: NextRequest) {
     }
 
     const userRole = decrypted.role as keyof typeof roleAccessRules;
+
+    // Send each partner to the dashboard they are switched to.
+    //
+    // This lives here, not in the two layouts, because a redirect thrown from a
+    // layout cannot become a real 307 once the shell has begun streaming — Next
+    // degrades it to `<meta http-equiv="refresh" content="1;...">`, a full
+    // second of blank page. Both partner login paths hard-navigate to
+    // /admin-v2, so that flash would land on every single v3 login. The layouts
+    // keep an equivalent guard as a backstop; in practice this fires first.
+    //
+    // Only ENTRY urls are considered: /admin-v2?view=Orders is a deliberate
+    // hand-off from the v3 sidebar (v3 implements only the Dashboard so far) and
+    // must be left on v2, or the two dashboards ping-pong.
+    if (userRole === "partner" && (pathname === "/admin-v2" || pathname === "/admin-v3")) {
+      const search = request.nextUrl.search;
+      if (pathname === "/admin-v2" ? isDashboardEntryUrl(search) : true) {
+        const version = await getDashboardVersionEdge(decrypted.id);
+        const target = version === "v3" ? "/admin-v3" : "/admin-v2";
+        if (pathname !== target) {
+          return NextResponse.redirect(new URL(target, request.url));
+        }
+      }
+    }
 
     if (userRole === "partner" && (pathname === "/admin" || pathname === "/admin-v2") && country !== "IN") {
       return NextResponse.rewrite(new URL("/admin-v2", request.url), {

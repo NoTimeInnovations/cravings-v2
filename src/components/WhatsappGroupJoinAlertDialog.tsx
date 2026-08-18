@@ -68,6 +68,7 @@ const whatsappGroups = [
 const HIDDEN_PATHS = [
   "/get-started",
   "/admin-v2",
+  "/admin-v3",
   "/admin",
   "/pricing",
   "/captain",
