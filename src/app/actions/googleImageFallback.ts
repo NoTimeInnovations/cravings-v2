@@ -1,9 +1,35 @@
 "use server";
 
-import { searchGoogleImagesBatch, type GoogleImageResult } from "@/lib/imageSearch/apify";
+import {
+  searchGoogleImagesBatch as searchViaApify,
+  type GoogleImageResult,
+} from "@/lib/imageSearch/apify";
+import {
+  searchGoogleImagesBatch as searchViaSerper,
+  isSerperConfigured,
+} from "@/lib/imageSearch/serper";
+
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { decorateImageQuery } from "@/lib/imageSearch/query";
+
+/**
+ * Provider for the BULK fill ("Get all images").
+ *
+ * Serper is the provider here because a bulk fill is hundreds of queries in one
+ * burst, which is where provider cost actually lands; the picker gallery below
+ * stays on Apify since it is one query per user click. Falls back to Apify when
+ * SERPER_API_KEY is absent, so an environment that has not been given the key
+ * yet keeps working instead of failing every fill.
+ */
+function bulkSearch(
+  queries: string[],
+  opts: { gl?: string; hl?: string; maxPerQuery?: number } = {}
+): Promise<Map<string, GoogleImageResult[]>> {
+  return isSerperConfigured()
+    ? searchViaSerper(queries, opts)
+    : searchViaApify(queries, opts);
+}
 
 export type FallbackInItem = {
   id?: string; // menu item id (absent for not-yet-saved AddCategory items)
@@ -76,12 +102,12 @@ export async function fillItemsFromGoogle(
     // types and sub-1KB files are all discarded below, so a short list means an
     // item silently ends up with no picture. The extra candidates cost nothing
     // unless the earlier ones fail — the loop stops at the first upload.
-    results = await searchGoogleImagesBatch([...queryToItems.keys()], {
+    results = await bulkSearch([...queryToItems.keys()], {
       maxPerQuery: 8,
       ...opts,
     });
   } catch (e) {
-    console.error("Apify search failed:", e);
+    console.error("Image search failed:", e);
     return [];
   }
 
@@ -200,7 +226,10 @@ export async function searchGoogleImagesForPicker(
   // always miss and render an empty gallery.
   const decorated = decorateImageQuery(q);
   try {
-    const map = await searchGoogleImagesBatch([decorated], { maxPerQuery: max });
+    // Deliberately Apify, not Serper: the gallery is a single interactive
+    // query and wants the widest result list it can get, while Serper's cheap
+    // tier caps at 10 results per credit.
+    const map = await searchViaApify([decorated], { maxPerQuery: max });
     return (map.get(decorated) || []).filter((r) => r.imageUrl);
   } catch (e) {
     console.error("[googleImages] picker search failed:", e);
