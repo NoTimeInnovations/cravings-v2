@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/comeback",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/purge-webhook-logs",
+      "schedule": "7 * * * *"
     }
   ]
 }

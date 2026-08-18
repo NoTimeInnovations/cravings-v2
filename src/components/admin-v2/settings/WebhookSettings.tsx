@@ -420,8 +420,8 @@ ${SIGNATURE_HEADER}: 9f2c…    ← HMAC-SHA256 of the raw body, hex`}</code>
                     <div>
                         <CardTitle className="text-base">Recent deliveries</CardTitle>
                         <CardDescription>
-                            The last 20 attempts, newest first. A failure is retried twice
-                            automatically — each try is its own row.
+                            Attempts from the last 24 hours, newest first. A failure is
+                            retried twice automatically — each try is its own row.
                         </CardDescription>
                     </div>
                     <Button
@@ -444,7 +444,8 @@ ${SIGNATURE_HEADER}: 9f2c…    ← HMAC-SHA256 of the raw body, hex`}</code>
                         <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
                     ) : deliveries.length === 0 ? (
                         <p className="py-6 text-center text-sm text-muted-foreground">
-                            Nothing sent yet. Place an order, or use &ldquo;Send test event&rdquo; above.
+                            Nothing in the last 24 hours. Place an order, or use &ldquo;Send test
+                            event&rdquo; above.
                         </p>
                     ) : (
                         <div className="divide-y rounded-lg border">
