@@ -17,7 +17,7 @@
  * lists them.
  */
 export const getDuCandidatesQuery = `
-query GetDuCandidates($search: String = "%", $district: String = "%", $limit: Int = 50, $offset: Int = 0) {
+query GetDuCandidates($search: String = "%", $district: String = "%", $limit: Int = 50, $offset: Int = 0, $extra: partners_bool_exp = {}) {
   partners(
     where: {
       status: {_eq: "active"},
@@ -30,7 +30,8 @@ query GetDuCandidates($search: String = "%", $district: String = "%", $limit: In
         { _or: [
             {district: {_ilike: $district}},
             {district: {_is_null: true}}
-        ]}
+        ]},
+        $extra
       ]
     }
     order_by: {store_name: asc}
@@ -64,7 +65,23 @@ query GetDuCandidates($search: String = "%", $district: String = "%", $limit: In
       listed_at
     }
   }
-  partners_aggregate(where: {status: {_eq: "active"}}) {
+  partners_aggregate(
+    where: {
+      status: {_eq: "active"},
+      _and: [
+        { _or: [
+            {store_name: {_ilike: $search}},
+            {username: {_ilike: $search}},
+            {location: {_ilike: $search}}
+        ]},
+        { _or: [
+            {district: {_ilike: $district}},
+            {district: {_is_null: true}}
+        ]},
+        $extra
+      ]
+    }
+  ) {
     aggregate { count }
   }
 }

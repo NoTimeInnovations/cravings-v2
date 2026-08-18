@@ -15,6 +15,8 @@ import {
   RefreshCw,
   Store,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -301,6 +303,10 @@ const HealthStrip = () => {
 
 /* ───────────────────────── listings ───────────────────────── */
 
+/** Rows per page. The list was previously capped at a flat 100 with no way to
+ *  reach anything past it. */
+const PAGE_SIZE = 50;
+
 const ListingsTab = () => {
   const [search, setSearch] = useState("");
   const [candidates, setCandidates] = useState<DuPartner[]>([]);
@@ -308,16 +314,31 @@ const ListingsTab = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<DuPartner | null>(null);
   const [onlyListed, setOnlyListed] = useState(false);
+  const [page, setPage] = useState(0);
+  /** Total matching the CURRENT search + filter, from the server. Needed to know
+   *  whether a next page exists at all. */
+  const [total, setTotal] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const term = search.trim() ? `%${search.trim()}%` : "%";
+      // "Listed only" filters on the SERVER. Filtering the fetched page in the
+      // browser instead meant it could only ever surface the listed partners that
+      // happened to fall in the first page alphabetically — with 163 listed and a
+      // 100-row cap, most of them were unreachable no matter how you paged.
+      const extra = onlyListed ? { du_listing: { is_listed: { _eq: true } } } : {};
       const [cands, current] = await Promise.all([
-        fetchFromHasura(getDuCandidatesQuery, { search: term, limit: 100 }),
+        fetchFromHasura(getDuCandidatesQuery, {
+          search: term,
+          limit: PAGE_SIZE,
+          offset: page * PAGE_SIZE,
+          extra,
+        }),
         fetchFromHasura(getDuListingsQuery),
       ]);
       setCandidates(cands?.partners ?? []);
+      setTotal(cands?.partners_aggregate?.aggregate?.count ?? 0);
       setListed(current?.du_listings ?? []);
     } catch (e) {
       console.error(e);
@@ -325,22 +346,34 @@ const ListingsTab = () => {
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, page, onlyListed]);
 
   useEffect(() => {
     const t = setTimeout(load, 300);
     return () => clearTimeout(t);
   }, [load]);
 
+  // Unlisting the last row of the last page — the whole point of "Listed only" —
+  // shrinks the result set under the current offset and would leave the operator
+  // staring at an empty page with a Previous button as the only way out. Step
+  // back instead, repeatedly if several pages vanished at once.
+  useEffect(() => {
+    if (!loading && page > 0 && candidates.length === 0) {
+      setPage((n) => Math.max(0, n - 1));
+    }
+  }, [loading, page, candidates.length]);
+
   const listedIds = useMemo(
     () => new Set(listed.map((l) => l.partner_id)),
     [listed],
   );
 
-  const rows = useMemo(
-    () => (onlyListed ? candidates.filter((p) => listedIds.has(p.id)) : candidates),
-    [candidates, onlyListed, listedIds],
-  );
+  // No client-side filtering: the query already applied both the search and the
+  // listed filter, so this page IS the answer for the current page number.
+  const rows = candidates;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const firstShown = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const lastShown = page * PAGE_SIZE + rows.length;
 
   const toggleListed = async (p: DuPartner, next: boolean) => {
     const issues = blockers(p);
@@ -377,11 +410,20 @@ const ListingsTab = () => {
             className="pl-9"
             placeholder="Search partners by name, username or area…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
           />
         </div>
         <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-          <Switch checked={onlyListed} onCheckedChange={setOnlyListed} />
+          <Switch
+            checked={onlyListed}
+            onCheckedChange={(v) => {
+              setOnlyListed(v);
+              setPage(0);
+            }}
+          />
           Listed only
         </label>
         <Badge variant="secondary" className="whitespace-nowrap">
@@ -455,6 +497,41 @@ const ListingsTab = () => {
               </Card>
             );
           })}
+        </div>
+      )}
+
+
+      {/* Pager. There was none at all: the list fetched a flat 100 rows with no
+          offset, so anything past the hundredth partner alphabetically simply
+          could not be reached. */}
+      {!loading && total > 0 && (
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="text-sm text-muted-foreground">
+            Showing {firstShown}–{lastShown} of {total}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((n) => Math.max(0, n - 1))}
+              disabled={page === 0}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              Page {page + 1} of {pageCount}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((n) => n + 1)}
+              disabled={lastShown >= total}
+            >
+              Next
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
         </div>
       )}
 
