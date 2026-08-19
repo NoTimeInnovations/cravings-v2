@@ -1,21 +1,25 @@
 "use client"
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { Notification } from "@/app/actions/notification";
 
-export default function PartnerLoginPage() {
+function PartnerLoginForm() {
   const { signInPartnerWithEmail } = useAuthStore();
   const navigate = useRouter();
+  // ?email= comes from the admin-v3 account switcher: this app keeps one
+  // session at a time, so switching means signing in — prefilling at least
+  // saves retyping the address.
+  const prefill = useSearchParams().get("email") || "";
   const [isLoading, setIsLoading] = useState(false);
   const [partnerData, setPartnerData] = useState({
-    email: "",
+    email: prefill,
     password: "",
   });
 
@@ -86,4 +90,16 @@ export default function PartnerLoginPage() {
       </div>
     </div>
   );
-} 
+}
+
+/**
+ * useSearchParams needs a Suspense boundary, or the whole route opts out of
+ * static rendering and the build warns.
+ */
+export default function PartnerLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <PartnerLoginForm />
+    </Suspense>
+  );
+}

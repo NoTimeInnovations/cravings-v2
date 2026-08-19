@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, LogOut, Search, Settings } from "lucide-react";
+import { ChevronDown, ChevronRight, LogOut, Search, Settings, UserPlus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { getNavItemState } from "@/lib/adminNav";
 import { NAV_GROUPS, navItems } from "./navItems";
+import { useKnownAccounts } from "./useKnownAccounts";
 
 export function AdminV3Sidebar({
   activeView,
@@ -24,6 +25,8 @@ export function AdminV3Sidebar({
 }) {
   const { userData, features } = useAuthStore();
   const partner = userData as Partner | undefined;
+  const [accountsOpen, setAccountsOpen] = React.useState(false);
+  const { others } = useKnownAccounts(partner);
 
   // Same selector admin-v2's navbar uses, so the two badges never disagree.
   const pendingCount = useOrderSubscriptionStore(
@@ -66,14 +69,86 @@ export function AdminV3Sidebar({
           </div>
           <button
             type="button"
-            title="Log out"
-            aria-label="Log out"
-            onClick={onLogout}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-zinc-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:text-zinc-500 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-400"
+            title="Accounts"
+            aria-label="Accounts"
+            aria-expanded={accountsOpen}
+            onClick={() => setAccountsOpen((o) => !o)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
           >
-            <LogOut size={15} strokeWidth={1.7} />
+            <ChevronDown
+              size={15}
+              strokeWidth={1.9}
+              className={cn("transition-transform", accountsOpen && "rotate-180")}
+            />
           </button>
         </div>
+
+        {accountsOpen ? (
+          <div className="mt-1.5 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+            {others.length > 0 ? (
+              <>
+                <div className="px-3 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
+                  Switch to
+                </div>
+                {others.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    // Signing in is what actually switches: this browser keeps
+                    // no second session to restore, by design.
+                    onClick={() => {
+                      setAccountsOpen(false);
+                      window.location.href = `/partnerlogin?email=${encodeURIComponent(a.email)}`;
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  >
+                    <span
+                      translate="no"
+                      className="notranslate flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-semibold text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                    >
+                      {(a.name || a.email).slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span
+                        translate="no"
+                        className="notranslate block truncate text-[12.5px] font-medium leading-tight text-zinc-950 dark:text-zinc-50"
+                      >
+                        {a.name || a.email}
+                      </span>
+                      <span
+                        translate="no"
+                        className="notranslate block truncate text-[11px] leading-tight text-zinc-400 dark:text-zinc-500"
+                      >
+                        {a.email}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+                <div className="my-1 h-px bg-zinc-100 dark:bg-zinc-700" />
+              </>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => {
+                setAccountsOpen(false);
+                window.location.href = "/partnerlogin";
+              }}
+              className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12.5px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              <UserPlus size={15} strokeWidth={1.7} className="shrink-0 text-zinc-400 dark:text-zinc-500" />
+              Add account
+            </button>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12.5px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+            >
+              <LogOut size={15} strokeWidth={1.7} className="shrink-0" />
+              Log out
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {/* Search — opens the ⌘K palette. */}
