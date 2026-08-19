@@ -20,6 +20,18 @@ import { ManagingOutletBanner } from "@/components/televery/ManagingOutletBanner
  */
 export const dynamic = "force-dynamic";
 
+/**
+ * WHICH DASHBOARD a partner gets (v2 vs the /admin-v3 redesign) is decided in
+ * ONE place: src/proxy.ts. Deliberately not mirrored here.
+ *
+ * An earlier version of this layout carried its own redirect as a "backstop".
+ * That was actively harmful: the middleware reads the version from a short-TTL
+ * module cache and this layout would have read it from unstable_cache, and the
+ * moment those two disagreed — which is exactly what a superadmin flip causes,
+ * since revalidateTag reaches one cache and not the other — the two guards
+ * redirected at each other in a loop the browser could not break. The version is
+ * a UI preference, not a security boundary, so a single authority is correct.
+ */
 export default async function AdminV2Layout({
     children,
 }: {

@@ -115,6 +115,13 @@ export default {
 					'0%': { transform: 'translateY(-80px)', opacity: '0' },
 					'60%': { transform: 'translateY(8px)', opacity: '1' },
 					'100%': { transform: 'translateY(0)', opacity: '1' }
+				},
+				// admin-v3 status dots. Two speeds on purpose: the store-Open dot
+				// breathes slowly, the Live Orders dot is faster so it reads as
+				// "something is happening right now".
+				'pulse-dot': {
+					'0%, 100%': { opacity: '1', transform: 'scale(1)' },
+					'50%': { opacity: '.35', transform: 'scale(.82)' }
 				}
 			},
 			animation: {
@@ -130,6 +137,8 @@ export default {
 				'bounce-in-1': 'bounce-in 0.5s ease-out 0.1s forwards',
 				'bounce-in-2': 'bounce-in 0.5s ease-out 0.2s forwards',
 				'bounce-in-3': 'bounce-in 0.5s ease-out 0.3s forwards',
+				'pulse-dot': 'pulse-dot 2s ease-in-out infinite',
+				'pulse-dot-fast': 'pulse-dot 1.6s ease-in-out infinite',
 			}
 		}
 	},

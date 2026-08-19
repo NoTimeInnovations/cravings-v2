@@ -3,6 +3,7 @@ import ExploreOfferManage from "@/components/superAdmin/ExploreOfferManage";
 import FeatureFlagManagement from "@/components/superAdmin/FeatureFlagManagement";
 import OfferUploadSuperAdmin from "@/components/superAdmin/OfferUploadSuperAdmin";
 import EditPartners from "@/components/superAdmin/EditPartners";
+import AdminDashboardSwitch from "@/components/superAdmin/AdminDashboardSwitch";
 // import Analytics from "@/components/superAdmin/Analytics";
 // import BulkUpload from "@/components/superAdmin/BulkUpload";
 // import OfferDetails from "@/components/superAdmin/OfferDetails";
@@ -52,6 +53,11 @@ const page = async (props: { searchParams: SearchParams }) => {
       name: "Delivery Undo",
       component: <DeliveryUndoManagement />,
       id: "delivery-undo",
+    },
+    {
+      name: "Admin Dashboard",
+      component: <AdminDashboardSwitch />,
+      id: "admin-dashboard",
     },
     {
       name: "Edit Partners",

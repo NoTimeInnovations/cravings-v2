@@ -157,6 +157,40 @@ function readAccountList(
   return list;
 }
 
+/**
+ * Put a just-connected provider back into the dispatch queue.
+ *
+ * `delivery_provider_priority` is the list that decides who gets QUOTED, and the
+ * checkout charges the highest quote across it — so a provider missing from the
+ * list is not merely tried last, it is invisible to pricing. Connecting Rapido
+ * and still being charged Porter's fare alone is exactly that: the connect flow
+ * wrote the mobile, the group and the account list, but never this.
+ *
+ * Only an EXPLICIT list is touched. An absent list already means "every
+ * provider" downstream, and materialising it here would freeze today's provider
+ * set into the row.
+ *
+ * Appended at the END, never promoted: the order is the partner's dispatch
+ * preference and connecting a second account is not a statement about which one
+ * should be tried first. Being in the list at all is what fixes the price.
+ *
+ * The ✕ in Settings → Provider priority remains the way to opt a provider out.
+ * Re-connecting it is an explicit act of enabling, so it re-enters the queue.
+ */
+function ensureProviderInQueue(
+  rules: Record<string, unknown>,
+  provider: ConnectProvider,
+): Record<string, unknown> {
+  const raw = rules.delivery_provider_priority;
+  if (!Array.isArray(raw)) return rules;
+  const list = raw.map(String).filter((x) => x === "porter" || x === "rapido");
+  if (list.includes(provider)) return rules;
+  return {
+    ...rules,
+    delivery_provider_priority: [...new Set([...list, provider])],
+  };
+}
+
 /** Write the list back into a delivery_rules object (mutates a copy's key). */
 function writeAccountList(
   rules: Record<string, unknown>,
@@ -336,6 +370,9 @@ export async function verifyDeliveryOtp(
   // than duplicating it (a partner re-OTPs to clear an expired token).
   const list = [mobile, ...existing.filter((m) => m !== mobile)];
   rules = writeAccountList(rules, input.provider, list);
+  // Without this the provider is connected but never quoted, so the customer is
+  // charged the OTHER provider's fare instead of the highest of the two.
+  rules = ensureProviderInQueue(rules, input.provider);
 
   const updates: Record<string, unknown> = {
     [mobileColumn]: mobile,

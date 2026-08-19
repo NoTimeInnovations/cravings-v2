@@ -1,8 +1,19 @@
 import { MapPin, Phone, Search, Star, LayoutGrid, UtensilsCrossed } from "lucide-react";
 import { FaInstagram, FaWhatsapp } from "react-icons/fa";
-import { PreviewProps, STORE_NAME, STORE_LOCATION, SAMPLE_ITEMS, SAMPLE_CATEGORIES, blendColor } from "./sampleData";
+import { PreviewProps, blendColor, usePreviewData, previewSections } from "./sampleData";
 
-function ItemCard({ name, price, styles }: { name: string; price: string; styles: PreviewProps["styles"] }) {
+function ItemCard({
+  name,
+  price,
+  image,
+  styles,
+}: {
+  name: string;
+  price: string;
+  image?: string;
+  styles: PreviewProps["styles"];
+}) {
+  const previewData = usePreviewData();
   const solidBg = blendColor(styles.accent, styles.backgroundColor, 0.12);
   return (
     <div
@@ -14,25 +25,31 @@ function ItemCard({ name, price, styles }: { name: string; price: string; styles
     >
       {/* Image placeholder */}
       <div
-        className="aspect-square rounded-lg flex items-center justify-center"
+        className="aspect-square overflow-hidden rounded-lg flex items-center justify-center"
         style={{ backgroundColor: solidBg }}
       >
-        <UtensilsCrossed size={14} style={{ color: styles.accent }} />
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={image} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <UtensilsCrossed size={14} style={{ color: styles.accent }} />
+        )}
       </div>
       <div className="px-0.5 py-0.5">
         <p className="text-[8px] font-medium truncate leading-tight">{name}</p>
-        <p className="text-[8px] font-bold" style={{ color: styles.accent }}>&#8377;{price}</p>
+        <p className="text-[8px] font-bold" style={{ color: styles.accent }}>{previewData.currency}{price}</p>
       </div>
     </div>
   );
 }
 
 export function SidebarPreview({ styles, fontFamily, showGrid }: PreviewProps) {
+  const previewData = usePreviewData();
   const activeCategory = "Starters";
-  const displayItems = SAMPLE_ITEMS.filter(i => i.category === "starters");
+  const displayItems = previewSections(previewData, 1)[0]?.items ?? [];
   const sidebarCategories = [
     { id: "must-try", name: "Must Try", type: "icon" as const },
-    ...SAMPLE_CATEGORIES.slice(1).map(c => ({ ...c, type: "letter" as const })),
+    ...previewData.categories.slice(1).map(c => ({ ...c, type: "letter" as const })),
     { id: "all", name: "All", type: "icon" as const },
   ];
 
@@ -66,7 +83,7 @@ export function SidebarPreview({ styles, fontFamily, showGrid }: PreviewProps) {
             }}
           />
           <h1 className="text-white font-bold text-2xl z-10 drop-shadow-md text-center px-4">
-            {STORE_NAME}
+            {previewData.storeName}
           </h1>
         </div>
         {/* Gradient overlay at bottom */}
@@ -85,10 +102,10 @@ export function SidebarPreview({ styles, fontFamily, showGrid }: PreviewProps) {
         }}
       >
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-sm font-bold">{STORE_NAME}</h1>
+          <h1 className="text-sm font-bold">{previewData.storeName}</h1>
           <div className="inline-flex items-center gap-1 text-[9px]" style={{ opacity: 0.6 }}>
             <MapPin size={9} />
-            <span>{STORE_LOCATION}</span>
+            <span>{previewData.storeLocation}</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -161,11 +178,12 @@ export function SidebarPreview({ styles, fontFamily, showGrid }: PreviewProps) {
 
           {/* 3-column grid */}
           <div className="px-2 grid grid-cols-3 gap-1.5">
-            {SAMPLE_ITEMS.slice(0, 9).map((item) => (
+            {previewData.items.slice(0, 9).map((item) => (
               <ItemCard
                 key={item.id}
                 name={item.name}
                 price={item.price}
+                image={item.image}
                 styles={styles}
               />
             ))}

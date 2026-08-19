@@ -1,22 +1,27 @@
 import { MapPin, Search, UtensilsCrossed, Phone, Instagram, Navigation } from "lucide-react";
 import { FaInstagram, FaWhatsapp } from "react-icons/fa";
-import { PreviewProps, STORE_NAME, STORE_LOCATION, SAMPLE_ITEMS, SAMPLE_CATEGORIES, blendColor } from "./sampleData";
+import { PreviewProps, blendColor, usePreviewData, previewSections } from "./sampleData";
 
-function ImagePlaceholder({ styles }: { styles: PreviewProps["styles"] }) {
+function ImagePlaceholder({ styles, image }: { styles: PreviewProps["styles"]; image?: string }) {
   const solidBg = blendColor(styles.accent, styles.backgroundColor, 0.12);
   return (
     <div
-      className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
+      className="w-16 h-16 overflow-hidden rounded-xl flex items-center justify-center flex-shrink-0"
       style={{ backgroundColor: solidBg }}
     >
-      <UtensilsCrossed size={14} style={{ color: styles.accent }} />
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <UtensilsCrossed size={14} style={{ color: styles.accent }} />
+      )}
     </div>
   );
 }
 
 export function CompactPreview({ styles, fontFamily, showGrid }: PreviewProps) {
-  const starterItems = SAMPLE_ITEMS.filter(i => i.category === "starters");
-  const mainItems = SAMPLE_ITEMS.filter(i => i.category === "main");
+  const previewData = usePreviewData();
+  const sections = previewSections(previewData, 2);
 
   return (
     <div
@@ -41,17 +46,17 @@ export function CompactPreview({ styles, fontFamily, showGrid }: PreviewProps) {
             }}
           />
           <h1 className="text-white font-bold text-2xl z-10 drop-shadow-md text-center px-4">
-            {STORE_NAME}
+            {previewData.storeName}
           </h1>
         </div>
       </div>
 
       {/* Store details */}
       <div className="flex flex-col gap-1.5 p-4 pb-2">
-        <h1 className="text-base font-semibold">{STORE_NAME}</h1>
+        <h1 className="text-base font-semibold">{previewData.storeName}</h1>
         <div className="inline-flex gap-1.5 text-[10px]" style={{ opacity: 0.8 }}>
           <MapPin size={12} />
-          <span>{STORE_LOCATION}</span>
+          <span>{previewData.storeLocation}</span>
         </div>
       </div>
 
@@ -97,7 +102,7 @@ export function CompactPreview({ styles, fontFamily, showGrid }: PreviewProps) {
           backgroundColor: styles.backgroundColor,
         }}
       >
-        {SAMPLE_CATEGORIES.map((cat, i) => (
+        {previewData.categories.map((cat, i) => (
           <div
             key={cat.id}
             className="px-3 py-2 text-[10px] whitespace-nowrap"
@@ -114,8 +119,7 @@ export function CompactPreview({ styles, fontFamily, showGrid }: PreviewProps) {
 
       {/* Category content */}
       {[
-        { cat: SAMPLE_CATEGORIES[1], items: starterItems },
-        { cat: SAMPLE_CATEGORIES[2], items: mainItems },
+        ...sections,
       ].map(({ cat, items }) => (
         <div key={cat.id} className="p-4">
           <h2 className="text-sm font-bold mb-3" style={{ color: styles.accent }}>
@@ -130,10 +134,10 @@ export function CompactPreview({ styles, fontFamily, showGrid }: PreviewProps) {
                     A tasty selection
                   </p>
                   <p className="text-xs font-bold mt-1" style={{ color: styles.accent }}>
-                    &#8377;{item.price}
+                    {previewData.currency}{item.price}
                   </p>
                 </div>
-                {item.hasImage && <ImagePlaceholder styles={styles} />}
+                {item.hasImage && <ImagePlaceholder styles={styles} image={item.image} />}
               </div>
             ))}
           </div>

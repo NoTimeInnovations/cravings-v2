@@ -69,6 +69,8 @@ export const partnerIdQuery = `
       subscription_details
       username
       custom_domain
+      admin_dashboard_version
+      timezone
       gtm_container_id
       official_name
       about_us
@@ -77,6 +79,7 @@ export const partnerIdQuery = `
       official_phone_number
       has_seen_tour
       cashfree_merchant_id
+      delivery_qr_method
       adloggs_merchant_id
       porter_mobile
       uber_mobile
@@ -146,6 +149,8 @@ export const partnerLoginQuery = `
       subscription_details
       username
       custom_domain
+      admin_dashboard_version
+      timezone
       gtm_container_id
       official_name
       about_us
@@ -154,6 +159,7 @@ export const partnerLoginQuery = `
       official_phone_number
       has_seen_tour
       cashfree_merchant_id
+      delivery_qr_method
       adloggs_merchant_id
       porter_mobile
       uber_mobile

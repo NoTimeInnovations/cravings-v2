@@ -90,6 +90,8 @@ export interface Partner extends BaseUser {
   location: string;
   status: string;
   upi_id: string;
+  /** What the rider app's "Show QR" button shows: none | upi | cashfree. */
+  delivery_qr_method?: "none" | "upi" | "cashfree" | null;
   show_payment_qr?: boolean;
   post_payment_message?: string | null;
   description: string | null;
@@ -115,6 +117,20 @@ export interface Partner extends BaseUser {
   theme?: string;
   currency: string;
   feature_flags?: string;
+  /**
+   * Which partner dashboard this store gets: "v2" (default, /admin-v2) or
+   * "v3" (/admin-v3). Set from superadmin > Admin Dashboard. Always read it
+   * as `admin_dashboard_version ?? "v2"` — a client that predates the column
+   * (or any query that does not select it) must fall back to v2, not to blank.
+   */
+  admin_dashboard_version?: string | null;
+  /**
+   * IANA zone (e.g. "Asia/Kolkata"). Every "today"/"this month" bucket in
+   * the dashboards must be computed in THIS zone, not the browser's — see
+   * src/lib/partnerTime.ts. Selected by BOTH auth queries; a field present
+   * in only one of them silently resets on reload.
+   */
+  timezone?: string | null;
   /** JSON string of PrebookingSettings (see orderStore.ts). Gated by the `prebooking` feature flag. */
   prebooking_settings?: string | null;
   /** JSON string of OrderTypesEnabled { delivery, takeaway, dine_in }. NULL = all enabled. */

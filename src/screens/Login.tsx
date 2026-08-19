@@ -45,6 +45,15 @@ export default function Login() {
     const googleError = searchParams.get("google_error");
     const email = searchParams.get("email");
 
+    // ?email= without a google_error is the admin-v3 account switcher sending
+    // someone back to sign in as a different partner. The app keeps one session
+    // at a time, so switching means logging in — prefilling at least saves
+    // retyping the address. The Google-error branch below owns the param in its
+    // own case and clears it, so the two never fight.
+    if (!googleError && email) {
+      setPartnerData((d) => ({ ...d, email }));
+    }
+
     if (googleError) {
       if (googleError === "no_account" && email) {
         toast.error(`No partner account found for ${email}`);
