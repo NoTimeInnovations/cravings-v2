@@ -1,14 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, ChevronRight, LogOut, Search, Settings, UserPlus } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, LogOut, Search, Settings, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { getNavItemState } from "@/lib/adminNav";
+import { getAccounts } from "@/lib/addAccount";
 import { NAV_GROUPS, navItems } from "./navItems";
-import { useKnownAccounts } from "./useKnownAccounts";
+
 
 export function AdminV3Sidebar({
   activeView,
@@ -27,7 +29,48 @@ export function AdminV3Sidebar({
   const partner = userData as Partner | undefined;
   const [accountsOpen, setAccountsOpen] = React.useState(false);
   const accountRef = React.useRef<HTMLDivElement>(null);
-  const { others } = useKnownAccounts(partner);
+  const { signInPartnerWithEmail } = useAuthStore();
+  const [others, setOthers] = React.useState<
+    { id: string; email: string; name: string; store_name: string; role: string; password: string }[]
+  >([]);
+  const [switching, setSwitching] = React.useState<string | null>(null);
+
+  /**
+   * The accounts this browser has signed into.
+   *
+   * `my_accounts` is written on every successful sign-in (see lib/addAccount)
+   * and is what admin-v2's switcher already reads — so the list is populated
+   * from day one rather than starting empty.
+   */
+  React.useEffect(() => {
+    if (!accountsOpen) return;
+    getAccounts()
+      .then((list) => setOthers(Array.isArray(list) ? list : []))
+      .catch(() => setOthers([]));
+  }, [accountsOpen, partner?.id]);
+
+  /**
+   * Switch by signing in again with the stored credentials — the same
+   * mechanism admin-v2 uses, so the two switchers behave identically.
+   *
+   * The full reload is deliberate: partnerLoginQuery returns a narrower partner
+   * than fetchUser does, so without it fields like country and
+   * location_details are missing and server-action saves bounce to /login.
+   */
+  const switchTo = async (a: { email: string; password: string; store_name: string; name: string; id: string }) => {
+    if (switching) return;
+    setSwitching(a.id);
+    try {
+      await signInPartnerWithEmail(a.email, a.password);
+      toast.success(`Switched to ${a.store_name || a.name}`);
+      window.location.href = "/admin-v3";
+    } catch {
+      toast.error("Could not switch — sign in again");
+      window.location.href = `/login?add=1&email=${encodeURIComponent(a.email)}`;
+    } finally {
+      setSwitching(null);
+    }
+  };
 
   React.useEffect(() => {
     if (!accountsOpen) return;
@@ -60,7 +103,14 @@ export function AdminV3Sidebar({
       {/* Account card. `relative` so the menu can float over the nav rather
           than pushing every item down the list. */}
       <div ref={accountRef} className="relative px-3 pb-2.5 pt-3.5">
-        <div className="flex items-center gap-2.5 rounded-lg border border-zinc-200 bg-white p-2 pl-2.5 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700">
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={accountsOpen}
+          aria-label="Accounts"
+          onClick={() => setAccountsOpen((o) => !o)}
+          className="flex w-full items-center gap-2.5 rounded-lg border border-zinc-200 bg-white p-2 pl-2.5 text-left transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+        >
           {/* The Menuthere mark, not the partner's own logo: this is the
               product's chrome, and the store the account belongs to is already
               named on the line beside it. object-contain so a non-square mark
@@ -85,21 +135,14 @@ export function AdminV3Sidebar({
               {partner?.email || ""}
             </div>
           </div>
-          <button
-            type="button"
-            title="Accounts"
-            aria-label="Accounts"
-            aria-expanded={accountsOpen}
-            onClick={() => setAccountsOpen((o) => !o)}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
-          >
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 dark:text-zinc-500">
             <ChevronDown
               size={15}
               strokeWidth={1.9}
               className={cn("transition-transform", accountsOpen && "rotate-180")}
             />
-          </button>
-        </div>
+          </span>
+        </button>
 
         {accountsOpen ? (
           <div className="absolute left-3 right-3 top-full z-30 -mt-1 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
@@ -112,31 +155,26 @@ export function AdminV3Sidebar({
                   <button
                     key={a.id}
                     type="button"
-                    // Signing in is what actually switches: this browser keeps
-                    // no second session to restore, by design.
-                    //
-                    // `add=1` is the middleware's escape hatch — without it an
-                    // already-authenticated visitor to /login is bounced to "/"
-                    // and straight back to the dashboard, so the switcher could
-                    // never reach the login form at all.
-                    onClick={() => {
-                      setAccountsOpen(false);
-                      window.location.href = `/login?add=1&email=${encodeURIComponent(a.email)}`;
-                    }}
+                    disabled={!!switching}
+                    onClick={() => void switchTo(a)}
                     className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
                   >
                     <span
                       translate="no"
                       className="notranslate flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-semibold text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
                     >
-                      {(a.name || a.email).slice(0, 2).toUpperCase()}
+                      {switching === a.id ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        (a.store_name || a.name || a.email).slice(0, 2).toUpperCase()
+                      )}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span
                         translate="no"
                         className="notranslate block truncate text-[12.5px] font-medium leading-tight text-zinc-950 dark:text-zinc-50"
                       >
-                        {a.name || a.email}
+                        {a.store_name || a.name || a.email}
                       </span>
                       <span
                         translate="no"
