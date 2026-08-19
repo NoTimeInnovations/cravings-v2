@@ -20,6 +20,7 @@ import { canSeeApiUsage } from "@/lib/demoPartner";
 import { getFeatures } from "@/lib/getFeatures";
 import { useWhatsAppStatus } from "./dashboard/useWhatsAppStatus";
 import { AdminV3Button, V3Card } from "./ui/primitives";
+import { WhatsAppNumberSettings } from "./whatsapp/NumberSettings";
 
 /**
  * /admin-v3 → WhatsApp.
@@ -122,6 +123,9 @@ export function AdminV3WhatsApp({
   const router = useRouter();
   const { userData } = useAuthStore();
   const { status, loading } = useWhatsAppStatus();
+  // Connecting, adding and removing numbers is its own screen — it is the only
+  // part of the hub that writes anything.
+  const [numbersOpen, setNumbersOpen] = React.useState(false);
 
   const partnerId = (userData as { id?: string } | undefined)?.id;
   const showApiUsage = canSeeApiUsage(partnerId);
@@ -159,6 +163,11 @@ export function AdminV3WhatsApp({
         ? `${status.flowsActive ?? 0} of ${status.flowsTotal} automation flows active.`
         : "Connected. No automation flows set up yet."
       : "Link your WhatsApp Business number to take orders and send live updates on chat.";
+
+
+  if (numbersOpen) {
+    return <WhatsAppNumberSettings onBack={() => setNumbersOpen(false)} />;
+  }
 
   return (
     <div className="flex flex-col gap-3.5 pb-10 pt-5 lg:px-[clamp(14px,3vw,28px)]">
@@ -213,9 +222,7 @@ export function AdminV3WhatsApp({
           <AdminV3Button
             variant="secondary"
             className="h-[34px] px-3"
-            onClick={() =>
-              router.push("/admin-v2?view=Settings&sg=integrations&ss=integrations")
-            }
+            onClick={() => setNumbersOpen(true)}
           >
             {connected ? (
               <>

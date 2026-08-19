@@ -288,7 +288,11 @@ export default function AdminV3Page() {
           <AdminV3Header
             title={activeView}
             subtitle={`${partner?.store_name || "Your store"} · ${format(new Date(), "EEEE, d MMM")}`}
-            planLabel={gate.isGated ? gate.planName : null}
+            // Dashboard only: the plan is context for the day's overview, not a
+            // banner to carry onto every screen.
+            planLabel={
+              activeView === "Dashboard" && gate.isGated ? gate.planName : null
+            }
             onRefresh={handleRefresh}
             refreshing={refreshing}
             onOpenDrawer={() => setDrawerOpen(true)}

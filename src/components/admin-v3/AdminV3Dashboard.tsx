@@ -6,7 +6,6 @@ import { GetStartedCard } from "./dashboard/GetStartedCard";
 import { LiveOrdersPanel } from "./dashboard/LiveOrdersPanel";
 import {
   QuickActionsCard,
-  TrialCard,
   WhatsAppChannelCard,
   type WhatsAppStatus,
 } from "./dashboard/RightRail";
@@ -48,7 +47,6 @@ export function AdminV3Dashboard({
         <LiveOrdersPanel />
 
         <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-5 lg:h-full lg:flex-[0_0_260px] lg:overflow-y-auto">
-          <TrialCard />
           <QuickActionsCard />
           <WhatsAppChannelCard status={whatsapp} />
         </div>
