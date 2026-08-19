@@ -25,6 +25,11 @@ function VegMark({ veg }: { veg: boolean }) {
 
 export function V3Preview({ styles, fontFamily, showGrid }: PreviewProps) {
   const previewData = usePreviewData();
+  // Mock cart: the first two items on the menu, same as the fixed total this
+  // used to hardcode — derived so a real menu and a non-rupee store add up.
+  const cartTotal = previewData.items
+    .slice(0, 2)
+    .reduce((sum, i) => sum + (Number(i.price) || 0), 0);
   const sections = previewSections(previewData, 2);
 
   return (
@@ -157,7 +162,7 @@ export function V3Preview({ styles, fontFamily, showGrid }: PreviewProps) {
         <div className="flex items-center justify-between rounded-lg bg-emerald-600 px-3 py-2 text-white shadow-lg shadow-emerald-600/25">
           <div className="flex items-center gap-1.5">
             <ShoppingBag size={10} />
-            <span className="text-[8px] font-bold">2 items</span>
+            <span className="text-[8px] font-bold">2 items · {previewData.currency}{cartTotal}</span>
           </div>
           <div className="flex items-center gap-0.5 text-[8px] font-bold">
             View Cart

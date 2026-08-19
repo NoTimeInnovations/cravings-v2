@@ -17,6 +17,11 @@ function VegMark({ veg }: { veg: boolean }) {
 
 export function V5Preview({ styles }: PreviewProps) {
   const previewData = usePreviewData();
+  // Mock cart: the first two items on the menu, same as the fixed total this
+  // used to hardcode — derived so a real menu and a non-rupee store add up.
+  const cartTotal = previewData.items
+    .slice(0, 2)
+    .reduce((sum, i) => sum + (Number(i.price) || 0), 0);
   const accent = styles.accent || "#E9701B";
   // First section "Recommended" is expanded; the rest collapse into accordions.
   const recommended = previewData.items.slice(0, 2);
@@ -125,7 +130,7 @@ export function V5Preview({ styles }: PreviewProps) {
         <div className="flex items-center justify-between rounded-lg px-3 py-2 text-white shadow-lg" style={{ backgroundColor: accent }}>
           <div className="flex items-center gap-1.5">
             <ShoppingBag size={10} />
-            <span className="text-[8px] font-bold">2 items</span>
+            <span className="text-[8px] font-bold">2 items · {previewData.currency}{cartTotal}</span>
           </div>
           <div className="flex items-center gap-0.5 text-[8px] font-bold">
             View Cart
