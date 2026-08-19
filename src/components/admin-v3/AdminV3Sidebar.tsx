@@ -34,6 +34,7 @@ export function AdminV3Sidebar({
     { id: string; email: string; name: string; store_name: string; role: string; password: string }[]
   >([]);
   const [switching, setSwitching] = React.useState<string | null>(null);
+  const [accountQuery, setAccountQuery] = React.useState("");
 
   /**
    * The accounts this browser has signed into.
@@ -44,6 +45,7 @@ export function AdminV3Sidebar({
    */
   React.useEffect(() => {
     if (!accountsOpen) return;
+    setAccountQuery("");
     getAccounts()
       .then((list) => setOthers(Array.isArray(list) ? list : []))
       .catch(() => setOthers([]));
@@ -93,6 +95,16 @@ export function AdminV3Sidebar({
     (st) => st.orders.filter((o) => o.status === "pending").length,
   );
 
+  /** Search only earns its place once the list stops being scannable. */
+  const needsAccountSearch = others.length > 5;
+  const shownAccounts = React.useMemo(() => {
+    const q = accountQuery.trim().toLowerCase();
+    if (!q) return others;
+    return others.filter((a) =>
+      [a.store_name, a.name, a.email].some((v) => (v || "").toLowerCase().includes(q)),
+    );
+  }, [others, accountQuery]);
+
   const visible = React.useMemo(
     () => navItems.filter((i) => getNavItemState(i.id, features, userData) !== "hidden"),
     [features, userData],
@@ -119,7 +131,7 @@ export function AdminV3Sidebar({
           <img
             src="/menuthere-logo-new.svg"
             alt="Menuthere"
-            className="h-8 w-8 shrink-0 rounded-md border border-zinc-200 bg-white object-contain p-0.5 dark:border-zinc-700"
+            className="h-8 w-8 shrink-0 rounded-md object-contain"
           />
           <div className="min-w-0 flex-1">
             <div
@@ -151,7 +163,33 @@ export function AdminV3Sidebar({
                 <div className="px-3 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
                   Switch to
                 </div>
-                {others.map((a) => (
+                {/* Past five, the list is faster to search than to read. Below
+                    that a search box is just another thing in the way. */}
+                {needsAccountSearch ? (
+                  <div className="px-2 pb-1.5">
+                    <input
+                      value={accountQuery}
+                      onChange={(e) => setAccountQuery(e.target.value)}
+                      placeholder="Search accounts"
+                      aria-label="Search accounts"
+                      className="h-8 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-[12.5px] leading-none text-zinc-950 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+                    />
+                  </div>
+                ) : null}
+                <div
+                  className={cn(
+                    // Exactly five rows, then scroll — the menu floats over the
+                    // nav, so an unbounded list would run off the sidebar. 207px
+                    // is five measured rows (41.4px each); 200px cut it to four.
+                    needsAccountSearch && "max-h-[207px] overflow-y-auto overscroll-contain",
+                  )}
+                >
+                {shownAccounts.length === 0 ? (
+                  <div className="px-3 py-3 text-[12px] text-zinc-400 dark:text-zinc-500">
+                    No account matches “{accountQuery}”.
+                  </div>
+                ) : null}
+                {shownAccounts.map((a) => (
                   <button
                     key={a.id}
                     type="button"
@@ -185,6 +223,7 @@ export function AdminV3Sidebar({
                     </span>
                   </button>
                 ))}
+                </div>
                 <div className="my-1 h-px bg-zinc-100 dark:bg-zinc-700" />
               </>
             ) : null}
