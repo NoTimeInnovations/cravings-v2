@@ -116,7 +116,7 @@ export function AdminV3Sidebar({
                     // no second session to restore, by design.
                     onClick={() => {
                       setAccountsOpen(false);
-                      window.location.href = `/partnerlogin?email=${encodeURIComponent(a.email)}`;
+                      window.location.href = `/login?email=${encodeURIComponent(a.email)}`;
                     }}
                     className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
                   >
@@ -150,7 +150,7 @@ export function AdminV3Sidebar({
               type="button"
               onClick={() => {
                 setAccountsOpen(false);
-                window.location.href = "/partnerlogin";
+                window.location.href = "/login";
               }}
               className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12.5px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
             >
