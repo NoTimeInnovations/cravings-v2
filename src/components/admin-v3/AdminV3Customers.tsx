@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx-js-style";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
+
+import { CustomerDetail } from "./customers/CustomerDetail";
 import { formatPrice } from "@/lib/constants";
 import { safeTz } from "@/lib/partnerTime";
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -64,6 +66,9 @@ interface CustomerData {
   orderTypes: Set<OrderTypeId>;
   channels: Set<ChannelId>;
   segment: SegmentId;
+  /** Set only for signed-in orders — loyalty hangs off it, and a WhatsApp-only
+   *  lead has none. */
+  userId?: string;
 }
 
 const getCustomerOrdersQuery = `
@@ -254,6 +259,7 @@ export function AdminV3Customers() {
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [legendOpen, setLegendOpen] = React.useState(false);
   const [visible, setVisible] = React.useState(PAGE_SIZE);
+  const [selected, setSelected] = React.useState<CustomerData | null>(null);
 
   const segRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -306,6 +312,7 @@ export function AdminV3Customers() {
               existing.lastOrderDate = order.created_at;
             }
             if (!existing.name && customerName) existing.name = customerName;
+            if (!existing.userId && order.user_id) existing.userId = order.user_id;
             if ((!existing.phone || existing.phone === "N/A") && customerPhone) {
               existing.phone = customerPhone;
             }
@@ -321,6 +328,7 @@ export function AdminV3Customers() {
               orderTypes: new Set([typeBucket]),
               channels: new Set([channelBucket]),
               segment: "new",
+              userId: order.user_id || undefined,
             });
           }
         }
@@ -528,6 +536,18 @@ export function AdminV3Customers() {
   };
 
   const rows = filteredCustomers.slice(0, visible);
+
+  if (selected) {
+    return (
+      <CustomerDetail
+        customer={selected}
+        partnerId={userData?.id ?? ""}
+        currency={currency}
+        tz={tz}
+        onBack={() => setSelected(null)}
+      />
+    );
+  }
   const GRID =
     "grid grid-cols-[minmax(200px,1.6fr)_124px_86px_116px_116px_124px_84px] items-center";
 
@@ -779,7 +799,16 @@ export function AdminV3Customers() {
                 return (
                   <div
                     key={`${c.phone}-${i}`}
-                    className={`${GRID} border-t border-zinc-100 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelected(c)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelected(c);
+                      }
+                    }}
+                    className={`${GRID} cursor-pointer border-t border-zinc-100 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50`}
                   >
                     <div className="flex min-w-0 items-center gap-[11px] px-4 py-3">
                       <span
