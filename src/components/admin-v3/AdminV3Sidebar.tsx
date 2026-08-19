@@ -114,9 +114,14 @@ export function AdminV3Sidebar({
                     type="button"
                     // Signing in is what actually switches: this browser keeps
                     // no second session to restore, by design.
+                    //
+                    // `add=1` is the middleware's escape hatch — without it an
+                    // already-authenticated visitor to /login is bounced to "/"
+                    // and straight back to the dashboard, so the switcher could
+                    // never reach the login form at all.
                     onClick={() => {
                       setAccountsOpen(false);
-                      window.location.href = `/login?email=${encodeURIComponent(a.email)}`;
+                      window.location.href = `/login?add=1&email=${encodeURIComponent(a.email)}`;
                     }}
                     className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
                   >
@@ -150,7 +155,7 @@ export function AdminV3Sidebar({
               type="button"
               onClick={() => {
                 setAccountsOpen(false);
-                window.location.href = "/login";
+                window.location.href = "/login?add=1";
               }}
               className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12.5px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
             >

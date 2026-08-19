@@ -48,6 +48,25 @@ export default function AdminV3Page() {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [searchOpen, setSearchOpen] = React.useState(false);
 
+  /**
+   * "Menuthere | <store>" in the tab.
+   *
+   * Client-side because the store name only exists once the session has
+   * loaded — a server-rendered metadata title would have to fetch the partner
+   * again on every navigation to say the same thing. The previous title is
+   * restored on unmount so a client navigation out of the shell does not leave
+   * a stale store name in the tab.
+   */
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const previous = document.title;
+    const store = partner?.store_name?.trim();
+    document.title = store ? `Menuthere | ${store}` : "Menuthere";
+    return () => {
+      document.title = previous;
+    };
+  }, [partner?.store_name]);
+
   // ⌘K / Ctrl-K from anywhere in the shell.
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
