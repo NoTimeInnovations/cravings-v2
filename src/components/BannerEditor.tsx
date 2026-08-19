@@ -3,6 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import {
     Scissors,
@@ -13,6 +15,20 @@ import {
     X,
 } from "lucide-react";
 
+/**
+ * admin-v3 control tokens.
+ *
+ * Only the "page" variant uses them — admin-v2's modal keeps the shadcn Button
+ * look it has always had. They are applied through `className`, which wins over
+ * buttonVariants through the Button's own tailwind-merge.
+ */
+const V3_CONTROL =
+    "shrink-0 inline-flex h-[34px] items-center justify-center gap-[7px] whitespace-nowrap rounded-md border border-zinc-200 bg-white px-3 text-[13px] font-medium leading-none text-zinc-700 shadow-none transition-colors hover:bg-zinc-100 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-50";
+const V3_CONTROL_ON =
+    "shrink-0 inline-flex h-[34px] items-center justify-center gap-[7px] whitespace-nowrap rounded-md border border-zinc-900 bg-zinc-900 px-3 text-[13px] font-medium leading-none text-white shadow-none transition-colors hover:bg-zinc-800 dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200";
+const V3_PRIMARY =
+    "shrink-0 inline-flex h-[34px] items-center justify-center gap-[7px] whitespace-nowrap rounded-md bg-zinc-900 px-3.5 text-[13px] font-medium leading-none text-white shadow-none transition-colors hover:bg-zinc-800 disabled:pointer-events-none disabled:opacity-40 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200";
+
 const BANNER_W = 1131;
 const BANNER_H = 583;
 const BANNER_ASPECT = BANNER_W / BANNER_H;
@@ -22,6 +38,18 @@ interface BannerEditorProps {
     onClose: () => void;
     imageUrl: string;
     onComplete: (editedImageUrl: string) => void;
+    /**
+     * Extra controls for the page variant's toolbar — admin-v3 puts "Update"
+     * (swap the image being edited) there. Ignored by the modal.
+     */
+    toolbarExtra?: React.ReactNode;
+    /**
+     * "modal" is the original centred overlay admin-v2 uses. "page" drops the
+     * scrim and the fixed positioning so the editor can be swapped in as a
+     * sub-page — which is how admin-v3 presents it, since a full-bleed image
+     * editor inside a dialog fights the dialog for room.
+     */
+    variant?: "modal" | "page";
 }
 
 interface ImageTransform {
@@ -32,7 +60,7 @@ interface ImageTransform {
     selected: boolean;
 }
 
-export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: BannerEditorProps) {
+export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete, variant = "modal", toolbarExtra }: BannerEditorProps) {
     const [step, setStep] = useState<"crop" | "edit">("edit");
     const [history, setHistory] = useState<string[]>([]);
 
@@ -285,7 +313,22 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
             ctx.drawImage(ec, 0, 0, ec.width, ec.height,
                 transform.x * sx, transform.y * sy, transform.width * sx, transform.height * sy);
         }
-        onComplete(c.toDataURL("image/png"));
+        // toDataURL throws a SecurityError if anything drawn here came from
+        // another origin — the canvas is "tainted". Callers must hand in a
+        // same-origin URL (admin-v3 proxies saved images through /api/s3-image);
+        // this catch is so that a miss reports itself instead of crashing the
+        // screen with an unhandled runtime error.
+        let out: string;
+        try {
+            out = c.toDataURL("image/png");
+        } catch (err) {
+            console.error("[BannerEditor] canvas export failed:", err);
+            toast.error(
+                "This image could not be edited — it is served from another domain. Upload it again from your device.",
+            );
+            return;
+        }
+        onComplete(out);
         onClose();
     };
 
@@ -304,27 +347,43 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
         { id: "se" as const, cls: "bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize" },
     ] : [];
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-            <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl flex flex-col w-[95vw] max-w-4xl h-[90vh] max-h-[95vh] overflow-hidden"
-                onClick={e => e.stopPropagation()}>
+    const asPage = variant === "page";
 
-                {/* Header */}
-                <div className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-3 border-b shrink-0">
-                    <h2 className="text-base sm:text-lg font-semibold">
-                        {step === "crop" ? "Crop Banner" : "Edit Banner"}
-                    </h2>
-                    <button onClick={onClose} className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800">
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
+    const shell = (
+            <div className={asPage
+                ? "flex w-full flex-col gap-3.5"
+                : "bg-white dark:bg-neutral-900 rounded-xl shadow-2xl flex flex-col w-[95vw] max-w-4xl h-[90vh] max-h-[95vh] overflow-hidden"}
+                onClick={asPage ? undefined : e => e.stopPropagation()}>
+
+                {/* The page variant has no header of its own: the shell's
+                    breadcrumb and back arrow already say where you are. */}
+                {asPage ? null : (
+                    <div className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-3 border-b shrink-0">
+                        <h2 className="text-base sm:text-lg font-semibold">
+                            {step === "crop" ? "Crop Banner" : "Edit Banner"}
+                        </h2>
+                        <button onClick={onClose} className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800">
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+                )}
 
                 {/* Body */}
-                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div className={asPage
+                    ? "flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+                    : "flex-1 flex flex-col min-h-0 overflow-hidden"}>
                     {step === "crop" ? (
-                        <div className="flex-1 flex flex-col min-h-0 p-2 sm:p-4">
-                            <p className="text-xs sm:text-sm text-gray-500 mb-1 sm:mb-2">Drag the handles to select any area — free aspect.</p>
-                            <div className="flex-1 flex items-center justify-center bg-gray-100 dark:bg-neutral-800 rounded-lg min-h-0 overflow-hidden">
+                        <div className={asPage
+                            ? "flex flex-col p-4 gap-2"
+                            : "flex-1 flex flex-col min-h-0 p-2 sm:p-4"}>
+                            <p className={asPage
+                                ? "text-[12px] leading-[1.5] text-zinc-400 dark:text-zinc-500"
+                                : "text-xs sm:text-sm text-gray-500 mb-1 sm:mb-2"}>
+                                Drag the handles to select any area — free aspect.
+                            </p>
+                            <div className={asPage
+                                ? "flex h-[380px] max-h-[52vh] items-center justify-center overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
+                                : "flex-1 flex items-center justify-center bg-gray-100 dark:bg-neutral-800 rounded-lg min-h-0 overflow-hidden"}>
                                 <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)}
                                     minWidth={20} minHeight={20}
                                     className="max-h-full w-fit mx-auto flex justify-center"
@@ -336,53 +395,87 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col min-h-0 p-2 sm:p-4 gap-1.5 sm:gap-2">
-                            {/* Toolbar */}
-                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 overflow-x-auto scrollbar-hide">
+                        <div className={asPage
+                            ? "flex flex-col"
+                            : "flex-1 flex flex-col min-h-0 p-2 sm:p-4 gap-1.5 sm:gap-2"}>
+                            {/* Toolbar. As a page it is the card's header strip, so it
+                                carries the same 4/3 padding and divider every other v3
+                                card header uses. */}
+                            <div className={asPage
+                                ? "flex shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-100 px-4 py-3 scrollbar-hide dark:border-zinc-800"
+                                : "flex items-center gap-1.5 sm:gap-2 shrink-0 overflow-x-auto scrollbar-hide"}>
                                 <Button variant="outline" size="sm"
-                                    className="shrink-0 h-8 px-2 sm:px-3 text-xs"
+                                    className={asPage ? V3_CONTROL : "shrink-0 h-8 px-2 sm:px-3 text-xs"}
                                     onClick={() => { setActiveTool("none"); setStep("crop"); }}
                                     disabled={!displayUrl}>
                                     <CropIcon className="h-3.5 w-3.5 sm:mr-1.5" />
-                                    <span className="hidden sm:inline">Crop</span>
+                                    <span className={asPage ? undefined : "hidden sm:inline"}>Crop</span>
                                 </Button>
                                 <Button variant={activeTool === "eraser" ? "default" : "outline"} size="sm"
-                                    className="shrink-0 h-8 px-2 sm:px-3 text-xs"
+                                    className={asPage
+                                        ? (activeTool === "eraser" ? V3_CONTROL_ON : V3_CONTROL)
+                                        : "shrink-0 h-8 px-2 sm:px-3 text-xs"}
                                     onClick={() => setActiveTool(activeTool === "eraser" ? "none" : "eraser")}>
                                     <Eraser className="h-3.5 w-3.5 sm:mr-1.5" />
-                                    <span className="hidden sm:inline">Eraser</span>
+                                    <span className={asPage ? undefined : "hidden sm:inline"}>Eraser</span>
                                 </Button>
                                 {activeTool === "eraser" && (
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         <input type="range" min={5} max={50} value={brushSize}
                                             onChange={e => setBrushSize(Number(e.target.value))} className="w-16 sm:w-20" />
-                                        <span className="text-xs text-gray-500 w-5">{brushSize}</span>
+                                        <span className={asPage
+                                            ? "w-5 text-[12px] tabular-nums text-zinc-500 dark:text-zinc-400"
+                                            : "text-xs text-gray-500 w-5"}>{brushSize}</span>
                                     </div>
                                 )}
                                 <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
-                                    className="w-8 h-8 rounded border cursor-pointer p-0.5 shrink-0" />
+                                    aria-label="Background colour"
+                                    className={asPage
+                                        ? "h-[34px] w-[34px] shrink-0 cursor-pointer rounded-md border border-zinc-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-800"
+                                        : "w-8 h-8 rounded border cursor-pointer p-0.5 shrink-0"} />
                                 <Button variant="outline" size="sm" onClick={handleAddBgColor}
-                                    className="shrink-0 h-8 px-2 sm:px-3 text-xs">
+                                    className={asPage ? V3_CONTROL : "shrink-0 h-8 px-2 sm:px-3 text-xs"}>
                                     <Palette className="h-3.5 w-3.5 sm:mr-1.5" />
-                                    <span className="hidden sm:inline">Add BG</span>
+                                    <span className={asPage ? undefined : "hidden sm:inline"}>Add BG</span>
                                 </Button>
                                 {bannerBg && (
                                     <Button variant="outline" size="sm" onClick={() => setBannerBg(null)}
-                                        className="shrink-0 h-8 px-2 sm:px-3 text-xs">
+                                        className={asPage ? V3_CONTROL : "shrink-0 h-8 px-2 sm:px-3 text-xs"}>
                                         <X className="h-3.5 w-3.5 sm:mr-1.5" />
-                                        <span className="hidden sm:inline">Remove BG</span>
+                                        <span className={asPage ? undefined : "hidden sm:inline"}>Remove BG</span>
                                     </Button>
                                 )}
                                 <Button variant="outline" size="sm" onClick={handleUndo}
                                     disabled={history.length <= 1}
-                                    className="shrink-0 h-8 px-2 sm:px-3 text-xs">
+                                    className={asPage ? V3_CONTROL : "shrink-0 h-8 px-2 sm:px-3 text-xs"}>
                                     <Undo2 className="h-3.5 w-3.5 sm:mr-1.5" />
-                                    <span className="hidden sm:inline">Undo</span>
+                                    <span className={asPage ? undefined : "hidden sm:inline"}>Undo</span>
                                 </Button>
+                                {asPage && toolbarExtra ? (
+                                    <div className="ml-auto flex shrink-0 items-center gap-2">{toolbarExtra}</div>
+                                ) : null}
                             </div>
 
-                            {/* Canvas area — 1131:583 aspect-locked container */}
-                            <div ref={outerRef} className="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
+                            {/* Canvas area — 1131:583 aspect-locked container. As a
+                                page its height comes from that ratio (capped), rather
+                                than stretching to fill a tall card. */}
+                            {/* measure() needs a DEFINITE height — it derives the
+                                canvas from the outer width, then shrinks it if that
+                                exceeds the outer height, so an auto-height parent
+                                pins the canvas to 0 and nothing ever renders. As a
+                                page the height comes from the banner ratio applied to
+                                the column width (capped), NOT from vh/vw: the settings
+                                column is nothing like the viewport width. */}
+                            <div className={asPage ? "p-4" : "contents"}>
+                            <div
+                                ref={outerRef}
+                                className={asPage
+                                    ? "mx-auto flex w-full items-center justify-center overflow-hidden"
+                                    : "flex-1 flex items-center justify-center min-h-0 overflow-hidden"}
+                                style={asPage
+                                    ? { aspectRatio: `${BANNER_W} / ${BANNER_H}`, maxHeight: 380 }
+                                    : undefined}
+                            >
                                 <div
                                     data-canvas-area
                                     className="relative overflow-visible rounded-lg border-2 border-dashed border-gray-300 dark:border-neutral-600"
@@ -431,20 +524,27 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
                                     )}
                                 </div>
                             </div>
+                            </div>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-3 border-t shrink-0 gap-2">
+                <div className={asPage
+                    ? "flex shrink-0 items-center justify-between gap-2"
+                    : "flex items-center justify-between px-3 sm:px-5 py-2 sm:py-3 border-t shrink-0 gap-2"}>
                     {step === "crop" ? (
                         <>
-                            <Button variant="ghost" size="sm" className="px-2 sm:px-3 text-xs" onClick={() => setStep("edit")}>
+                            <Button variant="ghost" size="sm"
+                                className={asPage ? V3_CONTROL : "px-2 sm:px-3 text-xs"}
+                                onClick={() => setStep("edit")}>
                                 Back
                             </Button>
                             <div className="flex gap-2">
-                                <Button size="sm" onClick={handleCropDone} disabled={!completedCrop}>
-                                    <Scissors className="mr-1.5 h-4 w-4" /> Apply Crop
+                                <Button size="sm" onClick={handleCropDone} disabled={!completedCrop}
+                                    className={asPage ? V3_PRIMARY : undefined}>
+                                    <Scissors className={asPage ? "h-3.5 w-3.5" : "mr-1.5 h-4 w-4"} />
+                                    Apply crop
                                 </Button>
                             </div>
                         </>
@@ -452,17 +552,36 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
                         <>
                             <div />
                             <div className="flex gap-1.5 sm:gap-2">
-                                <Button variant="outline" size="sm" className="text-xs px-2 sm:px-3" onClick={onClose}>Cancel</Button>
-                                <Button variant="outline" size="sm" className="text-xs px-2 sm:px-3" onClick={handleSkipEdit}>
-                                    <span className="sm:hidden">Skip Edit</span>
-                                    <span className="hidden sm:inline">Use Without Editing</span>
+                                <Button variant="outline" size="sm"
+                                    className={asPage ? V3_CONTROL : "text-xs px-2 sm:px-3"}
+                                    onClick={onClose}>Cancel</Button>
+                                <Button variant="outline" size="sm"
+                                    className={asPage ? V3_CONTROL : "text-xs px-2 sm:px-3"}
+                                    onClick={handleSkipEdit}>
+                                    {asPage ? (
+                                        <span>Use as is</span>
+                                    ) : (
+                                        <>
+                                            <span className="sm:hidden">Skip Edit</span>
+                                            <span className="hidden sm:inline">Use Without Editing</span>
+                                        </>
+                                    )}
                                 </Button>
-                                <Button size="sm" className="text-xs px-2 sm:px-3" onClick={handleSave}>Save</Button>
+                                <Button size="sm"
+                                    className={asPage ? V3_PRIMARY : "text-xs px-2 sm:px-3"}
+                                    onClick={handleSave}>Save</Button>
                             </div>
                         </>
                     )}
                 </div>
             </div>
+    );
+
+    if (asPage) return shell;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+            {shell}
         </div>
     );
 }

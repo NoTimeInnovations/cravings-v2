@@ -1,22 +1,27 @@
 import { Search, UtensilsCrossed } from "lucide-react";
-import { PreviewProps, STORE_NAME, SAMPLE_ITEMS, SAMPLE_CATEGORIES, MUST_TRY_ITEMS, blendColor } from "./sampleData";
+import { PreviewProps, blendColor, usePreviewData, previewSections } from "./sampleData";
 
-function ImagePlaceholder({ styles, size = "md" }: { styles: PreviewProps["styles"]; size?: "sm" | "md" }) {
+function ImagePlaceholder({ styles, size = "md", image }: { styles: PreviewProps["styles"]; size?: "sm" | "md"; image?: string }) {
   const dims = size === "sm" ? "w-16 h-16" : "w-20 h-20";
   const solidBg = blendColor(styles.accent, styles.backgroundColor, 0.12);
   return (
     <div
-      className={`${dims} rounded-2xl flex items-center justify-center flex-shrink-0`}
+      className={`${dims} overflow-hidden rounded-2xl flex items-center justify-center flex-shrink-0`}
       style={{ backgroundColor: solidBg }}
     >
-      <UtensilsCrossed size={size === "sm" ? 14 : 18} style={{ color: styles.accent }} />
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <UtensilsCrossed size={size === "sm" ? 14 : 18} style={{ color: styles.accent }} />
+      )}
     </div>
   );
 }
 
 export function DefaultPreview({ styles, fontFamily, showGrid }: PreviewProps) {
-  const starterItems = SAMPLE_ITEMS.filter(i => i.category === "starters");
-  const mainItems = SAMPLE_ITEMS.filter(i => i.category === "main");
+  const previewData = usePreviewData();
+  const sections = previewSections(previewData, 2);
 
   return (
     <div
@@ -31,16 +36,21 @@ export function DefaultPreview({ styles, fontFamily, showGrid }: PreviewProps) {
       <div className="px-[8%] pt-5 flex flex-col gap-3">
         {/* Banner circle */}
         <div
-          className="w-20 h-20 rounded-full flex items-center justify-center"
+          className="w-20 h-20 overflow-hidden rounded-full flex items-center justify-center"
           style={{
             border: `${styles.border.borderWidth} ${styles.border.borderStyle} ${styles.border.borderColor}`,
             backgroundColor: `${styles.accent}10`,
           }}
         >
-          <UtensilsCrossed size={28} style={{ color: styles.accent }} />
+          {previewData.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewData.logoUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <UtensilsCrossed size={28} style={{ color: styles.accent }} />
+          )}
         </div>
 
-        <h1 className="font-black text-2xl">{STORE_NAME}</h1>
+        <h1 className="font-black text-2xl">{previewData.storeName}</h1>
         <p className="text-xs" style={{ opacity: 0.6 }}>
           Delicious food, delivered fresh to your table
         </p>
@@ -67,7 +77,7 @@ export function DefaultPreview({ styles, fontFamily, showGrid }: PreviewProps) {
           </span>
         </h2>
         <div className="flex gap-3 overflow-hidden">
-          {MUST_TRY_ITEMS.map((item) => (
+          {previewData.mustTry.map((item) => (
             <div
               key={item.id}
               className="flex-shrink-0 w-[70%] rounded-[25px] p-3 flex items-center gap-3"
@@ -79,10 +89,10 @@ export function DefaultPreview({ styles, fontFamily, showGrid }: PreviewProps) {
                 <p className="text-xs font-bold truncate">{item.name}</p>
                 <p className="text-[10px] mt-0.5" style={{ opacity: 0.5 }}>Classic favorite</p>
                 <p className="text-xs font-bold mt-1" style={{ color: styles.accent }}>
-                  &#8377;{item.price}
+                  {previewData.currency}{item.price}
                 </p>
               </div>
-              <ImagePlaceholder styles={styles} size="sm" />
+              <ImagePlaceholder styles={styles} size="sm" image={item.image} />
             </div>
           ))}
         </div>
@@ -90,8 +100,7 @@ export function DefaultPreview({ styles, fontFamily, showGrid }: PreviewProps) {
 
       {/* Categories + Items */}
       {[
-        { cat: SAMPLE_CATEGORIES[1], items: starterItems },
-        { cat: SAMPLE_CATEGORIES[2], items: mainItems },
+        ...sections,
       ].map(({ cat, items }) => (
         <div key={cat.id} className="mt-5 px-[8%]">
           <h2 className="text-base font-bold mb-3" style={{ color: styles.accent }}>
@@ -112,10 +121,10 @@ export function DefaultPreview({ styles, fontFamily, showGrid }: PreviewProps) {
                     A delicious dish
                   </p>
                   <p className="text-xs font-bold mt-1" style={{ color: styles.accent }}>
-                    &#8377;{item.price}
+                    {previewData.currency}{item.price}
                   </p>
                 </div>
-                {item.hasImage && <ImagePlaceholder styles={styles} size="sm" />}
+                {item.hasImage && <ImagePlaceholder styles={styles} size="sm" image={item.image} />}
               </div>
             ))}
           </div>

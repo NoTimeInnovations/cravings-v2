@@ -28,7 +28,15 @@ const rStatus = (r: Row) => r.availability ?? r.status; // partner aliases avail
 export default function RiderAvailabilityMap({
   riders,
   center = [76.2673, 9.9312], // Kochi
+  variant = "legacy",
 }: {
+  /**
+   * "legacy" keeps the amber-tinted, light-only chrome admin-v2 and superadmin
+   * have always rendered. "v3" swaps it for the admin-v3 zinc tokens and adds
+   * dark-mode support. Defaulting to legacy means this shared component can be
+   * restyled for v3 without touching how the other two screens look.
+   */
+  variant?: "legacy" | "v3";
   riders: Row[];
   center?: [number, number];
 }) {
@@ -93,39 +101,71 @@ export default function RiderAvailabilityMap({
     return <div className="text-sm text-red-600 p-3">NEXT_PUBLIC_MAPBOX_TOKEN is not configured.</div>;
   }
 
+  const v3 = variant === "v3";
+  const S = v3
+    ? {
+        frame: "h-[440px] overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800",
+        panel:
+          "h-[440px] overflow-y-auto rounded-lg border border-zinc-200 bg-white p-3.5 dark:border-zinc-800 dark:bg-zinc-900",
+        head: "mb-2 text-[12.5px] font-semibold leading-none tracking-tight text-zinc-950 dark:text-zinc-50",
+        onCount: "text-green-700 dark:text-green-400",
+        offCount: "text-zinc-400 dark:text-zinc-500",
+        row: "flex items-center gap-2 text-[13px] font-medium leading-none text-zinc-700 dark:text-zinc-300",
+        rowOff: "flex items-center gap-2 text-[13px] font-medium leading-none text-zinc-500 dark:text-zinc-400",
+        dotOn: "size-1.5 shrink-0 rounded-full bg-green-600",
+        dotOff: "size-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-600",
+        empty: "text-[12px] font-normal text-zinc-400 dark:text-zinc-500",
+      }
+    : {
+        frame: "h-[440px] rounded-lg overflow-hidden border border-[#ffba79]/20",
+        panel: "bg-white rounded-lg border border-[#ffba79]/20 p-3 h-[440px] overflow-y-auto",
+        head: "font-semibold text-sm mb-2",
+        onCount: "text-green-600",
+        offCount: "text-gray-400",
+        row: "flex items-center gap-2 text-sm",
+        rowOff: "flex items-center gap-2 text-sm text-gray-500",
+        dotOn: "w-2 h-2 rounded-full bg-green-500 shrink-0",
+        dotOff: "w-2 h-2 rounded-full bg-gray-300 shrink-0",
+        empty: "text-xs text-gray-400",
+      };
+
   return (
-    <div className="grid md:grid-cols-[1fr_260px] gap-4">
-      <div ref={containerRef} className="h-[440px] rounded-lg overflow-hidden border border-[#ffba79]/20" />
-      <div className="bg-white rounded-lg border border-[#ffba79]/20 p-3 h-[440px] overflow-y-auto">
-        <h4 className="font-semibold text-sm mb-2">
-          Online <span className="text-green-600">({online.length})</span>
+    <div className="grid gap-4 md:grid-cols-[1fr_260px]">
+      <div ref={containerRef} className={S.frame} />
+      <div className={S.panel}>
+        <h4 className={S.head}>
+          Online <span className={S.onCount}>({online.length})</span>
         </h4>
         {online.length ? (
-          <div className="space-y-1.5 mb-4">
+          <div className="mb-4 space-y-2">
             {online.map((r) => (
-              <div key={rId(r)} className="flex items-center gap-2 text-sm">
-                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                <span className="truncate">{rName(r)}</span>
+              <div key={rId(r)} className={S.row}>
+                <span className={S.dotOn} />
+                <span translate="no" className="notranslate truncate">
+                  {rName(r)}
+                </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-gray-400 mb-4">No riders online.</p>
+          <p className={`${S.empty} mb-4`}>No riders online.</p>
         )}
-        <h4 className="font-semibold text-sm mb-2">
-          Offline <span className="text-gray-400">({offline.length})</span>
+        <h4 className={S.head}>
+          Offline <span className={S.offCount}>({offline.length})</span>
         </h4>
         {offline.length ? (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {offline.map((r) => (
-              <div key={rId(r)} className="flex items-center gap-2 text-sm text-gray-500">
-                <span className="w-2 h-2 rounded-full bg-gray-300 shrink-0" />
-                <span className="truncate">{rName(r)}</span>
+              <div key={rId(r)} className={S.rowOff}>
+                <span className={S.dotOff} />
+                <span translate="no" className="notranslate truncate">
+                  {rName(r)}
+                </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-gray-400">No offline riders.</p>
+          <p className={S.empty}>No offline riders.</p>
         )}
       </div>
     </div>

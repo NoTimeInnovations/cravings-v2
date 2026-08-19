@@ -47,7 +47,7 @@ export function AdminV3Dashboard({
       <div className="flex flex-wrap items-start gap-5 lg:min-h-[320px] lg:flex-1 lg:flex-nowrap lg:items-stretch">
         <LiveOrdersPanel />
 
-        <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-5 lg:h-full lg:overflow-y-auto">
+        <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-5 lg:h-full lg:flex-[0_0_260px] lg:overflow-y-auto">
           <TrialCard />
           <QuickActionsCard />
           <WhatsAppChannelCard status={whatsapp} />

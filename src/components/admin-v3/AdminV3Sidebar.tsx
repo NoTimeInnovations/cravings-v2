@@ -9,23 +9,17 @@ import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { getNavItemState } from "@/lib/adminNav";
 import { NAV_GROUPS, navItems } from "./navItems";
 
-/** "OREO DEMO" → "OD". Falls back to the first two letters of a single word. */
-function initialsOf(name?: string | null): string {
-  const words = (name || "").trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "··";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
 export function AdminV3Sidebar({
   activeView,
   onNavigate,
+  onOpenSearch,
   onLogout,
   whatsappConnected,
   className,
 }: {
   activeView: string;
   onNavigate: (view: string, id: string) => void;
+  onOpenSearch: () => void;
   onLogout: () => void;
   whatsappConnected?: boolean;
   className?: string;
@@ -48,12 +42,16 @@ export function AdminV3Sidebar({
       {/* Account card */}
       <div className="px-3 pb-2.5 pt-3.5">
         <div className="flex items-center gap-2.5 rounded-lg border border-zinc-200 bg-white p-2 pl-2.5 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700">
-          <div
-            translate="no"
-            className="notranslate flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-900 text-[11.5px] font-semibold tracking-tight text-white dark:bg-zinc-50 dark:text-zinc-900"
-          >
-            {initialsOf(partner?.store_name)}
-          </div>
+          {/* The Menuthere mark, not the partner's own logo: this is the
+              product's chrome, and the store the account belongs to is already
+              named on the line beside it. object-contain so a non-square mark
+              is never cropped. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/menuthere-logo-new.svg"
+            alt="Menuthere"
+            className="h-8 w-8 shrink-0 rounded-md border border-zinc-200 bg-white object-contain p-0.5 dark:border-zinc-700"
+          />
           <div className="min-w-0 flex-1">
             <div
               translate="no"
@@ -80,17 +78,19 @@ export function AdminV3Sidebar({
         </div>
       </div>
 
-      {/* Search. Presentational for now — v3 has no command palette yet, so it
-          is rendered as a non-interactive hint rather than a dead input that
-          swallows keystrokes. */}
+      {/* Search — opens the ⌘K palette. */}
       <div className="px-3 pb-1.5">
-        <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+        <button
+          type="button"
+          onClick={onOpenSearch}
+          className="flex w-full items-center gap-2 rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-zinc-500 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+        >
           <Search size={15} strokeWidth={1.7} />
           <span className="text-[12.5px] font-medium leading-none">Search</span>
           <span className="ml-auto rounded-[5px] border border-zinc-200 px-1.5 py-px text-[10.5px] font-semibold leading-normal text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
             ⌘K
           </span>
-        </div>
+        </button>
       </div>
 
       {/* Nav */}

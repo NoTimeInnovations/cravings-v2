@@ -1,5 +1,5 @@
 import { Search, ShoppingBag, MapPin, Plus, Home as HomeIcon, LayoutGrid, ClipboardList, User } from "lucide-react";
-import { PreviewProps, STORE_NAME, STORE_LOCATION, SAMPLE_ITEMS, SAMPLE_CATEGORIES } from "./sampleData";
+import { PreviewProps, usePreviewData } from "./sampleData";
 
 // Soft accent gradient for preview category tiles (mirrors v6utils, simplified).
 function tileGradient(accent: string): string {
@@ -20,8 +20,9 @@ function VegMark({ veg }: { veg: boolean }) {
 }
 
 export function V6Preview({ styles }: PreviewProps) {
+  const previewData = usePreviewData();
   const accent = styles.accent || "#16a34a";
-  const gridItems = SAMPLE_ITEMS.slice(0, 4);
+  const gridItems = previewData.items.slice(0, 4);
 
   return (
     <div className="min-h-full pb-14" style={{ backgroundColor: "#f7f7f5", color: "#111827", fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -32,8 +33,8 @@ export function V6Preview({ styles }: PreviewProps) {
             <MapPin size={11} />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-[10px] font-extrabold leading-tight text-gray-900">{STORE_NAME}</p>
-            <p className="truncate text-[8px] font-medium text-gray-400">{STORE_LOCATION}</p>
+            <p className="truncate text-[10px] font-extrabold leading-tight text-gray-900">{previewData.storeName}</p>
+            <p className="truncate text-[8px] font-medium text-gray-400">{previewData.storeLocation}</p>
           </div>
         </div>
         <div className="flex h-7 items-center gap-1 rounded-full px-2.5" style={{ backgroundColor: `${accent}1f`, color: accent }}>
@@ -56,7 +57,7 @@ export function V6Preview({ styles }: PreviewProps) {
         <span className="text-[9px] font-bold" style={{ color: accent }}>View All</span>
       </div>
       <div className="flex gap-2 overflow-hidden px-3 pb-1">
-        {SAMPLE_CATEGORIES.slice(0, 4).map((c) => (
+        {previewData.categories.slice(0, 4).map((c) => (
           <div key={c.id} className="flex w-[46px] shrink-0 flex-col items-center gap-1">
             <div className="h-[46px] w-[46px] rounded-2xl ring-1 ring-black/5" style={{ background: tileGradient(accent) }} />
             <span className="w-full truncate text-center text-[8px] font-semibold text-gray-600">{c.name}</span>
@@ -75,7 +76,11 @@ export function V6Preview({ styles }: PreviewProps) {
       <div className="grid grid-cols-2 gap-2 px-3">
         {gridItems.map((item, i) => (
           <div key={item.id} className="overflow-hidden rounded-2xl bg-white ring-1 ring-black/[0.06] shadow-sm">
-            <div className="relative aspect-square w-full" style={{ backgroundColor: "#f3f4f6" }}>
+            <div className="relative aspect-square w-full overflow-hidden" style={{ backgroundColor: "#f3f4f6" }}>
+              {item.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.image} alt="" className="h-full w-full object-cover" />
+              ) : null}
               <div className="absolute left-1.5 top-1.5 rounded-[4px] bg-white/95 p-[2px] shadow-sm">
                 <VegMark veg={i % 2 === 0} />
               </div>
@@ -83,7 +88,7 @@ export function V6Preview({ styles }: PreviewProps) {
             <div className="px-2 pb-2 pt-1.5">
               <p className="line-clamp-1 text-[9px] font-bold leading-tight text-gray-900">{item.name}</p>
               <div className="mt-1 flex items-center justify-between">
-                <span className="text-[10px] font-extrabold text-gray-900">₹{item.price}</span>
+                <span className="text-[10px] font-extrabold text-gray-900">{previewData.currency}{item.price}</span>
                 <span className="flex h-5 w-5 items-center justify-center rounded-full shadow" style={{ backgroundColor: accent, color: "#fff" }}>
                   <Plus size={11} strokeWidth={2.6} />
                 </span>

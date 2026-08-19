@@ -13,7 +13,6 @@ import {
   MessageSquare,
   PackageSearch,
   Percent,
-  Plug,
   QrCode,
   ShoppingBag,
   Star,
@@ -70,9 +69,9 @@ export const navItems: NavItem[] = [
   { view: "Stock Management", id: "stock-management", label: "Stock Management", icon: Boxes, group: "Catalog" },
   { view: "Purchase & Inventory", id: "inventory", label: "Purchase & Inventory", icon: PackageSearch, group: "Catalog" },
   { view: "Offers", id: "offers", label: "Offers", icon: Percent, group: "Catalog" },
-  // The design calls this "Discounts". There is no Discounts activeView — it is
-  // a Settings section, reached through the sg/ss deep-link params.
-  { view: "Settings", id: "discounts", label: "Discounts", icon: Tag, group: "Catalog" },
+  // v3 gives Discounts its own screen (the design has one), so unlike admin-v2
+  // — where it is a Settings section reached via sg/ss — it gets a real view.
+  { view: "Discounts", id: "discounts", label: "Discounts", icon: Tag, group: "Catalog" },
 
   { view: "Website", id: "website", label: "Website", icon: Globe, group: "Storefront" },
   { view: "QrCodes", id: "qrcodes", label: "Tables", icon: QrCode, group: "Storefront" },
@@ -87,12 +86,40 @@ export const navItems: NavItem[] = [
   { view: "Billing", id: "billing", label: "Billing", icon: CreditCard, group: "Account" },
   { view: "Settlements", id: "settlements", label: "Settlements", icon: Landmark, group: "Account" },
   { view: "Tutorials", id: "tutorials", label: "Tutorials", icon: GraduationCap, group: "Account" },
-  { view: "Petpooja Integration", id: "petpooja-integration", label: "Petpooja", icon: Plug, group: "Account" },
-  { view: "Delivery Service Integration", id: "delivery-integration", label: "Delivery Service", icon: Bike, group: "Account" },
 ];
 
-/** Sections v3 owns. Everything else hands off to admin-v2. */
-export const V3_OWNED_VIEWS = new Set(["Dashboard"]);
+/**
+ * Sections v3 implements. Everything else hands off to admin-v2 as a `?view=`
+ * deep link, which is what stops a not-yet-built section from 404ing.
+ *
+ * Keep this in step with V3_VIEWS in ./viewRegistry.tsx — this set decides
+ * whether the shell navigates in-place, the registry decides what it renders.
+ * A view in one but not the other is the bug to look for if a nav click either
+ * does nothing or bounces to v2 unexpectedly.
+ */
+export const V3_OWNED_VIEWS = new Set([
+  "Dashboard",
+  "Analytics",
+  "Orders",
+  "POS",
+  "Menu",
+  "Customers",
+  "Reviews",
+  "Website",
+  "QrCodes",
+  "Notices",
+  "Loyalty",
+  "Notify",
+  "Offers",
+  "Discounts",
+  "Delivery Boys",
+  "Delivery Pool",
+  "Settings",
+  "Settlements",
+  "Billing",
+  "Tutorials",
+  "WhatsApp",
+]);
 
 /** Deep-link params for the Settings sub-sections the sidebar/quick actions target. */
 export const SETTINGS_DEEP_LINKS: Record<string, string> = {

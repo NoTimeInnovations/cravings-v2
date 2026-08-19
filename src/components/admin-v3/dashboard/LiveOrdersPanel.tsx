@@ -31,7 +31,7 @@ export function LiveOrdersPanel() {
 
   return (
     <>
-      <V3Card className="flex min-w-0 flex-[1_1_440px] flex-col overflow-hidden lg:h-full">
+      <V3Card className="flex min-w-0 flex-[1_1_440px] flex-col overflow-hidden lg:h-full lg:flex-1">
         <div className="flex shrink-0 flex-wrap items-center gap-2.5 border-b border-zinc-100 px-[18px] py-4 dark:border-zinc-800">
           <span
             className={
@@ -66,7 +66,7 @@ export function LiveOrdersPanel() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3 p-3.5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          <div className="grid content-start gap-3 p-3.5 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))] lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             {liveOrders.map((order) => (
               <OrderCard key={order.id} order={order} actions={actions} />
             ))}

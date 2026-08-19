@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 
+import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAdminStore } from "@/store/adminStore";
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -11,18 +12,21 @@ import { useSubscriptionGate } from "@/hooks/useSubscriptionGate";
 import { AdminV3Sidebar } from "@/components/admin-v3/AdminV3Sidebar";
 import { AdminV3Header } from "@/components/admin-v3/AdminV3Header";
 import { AdminV3Dashboard } from "@/components/admin-v3/AdminV3Dashboard";
+import { AdminV3Search } from "@/components/admin-v3/AdminV3Search";
 import { useWhatsAppStatus } from "@/components/admin-v3/dashboard/useWhatsAppStatus";
 import { SubscriptionGate } from "@/components/admin-v2/SubscriptionGate";
 import { V3_OWNED_VIEWS, SETTINGS_DEEP_LINKS } from "@/components/admin-v3/navItems";
+import { V3_VIEWS, V3_WA_SCREENS } from "@/components/admin-v3/viewRegistry";
+import type { AdminV3WhatsAppScreen } from "@/components/admin-v3/AdminV3WhatsApp";
 
 /**
  * /admin-v3 — the redesigned partner dashboard.
  *
- * SCOPE: only the sidebar and the Dashboard are built in v3. Every other
- * sidebar item deep-links back into admin-v2 as `?view=<title>`, which
- * admin-v2's layout is written to respect (it forwards a v3 partner to /admin-v3
- * only on a BARE visit, so these deep links do not bounce back). See the
- * isV3DeepLink note in src/app/admin-v2/layout.tsx.
+ * Sections v3 implements are listed in V3_OWNED_VIEWS and rendered from
+ * V3_VIEWS (lazily, one chunk each). Anything NOT in that set still hands off
+ * to admin-v2 as `?view=<title>`, which admin-v2's layout respects: it forwards
+ * a v3 partner to /admin-v3 only on a BARE visit, so these deep links do not
+ * bounce back. See the isV3DeepLink note in src/app/admin-v2/layout.tsx.
  */
 export default function AdminV3Page() {
   const { activeView, setActiveView } = useAdminStore();
@@ -34,15 +38,53 @@ export default function AdminV3Page() {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
+  // WhatsApp's sub-screens are reached from its hub, not the sidebar, so they
+  // live outside activeView. Null = show the hub.
+  const [waScreen, setWaScreen] = React.useState<AdminV3WhatsAppScreen | null>(null);
+  // Desktop sidebar collapse is a POS-ONLY affordance: POS is a two-pane counter
+  // screen that wants every pixel, and admin-v2 collapses there too. Every other
+  // screen keeps the sidebar, so neither the collapse nor its toggle exists
+  // outside POS.
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [searchOpen, setSearchOpen] = React.useState(false);
 
-  // v3 only renders the Dashboard. Landing here with a stale activeView from a
-  // previous v2 session would otherwise leave the sidebar with nothing
-  // highlighted.
+  // ⌘K / Ctrl-K from anywhere in the shell.
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Landing here with an activeView v3 does not implement — a stale one from a
+  // previous v2 session, say — would leave the sidebar with nothing highlighted
+  // and the content area empty.
   React.useEffect(() => {
     if (!V3_OWNED_VIEWS.has(useAdminStore.getState().activeView)) {
       setActiveView("Dashboard");
     }
   }, [setActiveView]);
+
+  // Runs on the view CHANGE, not on every render, so toggling the sidebar back
+  // open while still on POS sticks instead of being slammed shut again. Leaving
+  // POS always restores it — the collapse belongs to POS, not to the session.
+  const prevViewRef = React.useRef(activeView);
+  React.useEffect(() => {
+    if (prevViewRef.current !== activeView) {
+      setSidebarOpen(activeView !== "POS");
+      prevViewRef.current = activeView;
+    }
+  }, [activeView]);
+
+  // Leaving WhatsApp must drop its sub-screen, or coming back later reopens
+  // whatever was last inspected instead of the hub.
+  React.useEffect(() => {
+    if (activeView !== "WhatsApp" && waScreen) setWaScreen(null);
+  }, [activeView, waScreen]);
 
   const handleNavigate = (view: string, id: string) => {
     setDrawerOpen(false);
@@ -81,10 +123,41 @@ export default function AdminV3Page() {
     setTimeout(() => setRefreshing(false), 600);
   };
 
+  const renderView = () => {
+    // The Dashboard is the one screen the shell feeds props: it shares the
+    // WhatsApp status poll with the header rather than starting a second one.
+    if (activeView === "Dashboard") {
+      return (
+        <AdminV3Dashboard whatsapp={whatsapp} onRefreshWhatsApp={refreshWhatsApp} />
+      );
+    }
+
+    if (activeView === "WhatsApp") {
+      // Only the sub-screens v3 has built are in the map; the hub pushes the
+      // rest (ApiUsage, Catalogue) to admin-v2 on its own. A miss here falls
+      // through to the hub below rather than blanking the panel — and it does
+      // so WITHOUT calling setWaScreen, because setting state during render is
+      // how you get a render loop instead of a fallback.
+      const Sub = waScreen ? V3_WA_SCREENS[waScreen] : undefined;
+      if (Sub) return <Sub onBack={() => setWaScreen(null)} />;
+      const Hub = V3_VIEWS.WhatsApp;
+      return <Hub onOpenScreen={(s: AdminV3WhatsAppScreen) => {
+        // Intercept only what v3 implements; anything else falls through to the
+        // hub's own router.push into admin-v2.
+        if (V3_WA_SCREENS[s]) setWaScreen(s);
+        else router.push(`/admin-v2?view=WhatsApp&waScreen=${s}`);
+      }} />;
+    }
+
+    const View = V3_VIEWS[activeView];
+    return View ? <View /> : null;
+  };
+
   const sidebar = (
     <AdminV3Sidebar
       activeView={activeView}
       onNavigate={handleNavigate}
+      onOpenSearch={() => setSearchOpen(true)}
       onLogout={handleLogout}
       whatsappConnected={whatsapp?.connected}
     />
@@ -92,6 +165,29 @@ export default function AdminV3Page() {
 
   return (
     <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+      <AdminV3Search
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        onGo={(entry) => {
+          setDrawerOpen(false);
+          // Settings entries carry their section/tab as ?sg/?ss — the screen
+          // reads those at MOUNT, so they must be on the URL before the view
+          // switches, exactly as useV3Navigate does it.
+          if (entry.sg && typeof window !== "undefined") {
+            const p = new URLSearchParams();
+            p.set("sg", entry.sg);
+            if (entry.ss) p.set("ss", entry.ss);
+            window.history.replaceState(null, "", `${window.location.pathname}?${p}`);
+            // replaceState does NOT fire popstate, and AdminV3Settings only
+            // re-reads the URL on mount or on that event — so searching for a
+            // setting while already ON Settings would move the URL and leave
+            // the screen where it was. This is the nudge that applies it.
+            window.dispatchEvent(new PopStateEvent("popstate"));
+          }
+          if (V3_OWNED_VIEWS.has(entry.view)) setActiveView(entry.view);
+          else handleNavigate(entry.view, entry.view.toLowerCase());
+        }}
+      />
       {/*
         dvh, not vh — 100vh is the viewport with the mobile browser toolbar
         RETRACTED, so a 100vh shell is taller than what is actually on screen and
@@ -106,11 +202,23 @@ export default function AdminV3Page() {
         className="flex overflow-hidden bg-white dark:bg-zinc-950"
       >
         {/* Desktop sidebar */}
+        {/* The inner fixed-width div is what stops the nav reflowing while the
+            column animates shut — collapsing the aside alone would squeeze the
+            labels first. Same trick admin-v2 uses. */}
         <aside
           data-tour="sidebar"
-          className="hidden w-[260px] shrink-0 border-r border-zinc-200 dark:border-zinc-800 lg:block"
+          aria-hidden={!sidebarOpen}
+          className={cn(
+            "hidden shrink-0 overflow-hidden border-zinc-200 transition-[width] duration-300 ease-in-out lg:block dark:border-zinc-800",
+            sidebarOpen ? "border-r lg:w-[260px]" : "lg:w-0",
+          )}
         >
-          {sidebar}
+          {/* h-full matters: the sidebar sizes itself with `h-full` and its nav
+              scrolls via `flex-1 overflow-y-auto`. Without a height here that
+              percentage resolves against an auto-height parent and collapses to
+              auto — the nav then grows past the aside, which is overflow-hidden,
+              so the lower items and the Logout button are clipped AND unscrollable. */}
+          <div className="h-full w-[260px]">{sidebar}</div>
         </aside>
 
         {/* Mobile drawer. The overlay and width are overridden off the shadcn
@@ -139,6 +247,11 @@ export default function AdminV3Page() {
             onRefresh={handleRefresh}
             refreshing={refreshing}
             onOpenDrawer={() => setDrawerOpen(true)}
+            // POS only — the header renders no toggle without a handler.
+            onToggleSidebar={
+              activeView === "POS" ? () => setSidebarOpen((o) => !o) : undefined
+            }
+            sidebarOpen={sidebarOpen}
           />
 
           {/* From lg up this box owns the height left over under the header, and
@@ -151,10 +264,7 @@ export default function AdminV3Page() {
               activeView={activeView}
               onNavigate={(view: string) => handleNavigate(view, view.toLowerCase())}
             >
-              <AdminV3Dashboard
-                whatsapp={whatsapp}
-                onRefreshWhatsApp={refreshWhatsApp}
-              />
+              {renderView()}
             </SubscriptionGate>
           </div>
         </main>

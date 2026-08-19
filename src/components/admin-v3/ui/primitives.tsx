@@ -69,13 +69,16 @@ AdminV3Button.displayName = "AdminV3Button";
 
 /* --------------------------------------------------------------- StatusPill */
 
-type PillTone = "amber" | "green" | "neutral" | "outline";
+type PillTone = "amber" | "green" | "blue" | "neutral" | "outline";
 
 const PILL_TONES: Record<PillTone, string> = {
   amber:
     "text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950 border-amber-200 dark:border-amber-900",
   green:
     "text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-900",
+  // Accepted — "the kitchen has it", distinct from amber "waiting on you".
+  blue:
+    "text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-900",
   // Order-type badge — bordered.
   outline:
     "text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700",

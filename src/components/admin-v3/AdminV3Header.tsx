@@ -9,6 +9,8 @@ import {
   Menu,
   Moon,
   MoreVertical,
+  PanelLeftClose,
+  PanelLeftOpen,
   Printer,
   RefreshCw,
   Sun,
@@ -61,6 +63,8 @@ export function AdminV3Header({
   onRefresh,
   refreshing,
   onOpenDrawer,
+  onToggleSidebar,
+  sidebarOpen = true,
 }: {
   title: string;
   subtitle?: string;
@@ -69,6 +73,9 @@ export function AdminV3Header({
   onRefresh?: () => void;
   refreshing?: boolean;
   onOpenDrawer: () => void;
+  /** Collapses/expands the DESKTOP sidebar. Absent = no desktop toggle. */
+  onToggleSidebar?: () => void;
+  sidebarOpen?: boolean;
 }) {
   // resolvedTheme, not theme: it is the value actually applied to <html>, which
   // is what the label has to name. Matches admin-v2's AdminThemeToggle.
@@ -124,6 +131,23 @@ export function AdminV3Header({
         >
           <Menu size={18} strokeWidth={1.8} />
         </button>
+
+        {onToggleSidebar && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label={sidebarOpen ? "Hide the sidebar" : "Show the sidebar"}
+            aria-expanded={sidebarOpen}
+            title={sidebarOpen ? "Hide the sidebar" : "Show the sidebar"}
+            className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 lg:flex dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          >
+            {sidebarOpen ? (
+              <PanelLeftClose size={18} strokeWidth={1.8} />
+            ) : (
+              <PanelLeftOpen size={18} strokeWidth={1.8} />
+            )}
+          </button>
+        )}
 
         {/* The page title, not the store name — the store is already named in
             the sidebar's account card, and on a phone this row has one slot for

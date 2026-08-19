@@ -1,6 +1,6 @@
 import { UtensilsCrossed, Phone, ShoppingBag, ChevronRight, Search, Clock, Sparkles } from "lucide-react";
 import { FaInstagram } from "react-icons/fa";
-import { PreviewProps, STORE_NAME, SAMPLE_ITEMS, SAMPLE_CATEGORIES } from "./sampleData";
+import { PreviewProps, usePreviewData, previewSections } from "./sampleData";
 import { readableTextColor } from "@/lib/brandColor";
 
 function VegBadge({ veg }: { veg: boolean }) {
@@ -17,14 +17,14 @@ function VegBadge({ veg }: { veg: boolean }) {
 }
 
 export function V4Preview({ styles }: PreviewProps) {
+  const previewData = usePreviewData();
   const accent = styles.accent || "#E9701B";
   const onAccent = readableTextColor(accent);
   // Rail categories: Must Try + the sample categories (drop the dummy desserts
   // for a tidy preview).
-  const railCats = SAMPLE_CATEGORIES.slice(0, 3);
+  const railCats = previewData.categories.slice(0, 3);
   const sections = [
-    { cat: SAMPLE_CATEGORIES[1], items: SAMPLE_ITEMS.filter((i) => i.category === "starters").slice(0, 3) },
-    { cat: SAMPLE_CATEGORIES[2], items: SAMPLE_ITEMS.filter((i) => i.category === "main").slice(0, 2) },
+    ...previewSections(previewData, 2, 3),
   ];
 
   return (
@@ -39,7 +39,7 @@ export function V4Preview({ styles }: PreviewProps) {
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 px-3 pb-5">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-extrabold leading-tight text-white" style={{ fontFamily: "'Georgia', serif" }}>
-              {STORE_NAME}
+              {previewData.storeName}
             </h1>
             <div className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 shadow-sm" style={{ backgroundColor: accent, color: onAccent }}>
               <Clock size={8} />
@@ -105,12 +105,17 @@ export function V4Preview({ styles }: PreviewProps) {
                     <div className="flex-1 min-w-0">
                       <VegBadge veg={idx % 2 === 0} />
                       <h3 className="mt-0.5 text-[9px] font-bold leading-snug text-gray-900">{item.name}</h3>
-                      <p className="mt-0.5 text-[8px] font-bold text-gray-900">₹{item.price}</p>
+                      <p className="mt-0.5 text-[8px] font-bold text-gray-900">{previewData.currency}{item.price}</p>
                       <p className="mt-0.5 text-[7px] text-gray-400 line-clamp-1">A delicious selection</p>
                     </div>
                     <div className="relative shrink-0">
-                      <div className="flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-gray-100">
-                        <UtensilsCrossed size={12} className="text-gray-300" />
+                      <div className="flex h-[42px] w-[42px] items-center justify-center overflow-hidden rounded-xl bg-gray-100">
+                        {item.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.image} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <UtensilsCrossed size={12} className="text-gray-300" />
+                        )}
                       </div>
                       <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded border border-emerald-600/30 bg-white px-2 py-0.5 text-[6px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-sm">
                         Add
@@ -129,7 +134,7 @@ export function V4Preview({ styles }: PreviewProps) {
         <div className="flex items-center justify-between rounded-lg bg-emerald-600 px-3 py-2 text-white shadow-lg shadow-emerald-600/25">
           <div className="flex items-center gap-1.5">
             <ShoppingBag size={10} />
-            <span className="text-[8px] font-bold">2 items · ₹448</span>
+            <span className="text-[8px] font-bold">2 items</span>
           </div>
           <div className="flex items-center gap-0.5 text-[8px] font-bold">
             View Cart

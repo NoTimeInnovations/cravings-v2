@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Clock, MapPin } from "lucide-react";
 import { toast } from "sonner";
@@ -15,6 +14,7 @@ import { AssignDriverDialog } from "@/components/admin-v2/AssignDriverDialog";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 import { AdminV3Button, StatusPill } from "../ui/primitives";
+import { useV3Navigate } from "../useV3Navigate";
 
 /**
  * The v3 order card, and the behaviour behind it, in ONE place.
@@ -39,9 +39,9 @@ export const LIVE_STATUSES = new Set([
 /** Statuses the design draws as a one-line row rather than an expanded card. */
 export const COLLAPSED_STATUSES = new Set(["dispatched", "in_transit"]);
 
-export const STATUS_LABEL: Record<string, { label: string; tone: "amber" | "green" }> = {
+export const STATUS_LABEL: Record<string, { label: string; tone: "amber" | "green" | "blue" }> = {
   pending: { label: "New", tone: "amber" },
-  accepted: { label: "Accepted", tone: "amber" },
+  accepted: { label: "Accepted", tone: "blue" },
   food_ready: { label: "Ready", tone: "green" },
   dispatched: { label: "Out for delivery", tone: "green" },
   in_transit: { label: "On the way", tone: "green" },
@@ -101,7 +101,7 @@ export function useOrderCardActions({ onNavigateAway }: { onNavigateAway?: () =>
   const { updateOrderStatus } = useOrderStore();
   const { setSelectedOrderId, setActiveView } = useAdminStore();
   const { userData } = useAuthStore();
-  const router = useRouter();
+  const navigate = useV3Navigate();
 
   const currency = (userData as Partner)?.currency || "₹";
   const isPetpooja = !!(userData as Partner)?.petpooja_restaurant_id;
@@ -120,18 +120,17 @@ export function useOrderCardActions({ onNavigateAway }: { onNavigateAway?: () =>
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);
   const cancellingOrder = orders.find((o) => o.id === cancellingId) || null;
 
-  // v3 sends every non-Dashboard section back to admin-v2. A CLIENT navigation,
-  // not window.location: adminStore is a plain zustand store with no persist, so
-  // a hard reload would throw away the selectedOrderId we just set and drop the
-  // partner on the order LIST instead of the order they clicked.
+  // Orders is a v3 screen now, so this stays in the shell — it used to push to
+  // /admin-v2, which threw the partner out of v3 to reach a screen v3 has.
+  // selectedOrderId is set first: adminStore has no persist, and the Orders
+  // screen reads it to open the order that was clicked rather than the list.
   const openOrder = React.useCallback(
     (order?: Order) => {
       if (order) setSelectedOrderId(order.id);
-      setActiveView("Orders");
       onNavigateAway?.();
-      router.push("/admin-v2?view=Orders");
+      navigate("Orders");
     },
-    [router, setActiveView, setSelectedOrderId, onNavigateAway],
+    [navigate, setSelectedOrderId, onNavigateAway],
   );
 
   const advance = React.useCallback(
@@ -225,7 +224,7 @@ export function OrderCard({
 
   if (collapsed) {
     return (
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-zinc-200 px-3.5 py-3 dark:border-zinc-800">
+      <div className="col-span-full flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-zinc-200 px-3.5 py-3 dark:border-zinc-800">
         <span className="text-[13px] font-semibold leading-none text-zinc-950 dark:text-zinc-50">
           {orderNumber(order)}
         </span>
@@ -254,24 +253,35 @@ export function OrderCard({
        content. Without shrink-0 the whole queue squeezes to fit, every card
        clips to its header, and the items and action buttons silently vanish. */
     <div className="shrink-0 overflow-hidden rounded-[10px] border border-zinc-200 dark:border-zinc-800">
-      <div className="flex flex-wrap items-center gap-x-[9px] gap-y-[7px] border-b border-zinc-100 bg-zinc-50 px-3.5 py-[11px] dark:border-zinc-800 dark:bg-zinc-800/50">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-zinc-100 bg-zinc-50 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-800/50">
         <span className="text-[13px] font-semibold leading-none text-zinc-950 dark:text-zinc-50">
           {orderNumber(order)}
         </span>
-        {status && <StatusPill tone={status.tone}>{status.label}</StatusPill>}
+        {/* No pill for a pending order: "New" said nothing the Accept button
+            below does not already say, and it was the extra element pushing the
+            header onto a second line. The pill still renders for every LATER
+            status, where it is the only thing telling you where the order is. */}
+        {status && order.status !== "pending" && (
+          <StatusPill tone={status.tone}>{status.label}</StatusPill>
+        )}
         <StatusPill tone="outline">{typeLabel(order)}</StatusPill>
-        <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold leading-none text-zinc-500 dark:text-zinc-400">
-          <Clock size={13} strokeWidth={1.9} />
-          {format(new Date(order.createdAt), "hh:mm a")}
-        </span>
-        <span className="text-[14.5px] font-semibold tracking-[-0.02em] text-zinc-950 dark:text-zinc-50">
-          {currency}
-          {order.totalPrice}
+        {/* Time and total travel together. As separate flex children the total
+            was the first thing to wrap once these cards became grid cells, so
+            every card grew a stray third line holding nothing but the price. */}
+        <span className="ml-auto flex shrink-0 items-center gap-2">
+          <span className="flex items-center gap-1 whitespace-nowrap text-[11.5px] font-semibold leading-none text-zinc-500 dark:text-zinc-400">
+            <Clock size={12} strokeWidth={1.9} />
+            {format(new Date(order.createdAt), "hh:mm a")}
+          </span>
+          <span className="whitespace-nowrap text-[13.5px] font-semibold leading-none tracking-[-0.02em] text-zinc-950 dark:text-zinc-50">
+            {currency}
+            {order.totalPrice}
+          </span>
         </span>
       </div>
 
-      <div className="px-3.5 pb-3.5 pt-3">
-        <div className="mb-[11px] flex items-center gap-1.5 text-[12.5px] font-medium text-zinc-500 dark:text-zinc-400">
+      <div className="px-3 pb-3 pt-2.5">
+        <div className="mb-2 flex items-center gap-1.5 text-[12px] font-medium leading-none text-zinc-500 dark:text-zinc-400">
           <MapPin size={14} strokeWidth={1.8} className="shrink-0" />
           <span translate="no" className="notranslate truncate">
             {locationOf(order)}
@@ -282,11 +292,11 @@ export function OrderCard({
             allowed to, and a dish name rendered in another language cannot be
             matched against the menu or the kitchen ticket. The surrounding UI
             labels still translate. */}
-        <div translate="no" className="notranslate flex flex-col gap-1.5">
+        <div translate="no" className="notranslate flex flex-col gap-1">
           {order.items.slice(0, 4).map((item, i) => (
             <div
               key={i}
-              className="flex gap-2.5 text-[13.5px] text-zinc-950 dark:text-zinc-50"
+              className="flex gap-2 text-[13px] leading-snug text-zinc-950 dark:text-zinc-50"
             >
               <span className="shrink-0 font-bold text-zinc-400 dark:text-zinc-500">
                 {item.quantity}×
@@ -301,9 +311,16 @@ export function OrderCard({
           )}
         </div>
 
-        <div className="mt-3.5 flex flex-wrap gap-2.5">
-          <AdminV3Button variant="secondary" onClick={() => openOrder(order)}>
-            View details
+        {/* Compact so View details / Cancel / Accept still share ONE row in a
+            ~260px grid cell — at the default 38px height they wrapped, which is
+            what made every card a row taller than it needed to be. */}
+        <div className="mt-3 flex flex-nowrap items-center gap-1.5">
+          <AdminV3Button
+            variant="secondary"
+            className="h-9 shrink-0 px-2.5 text-[12.5px]"
+            onClick={() => openOrder(order)}
+          >
+            Details
           </AdminV3Button>
           {/* Same rule as admin-v2: an order can only be cancelled while it is
               still pending — once the kitchen has accepted it, cancelling is an
@@ -311,7 +328,7 @@ export function OrderCard({
           {order.status === "pending" && (
             <AdminV3Button
               variant="danger"
-              className="flex-1"
+              className="h-9 min-w-0 flex-1 px-2 text-[12.5px]"
               onClick={() => requestCancel(order.id)}
             >
               Cancel
@@ -320,7 +337,7 @@ export function OrderCard({
           {next && (
             <AdminV3Button
               variant="primary"
-              className="flex-1"
+              className="h-9 min-w-0 flex-1 px-2 text-[12.5px]"
               disabled={busy}
               onClick={() => advance(order, next.status)}
             >

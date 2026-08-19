@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Check, ChevronRight, Target, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -9,6 +8,7 @@ import { updatePartner } from "@/api/partners";
 import { getFeatures } from "@/lib/getFeatures";
 import { setAllFlowsEnabled } from "@/lib/whatsappFlowsBulk";
 import { Partner, useAuthStore } from "@/store/authStore";
+import { useV3Navigate } from "../useV3Navigate";
 import { AdminV3Button, MiniProgress, V3Card } from "../ui/primitives";
 import type { WhatsAppStatus } from "./RightRail";
 
@@ -53,7 +53,7 @@ export function GetStartedCard({
   const partnerId = partner?.id;
 
   const [busy, setBusy] = React.useState(false);
-  const router = useRouter();
+  const navigate = useV3Navigate();
 
   const onboarding: OnboardingDb = React.useMemo(() => {
     const sf = parseStorefrontSettings((partner as any)?.storefront_settings);
@@ -105,7 +105,7 @@ export function GetStartedCard({
       description: "Link your own WhatsApp Business number to take orders on chat.",
       show: showWhatsApp,
       done: !!whatsapp?.connected,
-      action: { label: "Connect", href: "/admin-v2?view=WhatsApp" },
+      action: { label: "Connect", view: "WhatsApp" },
     },
     {
       key: "flows",
@@ -121,7 +121,7 @@ export function GetStartedCard({
       description: "Delivery radius, delivery & takeaway timings, and delivery pricing.",
       show: showOrdering,
       done: !!onboarding.overrides?.ordering,
-      action: { label: "Set up", href: "/admin-v2?view=Settings&sg=ordering&ss=delivery" },
+      action: { label: "Set up", view: "Settings", params: "sg=ordering&ss=delivery" },
     },
   ];
 
@@ -233,7 +233,7 @@ export function GetStartedCard({
             ) : step.action ? (
               <AdminV3Button
                 variant="secondary"
-                onClick={() => router.push(step.action!.href)}
+                onClick={() => navigate(step.action!.view, step.action!.params)}
                 className="h-8 shrink-0 px-3 text-[12.5px]"
               >
                 {step.action.label}

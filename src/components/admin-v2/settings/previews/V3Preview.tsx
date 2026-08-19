@@ -1,11 +1,16 @@
 import { UtensilsCrossed, Phone, MapPin, ShoppingBag, ChevronRight, Search, Store, ChevronDown, Star } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
-import { PreviewProps, STORE_NAME, STORE_LOCATION, SAMPLE_ITEMS, SAMPLE_CATEGORIES } from "./sampleData";
+import { PreviewProps, usePreviewData, previewSections } from "./sampleData";
 
-function ImagePlaceholder() {
+function ImagePlaceholder({ image }: { image?: string }) {
   return (
-    <div className="w-[60px] h-[60px] rounded-xl flex items-center justify-center flex-shrink-0 bg-gray-100">
-      <UtensilsCrossed size={14} className="text-gray-300" />
+    <div className="w-[60px] h-[60px] overflow-hidden rounded-xl flex items-center justify-center flex-shrink-0 bg-gray-100">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <UtensilsCrossed size={14} className="text-gray-300" />
+      )}
     </div>
   );
 }
@@ -19,8 +24,8 @@ function VegMark({ veg }: { veg: boolean }) {
 }
 
 export function V3Preview({ styles, fontFamily, showGrid }: PreviewProps) {
-  const starterItems = SAMPLE_ITEMS.filter(i => i.category === "starters");
-  const mainItems = SAMPLE_ITEMS.filter(i => i.category === "main");
+  const previewData = usePreviewData();
+  const sections = previewSections(previewData, 2);
 
   return (
     <div
@@ -39,7 +44,7 @@ export function V3Preview({ styles, fontFamily, showGrid }: PreviewProps) {
             <Store size={10} className="text-gray-900 shrink-0" />
             <div className="min-w-0 leading-tight">
               <p className="text-[7px] font-semibold uppercase tracking-wide text-gray-400">Pickup from</p>
-              <p className="truncate text-[9px] font-bold text-gray-900">{STORE_NAME}</p>
+              <p className="truncate text-[9px] font-bold text-gray-900">{previewData.storeName}</p>
             </div>
             <ChevronDown size={8} className="text-gray-400 shrink-0" />
           </div>
@@ -64,9 +69,9 @@ export function V3Preview({ styles, fontFamily, showGrid }: PreviewProps) {
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-sm font-extrabold tracking-tight text-gray-900" style={{ fontFamily: "'Georgia', serif" }}>
-              {STORE_NAME}
+              {previewData.storeName}
             </h1>
-            <p className="truncate text-[8px] text-gray-400">{STORE_LOCATION}</p>
+            <p className="truncate text-[8px] text-gray-400">{previewData.storeLocation}</p>
           </div>
         </div>
 
@@ -92,7 +97,7 @@ export function V3Preview({ styles, fontFamily, showGrid }: PreviewProps) {
       {/* Category pills */}
       <div className="sticky top-10 z-10 mt-2 border-b border-gray-200/60 bg-white/90 backdrop-blur-xl">
         <div className="flex gap-1 overflow-x-auto px-3 py-1.5 scrollbar-hide">
-          {SAMPLE_CATEGORIES.map((cat, i) => (
+          {previewData.categories.map((cat, i) => (
             <div
               key={cat.id}
               className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-bold ${
@@ -110,8 +115,7 @@ export function V3Preview({ styles, fontFamily, showGrid }: PreviewProps) {
       {/* Menu sections */}
       <div className="px-3">
         {[
-          { cat: SAMPLE_CATEGORIES[1], items: starterItems },
-          { cat: SAMPLE_CATEGORIES[2], items: mainItems },
+          ...sections,
         ].map(({ cat, items }) => (
           <div key={cat.id} className="pt-3">
             <div className="flex items-center gap-1.5">
@@ -130,11 +134,11 @@ export function V3Preview({ styles, fontFamily, showGrid }: PreviewProps) {
                       )}
                     </div>
                     <h3 className="mt-0.5 text-[9px] font-bold leading-snug text-gray-900">{item.name}</h3>
-                    <p className="mt-0.5 text-[8px] font-bold text-gray-900">₹{item.price}</p>
+                    <p className="mt-0.5 text-[8px] font-bold text-gray-900">{previewData.currency}{item.price}</p>
                     <p className="mt-0.5 text-[7px] text-gray-400 line-clamp-1">A delicious selection</p>
                   </div>
                   <div className="relative shrink-0">
-                    <ImagePlaceholder />
+                    <ImagePlaceholder image={item.image} />
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
                       <div className="rounded border border-emerald-600/30 bg-white px-2.5 py-0.5 text-[7px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-sm">
                         Add
@@ -153,7 +157,7 @@ export function V3Preview({ styles, fontFamily, showGrid }: PreviewProps) {
         <div className="flex items-center justify-between rounded-lg bg-emerald-600 px-3 py-2 text-white shadow-lg shadow-emerald-600/25">
           <div className="flex items-center gap-1.5">
             <ShoppingBag size={10} />
-            <span className="text-[8px] font-bold">2 items · ₹448</span>
+            <span className="text-[8px] font-bold">2 items</span>
           </div>
           <div className="flex items-center gap-0.5 text-[8px] font-bold">
             View Cart

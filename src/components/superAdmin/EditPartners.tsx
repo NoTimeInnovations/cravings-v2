@@ -109,6 +109,13 @@ const EditPartners = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPartner, setSelectedPartner] = useState<PartnerWithDetails | null>(null);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags | null>(null);
+  // delivery_rules is a shared jsonb blob (radius pricing, provider groups,
+  // bridge accounts…). Superadmin only owns ONE key in it, so the toggle is
+  // tracked separately and the blob is written back only when it was touched —
+  // otherwise saving an unrelated field here would stamp a stale blob over
+  // whatever the partner changed in their own dashboard meanwhile.
+  const [lockCompleted, setLockCompleted] = useState(false);
+  const [lockDirty, setLockDirty] = useState(false);
   const { countries, locationData } = useLocationStore();
   const [countryCodeSearch, setCountryCodeSearch] = useState("");
   const searchUrlTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -148,6 +155,7 @@ const EditPartners = () => {
             identifier
             petpooja_restaurant_id
             feature_flags
+            delivery_rules
           }
         }`
       );
@@ -216,9 +224,24 @@ const EditPartners = () => {
     }, 300);
   };
 
+  /** delivery_rules is usually an object, but tolerate a stringified blob. */
+  const readDeliveryRules = (raw: unknown): Record<string, any> => {
+    if (raw && typeof raw === "object") return raw as Record<string, any>;
+    if (typeof raw === "string" && raw.trim()) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  };
+
   const selectPartner = (partner: PartnerWithDetails) => {
     setSelectedPartner(partner);
     setFeatureFlags(getFeatures(partner.feature_flags || ""));
+    setLockCompleted(!!readDeliveryRules(partner.delivery_rules).lock_completed_orders);
+    setLockDirty(false);
     setUsernameStatus("idle");
     originalUsernameRef.current = partner.username || "";
   };
@@ -399,6 +422,17 @@ For any support or clarification, please contact us anytime.`;
       identifier: selectedPartner.identifier || null,
       petpooja_restaurant_id: selectedPartner.petpooja_restaurant_id || undefined,
       ...(featureFlags ? { feature_flags: revertFeatureToString(featureFlags) } : {}),
+      // Read-modify-write: keep every other key in the blob.
+      // Cast: DeliveryRules has no lock_completed_orders member, but the column
+      // is schemaless jsonb and the bridge/order code reads the key off it.
+      ...(lockDirty
+        ? {
+            delivery_rules: {
+              ...readDeliveryRules(selectedPartner.delivery_rules),
+              lock_completed_orders: lockCompleted,
+            } as PartnerWithDetails["delivery_rules"],
+          }
+        : {}),
     };
     updatePartner(selectedPartner.id, updates);
     // When WhatsApp ordering is enabled, seed the partner's built-in flow set
@@ -800,6 +834,30 @@ For any support or clarification, please contact us anytime.`;
                       })
                     }
                   />
+                </div>
+                {/* Moved off the partner dashboard: this decides whether a
+                    completed bill can ever be edited again, so it belongs to
+                    staff. It used to sit in the partner's own Ordering settings
+                    behind a shared master password — which is not access
+                    control, it is a password everyone knows. */}
+                <div className="space-y-1">
+                  <div className="flex justify-normal items-center gap-3">
+                    <Label htmlFor="lock_completed_orders">
+                      Lock Completed Orders
+                    </Label>
+                    <Switch
+                      id="lock_completed_orders"
+                      checked={lockCompleted}
+                      onCheckedChange={(checked) => {
+                        setLockCompleted(checked);
+                        setLockDirty(true);
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    A completed order can no longer be edited anywhere — staff
+                    can only cancel it.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="country">Country</Label>
