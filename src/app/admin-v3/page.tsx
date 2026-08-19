@@ -205,7 +205,6 @@ export default function AdminV3Page() {
       onNavigate={handleNavigate}
       onOpenSearch={() => setSearchOpen(true)}
       onLogout={handleLogout}
-      whatsappConnected={whatsapp?.connected}
     />
   );
 

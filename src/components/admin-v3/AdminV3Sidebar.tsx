@@ -14,14 +14,12 @@ export function AdminV3Sidebar({
   onNavigate,
   onOpenSearch,
   onLogout,
-  whatsappConnected,
   className,
 }: {
   activeView: string;
   onNavigate: (view: string, id: string) => void;
   onOpenSearch: () => void;
   onLogout: () => void;
-  whatsappConnected?: boolean;
   className?: string;
 }) {
   const { userData, features } = useAuthStore();
@@ -128,12 +126,6 @@ export function AdminV3Sidebar({
                       <span className="ml-auto rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-semibold leading-none text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
                         {pendingCount}
                       </span>
-                    )}
-                    {item.id === "whatsapp" && whatsappConnected && (
-                      <span
-                        className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-green-600"
-                        title="WhatsApp connected"
-                      />
                     )}
                   </button>
                 );

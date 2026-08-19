@@ -52,7 +52,6 @@ import {
   V3Input,
   V3Toggle,
 } from "./menu/formKit";
-import { AdminV3Button } from "./ui/primitives";
 
 type View =
   | { kind: "list" }
@@ -623,14 +622,13 @@ export function AdminV3Menu() {
         </ChipButton>
         {!isPetpooja && (
           <>
-            <AdminV3Button
-              variant="primary"
-              className="h-9 text-[13.5px] font-medium"
+            <ChipButton
+              className="h-9 text-[13px]"
               onClick={() => setView({ kind: "add" })}
             >
-              <Plus size={15} strokeWidth={2} />
+              <Plus size={15} strokeWidth={1.7} />
               Add Item
-            </AdminV3Button>
+            </ChipButton>
             <ChipButton
               className="h-9 text-[13px]"
               onClick={() => setView({ kind: "addCategory" })}
