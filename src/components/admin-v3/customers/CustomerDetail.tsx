@@ -241,14 +241,41 @@ export function CustomerDetail({
     return lo === hi ? `${band}, around ${f(lo)}` : `${band}, ${f(lo)}–${f(hi + 1)}`;
   }, [orders, tz]);
 
-  const avg = customer.totalOrders > 0 ? customer.totalSpent / customer.totalOrders : 0;
+  /**
+   * Totals come from the orders THIS page loaded, not from the list row.
+   *
+   * The list keys customers on `user_id || phone`, so one person split across a
+   * guest checkout and a signed-in one becomes several rows, each counting only
+   * its own orders. This page matches on the phone, which finds all of them —
+   * so trusting the row's count printed "Orders 1" above a list of four.
+   *
+   * The row is still used until the fetch lands, so the strip is never blank.
+   */
+  const totals = React.useMemo(() => {
+    if (loading || orders.length === 0) {
+      return {
+        count: customer.totalOrders,
+        spend: customer.totalSpent,
+        avg: customer.totalOrders > 0 ? customer.totalSpent / customer.totalOrders : 0,
+      };
+    }
+    const spend = orders.reduce((sum, o) => sum + (o.total_price || 0), 0);
+    return { count: orders.length, spend, avg: spend / orders.length };
+  }, [loading, orders, customer.totalOrders, customer.totalSpent]);
 
-  /** Orders per month since the first one we have. */
+  /**
+   * Orders per month — only once there is enough history to mean anything.
+   *
+   * Four orders in nine days is not "4.0 a month"; dividing by a clamped
+   * minimum of one month turns a busy week into a confident-looking rate. Below
+   * a month of history the honest answer is that we do not know yet.
+   */
   const perMonth = React.useMemo(() => {
     if (orders.length === 0) return null;
     const first = new Date(orders[orders.length - 1].created_at).getTime();
-    const months = Math.max(1, (Date.now() - first) / (1000 * 60 * 60 * 24 * 30.44));
-    return (orders.length / months).toFixed(1);
+    const days = (Date.now() - first) / 86400000;
+    if (days < 30) return null;
+    return (orders.length / (days / 30.44)).toFixed(1);
   }, [orders]);
 
   const firstOrder = orders[orders.length - 1]?.created_at;
@@ -292,8 +319,8 @@ export function CustomerDetail({
             >
               {customer.name || "Guest"}
             </span>
-            <StatusPill tone={customer.totalOrders > 1 ? "blue" : "outline"}>
-              {customer.totalOrders > 1 ? "Repeat" : "First order"}
+            <StatusPill tone={totals.count > 1 ? "blue" : "outline"}>
+              {totals.count > 1 ? "Repeat" : "First order"}
             </StatusPill>
           </div>
           <div
@@ -336,10 +363,10 @@ export function CustomerDetail({
           <div>
             <div className={LABEL}>Orders</div>
             <div className={cn(STAT, "flex items-baseline gap-1.5")}>
-              {customer.totalOrders}
-              {customer.totalOrders > 1 ? (
+              {totals.count}
+              {totals.count > 1 ? (
                 <span className="text-[12px] font-normal text-zinc-400 dark:text-zinc-500">
-                  came back {customer.totalOrders - 1}×
+                  came back {totals.count - 1}×
                 </span>
               ) : null}
             </div>
@@ -347,15 +374,22 @@ export function CustomerDetail({
           <div className="hidden w-px self-stretch bg-zinc-100 sm:block dark:bg-zinc-800" />
           <div>
             <div className={LABEL}>Lifetime spend</div>
-            <div className={STAT}>{money(customer.totalSpent)}</div>
+            <div className={STAT}>{money(totals.spend)}</div>
           </div>
           <div>
             <div className={LABEL}>Average order</div>
-            <div className={STAT}>{money(avg)}</div>
+            <div className={STAT}>{money(totals.avg)}</div>
           </div>
           <div>
             <div className={LABEL}>Orders a month</div>
-            <div className={STAT}>{perMonth ?? "—"}</div>
+            <div className={cn(STAT, "flex items-baseline gap-1.5")}>
+              {perMonth ?? "—"}
+              {!perMonth && !loading && orders.length > 0 ? (
+                <span className="text-[12px] font-normal text-zinc-400 dark:text-zinc-500">
+                  under a month of history
+                </span>
+              ) : null}
+            </div>
           </div>
           <div>
             <div className={LABEL}>Last order</div>
@@ -524,9 +558,9 @@ export function CustomerDetail({
                       </div>
                     ))}
                   </div>
-                  {perMonth && favourites[0] ? (
+                  {favourites[0] ? (
                     <div className="border-t border-zinc-100 bg-zinc-50 px-4 py-3 text-[12px] leading-[1.5] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/40 dark:text-zinc-400">
-                      Orders about {perMonth}× a month, usually{" "}
+                      {perMonth ? `Orders about ${perMonth}× a month, usually ` : "Usually orders "}
                       <span translate="no" className="notranslate">
                         {favourites[0][0]}
                       </span>
@@ -551,7 +585,7 @@ export function CustomerDetail({
                   [
                     "Discounts used",
                     customer.discountedOrders > 0
-                      ? `${customer.discountedOrders} of ${customer.totalOrders} orders`
+                      ? `${customer.discountedOrders} of ${totals.count} orders`
                       : "None yet",
                   ],
                 ].map(([label, value]) => (
