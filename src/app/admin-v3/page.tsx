@@ -103,11 +103,14 @@ export default function AdminV3Page() {
     const params = new URLSearchParams(window.location.search);
     if (activeView === "Dashboard") params.delete("view");
     else params.set("view", activeView);
-    // Settings' own params describe a screen that is no longer open.
+    // A screen's own deep-link params describe a screen that is no longer
+    // open. Left behind, ?wa=numbers would silently reopen the numbers page
+    // every time WhatsApp was visited again.
     if (activeView !== "Settings") {
       params.delete("sg");
       params.delete("ss");
     }
+    if (activeView !== "WhatsApp") params.delete("wa");
     const qs = params.toString();
     const next = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
     if (next !== window.location.pathname + window.location.search) {

@@ -127,6 +127,16 @@ export function AdminV3WhatsApp({
   // part of the hub that writes anything.
   const [numbersOpen, setNumbersOpen] = React.useState(false);
 
+  // Integrations links straight here with ?wa=numbers. Read at MOUNT from
+  // window.location — the same reason Settings and Menu do: useSearchParams
+  // would need a Suspense boundary this screen does not have.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("wa") === "numbers") {
+      setNumbersOpen(true);
+    }
+  }, []);
+
   const partnerId = (userData as { id?: string } | undefined)?.id;
   const showApiUsage = canSeeApiUsage(partnerId);
   const showCatalogue = !!getFeatures(

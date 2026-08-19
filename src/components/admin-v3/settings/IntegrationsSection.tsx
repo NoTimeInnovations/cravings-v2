@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Pencil, SquareArrowOutUpRight } from "lucide-react";
+import { ChevronRight, Loader2, Pencil, SquareArrowOutUpRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { updatePartner } from "@/api/partners";
@@ -9,6 +9,7 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { useAuthStore } from "@/store/authStore";
 
 import { AdminV3Button } from "../ui/primitives";
+import { useV3Navigate } from "../useV3Navigate";
 import { useWhatsAppStatus } from "../dashboard/useWhatsAppStatus";
 import {
   Chip,
@@ -66,6 +67,7 @@ function ConnectionRow({
   tone,
   toggle,
   href,
+  onAction,
   action,
   trailing,
 }: {
@@ -75,6 +77,8 @@ function ConnectionRow({
   tone: "green" | "amber" | "neutral";
   toggle?: React.ReactNode;
   href?: string;
+  /** In-app navigation instead of an outbound link. Wins over href. */
+  onAction?: () => void;
   action?: string;
   /** A control that is not an outbound link — Petpooja's inline id editor. */
   trailing?: React.ReactNode;
@@ -94,7 +98,16 @@ function ConnectionRow({
       </div>
       {toggle}
       {trailing}
-      {href ? (
+      {onAction ? (
+        <button
+          type="button"
+          onClick={onAction}
+          className="inline-flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+        >
+          {action || "Open"}
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      ) : href ? (
         <a
           href={href}
           className="inline-flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
@@ -143,6 +156,7 @@ export function IntegrationsSection() {
     "Integration settings saved",
   );
   const { status: whatsapp } = useWhatsAppStatus();
+  const navigate = useV3Navigate();
   const google = useGoogleBusiness(partner?.id);
   const { features, toggle, busy } = useFeatureToggle();
 
@@ -222,7 +236,7 @@ export function IntegrationsSection() {
               />
             ) : undefined
           }
-          href={V2_INTEGRATIONS}
+          onAction={() => navigate("WhatsApp", "wa=numbers")}
           action={whatsapp?.connected ? "Manage" : "Connect"}
         />
 
@@ -233,7 +247,14 @@ export function IntegrationsSection() {
             google === "loading" ? "Checking…" : google === "connected" ? "Connected" : "Not connected"
           }
           tone={google === "connected" ? "green" : "neutral"}
-          href={V2_INTEGRATIONS}
+          href={
+            partner?.id
+              ? // The OAuth login route itself — the button used to open
+                // admin-v2's settings page, which starts nothing. `redirect`
+                // brings the callback back to this tab.
+                `/api/google-business/auth/login?partnerId=${encodeURIComponent(partner.id)}&redirect=${encodeURIComponent("/admin-v3?sg=integrations")}`
+              : undefined
+          }
           action={google === "connected" ? "Manage" : "Connect"}
         />
 
@@ -305,8 +326,8 @@ export function IntegrationsSection() {
 
         <div className="px-4 py-3">
           <Note>
-            Connecting an account — the WhatsApp sign-up and the Google sign-in —
-            still runs in the classic dashboard. Switches here save immediately.
+            Google sign-in opens Google&rsquo;s consent screen and returns here.
+            Switches on this page save immediately.
           </Note>
         </div>
       </SettingsCard>

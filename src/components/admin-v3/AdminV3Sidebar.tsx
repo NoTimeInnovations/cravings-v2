@@ -26,7 +26,24 @@ export function AdminV3Sidebar({
   const { userData, features } = useAuthStore();
   const partner = userData as Partner | undefined;
   const [accountsOpen, setAccountsOpen] = React.useState(false);
+  const accountRef = React.useRef<HTMLDivElement>(null);
   const { others } = useKnownAccounts(partner);
+
+  React.useEffect(() => {
+    if (!accountsOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!accountRef.current?.contains(e.target as Node)) setAccountsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAccountsOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [accountsOpen]);
 
   // Same selector admin-v2's navbar uses, so the two badges never disagree.
   const pendingCount = useOrderSubscriptionStore(
@@ -40,8 +57,9 @@ export function AdminV3Sidebar({
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-zinc-50 dark:bg-zinc-900", className)}>
-      {/* Account card */}
-      <div className="px-3 pb-2.5 pt-3.5">
+      {/* Account card. `relative` so the menu can float over the nav rather
+          than pushing every item down the list. */}
+      <div ref={accountRef} className="relative px-3 pb-2.5 pt-3.5">
         <div className="flex items-center gap-2.5 rounded-lg border border-zinc-200 bg-white p-2 pl-2.5 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700">
           {/* The Menuthere mark, not the partner's own logo: this is the
               product's chrome, and the store the account belongs to is already
@@ -84,7 +102,7 @@ export function AdminV3Sidebar({
         </div>
 
         {accountsOpen ? (
-          <div className="mt-1.5 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="absolute left-3 right-3 top-full z-30 -mt-1 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             {others.length > 0 ? (
               <>
                 <div className="px-3 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-zinc-400 dark:text-zinc-500">
