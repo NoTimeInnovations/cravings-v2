@@ -60,14 +60,60 @@ export default function AdminV3Page() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Landing here with an activeView v3 does not implement — a stale one from a
-  // previous v2 session, say — would leave the sidebar with nothing highlighted
-  // and the content area empty.
+  /**
+   * Restore the screen from the URL on load.
+   *
+   * activeView is plain (unpersisted) zustand defaulting to "Dashboard", so a
+   * reload always dropped back there — even from /admin-v3?sg=ordering&ss=checkout,
+   * where the URL plainly says which screen was open. `?sg=` means Settings (the
+   * section screen reads sg/ss itself); otherwise `?view=` names it outright.
+   *
+   * Anything v3 does not implement still falls back to Dashboard, or the sidebar
+   * would highlight nothing and the panel would render empty.
+   */
+  const [restored, setRestored] = React.useState(false);
   React.useEffect(() => {
-    if (!V3_OWNED_VIEWS.has(useAdminStore.getState().activeView)) {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("sg") ? "Settings" : params.get("view");
+    const current = useAdminStore.getState().activeView;
+
+    if (fromUrl && V3_OWNED_VIEWS.has(fromUrl)) {
+      if (fromUrl !== current) setActiveView(fromUrl);
+    } else if (!V3_OWNED_VIEWS.has(current)) {
       setActiveView("Dashboard");
     }
+    setRestored(true);
   }, [setActiveView]);
+
+  /**
+   * ...and keep the URL naming the screen, so there is something to restore.
+   *
+   * Other params are preserved: Settings owns sg/ss and writes them itself.
+   * Dashboard is left implicit to keep the bare /admin-v3 address clean — and
+   * because src/proxy.ts treats a bare or view=Dashboard entry as the one to
+   * resolve the dashboard version on.
+   */
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Not before the restore above has run. setActiveView is async, so on the
+    // first pass activeView is still "Dashboard" while the URL already says
+    // Settings — writing then would strip sg/ss a beat before the Settings
+    // screen mounts to read them, and the deep link would die on arrival.
+    if (!restored) return;
+    const params = new URLSearchParams(window.location.search);
+    if (activeView === "Dashboard") params.delete("view");
+    else params.set("view", activeView);
+    // Settings' own params describe a screen that is no longer open.
+    if (activeView !== "Settings") {
+      params.delete("sg");
+      params.delete("ss");
+    }
+    const qs = params.toString();
+    const next = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+    if (next !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, "", next);
+    }
+  }, [activeView, restored]);
 
   // Runs on the view CHANGE, not on every render, so toggling the sidebar back
   // open while still on POS sticks instead of being slammed shut again. Leaving
