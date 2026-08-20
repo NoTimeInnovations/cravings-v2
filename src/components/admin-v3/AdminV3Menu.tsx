@@ -703,6 +703,12 @@ export function AdminV3Menu() {
                       const open = openCategories.includes(category);
                       const isRenaming =
                         !!categoryId && renaming?.id === categoryId;
+                      const toggleOpen = () =>
+                        setOpenCategories((prev) =>
+                          prev.includes(category)
+                            ? prev.filter((c) => c !== category)
+                            : [...prev, category],
+                        );
 
                       return (
                         <Draggable
@@ -722,7 +728,29 @@ export function AdminV3Menu() {
                                     "shadow-lg ring-2 ring-zinc-900/10 dark:ring-zinc-50/20",
                                 )}
                               >
-                                <div className="flex flex-wrap items-center gap-2.5 gap-y-2.5 px-4 py-3.5">
+                                <div
+                                  /* The whole header expands the category, not
+                                     just the chevron. Anything already wired to
+                                     a click is excluded: the rename field and
+                                     its buttons, delete, the on/off switch, the
+                                     drag handle, and the chevron itself — which
+                                     would otherwise fire twice and cancel out. */
+                                  onClick={(e) => {
+                                    if (isRenaming) return;
+                                    const el = e.target as HTMLElement;
+                                    if (
+                                      el.closest(
+                                        "button, input, [data-rfd-drag-handle-draggable-id]",
+                                      )
+                                    )
+                                      return;
+                                    toggleOpen();
+                                  }}
+                                  className={cn(
+                                    "flex flex-wrap items-center gap-2.5 gap-y-2.5 px-4 py-3.5",
+                                    !isRenaming && "cursor-pointer",
+                                  )}
+                                >
                                   {/* Real drag handle: dropping writes priority = index + 1 for
                       every category. Greyed out while the list is filtered —
                       see reorderLocked. */}
@@ -851,18 +879,13 @@ export function AdminV3Menu() {
                                     />
                                     <button
                                       type="button"
+                                      aria-expanded={open}
                                       aria-label={
                                         open
                                           ? "Collapse category"
                                           : "Expand category"
                                       }
-                                      onClick={() =>
-                                        setOpenCategories((prev) =>
-                                          prev.includes(category)
-                                            ? prev.filter((c) => c !== category)
-                                            : [...prev, category],
-                                        )
-                                      }
+                                      onClick={toggleOpen}
                                       className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-md border border-zinc-200 text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                                     >
                                       {open ? (
