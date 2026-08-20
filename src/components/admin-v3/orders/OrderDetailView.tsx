@@ -197,6 +197,8 @@ export function OrderDetailView({
   const prebookCfg = parsePrebookingSettings((userData as any)?.prebooking_settings);
 
   const [idCopied, copyId] = useCopyFlag();
+  // Separate from the header's flag: one shared flag would tick both at once.
+  const [fullIdCopied, copyFullId] = useCopyFlag();
   const [addrCopied, copyAddr] = useCopyFlag();
   const [riderCopied, copyRider] = useCopyFlag();
   const [pickingMethod, setPickingMethod] = React.useState(false);
@@ -688,6 +690,34 @@ export function OrderDetailView({
                   <InfoRow
                     label="Order ID"
                     value={<span className="font-mono text-[12px]">{order.id.slice(0, 8)}</span>}
+                  />
+                  {/* The short id is what the dashboard shows everywhere, but
+                      support tickets, Hasura and the bridge all key on the full
+                      uuid — so it needs to be readable AND copyable here rather
+                      than dug out of the URL. break-all: 36 characters do not
+                      fit this column on one line and must wrap, not overflow. */}
+                  <InfoRow
+                    label="Full order ID"
+                    value={
+                      <span className="inline-flex items-start gap-1.5">
+                        <span className="min-w-0 break-all font-mono text-[11.5px] leading-[1.45]">
+                          {order.id}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => copyFullId(order.id)}
+                          title="Copy the full order ID"
+                          aria-label="Copy the full order ID"
+                          className="mt-[1px] flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                        >
+                          {fullIdCopied ? (
+                            <Check size={12} strokeWidth={2.2} className="text-green-600 dark:text-green-400" />
+                          ) : (
+                            <Copy size={12} strokeWidth={1.9} />
+                          )}
+                        </button>
+                      </span>
+                    }
                   />
                   <InfoRow
                     label="Placed"
