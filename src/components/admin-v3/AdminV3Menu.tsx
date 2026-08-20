@@ -44,6 +44,7 @@ import { AddCategoryView } from "./menu/AddCategoryView";
 import { AvailabilityView } from "./menu/AvailabilityView";
 import { ItemEditor } from "./menu/ItemEditor";
 import { PriorityView } from "./menu/PriorityView";
+import { useBackOrReturn } from "./useV3Navigate";
 import {
   ChipButton,
   CountPill,
@@ -101,9 +102,19 @@ export function AdminV3Menu() {
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const panel = new URLSearchParams(window.location.search).get("menuPanel");
-    if (panel === "availability") setView({ kind: "availability" });
-    else if (panel === "priority") setView({ kind: "priority" });
+    if (panel === "availability") {
+      setView({ kind: "availability" });
+      setEnteredAtPanel(true);
+    } else if (panel === "priority") {
+      setView({ kind: "priority" });
+      setEnteredAtPanel(true);
+    }
   }, []);
+  // Whether ?menuPanel put us straight onto Availability / Priority — the
+  // dashboard's quick actions link in that way. If it did, the menu list was
+  // never on screen, so Back belongs to the dashboard rather than to a list the
+  // user has not seen. Opening the same panel from the list leaves this false.
+  const [enteredAtPanel, setEnteredAtPanel] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<AvailabilityFilter>("all");
   const [openCategories, setOpenCategories] = React.useState<string[]>([]);
@@ -459,20 +470,27 @@ export function AdminV3Menu() {
     }
   };
 
+  const availabilityBack = useBackOrReturn(
+    () => {
+      groupItems();
+      setView({ kind: "list" });
+    },
+    "Back to menu",
+    enteredAtPanel,
+  );
+  const priorityBack = useBackOrReturn(
+    () => setView({ kind: "list" }),
+    "Back to menu",
+    enteredAtPanel,
+  );
+
   /* ----------------------------------------------------------- sub-views */
 
   if (view.kind === "availability") {
-    return (
-      <AvailabilityView
-        onBack={() => {
-          groupItems();
-          setView({ kind: "list" });
-        }}
-      />
-    );
+    return <AvailabilityView onBack={availabilityBack.goBack} />;
   }
   if (view.kind === "priority") {
-    return <PriorityView onBack={() => setView({ kind: "list" })} />;
+    return <PriorityView onBack={priorityBack.goBack} />;
   }
   if (view.kind === "addCategory") {
     return <AddCategoryView onBack={() => setView({ kind: "list" })} />;
@@ -608,14 +626,20 @@ export function AdminV3Menu() {
       <div className="flex flex-wrap items-center gap-2 gap-y-2.5 px-3.5 lg:px-0">
         <ChipButton
           className="h-9 text-[13px]"
-          onClick={() => setView({ kind: "availability" })}
+          onClick={() => {
+            setEnteredAtPanel(false);
+            setView({ kind: "availability" });
+          }}
         >
           <Power size={15} strokeWidth={1.7} />
           Manage Availability
         </ChipButton>
         <ChipButton
           className="h-9 text-[13px]"
-          onClick={() => setView({ kind: "priority" })}
+          onClick={() => {
+            setEnteredAtPanel(false);
+            setView({ kind: "priority" });
+          }}
         >
           <ArrowUpDown size={15} strokeWidth={1.7} />
           Change Priority

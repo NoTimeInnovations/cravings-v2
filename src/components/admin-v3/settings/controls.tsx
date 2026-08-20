@@ -40,9 +40,19 @@ export interface SettingsSubPage {
   onBack: () => void;
 }
 
-const SubPageCtx = React.createContext<(p: SettingsSubPage | null) => void>(
-  () => {},
-);
+/**
+ * `id` identifies the DECLARER, so a retraction can be ignored when it comes
+ * from a page that is no longer the one on screen. Nested sub-pages made that
+ * necessary: Logo & banners declares, the banner editor inside it declares
+ * over the top, and when the editor closes its cleanup fired declare(null) —
+ * wiping a breadcrumb its still-mounted parent owned. The parent's own effect
+ * never re-ran to restore it (its deps are all stable), so the shell fell back
+ * to section level while the media page was still rendered: tabs reappeared
+ * over it, and the back arrow pointed a level too far out.
+ */
+const SubPageCtx = React.createContext<
+  (id: string, p: SettingsSubPage | null) => void
+>(() => {});
 
 export const SettingsSubPageProvider = SubPageCtx.Provider;
 
@@ -54,6 +64,7 @@ export const SettingsSubPageProvider = SubPageCtx.Provider;
  */
 export function useDeclareSubPage(page: SettingsSubPage | null) {
   const declare = React.useContext(SubPageCtx);
+  const id = React.useId();
   const title = page?.title ?? null;
   const hint = page?.hint;
 
@@ -68,9 +79,9 @@ export function useDeclareSubPage(page: SettingsSubPage | null) {
   const onBack = React.useCallback(() => backRef.current?.(), []);
 
   React.useEffect(() => {
-    declare(title ? { title, hint, onBack } : null);
-    return () => declare(null);
-  }, [declare, title, hint, onBack]);
+    declare(id, title ? { title, hint, onBack } : null);
+    return () => declare(id, null);
+  }, [declare, id, title, hint, onBack]);
 }
 
 /* ------------------------------------------------------------------ shell */

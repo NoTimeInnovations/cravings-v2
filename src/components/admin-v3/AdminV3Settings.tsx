@@ -23,6 +23,8 @@ import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { useAuthStore } from "@/store/authStore";
 
 import { AdminV3Button, V3Card } from "./ui/primitives";
+import { useReturnTo } from "./returnTo";
+import { useBackOrReturn } from "./useV3Navigate";
 import {
   Chip,
   Segmented,
@@ -295,6 +297,12 @@ export function AdminV3Settings() {
       setTab(t);
     };
     apply();
+    // Landing on the HUB rather than on a section means Settings was opened
+    // plainly — the dashboard's "Settings" tile, or the sidebar. The hub is a
+    // real parent the user is now standing on, so any owed return is spent:
+    // without this, walking hub -> section and pressing Back would leap all the
+    // way out to the dashboard, skipping the hub they had just come through.
+    if (!readUrl().section) useReturnTo.getState().setTarget(null);
     window.addEventListener("popstate", apply);
     return () => window.removeEventListener("popstate", apply);
   }, []);
@@ -302,11 +310,34 @@ export function AdminV3Settings() {
   // A section can take the whole screen over (the map picker). It declares
   // itself through SettingsSubPageProvider; the breadcrumb, the tab bar and the
   // back arrow below all key off this. See useDeclareSubPage in ./settings/controls.
-  const [subPage, setSubPage] = React.useState<SettingsSubPage | null>(null);
+  /**
+   * A STACK, not a single value, because sub-pages nest: Logo & banners opens
+   * the banner editor on top of itself. The shell shows the topmost, and
+   * closing the editor pops it so the page underneath gets its breadcrumb back.
+   *
+   * A single slot could not express that. The child declared over the parent
+   * and its cleanup then cleared the slot outright, so closing the editor left
+   * the shell at section level with the media page still rendered underneath —
+   * tabs back over it and the arrow pointing a level too far out. The parent's
+   * own effect never re-ran to repair it: its deps are all stable by design.
+   */
+  const [subPageStack, setSubPageStack] = React.useState<
+    { id: string; page: SettingsSubPage }[]
+  >([]);
+  const subPage = subPageStack.length
+    ? subPageStack[subPageStack.length - 1].page
+    : null;
   // Identity has to be stable: useDeclareSubPage lists it as an effect dep, and
   // a new function each render would re-declare on every render forever.
   const declareSubPage = React.useCallback(
-    (p: SettingsSubPage | null) => setSubPage(p),
+    (id: string, p: SettingsSubPage | null) =>
+      setSubPageStack((cur) => {
+        // Re-declaring moves an entry to the top rather than duplicating it;
+        // retracting removes only that declarer's own entry.
+        const without = cur.filter((e) => e.id !== id);
+        if (!p) return without.length === cur.length ? cur : without;
+        return [...without, { id, page: p }];
+      }),
     [],
   );
 
@@ -334,7 +365,23 @@ export function AdminV3Settings() {
     setSection(null);
     setTab("");
     writeUrl(null, "");
+    // Standing on the Settings hub, any owed "return" is moot — this IS a real
+    // parent, and the sidebar is right there. Without this, someone who lands
+    // on a tab from the dashboard, clicks the Settings breadcrumb, then opens a
+    // different section would find Back flinging them to the dashboard.
+    useReturnTo.getState().setTarget(null);
   };
+
+  /**
+   * The back ARROW, which is not the same thing as the Settings breadcrumb.
+   *
+   * Settings is routinely opened straight onto a tab from another screen —
+   * Porter & Rapido opens the Ordering bridge tab, ⌘K lands on any setting at
+   * all — and for that user the Settings hub is not "back", it is somewhere
+   * they have never been. The arrow returns them to where they actually came
+   * from; the breadcrumb below still says "Settings" and still goes there.
+   */
+  const back = useBackOrReturn(closeSection, "Back to settings");
 
   const selectTab = (value: string) => {
     setTab(value);
@@ -411,8 +458,20 @@ export function AdminV3Settings() {
       <div className="flex flex-wrap items-center gap-3 gap-y-2.5 px-3.5 lg:px-0">
         <button
           type="button"
-          onClick={subPage ? subPage.onBack : closeSection}
-          aria-label={subPage ? `Back to ${active.name}` : "Back to settings"}
+          onClick={() => {
+            if (subPage) {
+              subPage.onBack();
+              return;
+            }
+            // confirmLeave lives inside closeSection, which goBack only reaches
+            // when there is nothing to return to. Leaving Settings entirely is
+            // just as destructive to unsaved edits — more so, since the user
+            // ends up on another screen — so it has to ask here too. Guarded on
+            // leavesScreen to avoid prompting twice on the in-screen path.
+            if (back.leavesScreen && !confirmLeave()) return;
+            back.goBack();
+          }}
+          aria-label={subPage ? `Back to ${active.name}` : back.label}
           className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
         >
           <ArrowLeft className="h-[17px] w-[17px]" />

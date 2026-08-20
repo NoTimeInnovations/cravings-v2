@@ -20,6 +20,7 @@ import { canSeeApiUsage } from "@/lib/demoPartner";
 import { getFeatures } from "@/lib/getFeatures";
 import { useWhatsAppStatus } from "./dashboard/useWhatsAppStatus";
 import { AdminV3Button, V3Card } from "./ui/primitives";
+import { useBackOrReturn } from "./useV3Navigate";
 import { WhatsAppNumberSettings } from "./whatsapp/NumberSettings";
 
 /**
@@ -126,6 +127,11 @@ export function AdminV3WhatsApp({
   // Connecting, adding and removing numbers is its own screen — it is the only
   // part of the hub that writes anything.
   const [numbersOpen, setNumbersOpen] = React.useState(false);
+  // Whether ?wa=numbers put us straight here. If it did, the hub was never on
+  // screen and Back belongs to whoever sent us — Settings > Integrations links
+  // in this way. Opening it from a hub row below sets this false, so Back there
+  // still goes up to the hub the user was just looking at.
+  const [enteredAtNumbers, setEnteredAtNumbers] = React.useState(false);
 
   // Integrations links straight here with ?wa=numbers. Read at MOUNT from
   // window.location — the same reason Settings and Menu do: useSearchParams
@@ -134,6 +140,7 @@ export function AdminV3WhatsApp({
     if (typeof window === "undefined") return;
     if (new URLSearchParams(window.location.search).get("wa") === "numbers") {
       setNumbersOpen(true);
+      setEnteredAtNumbers(true);
     }
   }, []);
 
@@ -161,6 +168,12 @@ export function AdminV3WhatsApp({
     router.push(`/admin-v2?view=WhatsApp&waScreen=${id}`);
   };
 
+  const numbersBack = useBackOrReturn(
+    () => setNumbersOpen(false),
+    "Back to WhatsApp",
+    enteredAtNumbers,
+  );
+
   const connected = !!status?.connected;
 
   // Only ever built from what the status endpoint actually returns. When there
@@ -176,7 +189,7 @@ export function AdminV3WhatsApp({
 
 
   if (numbersOpen) {
-    return <WhatsAppNumberSettings onBack={() => setNumbersOpen(false)} />;
+    return <WhatsAppNumberSettings onBack={numbersBack.goBack} />;
   }
 
   return (
@@ -232,7 +245,10 @@ export function AdminV3WhatsApp({
           <AdminV3Button
             variant="secondary"
             className="h-[34px] px-3"
-            onClick={() => setNumbersOpen(true)}
+            onClick={() => {
+              setEnteredAtNumbers(false);
+              setNumbersOpen(true);
+            }}
           >
             {connected ? (
               <>

@@ -126,7 +126,12 @@ export function useOrderCardActions({ onNavigateAway }: { onNavigateAway?: () =>
   // screen reads it to open the order that was clicked rather than the list.
   const openOrder = React.useCallback(
     (order?: Order) => {
+      // No order means "show me the list" — the panel's View all. It used to
+      // only SET the id and never clear it, so a leftover id from an order
+      // opened earlier still satisfied the Orders screen's detail branch and
+      // View all landed on that stale order instead of the list.
       if (order) setSelectedOrderId(order.id);
+      else setSelectedOrderId(null);
       onNavigateAway?.();
       navigate("Orders");
     },

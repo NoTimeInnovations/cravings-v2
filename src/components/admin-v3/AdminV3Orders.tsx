@@ -54,6 +54,7 @@ import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 
 import { V3Card } from "./ui/primitives";
 import { OrderDetailView } from "./orders/OrderDetailView";
+import { useBackOrReturn } from "./useV3Navigate";
 import { OrderEditView } from "./orders/OrderEditView";
 import {
   CONTROL_LG,
@@ -157,6 +158,11 @@ export function AdminV3Orders() {
   const prebookCfg = parsePrebookingSettings((userData as any)?.prebooking_settings);
 
   const { selectedOrderId, setSelectedOrderId } = useAdminStore();
+  // An order id already set when this screen mounts means something else opened
+  // it — the dashboard's live-order card does exactly that. For that user the
+  // orders LIST was never on screen, so Back belongs to the dashboard. Reading
+  // it once at mount is what distinguishes that from picking a row here.
+  const enteredAtDetail = React.useRef(!!useAdminStore.getState().selectedOrderId);
   const {
     deleteOrder,
     updateOrderStatus,
@@ -290,6 +296,12 @@ export function AdminV3Orders() {
   // completing a prebooking drops it out of the prebooking subscription, and an
   // order booked days before its slot is not in the paged feed either.
   const lastSelectedRef = React.useRef<Order | null>(null);
+  const detailBack = useBackOrReturn(
+    () => setSelectedOrderId(null),
+    "Back to orders",
+    enteredAtDetail.current,
+  );
+
   const resolvedSelected = lookupOrders.find((o) => o.id === selectedOrderId) || null;
   if (resolvedSelected) lastSelectedRef.current = resolvedSelected;
   else if (!selectedOrderId) lastSelectedRef.current = null;
@@ -547,7 +559,14 @@ export function AdminV3Orders() {
       <>
         <OrderDetailView
           order={selectedOrder}
-          onBack={() => setSelectedOrderId(null)}
+          onBack={() => {
+            // Clear regardless of where Back goes. selectedOrderId lives in a
+            // store that outlives this screen and is read at MOUNT, so leaving
+            // it set would reopen this very order the next time Orders is
+            // visited from the sidebar.
+            setSelectedOrderId(null);
+            detailBack.goBack();
+          }}
           onEdit={() => handleEdit(selectedOrder)}
           onDelete={() => handleDelete(selectedOrder)}
           onChangeStatus={(status) => handleUpdateStatus(selectedOrder.id, status)}

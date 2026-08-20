@@ -16,6 +16,7 @@ import { AdminV3Search } from "@/components/admin-v3/AdminV3Search";
 import { useWhatsAppStatus } from "@/components/admin-v3/dashboard/useWhatsAppStatus";
 import { SubscriptionGate } from "@/components/admin-v2/SubscriptionGate";
 import { V3_OWNED_VIEWS, SETTINGS_DEEP_LINKS } from "@/components/admin-v3/navItems";
+import { currentScreenParams, useReturnTo } from "@/components/admin-v3/returnTo";
 import { V3_VIEWS, V3_WA_SCREENS } from "@/components/admin-v3/viewRegistry";
 import type { AdminV3WhatsAppScreen } from "@/components/admin-v3/AdminV3WhatsApp";
 
@@ -29,7 +30,7 @@ import type { AdminV3WhatsAppScreen } from "@/components/admin-v3/AdminV3WhatsAp
  * bounce back. See the isV3DeepLink note in src/app/admin-v2/layout.tsx.
  */
 export default function AdminV3Page() {
-  const { activeView, setActiveView } = useAdminStore();
+  const { activeView, setActiveView, setSelectedOrderId } = useAdminStore();
   const { userData, signOut } = useAuthStore();
   const partner = userData as Partner | undefined;
   const { gate } = useSubscriptionGate();
@@ -130,6 +131,11 @@ export default function AdminV3Page() {
       params.delete("ss");
     }
     if (activeView !== "WhatsApp") params.delete("wa");
+    // menuPanel was missing from this list. Left behind it reopens Availability
+    // every later visit to Menu — the same bug the sg/ss and wa lines above
+    // already guard against, and newly reachable now that Back can leave a
+    // screen from inside one of its panels.
+    if (activeView !== "Menu") params.delete("menuPanel");
     const qs = params.toString();
     const next = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
     if (next !== window.location.pathname + window.location.search) {
@@ -156,6 +162,17 @@ export default function AdminV3Page() {
 
   const handleNavigate = (view: string, id: string) => {
     setDrawerOpen(false);
+    // Picking a section from the sidebar is a fresh destination, not a detour.
+    // Whatever Back was owed from an earlier jump no longer describes anything
+    // the user is in the middle of, and honouring it later would fling them
+    // back to a screen they left several clicks ago.
+    useReturnTo.getState().setTarget(null);
+    // Same reasoning for the order selection. It lives on a store that outlives
+    // the Orders screen and is read at MOUNT, so an order opened earlier in the
+    // session made "Orders" in the sidebar land on that order's detail instead
+    // of the list. Cleared unconditionally, Orders included — especially
+    // Orders: that is the click that asks for the list.
+    setSelectedOrderId(null);
     if (V3_OWNED_VIEWS.has(view)) {
       setActiveView(view);
       return;
@@ -237,6 +254,16 @@ export default function AdminV3Page() {
         onOpenChange={setSearchOpen}
         onGo={(entry) => {
           setDrawerOpen(false);
+          // Same contract as useV3Navigate: the palette is a jump, so Back at
+          // the destination should return to the screen it was opened from.
+          setSelectedOrderId(null);
+          if (entry.view !== activeView) {
+            useReturnTo.getState().setTarget({
+              view: activeView,
+              params: currentScreenParams(),
+              label: activeView,
+            });
+          }
           // Settings entries carry their section/tab as ?sg/?ss — the screen
           // reads those at MOUNT, so they must be on the URL before the view
           // switches, exactly as useV3Navigate does it.
