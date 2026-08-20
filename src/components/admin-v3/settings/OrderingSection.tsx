@@ -224,6 +224,22 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
       setEnteredAtAccounts(true);
     }
   }, []);
+
+  // Declared up here with the other hooks, NOT down beside the bridge tab it
+  // serves. Every tab below returns its own JSX, so a hook placed after those
+  // guards only runs on the bridge tab — the hook count then changes the moment
+  // you switch to it and React throws #310 ("rendered more hooks than during
+  // the previous render"). Reloading hid it, because mounting straight onto
+  // bridge makes the count consistent from the first render.
+  //
+  // Arriving straight on Accounts means the bridge tab was never on screen, so
+  // Back belongs to whoever sent us. Opening it from the tab's own row leaves
+  // enteredAtAccounts false and Back walks up to the tab as before.
+  const accountsBack = useBackOrReturn(
+    () => setAccountsOpen(false),
+    "Back to Porter & Rapido",
+    enteredAtAccounts,
+  );
   const applyGroups = React.useCallback(async (partnerId: string) => {
     const res = await setProviderGroups({ partnerId });
     if (!res.ok) console.warn("[v3 bridge] setProviderGroups:", res.message);
@@ -489,14 +505,6 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
     );
   }
 
-  // Arriving straight on Accounts means the bridge tab was never on screen, so
-  // Back belongs to whoever sent us. Opening it from the tab's own row leaves
-  // enteredAtAccounts false and Back walks up to the tab as before.
-  const accountsBack = useBackOrReturn(
-    () => setAccountsOpen(false),
-    "Back to Porter & Rapido",
-    enteredAtAccounts,
-  );
 
   /* ------------------------------------------------------------- the bridge */
 
