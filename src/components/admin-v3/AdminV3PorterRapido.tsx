@@ -143,10 +143,14 @@ function money(currency: string, n: number, dp = 2): string {
   return `${currency}${n.toFixed(dp)}`;
 }
 
-/** Settings › Ordering › Porter & Rapido, opened straight on Accounts — the
- *  page that actually connects a login. Landing on the tab instead would leave
- *  the partner to find the row themselves. */
-const ACCOUNTS_LINK = "sg=ordering&ss=bridge&bridge=accounts";
+/** Settings › Ordering › Porter & Rapido — the tab itself: vehicle class,
+ *  dispatch trigger, provider order, pricing. Where "settings" means settings. */
+const SETTINGS_LINK = "sg=ordering&ss=bridge";
+
+/** The same tab, opened straight on Accounts — the page that connects a login.
+ *  Only for the controls that say "accounts" or "connect"; sending the settings
+ *  button here buried the settings behind a page nobody asked for. */
+const ACCOUNTS_LINK = `${SETTINGS_LINK}&bridge=accounts`;
 
 /* ==========================================================================
    Screen
@@ -323,7 +327,7 @@ export function AdminV3PorterRapido() {
         </AdminV3Button>
         <AdminV3Button
           variant="primary"
-          onClick={() => navigate("Settings", ACCOUNTS_LINK)}
+          onClick={() => navigate("Settings", SETTINGS_LINK)}
         >
           <Settings2 className="h-3.5 w-3.5" />
           Porter &amp; Rapido settings
