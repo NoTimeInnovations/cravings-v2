@@ -169,7 +169,24 @@ export function AdminV3WhatsApp({
   };
 
   const numbersBack = useBackOrReturn(
-    () => setNumbersOpen(false),
+    () => {
+      setNumbersOpen(false);
+      // Drop the deep-link param with the page it opened. The shell only strips
+      // ?wa once activeView LEAVES WhatsApp, so backing out to the hub left it
+      // on the URL and a reload silently reopened Numbers.
+      if (typeof window !== "undefined") {
+        const p = new URLSearchParams(window.location.search);
+        if (p.has("wa")) {
+          p.delete("wa");
+          const qs = p.toString();
+          window.history.replaceState(
+            null,
+            "",
+            `${window.location.pathname}${qs ? `?${qs}` : ""}`,
+          );
+        }
+      }
+    },
     "Back to WhatsApp",
     enteredAtNumbers,
   );

@@ -4,6 +4,7 @@ import * as React from "react";
 import { CornerDownLeft, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useAdminStore } from "@/store/adminStore";
 
 import { SEARCH_ENTRIES, searchEntries, type SearchEntry } from "./searchIndex";
 
@@ -22,12 +23,21 @@ import { SEARCH_ENTRIES, searchEntries, type SearchEntry } from "./searchIndex";
 
 const FLASH_MS = 1600;
 
-/** Walk the rendered page for `text` and scroll it into view, briefly ringed. */
-function revealText(text: string, deadline: number) {
+/**
+ * Walk the rendered page for `text` and scroll it into view, briefly ringed.
+ *
+ * `forView` is what the hunt was armed for. The retry window is seconds long —
+ * long enough for someone to change their mind and press Back — and without
+ * this check the search would then find its needle on the screen they returned
+ * to and flash an unrelated element. A customer's phone number on a dashboard
+ * order card matches a search for the "Phone" setting perfectly well.
+ */
+function revealText(text: string, deadline: number, forView: string) {
   const needle = text.trim().toLowerCase();
   if (!needle) return;
 
   const tick = () => {
+    if (useAdminStore.getState().activeView !== forView) return;
     const main = document.querySelector("main") ?? document.body;
     const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
     // Exact first, then a containing match — several labels are built from a
@@ -108,7 +118,7 @@ export function AdminV3Search({
     onOpenChange(false);
     onGo(entry);
     // Give the lazy screen chunk time to mount before hunting for the text.
-    revealText(entry.label, Date.now() + 4000);
+    revealText(entry.label, Date.now() + 4000, entry.view);
   };
 
   if (!open) return null;
