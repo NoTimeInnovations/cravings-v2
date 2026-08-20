@@ -102,6 +102,23 @@ const fmtDate = (d: Date | null, raw: string): string =>
     ? d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })
     : raw;
 
+/** A neutral placeholder the exact height of the text it stands in for, so the
+ *  card does not resize when the real value arrives. */
+function Bar({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        // block, not inline-block: an inline placeholder sits in a line box and
+        // inherits its leading, which made the card a few px taller while
+        // loading than it is once filled — a visible settle on arrival.
+        "block animate-pulse rounded bg-zinc-100 dark:bg-zinc-800",
+        className,
+      )}
+    />
+  );
+}
+
 /* ---------------------------------------------------------------- helpers */
 
 function relativeTime(from: number): string {
@@ -237,16 +254,10 @@ export function AdminV3PorterRapido() {
 
   /* --------------------------------------------------------------- states -- */
 
-  if (loading && !data) {
-    return (
-      <Shell>
-        <V3Card className="flex items-center justify-center gap-2 px-4 py-20">
-          <Loader2 className="h-[18px] w-[18px] animate-spin text-zinc-400 dark:text-zinc-500" />
-          <span className={MUTED}>Loading charges…</span>
-        </V3Card>
-      </Shell>
-    );
-  }
+  // No full-page spinner: the page's SHAPE is known before its numbers are, and
+  // blanking the whole screen for one fetch made a two-card layout feel like a
+  // page load. Each card carries its own placeholder instead.
+  const pending = loading && !data;
 
   if (error && !data) {
     return (
@@ -282,11 +293,15 @@ export function AdminV3PorterRapido() {
     <Shell>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2.5">
-        <StatusPill tone="outline" className="font-medium">
-          {wallet ? "Porter connected" : "Porter not connected"}
-          {" · "}
-          {rapido?.connectedMobile ? "Rapido cash only" : "Rapido not connected"}
-        </StatusPill>
+        {pending ? (
+          <Bar className="h-[19px] w-[210px] rounded-full" />
+        ) : (
+          <StatusPill tone="outline" className="font-medium">
+            {wallet ? "Porter connected" : "Porter not connected"}
+            {" · "}
+            {rapido?.connectedMobile ? "Rapido cash only" : "Rapido not connected"}
+          </StatusPill>
+        )}
         <AdminV3Button
           variant="secondary"
           className="ml-auto"
@@ -323,7 +338,9 @@ export function AdminV3PorterRapido() {
                   Live prepaid balance and transactions, straight from Porter.
                 </div>
               </div>
-              {wallet ? (
+              {pending ? (
+                <Bar className="h-[19px] w-[86px] shrink-0 rounded-full" />
+              ) : wallet ? (
                 <StatusPill tone="green" className="shrink-0">
                   ● Live
                   {wallet.pooled
@@ -339,7 +356,43 @@ export function AdminV3PorterRapido() {
               )}
             </div>
 
-            {wallet ? (
+            {pending ? (
+              /* Mirrors the loaded card's shape — balance, the two figures
+                 beside it, the average and the footer — so nothing jumps when
+                 the real numbers land. */
+              <>
+                <div className="flex flex-wrap gap-x-8 gap-y-5 px-4 py-4">
+                  <div className="min-w-0 flex-[1_1_240px]">
+                    <div className={STAT_LABEL}>Balance</div>
+                    <Bar className="mt-1.5 h-[30px] w-[150px]" />
+                    <div className="mt-4">
+                      <div className={STAT_LABEL}>Average per trip</div>
+                      <Bar className="mt-1.5 h-[19px] w-[64px]" />
+                    </div>
+                  </div>
+                  <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-5">
+                    <div className="flex flex-wrap gap-x-8 gap-y-5">
+                      <div className="min-w-0">
+                        <div className={STAT_LABEL}>Spent this month</div>
+                        <Bar className="mt-1.5 h-[19px] w-[76px]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className={STAT_LABEL}>Trips billed</div>
+                        <Bar className="mt-1.5 h-[19px] w-[34px]" />
+                      </div>
+                    </div>
+                    <Bar className="h-[38px] w-[160px] self-start rounded-md" />
+                  </div>
+                </div>
+                <div className="flex items-center border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
+                  {/* The row it stands in for is 12.5px text at leading-1.5,
+                      so the box is 19px tall with a 15px bar centred in it. */}
+                  <span className="flex h-[19px] items-center">
+                    <Bar className="h-[15px] w-[220px]" />
+                  </span>
+                </div>
+              </>
+            ) : wallet ? (
               <>
                 <div className="flex flex-wrap gap-x-8 gap-y-5 px-4 py-4">
                   <div className="min-w-0 flex-[1_1_240px]">
@@ -492,7 +545,9 @@ export function AdminV3PorterRapido() {
               name="Porter"
               note="Prepaid wallet · deducted per trip"
               pill={
-                wallet ? (
+                pending ? (
+                  <Bar className="h-[19px] w-[92px] rounded-full" />
+                ) : wallet ? (
                   <StatusPill tone="green">Connected</StatusPill>
                 ) : (
                   <StatusPill tone="outline">Not connected</StatusPill>
@@ -519,10 +574,22 @@ export function AdminV3PorterRapido() {
             <div className="border-b border-zinc-100 px-4 py-[13px] dark:border-zinc-800">
               <span className={CARD_TITLE}>This month</span>
             </div>
-            <MoneyRow label="Recharged" value={money(currency, month.recharged, 0)} />
-            <MoneyRow label="Spent on trips" value={money(currency, month.spent, 0)} />
-            <MoneyRow label="Porter coins redeemed" value={money(currency, month.coins, 0)} />
-            <MoneyRow label="Cash trips (Rapido)" value={money(currency, month.cashTrips, 0)} />
+            <MoneyRow
+              label="Recharged"
+              value={pending ? null : money(currency, month.recharged, 0)}
+            />
+            <MoneyRow
+              label="Spent on trips"
+              value={pending ? null : money(currency, month.spent, 0)}
+            />
+            <MoneyRow
+              label="Porter coins redeemed"
+              value={pending ? null : money(currency, month.coins, 0)}
+            />
+            <MoneyRow
+              label="Cash trips (Rapido)"
+              value={pending ? null : money(currency, month.cashTrips, 0)}
+            />
           </V3Card>
 
           {wallet && (
@@ -576,15 +643,22 @@ function ProviderRow({
   );
 }
 
-function MoneyRow({ label, value }: { label: string; value: string }) {
+/** `value` null = not fetched yet. A placeholder rather than a zero: every
+ *  figure here comes from the same call as the wallet, and a ₹0 that turns into
+ *  ₹1,500 a moment later is a wrong number, not a loading state. */
+function MoneyRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div className={ROW}>
       <span className="min-w-0 flex-1 truncate text-[12.5px] text-zinc-500 dark:text-zinc-400">
         {label}
       </span>
-      <span className="shrink-0 text-[13px] font-semibold tabular-nums tracking-[-0.01em] text-zinc-950 dark:text-zinc-50">
-        {value}
-      </span>
+      {value === null ? (
+        <Bar className="h-[15px] w-[54px] shrink-0" />
+      ) : (
+        <span className="shrink-0 text-[13px] font-semibold tabular-nums tracking-[-0.01em] text-zinc-950 dark:text-zinc-50">
+          {value}
+        </span>
+      )}
     </div>
   );
 }
