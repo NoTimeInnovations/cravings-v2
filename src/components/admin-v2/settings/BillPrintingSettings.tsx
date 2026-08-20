@@ -18,6 +18,7 @@ import {
     getBillLayout,
     isFullArabic,
     isBillDetailQrEnabled,
+    isBillDeliveryBoyEnabled,
     isBillLogoEnabled,
     getBillLogoUrl,
     isBillAutoPrintEnabled,
@@ -47,6 +48,7 @@ export function BillPrintingSettings() {
     const [billLayout, setBillLayout] = useState<BillLayout>("default");
     const [fullArabic, setFullArabic] = useState(false);
     const [showDetailQr, setShowDetailQr] = useState(false);
+    const [showDeliveryBoy, setShowDeliveryBoy] = useState(false);
     const [showLogo, setShowLogo] = useState(false);
     const [billLogoUrl, setBillLogoUrl] = useState<string | null>(null);
     const [isLogoUploading, setIsLogoUploading] = useState(false);
@@ -58,6 +60,7 @@ export function BillPrintingSettings() {
             const data = userData as any;
             setIncludeCategoryName(!!data.delivery_rules?.bill_include_category_name);
             setBillLayout(getBillLayout(data.delivery_rules));
+            setShowDeliveryBoy(isBillDeliveryBoyEnabled(data.delivery_rules));
             setFullArabic(isFullArabic(data.delivery_rules));
             setShowDetailQr(isBillDetailQrEnabled(data.delivery_rules));
             setShowLogo(isBillLogoEnabled(data.delivery_rules));
@@ -120,6 +123,7 @@ export function BillPrintingSettings() {
                     bill_layout: billLayout,
                     bill_full_arabic: fullArabic,
                     bill_show_detail_qr: showDetailQr,
+                    bill_show_delivery_boy: showDeliveryBoy,
                     bill_show_logo: showLogo,
                     bill_logo_url: billLogoUrl || "",
                     bill_auto_print_enabled: autoPrint,
@@ -138,7 +142,7 @@ export function BillPrintingSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, includeCategoryName, billLayout, fullArabic, showDetailQr, showLogo, billLogoUrl, autoPrint, autoPrintStatus, setState]);
+    }, [userData, includeCategoryName, billLayout, fullArabic, showDetailQr, showDeliveryBoy, showLogo, billLogoUrl, autoPrint, autoPrintStatus, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -162,12 +166,13 @@ export function BillPrintingSettings() {
             billLayout !== getBillLayout(data.delivery_rules) ||
             fullArabic !== isFullArabic(data.delivery_rules) ||
             showDetailQr !== isBillDetailQrEnabled(data.delivery_rules) ||
+            showDeliveryBoy !== isBillDeliveryBoyEnabled(data.delivery_rules) ||
             showLogo !== isBillLogoEnabled(data.delivery_rules) ||
             (billLogoUrl || null) !== getBillLogoUrl(data.delivery_rules) ||
             autoPrint !== isBillAutoPrintEnabled(data.delivery_rules) ||
             autoPrintStatus !== getBillAutoPrintStatus(data.delivery_rules);
         setHasChanges(changed);
-    }, [includeCategoryName, billLayout, fullArabic, showDetailQr, showLogo, billLogoUrl, autoPrint, autoPrintStatus, userData, setHasChanges]);
+    }, [includeCategoryName, billLayout, fullArabic, showDetailQr, showDeliveryBoy, showLogo, billLogoUrl, autoPrint, autoPrintStatus, userData, setHasChanges]);
 
     return (
         <div className="space-y-6">
@@ -200,6 +205,17 @@ export function BillPrintingSettings() {
                             </p>
                         </div>
                         <Switch checked={showDetailQr} onCheckedChange={setShowDetailQr} />
+                    </div>
+
+                    <div className="flex items-center justify-between border rounded-lg p-4">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Show delivery boy info on bill</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Print the assigned rider&apos;s name and phone on the bill. Only
+                                appears once an order actually has a rider assigned.
+                            </p>
+                        </div>
+                        <Switch checked={showDeliveryBoy} onCheckedChange={setShowDeliveryBoy} />
                     </div>
                 </CardContent>
             </Card>

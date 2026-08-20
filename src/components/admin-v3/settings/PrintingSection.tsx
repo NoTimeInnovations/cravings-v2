@@ -11,6 +11,7 @@ import {
   getBillLayout,
   getBillLogoUrl,
   isBillAutoPrintEnabled,
+  isBillDeliveryBoyEnabled,
   isBillDetailQrEnabled,
   isBillLogoEnabled,
   isFullArabic,
@@ -34,6 +35,7 @@ import {
 interface PrintingDraft {
   includeCategory: boolean;
   showDetailQr: boolean;
+  showDeliveryBoy: boolean;
   showLogo: boolean;
   logoUrl: string;
   layout: BillLayout;
@@ -49,6 +51,7 @@ function read(partner: any): PrintingDraft {
   return {
     includeCategory: !!rules?.bill_include_category_name,
     showDetailQr: isBillDetailQrEnabled(rules),
+    showDeliveryBoy: isBillDeliveryBoyEnabled(rules),
     showLogo: isBillLogoEnabled(rules),
     logoUrl: getBillLogoUrl(rules) || "",
     layout: getBillLayout(rules),
@@ -69,6 +72,7 @@ function build(d: PrintingDraft, partner: any): Record<string, unknown> {
       bill_layout: d.layout,
       bill_full_arabic: d.fullArabic,
       bill_show_detail_qr: d.showDetailQr,
+      bill_show_delivery_boy: d.showDeliveryBoy,
       bill_show_logo: d.showLogo,
       bill_logo_url: d.logoUrl || "",
       bill_auto_print_enabled: d.autoPrint,
@@ -163,6 +167,13 @@ export function PrintingSection({ tab }: { tab: PrintingTab }) {
           desc="Customers scan it to open the order details."
           checked={draft.showDetailQr}
           onChange={(v) => patch({ showDetailQr: v })}
+          divider
+        />
+        <ToggleRow
+          title="Show delivery boy info on bill"
+          desc="Prints the assigned rider's name and phone. Only appears once a rider is assigned."
+          checked={draft.showDeliveryBoy}
+          onChange={(v) => patch({ showDeliveryBoy: v })}
           divider
         />
         <ToggleRow

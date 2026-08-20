@@ -121,6 +121,7 @@ const SETTINGS_ENTRIES: SearchEntry[] = [
   { label: "Open your storefront in a new tab", crumb: "Settings › Appearance › Info page", view: "Settings", sg: "storefront", ss: "info" },
   { label: "Show the category before each item", crumb: "Settings › Printing › Bill content", view: "Settings", sg: "printing", ss: "content" },
   { label: "Print a QR to the online bill", crumb: "Settings › Printing › Bill content", view: "Settings", sg: "printing", ss: "content" },
+  { label: "Show delivery boy info on bill", crumb: "Settings › Printing › Bill content", view: "Settings", sg: "printing", ss: "content" },
   { label: "Print your logo on the bill", crumb: "Settings › Printing › Bill content", view: "Settings", sg: "printing", ss: "content" },
   { label: "Print your FSSAI number", crumb: "Settings › Printing › Bill content", view: "Settings", sg: "printing", ss: "content" },
   { label: "FSSAI number", crumb: "Settings › Printing › Bill content", view: "Settings", sg: "printing", ss: "content" },
