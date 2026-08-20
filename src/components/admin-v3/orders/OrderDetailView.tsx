@@ -46,6 +46,7 @@ import { getFeatures } from "@/lib/getFeatures";
 import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
 import { isRealDeliveryOrder, usesOwnDeliveryBoys } from "@/lib/ownDriverDispatch";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   assignDeliveryBoyToOrder,
   loadActiveDrivers,
@@ -583,6 +584,180 @@ export function OrderDetailView({
       ? `#${order.display_id}`
       : `#${order.id.slice(0, 8)}`;
 
+  /**
+   * Payment + Order info: the two cards that can sit in either column.
+   *
+   * Rendered once, from a variable, so there is a single instance no matter
+   * which side it lands on — two copies behind a media query would mean two
+   * sets of handlers and two "Set payment method" menus.
+   */
+  /**
+   * Which column Payment + Order info sit in.
+   *
+   * With few items the left column ran out of content while the right rail kept
+   * going, leaving a tall empty gutter. Moving the two secondary cards across
+   * fills it — but only while the left really is the shorter side, or the same
+   * move creates the opposite imbalance on a long order.
+   *
+   * Measured, not guessed from an item count: descriptions wrap, charges and
+   * discounts add rows, and the Delivery card is 494px with a map and absent
+   * without one, so no fixed number is right for both. The two heights compared
+   * are the ones that NEVER move — the items card on the left, and
+   * Delivery + Customer on the right — so the decision cannot feed back into
+   * itself and oscillate. Arithmetic: with A = left, B = right-fixed and K the
+   * movable group, |A+K-B| < |B+K-A| reduces exactly to A < B.
+   */
+  const leftRef = React.useRef<HTMLDivElement>(null);
+  const rightFixedRef = React.useRef<HTMLDivElement>(null);
+  const [leftShorter, setLeftShorter] = React.useState(false);
+  // Only when the columns are actually side by side. Stacked, the reading order
+  // is items -> delivery -> customer -> payment, and moving cards up through it
+  // would scramble that for no gain.
+  const twoColumns = useMediaQuery("(min-width: 1024px)");
+
+  React.useEffect(() => {
+    if (!twoColumns) {
+      setLeftShorter(false);
+      return;
+    }
+    const a = leftRef.current;
+    const b = rightFixedRef.current;
+    if (!a || !b) return;
+    const measure = () => {
+      const l = a.getBoundingClientRect().height;
+      const r = b.getBoundingClientRect().height;
+      if (l > 0 && r > 0) setLeftShorter(l < r);
+    };
+    measure();
+    // Both sides change after first paint — the map loads, a rider arrives, the
+    // items list settles — so a single measurement would be taken too early.
+    const ro = new ResizeObserver(measure);
+    ro.observe(a);
+    ro.observe(b);
+    return () => ro.disconnect();
+  }, [twoColumns]);
+
+  const secondaryCards = (
+    <>
+                {/* Payment */}
+                <div className={CARD}>
+                  <div className={CARD_HEAD}>
+                    <span className={cn(CARD_TITLE, "flex-[1_1_auto]")}>Payment</span>
+                    <DotPill tone={order.is_paid ? "green" : "amber"}>
+                      {order.is_paid ? "Paid" : "Pending"}
+                    </DotPill>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3 px-4 py-3.5">
+                    <div>
+                      <div className={FIELD_LABEL}>Amount due</div>
+                      <div className="mt-1 text-[20px] font-semibold tracking-[-0.02em] tabular-nums text-zinc-950 dark:text-zinc-50">
+                        {money(currency, order.totalPrice, 2)}
+                      </div>
+                    </div>
+                    <MetaPill>{getPaymentDisplayLabel(order)}</MetaPill>
+                  </div>
+                  <div className="px-4 pb-3.5">
+                    <div className={FIELD_LABEL}>Method</div>
+                    {order.payment_method && !pickingMethod ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
+                        <span className="text-[13px] font-medium capitalize text-zinc-950 dark:text-zinc-50">
+                          {order.payment_method}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setPickingMethod(true)}
+                          className="ml-auto inline-flex h-[30px] shrink-0 items-center rounded-md border border-zinc-200 bg-transparent px-[11px] text-[12.5px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    ) : pickingMethod ? (
+                      <div className="mt-2.5 flex flex-wrap gap-2">
+                        {["cash", "upi", "card"].map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => {
+                              onSetPaymentMethod(m);
+                              setPickingMethod(false);
+                            }}
+                            className="h-[34px] flex-[1_1_80px] rounded-md border border-zinc-200 bg-white text-[13px] font-medium capitalize text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                          >
+                            {m === "upi" ? "UPI" : m}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
+                        <span className="text-[13px] font-normal text-zinc-400 dark:text-zinc-500">
+                          Not recorded
+                        </span>
+                        <AdminV3Button
+                          variant="strong"
+                          className="ml-auto h-[30px] px-[11px] text-[12.5px] font-medium"
+                          onClick={() => setPickingMethod(true)}
+                        >
+                          Set
+                        </AdminV3Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Order info */}
+                <div className={cn(CARD, "px-4 pb-2.5 pt-1.5")}>
+                  <InfoRow label="Order type" value={getOrderTypeLabel(order)} />
+                  <InfoRow
+                    label="Channel"
+                    value={
+                      order.order_channel === "app"
+                        ? "App"
+                        : order.order_channel === "whatsapp"
+                          ? "WhatsApp"
+                          : order.order_channel === "web"
+                            ? "Web"
+                            : "—"
+                    }
+                  />
+                  <InfoRow label="Invoice No" value={invoiceLabel} />
+                  {/* Growjet had its own column on admin-v2's list. The v3 table has
+                      a fixed eight, so the booking number lives here instead of
+                      disappearing for the partners who dispatch through it. */}
+                  {order.growjet_order_number && (
+                    <InfoRow
+                      label="Growjet"
+                      value={
+                        <span className="font-mono text-[12px]">{order.growjet_order_number}</span>
+                      }
+                    />
+                  )}
+                  <InfoRow
+                    label="Order ID"
+                    value={<span className="font-mono text-[12px]">{order.id.slice(0, 8)}</span>}
+                  />
+                  <InfoRow
+                    label="Placed"
+                    value={fmtTz(order.createdAt, tz, "MMM D, YYYY · hh:mm A")}
+                    last={!scheduledDate}
+                  />
+                  {scheduledDate && (
+                    <InfoRow
+                      label={order.booking_persons ? "Table booking" : "Prebooked for"}
+                      value={`${formatPrebookDateLabel(scheduledDate)}${
+                        order.scheduled_time
+                          ? ` · ${formatPrebookSlotLabel(prebookCfg, scheduledDate, order.scheduled_time, {
+                              dineIn: !!order.booking_persons,
+                              to: order.scheduled_time_to,
+                            })}`
+                          : ""
+                      }`}
+                      last
+                    />
+                  )}
+                </div>
+    </>
+  );
+
   if (historyOpen) {
     return (
       <BookingHistoryView
@@ -837,6 +1012,8 @@ export function OrderDetailView({
         <div className="flex flex-wrap items-start gap-3.5">
           {/* ---------------------------------------------- left column */}
           <div className="flex min-w-0 flex-[1_1_440px] flex-col gap-3.5">
+            {/* Measured against the right column's fixed cards — see leftShorter. */}
+            <div ref={leftRef} className="flex flex-col gap-3.5">
             {/* Order items */}
             <div className={CARD}>
               <div className={CARD_HEAD}>
@@ -950,10 +1127,15 @@ export function OrderDetailView({
               </div>
             </div>
 
+            </div>
+            {leftShorter && secondaryCards}
           </div>
 
           {/* --------------------------------------------- right column */}
           <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5">
+            {/* Delivery + Customer never move, so their combined height is a
+                stable thing to measure the left column against. */}
+            <div ref={rightFixedRef} className="flex flex-col gap-3.5">
             {/* Delivery — first in this column: while an order is out, the
                 rider is what the partner is actually watching.
 
@@ -1329,123 +1511,8 @@ export function OrderDetailView({
                 </div>
               )}
             </div>
-
-            {/* Payment */}
-            <div className={CARD}>
-              <div className={CARD_HEAD}>
-                <span className={cn(CARD_TITLE, "flex-[1_1_auto]")}>Payment</span>
-                <DotPill tone={order.is_paid ? "green" : "amber"}>
-                  {order.is_paid ? "Paid" : "Pending"}
-                </DotPill>
-              </div>
-              <div className="flex items-baseline justify-between gap-3 px-4 py-3.5">
-                <div>
-                  <div className={FIELD_LABEL}>Amount due</div>
-                  <div className="mt-1 text-[20px] font-semibold tracking-[-0.02em] tabular-nums text-zinc-950 dark:text-zinc-50">
-                    {money(currency, order.totalPrice, 2)}
-                  </div>
-                </div>
-                <MetaPill>{getPaymentDisplayLabel(order)}</MetaPill>
-              </div>
-              <div className="px-4 pb-3.5">
-                <div className={FIELD_LABEL}>Method</div>
-                {order.payment_method && !pickingMethod ? (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-                    <span className="text-[13px] font-medium capitalize text-zinc-950 dark:text-zinc-50">
-                      {order.payment_method}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPickingMethod(true)}
-                      className="ml-auto inline-flex h-[30px] shrink-0 items-center rounded-md border border-zinc-200 bg-transparent px-[11px] text-[12.5px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                    >
-                      Change
-                    </button>
-                  </div>
-                ) : pickingMethod ? (
-                  <div className="mt-2.5 flex flex-wrap gap-2">
-                    {["cash", "upi", "card"].map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => {
-                          onSetPaymentMethod(m);
-                          setPickingMethod(false);
-                        }}
-                        className="h-[34px] flex-[1_1_80px] rounded-md border border-zinc-200 bg-white text-[13px] font-medium capitalize text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                      >
-                        {m === "upi" ? "UPI" : m}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-                    <span className="text-[13px] font-normal text-zinc-400 dark:text-zinc-500">
-                      Not recorded
-                    </span>
-                    <AdminV3Button
-                      variant="strong"
-                      className="ml-auto h-[30px] px-[11px] text-[12.5px] font-medium"
-                      onClick={() => setPickingMethod(true)}
-                    >
-                      Set
-                    </AdminV3Button>
-                  </div>
-                )}
-              </div>
             </div>
-
-            {/* Order info */}
-            <div className={cn(CARD, "px-4 pb-2.5 pt-1.5")}>
-              <InfoRow label="Order type" value={getOrderTypeLabel(order)} />
-              <InfoRow
-                label="Channel"
-                value={
-                  order.order_channel === "app"
-                    ? "App"
-                    : order.order_channel === "whatsapp"
-                      ? "WhatsApp"
-                      : order.order_channel === "web"
-                        ? "Web"
-                        : "—"
-                }
-              />
-              <InfoRow label="Invoice No" value={invoiceLabel} />
-              {/* Growjet had its own column on admin-v2's list. The v3 table has
-                  a fixed eight, so the booking number lives here instead of
-                  disappearing for the partners who dispatch through it. */}
-              {order.growjet_order_number && (
-                <InfoRow
-                  label="Growjet"
-                  value={
-                    <span className="font-mono text-[12px]">{order.growjet_order_number}</span>
-                  }
-                />
-              )}
-              <InfoRow
-                label="Order ID"
-                value={<span className="font-mono text-[12px]">{order.id.slice(0, 8)}</span>}
-              />
-              <InfoRow
-                label="Placed"
-                value={fmtTz(order.createdAt, tz, "MMM D, YYYY · hh:mm A")}
-                last={!scheduledDate}
-              />
-              {scheduledDate && (
-                <InfoRow
-                  label={order.booking_persons ? "Table booking" : "Prebooked for"}
-                  value={`${formatPrebookDateLabel(scheduledDate)}${
-                    order.scheduled_time
-                      ? ` · ${formatPrebookSlotLabel(prebookCfg, scheduledDate, order.scheduled_time, {
-                          dineIn: !!order.booking_persons,
-                          to: order.scheduled_time_to,
-                        })}`
-                      : ""
-                  }`}
-                  last
-                />
-              )}
-            </div>
+            {!leftShorter && secondaryCards}
           </div>
         </div>
       </div>
