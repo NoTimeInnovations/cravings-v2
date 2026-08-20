@@ -703,6 +703,60 @@ const PlaceOrderModalV2 = ({
     for (let i = 0; i < extra; i++) decreaseQuantity(item.id);
   };
 
+  // ── Live availability re-check (ALL partners, independent of the stock
+  // feature) ──────────────────────────────────────────────────────────────
+  // Turning an item OFF in Petpooja / Manage Availability sets
+  // menu.is_available=false (soft-delete sets deletion_status). BOTH the page
+  // menu snapshot AND the cart line's own snapshot can be stale, so a cart
+  // filled while the item was ON slips past the menu-card block. Re-fetch the
+  // LIVE flags for the cart's items whenever the checkout opens (or the cart
+  // changes) and flag anything now unorderable. This is UI/UX only — placeOrder
+  // re-checks authoritatively server-side.
+  const [liveUnavailable, setLiveUnavailable] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!open_place_order_modal || !items?.length) {
+      setLiveUnavailable({});
+      return;
+    }
+    const ids = Array.from(new Set(items.map((it) => it.id.split("|")[0]))).filter(Boolean);
+    if (!ids.length) return;
+    let cancelled = false;
+    fetchFromHasura(
+      `query CheckoutAvailability($ids: [uuid!]!) {
+        menu(where: { id: { _in: $ids } }) { id is_available deletion_status }
+      }`,
+      { ids },
+    )
+      .then((res: any) => {
+        if (cancelled) return;
+        const map: Record<string, boolean> = {};
+        (res?.menu || []).forEach((m: any) => {
+          if (m?.id == null) return;
+          if (m.is_available === false || (m.deletion_status ?? 0) !== 0) map[m.id] = true;
+        });
+        setLiveUnavailable(map);
+      })
+      .catch(() => {
+        // Fail-open: placeOrder() re-checks server-side, so a transient fetch
+        // error here must not wedge checkout for everyone.
+        if (!cancelled) setLiveUnavailable({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open_place_order_modal, items]);
+  // Cart lines whose base item is currently turned OFF / removed (live).
+  const unavailableItems = useMemo(
+    () => (items || []).filter((it) => liveUnavailable[it.id.split("|")[0]]),
+    [items, liveUnavailable],
+  );
+  // Combined placement gate: stock (quantity) OR availability (on/off toggle).
+  const placementBlocked = stockBlocked || unavailableItems.length > 0;
+  const placementBlockMessage =
+    unavailableItems.length > 0
+      ? "Some items are no longer available. Please remove them to continue."
+      : stockBlockMessage;
+
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
   const formatTime12h = (t: string) => {
@@ -2565,8 +2619,8 @@ const PlaceOrderModalV2 = ({
       toast.error(`Some items are not available for ${orderType}. Please remove them.`);
       return;
     }
-    if (stockBlocked) {
-      toast.error(stockBlockMessage);
+    if (placementBlocked) {
+      toast.error(placementBlockMessage);
       return;
     }
     if (isBelowMinimum) {
@@ -2775,8 +2829,8 @@ const PlaceOrderModalV2 = ({
     }
     // Re-guard here too: the post-failure "Try Again" button calls this directly
     // (via handleOnlinePayAndPlaceOrder), bypassing handlePay's stock check.
-    if (stockBlocked) {
-      toast.error(stockBlockMessage);
+    if (placementBlocked) {
+      toast.error(placementBlockMessage);
       setOrderStatus("idle");
       return;
     }
@@ -3027,8 +3081,8 @@ const PlaceOrderModalV2 = ({
       toast.error(`Some items are not available for ${orderType}. Please remove them.`);
       return;
     }
-    if (stockBlocked) {
-      toast.error(stockBlockMessage);
+    if (placementBlocked) {
+      toast.error(placementBlockMessage);
       return;
     }
     if (isBelowMinimum) {
@@ -3657,7 +3711,7 @@ const PlaceOrderModalV2 = ({
     (!isQrScan && orderType === "delivery" && !isDeliveryOpen) ||
     (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) ||
     incompatibleItems.length > 0 ||
-    stockBlocked ||
+    placementBlocked ||
     isBelowMinimum ||
     storeIsClosedNow;
 
@@ -3910,6 +3964,27 @@ const PlaceOrderModalV2 = ({
                       className="text-xs font-bold text-red-800 bg-red-100 px-2.5 py-1 rounded-lg"
                     >
                       {(item.available ?? 0) <= 0 ? "Remove" : "Remove extra"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {unavailableItems.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 shadow-sm">
+                <p className="text-sm font-semibold text-red-800 mb-2">No longer available</p>
+                {unavailableItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-red-700">
+                      {item.name}
+                      <span className="ml-1 text-xs text-red-500">(unavailable)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.id)}
+                      className="text-xs font-bold text-red-800 bg-red-100 px-2.5 py-1 rounded-lg"
+                    >
+                      Remove
                     </button>
                   </div>
                 ))}

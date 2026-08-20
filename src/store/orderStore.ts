@@ -2045,6 +2045,52 @@ const useOrderStore = create(
             return null;
           }
 
+          // ── Authoritative availability re-check ────────────────────────────
+          // An item can be turned OFF (menu.is_available=false) or soft-deleted
+          // (deletion_status!=0) between being added to the cart and the order
+          // being placed — e.g. the partner toggles it off in Petpooja / Manage
+          // Availability. The storefront card blocks a *fresh* add, but a cart
+          // filled earlier bypasses that, and the checkout UI guard is
+          // client-side only. Re-verify the LIVE flags here before ANY order row
+          // is created, for every partner (independent of the stock feature).
+          // Fail-open on a query error so a transient Hasura blip can't wedge all
+          // checkouts (the order insert would fail in that case too).
+          try {
+            const availBaseIds = Array.from(
+              new Set(currentOrder.items.map((it) => it.id.split("|")[0])),
+            ).filter(Boolean);
+            if (availBaseIds.length) {
+              const availRes = await fetchFromHasura(
+                `query VerifyOrderItemAvailability($ids: [uuid!]!) {
+                  menu(where: { id: { _in: $ids } }) {
+                    id
+                    name
+                    is_available
+                    deletion_status
+                  }
+                }`,
+                { ids: availBaseIds },
+              );
+              const blocked = ((availRes?.menu as any[]) || []).filter(
+                (m) => m?.is_available === false || (m?.deletion_status ?? 0) !== 0,
+              );
+              if (blocked.length) {
+                const names = blocked
+                  .map((m) => m?.name)
+                  .filter(Boolean)
+                  .join(", ");
+                toast.error(
+                  names
+                    ? `No longer available: ${names}. Please remove ${blocked.length > 1 ? "them" : "it"} from your cart.`
+                    : "Some items are no longer available. Please update your cart.",
+                );
+                return null;
+              }
+            }
+          } catch (e) {
+            console.error("Availability re-check failed (order not blocked):", e);
+          }
+
           const userData = useAuthStore.getState().userData;
           // Allow a real customer (role "user") OR a partner/admin (role
           // "partner") to place a customer-style order. Other roles (superadmin,
@@ -2912,7 +2958,7 @@ function transformOrderFromHasura(order: any): Order {
       image_url: item.menu?.image_url || "",
       description: item.menu?.description || "",
       is_top: item.menu?.is_top || false,
-      is_available: item.menu?.is_available || true,
+      is_available: item.menu?.is_available ?? true,
       is_freebie: item.item?.is_freebie || false,
       // Snapshot first (it records what was true at order time), menu row as the
       // fallback. POS orders wrote this key only when truthy, so an absent key
