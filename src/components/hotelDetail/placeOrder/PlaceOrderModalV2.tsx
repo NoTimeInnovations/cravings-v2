@@ -752,10 +752,45 @@ const PlaceOrderModalV2 = ({
   );
   // Combined placement gate: stock (quantity) OR availability (on/off toggle).
   const placementBlocked = stockBlocked || unavailableItems.length > 0;
-  const placementBlockMessage =
-    unavailableItems.length > 0
-      ? "Some items are no longer available. Please remove them to continue."
-      : stockBlockMessage;
+  // The inline "No longer available" panel is scrolled into view here so the
+  // customer sees it in-context (by the cart items) instead of an easy-to-miss
+  // corner toast.
+  const unavailableRef = useRef<HTMLDivElement | null>(null);
+  // Re-verify availability at the moment Place Order is pressed (the item may
+  // have been turned off AFTER the checkout opened, while the page sat idle).
+  // Returns true when something is now unavailable; also refreshes the state
+  // that drives the inline panel and brings that panel into view. No toast —
+  // the panel is the signal.
+  const revalidateAvailability = useCallback(async (): Promise<boolean> => {
+    const ids = Array.from(
+      new Set((items || []).map((it) => it.id.split("|")[0])),
+    ).filter(Boolean);
+    if (!ids.length) return false;
+    try {
+      const res: any = await fetchFromHasura(
+        `query CheckoutAvailability($ids: [uuid!]!) {
+          menu(where: { id: { _in: $ids } }) { id is_available deletion_status }
+        }`,
+        { ids },
+      );
+      const map: Record<string, boolean> = {};
+      (res?.menu || []).forEach((m: any) => {
+        if (m?.id == null) return;
+        if (m.is_available === false || (m.deletion_status ?? 0) !== 0) map[m.id] = true;
+      });
+      setLiveUnavailable(map);
+      const anyBlocked = (items || []).some((it) => map[it.id.split("|")[0]]);
+      if (anyBlocked) {
+        requestAnimationFrame(() => {
+          unavailableRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      }
+      return anyBlocked;
+    } catch {
+      // Fail-open in the UI; placeOrder() re-checks authoritatively server-side.
+      return false;
+    }
+  }, [items]);
 
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
@@ -2619,8 +2654,11 @@ const PlaceOrderModalV2 = ({
       toast.error(`Some items are not available for ${orderType}. Please remove them.`);
       return;
     }
-    if (placementBlocked) {
-      toast.error(placementBlockMessage);
+    if (stockBlocked) {
+      toast.error(stockBlockMessage);
+      return;
+    }
+    if (await revalidateAvailability()) {
       return;
     }
     if (isBelowMinimum) {
@@ -2829,8 +2867,12 @@ const PlaceOrderModalV2 = ({
     }
     // Re-guard here too: the post-failure "Try Again" button calls this directly
     // (via handleOnlinePayAndPlaceOrder), bypassing handlePay's stock check.
-    if (placementBlocked) {
-      toast.error(placementBlockMessage);
+    if (stockBlocked) {
+      toast.error(stockBlockMessage);
+      setOrderStatus("idle");
+      return;
+    }
+    if (await revalidateAvailability()) {
       setOrderStatus("idle");
       return;
     }
@@ -3081,8 +3123,11 @@ const PlaceOrderModalV2 = ({
       toast.error(`Some items are not available for ${orderType}. Please remove them.`);
       return;
     }
-    if (placementBlocked) {
-      toast.error(placementBlockMessage);
+    if (stockBlocked) {
+      toast.error(stockBlockMessage);
+      return;
+    }
+    if (await revalidateAvailability()) {
       return;
     }
     if (isBelowMinimum) {
@@ -3971,8 +4016,16 @@ const PlaceOrderModalV2 = ({
             )}
 
             {unavailableItems.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 shadow-sm">
-                <p className="text-sm font-semibold text-red-800 mb-2">No longer available</p>
+              <div
+                ref={unavailableRef}
+                className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 shadow-sm scroll-mt-4"
+              >
+                <p className="text-sm font-semibold text-red-800 mb-1">
+                  These items are no longer available
+                </p>
+                <p className="text-xs text-red-600 mb-2">
+                  The restaurant turned them off. Tap “Remove” to take them out of your cart, then place your order.
+                </p>
                 {unavailableItems.map((item) => (
                   <div key={item.id} className="flex items-center justify-between py-1.5">
                     <span className="text-sm text-red-700">
