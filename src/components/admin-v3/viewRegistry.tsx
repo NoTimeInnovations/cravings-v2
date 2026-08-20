@@ -53,6 +53,7 @@ export const V3_VIEWS: Record<string, React.ComponentType<any>> = {
   Discounts: d(() => import("./AdminV3Discounts").then((m) => ({ default: m.AdminV3Discounts }))),
   "Delivery Boys": d(() => import("./AdminV3DeliveryBoys").then((m) => ({ default: m.AdminV3DeliveryBoys }))),
   "Delivery Pool": d(() => import("./AdminV3DeliveryPool").then((m) => ({ default: m.AdminV3DeliveryPool }))),
+  "Porter & Rapido": d(() => import("./AdminV3PorterRapido").then((m) => ({ default: m.AdminV3PorterRapido }))),
   Settings: d(() => import("./AdminV3Settings").then((m) => ({ default: m.AdminV3Settings }))),
   Settlements: d(() => import("./AdminV3Settlements").then((m) => ({ default: m.AdminV3Settlements }))),
   Billing: d(() => import("./AdminV3Billing").then((m) => ({ default: m.AdminV3Billing }))),

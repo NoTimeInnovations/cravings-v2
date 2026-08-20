@@ -68,6 +68,12 @@ export interface OrderCharge {
     /** Fare the provider charged the restaurant, from meta.fareAmount. */
     fare: number | null;
     paymentMode: string | null;
+    /** Where it went. Read by admin-v3's Porter & Rapido screen to label a trip
+     *  with something a human recognises instead of a bare order number. */
+    deliveryAddress: string | null;
+    /** Routed km, recorded on the order at checkout (orders.delivery_distance_km).
+     *  Null for orders placed before that column existed. */
+    distanceKm: number | null;
 }
 
 export interface ProviderSummary {

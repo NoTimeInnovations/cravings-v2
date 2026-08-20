@@ -240,6 +240,8 @@ export async function getThirdPartyChargeData(input: {
           delivery_provider_state
           delivery_provider_meta
           extra_charges
+          delivery_address
+          delivery_distance_km
         }
       }`,
       { id: partnerId },
@@ -263,6 +265,11 @@ export async function getThirdPartyChargeData(input: {
         state: o.delivery_provider_state ?? null,
         fare: deliveryChargeOf(o.extra_charges),
         paymentMode,
+        deliveryAddress: o.delivery_address ?? null,
+        distanceKm:
+          o.delivery_distance_km != null && Number.isFinite(Number(o.delivery_distance_km))
+            ? Number(o.delivery_distance_km)
+            : null,
       });
     }
   } catch (err) {
