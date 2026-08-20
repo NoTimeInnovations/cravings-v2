@@ -9,26 +9,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
-  getActiveDeliveryBoysQuery,
-  assignDeliveryBoyMutation,
-} from "@/api/deliveryBoys";
-import { sendDeliveryStatusWebhook } from "@/app/actions/sendPartnerWebhook";
-import { reportRiderToPetpooja } from "@/app/actions/petpoojaRider";
+  assignDeliveryBoyToOrder,
+  loadActiveDrivers,
+  type DriverOption,
+} from "@/lib/assignDeliveryBoy";
 import { Partner, useAuthStore } from "@/store/authStore";
 import useOrderStore, { Order } from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
-import { Notification } from "@/app/actions/notification";
 import { toast } from "sonner";
 import { Bike, Check, Loader2, Phone } from "lucide-react";
-
-interface DriverOption {
-  id: string;
-  name: string;
-  phone: string;
-  is_online: boolean;
-}
 
 /**
  * Popup to pick one of the partner's own registered drivers and dispatch the
@@ -56,18 +46,8 @@ export function AssignDriverDialog({
     if (!open || !userData?.id) return;
     setLoading(true);
     setSelectedId("");
-    fetchFromHasura(getActiveDeliveryBoysQuery, { partner_id: userData.id })
-      // Online riders first so the selectable ones are at the top; offline ones
-      // still show (with a marker) below and stay pickable — assignment notifies
-      // them when they come back online.
-      .then((res) =>
-        setDrivers(
-          [...(res?.delivery_boys || [])].sort(
-            (a: DriverOption, b: DriverOption) =>
-              Number(b.is_online) - Number(a.is_online),
-          ),
-        ),
-      )
+    loadActiveDrivers(userData.id)
+      .then(setDrivers)
       .catch(() => setDrivers([]))
       .finally(() => setLoading(false));
   }, [open, userData?.id]);
@@ -84,87 +64,15 @@ export function AssignDriverDialog({
       toast.error("Please select a driver");
       return;
     }
+    const boy = drivers.find((d) => d.id === selectedId);
+    if (!boy) return;
     setAssigning(true);
-    try {
-      await fetchFromHasura(assignDeliveryBoyMutation, {
-        order_id: order.id,
-        delivery_boy_id: selectedId,
-      });
-
-      // Partner's own webhook: a rider was assigned. Fire-and-forget — their
-      // endpoint must never fail an assignment their own staff just made.
-      try {
-        const picked = drivers.find((b: any) => b.id === selectedId);
-        void sendDeliveryStatusWebhook(order.id, "assigned", {
-          name: picked?.name ?? null,
-          phone: picked?.phone ?? null,
-        });
-      } catch {
-        /* never block an assignment on a partner's endpoint */
-      }
-
-      const storeName =
-        userData && "store_name" in userData
-          ? (userData as Partner).store_name
-          : undefined;
-      try {
-        await Notification.user.sendOrderStatusNotification(
-          order,
-          "dispatched",
-          storeName,
-        );
-      } catch (e) {
-        console.error("Failed to notify customer:", e);
-      }
-      try {
-        await Notification.deliveryBoy.sendAssignmentNotification(
-          selectedId,
-          order.id,
-          order.display_id || order.id.slice(0, 8),
-          order.deliveryAddress || "No address",
-          userData?.id,
-        );
-      } catch (e) {
-        console.error("Failed to notify driver:", e);
-      }
-
-      const boy = drivers.find((d) => d.id === selectedId);
-
-      // Tell Petpooja who is carrying it — see DeliveryBoyAssignment. Their POS
-      // only learns rider details for its own self-delivery orders.
-      if (boy) {
-        void reportRiderToPetpooja({
-          orderId: order.id,
-          status: "assigned",
-          riderName: boy.name,
-          riderPhone: boy.phone,
-        });
-      }
-
-      setOrders(
-        orders.map((o) =>
-          o.id === order.id
-            ? {
-                ...o,
-                status: "dispatched" as const,
-                delivery_boy_id: selectedId,
-                delivery_boy: boy
-                  ? { id: boy.id, name: boy.name, phone: boy.phone }
-                  : o.delivery_boy,
-                assigned_at: new Date().toISOString(),
-              }
-            : o,
-        ),
-      );
-
-      toast.success(`Dispatched with ${boy?.name ?? "driver"}`);
-      onOpenChange(false);
-    } catch (e) {
-      console.error("Error dispatching order:", e);
-      toast.error("Failed to dispatch order");
-    } finally {
-      setAssigning(false);
-    }
+    // The mutation, the partner webhook, both pushes, the Petpooja report and
+    // the local store update all live in one place now — admin-v3's inline
+    // rider dropdown runs the identical sequence.
+    const ok = await assignDeliveryBoyToOrder(order, boy, userData as Partner);
+    setAssigning(false);
+    if (ok) onOpenChange(false);
   };
 
   // Escape hatch: mark the order dispatched without assigning one of the

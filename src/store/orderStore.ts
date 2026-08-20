@@ -2794,6 +2794,22 @@ const useOrderStore = create(
                 }
                 table_name
                 growjet_order_number
+                # Same bug class as every comment above, 4th instance: the mapper
+                # below reads delivery_boy / delivery_boy_id / assigned_at /
+                # delivered_at, but they were never selected here — so in "Show
+                # All Orders" an order delivered by the partner's OWN rider had
+                # no rider at all, while the live Orders screen showed them.
+                delivery_boy_id
+                assigned_at
+                delivered_at
+                delivery_boy {
+                  id
+                  name
+                  phone
+                  current_lat
+                  current_lng
+                  location_updated_at
+                }
                 delivery_agent
                 delivery_provider
                 delivery_provider_order_id

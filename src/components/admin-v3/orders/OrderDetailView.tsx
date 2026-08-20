@@ -10,6 +10,7 @@ import {
   Copy,
   ExternalLink,
   History,
+  Loader2,
   MapPin,
   MessageCircle,
   MoreVertical,
@@ -45,7 +46,11 @@ import { getFeatures } from "@/lib/getFeatures";
 import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
 import { isRealDeliveryOrder, usesOwnDeliveryBoys } from "@/lib/ownDriverDispatch";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
-import { AssignDriverDialog } from "@/components/admin-v2/AssignDriverDialog";
+import {
+  assignDeliveryBoyToOrder,
+  loadActiveDrivers,
+  type DriverOption,
+} from "@/lib/assignDeliveryBoy";
 import { taxLabel } from "@/lib/taxLabel";
 import { toStatusDisplayFormat } from "@/lib/statusHistory";
 import type { DispatchHistoryRow } from "@/lib/dispatchHistory";
@@ -399,7 +404,52 @@ export function OrderDetailView({
   /* ------------------------------------------------- own delivery boys ---- */
 
   const [assignOpen, setAssignOpen] = React.useState(false);
+  const [drivers, setDrivers] = React.useState<DriverOption[] | null>(null);
+  const [assigningId, setAssigningId] = React.useState<string | null>(null);
   const hasOwnDrivers = useHasOwnDrivers();
+
+  // Loaded when the menu is first opened, not on mount: most order views never
+  // touch it, and the roster is a separate query.
+  React.useEffect(() => {
+    if (!assignOpen || drivers !== null || !partner?.id) return;
+    let cancelled = false;
+    loadActiveDrivers(partner.id)
+      .then((d) => {
+        if (!cancelled) setDrivers(d);
+      })
+      .catch(() => {
+        if (!cancelled) setDrivers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignOpen, drivers, partner?.id]);
+
+  /**
+   * Riders in pick order: whoever is already on this order first, then online,
+   * then offline.
+   *
+   * The current rider going to the top matters most when REASSIGNING — that is
+   * the row you are comparing everything else against, and hunting for it in an
+   * alphabetical list is the moment you misclick onto the wrong person.
+   */
+  const driverChoices = React.useMemo(() => {
+    if (!drivers) return [];
+    const currentId = order.delivery_boy_id;
+    const current = drivers.filter((d) => d.id === currentId);
+    const rest = drivers.filter((d) => d.id !== currentId);
+    return [...current, ...rest];
+  }, [drivers, order.delivery_boy_id]);
+
+  const assignRider = async (driver: DriverOption) => {
+    setAssigningId(driver.id);
+    try {
+      const ok = await assignDeliveryBoyToOrder(order, driver, partner);
+      if (ok) setAssignOpen(false);
+    } finally {
+      setAssigningId(null);
+    }
+  };
   /**
    * Assigning one of the partner's OWN riders.
    *
@@ -544,14 +594,6 @@ export function OrderDetailView({
 
   return (
     <div className="flex flex-col">
-      {/* The partner's OWN rider picker — the same dialog the dashboard's
-          live-order cards open, so "assign" means one thing everywhere. */}
-      <AssignDriverDialog
-        open={assignOpen}
-        onOpenChange={setAssignOpen}
-        order={order}
-      />
-
       {/* ---------------------------------------------------------- header */}
       <div className="sticky top-0 z-[6] flex flex-wrap items-center gap-3 gap-y-2.5 border-b border-zinc-200 bg-white/90 px-[clamp(14px,3vw,28px)] py-3 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/90">
         <button
@@ -1020,13 +1062,70 @@ export function OrderDetailView({
                 {(canTrack || canCancelRider || canAssignOwnRider || bookings.length > 0) && (
                   <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
                     {canAssignOwnRider && (
-                      <AdminV3Button
-                        variant="small"
-                        onClick={() => setAssignOpen(true)}
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                        {rider ? "Change rider" : "Assign rider"}
-                      </AdminV3Button>
+                      <DropdownMenu open={assignOpen} onOpenChange={setAssignOpen}>
+                        <DropdownMenuTrigger asChild>
+                          <AdminV3Button variant="small">
+                            <UserPlus className="h-3.5 w-3.5" />
+                            {rider ? "Change rider" : "Assign rider"}
+                            <ChevronDown className="h-3 w-3 opacity-60" />
+                          </AdminV3Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="start"
+                          className="max-h-[280px] w-[240px] overflow-y-auto p-1"
+                        >
+                          {drivers === null ? (
+                            <div className="flex items-center justify-center gap-2 px-2 py-6 text-[12.5px] text-zinc-500 dark:text-zinc-400">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Loading riders…
+                            </div>
+                          ) : driverChoices.length === 0 ? (
+                            <div className="px-3 py-6 text-center text-[12.5px] text-zinc-500 dark:text-zinc-400">
+                              No active riders.
+                            </div>
+                          ) : (
+                            driverChoices.map((d) => {
+                              const isCurrent = d.id === order.delivery_boy_id;
+                              return (
+                                <DropdownMenuItem
+                                  key={d.id}
+                                  disabled={!!assigningId}
+                                  onSelect={(e) => {
+                                    // Keep the menu open while the assignment
+                                    // runs; it closes itself on success.
+                                    e.preventDefault();
+                                    void assignRider(d);
+                                  }}
+                                  className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-2"
+                                >
+                                  <span
+                                    className={cn(
+                                      "h-1.5 w-1.5 shrink-0 rounded-full",
+                                      d.is_online
+                                        ? "bg-green-500"
+                                        : "bg-zinc-300 dark:bg-zinc-600",
+                                    )}
+                                    title={d.is_online ? "Online" : "Offline"}
+                                  />
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-[13px] font-medium leading-none text-zinc-950 dark:text-zinc-50">
+                                      {d.name}
+                                    </span>
+                                    <span className="mt-1 block truncate text-[11.5px] leading-none text-zinc-400 dark:text-zinc-500">
+                                      {d.phone}
+                                    </span>
+                                  </span>
+                                  {assigningId === d.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                                  ) : isCurrent ? (
+                                    <Check className="h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400" />
+                                  ) : null}
+                                </DropdownMenuItem>
+                              );
+                            })
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                     {canTrack && (
                       <a
