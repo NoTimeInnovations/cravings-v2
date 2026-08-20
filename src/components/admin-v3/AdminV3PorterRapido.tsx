@@ -534,6 +534,18 @@ export function AdminV3PorterRapido() {
               </div>
             )}
           </V3Card>
+
+          {/* Directly under the wallet, because that is the balance it watches.
+              Across the layout in its own column it read as a general setting
+              rather than as this card's threshold. */}
+          {wallet && (
+            <LowBalanceAlert
+              currency={currency}
+              partnerId={partnerId}
+              initial={threshold}
+              onSaved={load}
+            />
+          )}
         </div>
 
         {/* ----------------------------------------------------- right column */}
@@ -610,15 +622,6 @@ export function AdminV3PorterRapido() {
               value={pending ? null : money(currency, month.cashTrips, 0)}
             />
           </V3Card>
-
-          {wallet && (
-            <LowBalanceAlert
-              currency={currency}
-              partnerId={partnerId}
-              initial={threshold}
-              onSaved={load}
-            />
-          )}
         </div>
       </div>
     </Shell>
