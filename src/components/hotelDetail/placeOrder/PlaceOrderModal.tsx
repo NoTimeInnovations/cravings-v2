@@ -1991,6 +1991,56 @@ const PlaceOrderModal = ({
     for (let i = 0; i < extra; i++) decreaseQuantity(item.id);
   };
 
+  // ── Live availability re-check (ALL partners, independent of the stock
+  // feature) ──────────────────────────────────────────────────────────────
+  // An item turned OFF in Petpooja / Manage Availability (menu.is_available=
+  // false) or soft-deleted (deletion_status!=0) after being added to the cart
+  // slips past the menu-card block, since the cart holds its own stale snapshot.
+  // Re-fetch the LIVE flags for the cart's items when the checkout opens.
+  // UI/UX only — placeOrder() re-checks authoritatively server-side.
+  const [liveUnavailable, setLiveUnavailable] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!open_place_order_modal || !items?.length) {
+      setLiveUnavailable({});
+      return;
+    }
+    const ids = Array.from(new Set(items.map((it) => it.id.split("|")[0]))).filter(Boolean);
+    if (!ids.length) return;
+    let cancelled = false;
+    fetchFromHasura(
+      `query CheckoutAvailability($ids: [uuid!]!) {
+        menu(where: { id: { _in: $ids } }) { id is_available deletion_status }
+      }`,
+      { ids },
+    )
+      .then((res: any) => {
+        if (cancelled) return;
+        const map: Record<string, boolean> = {};
+        (res?.menu || []).forEach((m: any) => {
+          if (m?.id == null) return;
+          if (m.is_available === false || (m.deletion_status ?? 0) !== 0) map[m.id] = true;
+        });
+        setLiveUnavailable(map);
+      })
+      .catch(() => {
+        if (!cancelled) setLiveUnavailable({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open_place_order_modal, items]);
+  // Cart lines whose base item is currently turned OFF / removed (live).
+  const unavailableItems = useMemo(
+    () => (items || []).filter((it) => liveUnavailable[it.id.split("|")[0]]),
+    [items, liveUnavailable],
+  );
+  // Combined placement gate: stock (quantity) OR availability (on/off toggle).
+  const placementBlocked = stockBlocked || unavailableItems.length > 0;
+  const placementBlockMessage =
+    unavailableItems.length > 0
+      ? "Some items are no longer available. Please remove them to continue."
+      : stockBlockMessage;
+
   const [showLoginDrawer, setShowLoginDrawer] = useState(false);
   const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
   const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
@@ -3609,8 +3659,8 @@ const PlaceOrderModal = ({
       return;
     }
 
-    if (stockBlocked) {
-      toast.error(stockBlockMessage);
+    if (placementBlocked) {
+      toast.error(placementBlockMessage);
       return;
     }
 
@@ -3899,8 +3949,8 @@ const PlaceOrderModal = ({
       return;
     }
 
-    if (stockBlocked) {
-      toast.error(stockBlockMessage);
+    if (placementBlocked) {
+      toast.error(placementBlockMessage);
       return;
     }
 
@@ -4551,6 +4601,28 @@ const PlaceOrderModal = ({
                     ))}
                   </div>
                 )}
+                {unavailableItems.length > 0 && (
+                  <div className="mb-3 p-3 rounded-lg bg-red-50 border border-red-200">
+                    <p className="text-xs font-semibold text-red-700 mb-1">
+                      No longer available
+                    </p>
+                    {unavailableItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between py-1">
+                        <span className="text-xs text-red-600">
+                          {item.name}
+                          <span className="ml-1 text-[10px] text-red-400">(unavailable)</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {stockFeatureOn && !stockVerified && (
                   <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
                     <p className="text-xs text-amber-700">Checking stock availability…</p>
@@ -5060,7 +5132,7 @@ const PlaceOrderModal = ({
                     disabled={
                       isPlaceOrderDisabled ||
                       hasIncompatibleItems ||
-                      stockBlocked ||
+                      placementBlocked ||
                       !user ||
                       items?.length === 0 ||
                       (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)
