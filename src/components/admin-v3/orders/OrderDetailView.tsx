@@ -45,6 +45,7 @@ import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
 import { isRealDeliveryOrder } from "@/lib/ownDriverDispatch";
 import { taxLabel } from "@/lib/taxLabel";
 import { toStatusDisplayFormat } from "@/lib/statusHistory";
+import type { DispatchHistoryRow } from "@/lib/dispatchHistory";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   elapsedMs,
@@ -98,25 +99,14 @@ import {
  * escalates to the next, a rider cancels and it rebooks, or the partner cancels
  * and books again. Each attempt is its own row with its own reference — which
  * is what makes a booking history worth showing rather than just "the rider".
+ *
+ * Re-exported from the canonical row rather than restated. A hand-written copy
+ * here declared a flat `driverName`, which does not exist: the real row carries
+ * a `driver` OBJECT plus `fareAmount`, so every past booking rendered as "Never
+ * assigned" with its phone, vehicle and fare silently dropped. Importing the
+ * type makes that class of drift impossible.
  */
-export type DispatchBooking = {
-  bookingId: string;
-  provider: string;
-  status: string;
-  crn: string | null;
-  driverName?: string | null;
-  /** Set only for a DELIBERATE cancel (partner / customer / operator). */
-  cancelledBy?: string | null;
-  cancelReason?: string | null;
-  /** Null means a rider was never assigned to this attempt. */
-  assignedAt?: number | null;
-  createdAt: number;
-  /** Cancelled with a rider already on it and no reallocation to follow — the
-   *  provider's own app may still show that rider en route. Uncertain, not dead. */
-  cancelSuspect?: boolean;
-  /** Set when a provider reallocation moved us onto a new reference. */
-  reallocatedFrom?: string | null;
-};
+export type DispatchBooking = DispatchHistoryRow;
 
 /** What getDispatchProgress returns, narrowed to what this screen reads. */
 type DispatchProgress = {
@@ -513,6 +503,7 @@ export function OrderDetailView({
       <BookingHistoryView
         bookings={bookings}
         orderLabel={invoiceLabel}
+        currency={currency}
         tz={tz}
         onBack={() => setHistoryOpen(false)}
       />

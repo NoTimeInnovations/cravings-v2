@@ -63,12 +63,14 @@ const byWhom: Record<string, string> = {
 export function BookingHistoryView({
   bookings,
   orderLabel,
+  currency,
   tz,
   onBack,
 }: {
   bookings: DispatchBooking[];
   /** "#12" — so the page says which order these belong to. */
   orderLabel: string;
+  currency: string;
   tz?: string;
   onBack: () => void;
 }) {
@@ -140,7 +142,38 @@ export function BookingHistoryView({
                 </div>
 
                 <div className="flex flex-wrap gap-x-8 gap-y-4 px-4 py-3.5">
-                  <Field label="Rider" value={b.driverName || "Never assigned"} />
+                  <Field
+                    label="Rider"
+                    // assignedAt without a name is a real state: the provider
+                    // accepted before it told us who. Saying "Never assigned"
+                    // there would contradict the time shown beside it.
+                    value={
+                      b.driver?.name ||
+                      (b.assignedAt ? "Name not reported" : "Never assigned")
+                    }
+                  />
+                  {b.driver?.phone && (
+                    <div className="min-w-0">
+                      <div className={LABEL}>Phone</div>
+                      <a
+                        href={`tel:${b.driver.phone}`}
+                        className="mt-1.5 block truncate text-[13px] font-medium leading-none text-zinc-950 underline-offset-2 hover:underline dark:text-zinc-50"
+                      >
+                        {b.driver.phone}
+                      </a>
+                    </div>
+                  )}
+                  {(b.driver?.vehicleNumber || b.driver?.vehicleModel) && (
+                    <Field
+                      label="Vehicle"
+                      value={[b.driver.vehicleNumber, b.driver.vehicleModel]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    />
+                  )}
+                  {b.fareAmount != null && (
+                    <Field label="Fare" value={`${currency}${b.fareAmount}`} />
+                  )}
                   <Field
                     label="Booked"
                     value={b.createdAt ? fmtTz(new Date(b.createdAt).toISOString(), tz, "DD MMM, hh:mm A") : "—"}
