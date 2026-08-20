@@ -157,6 +157,22 @@ export default function AdminV3Page() {
   const handleNavigate = (view: string, id: string) => {
     setDrawerOpen(false);
     if (V3_OWNED_VIEWS.has(view)) {
+      // Sidebar shortcuts into Settings (Porter & Rapido, Discounts) carry
+      // their section/tab here. Settings reads ?sg/?ss at MOUNT and on
+      // popstate, so the params go on the URL BEFORE the view switches, and
+      // the event is dispatched for the case where Settings is already open —
+      // replaceState alone would move the URL and leave the screen put.
+      const deep = SETTINGS_DEEP_LINKS[id];
+      if (deep && view === "Settings" && typeof window !== "undefined") {
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}?view=Settings&${deep}`,
+        );
+        setActiveView(view);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        return;
+      }
       setActiveView(view);
       return;
     }

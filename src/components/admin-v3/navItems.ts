@@ -14,6 +14,7 @@ import {
   PackageSearch,
   Percent,
   QrCode,
+  Route,
   ShoppingBag,
   Star,
   Tag,
@@ -64,6 +65,10 @@ export const navItems: NavItem[] = [
   { view: "Captains", id: "captains", label: "Captains", icon: UserCog, group: "Operations" },
   { view: "Delivery Boys", id: "deliveryboys", label: "Delivery Boys", icon: Truck, group: "Operations" },
   { view: "Delivery Pool", id: "delivery-pool", label: "Delivery Pool", icon: Bike, group: "Operations" },
+  // A shortcut, not a screen: it opens the Ordering settings tab that already
+  // holds the Porter/Rapido setup. `view` is therefore "Settings" and the real
+  // destination is the SETTINGS_DEEP_LINKS entry keyed on this id.
+  { view: "Settings", id: "porter-rapido", label: "Porter & Rapido", icon: Route, group: "Operations" },
 
   { view: "Menu", id: "menu", label: "Menu", icon: UtensilsCrossed, group: "Catalog" },
   { view: "Stock Management", id: "stock-management", label: "Stock Management", icon: Boxes, group: "Catalog" },
@@ -124,4 +129,5 @@ export const V3_OWNED_VIEWS = new Set([
 /** Deep-link params for the Settings sub-sections the sidebar/quick actions target. */
 export const SETTINGS_DEEP_LINKS: Record<string, string> = {
   discounts: "sg=ordering&ss=discounts",
+  "porter-rapido": "sg=ordering&ss=bridge",
 };

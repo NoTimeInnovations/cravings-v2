@@ -101,7 +101,7 @@ const MODULES: { key: FeatureKey; name: string; note: string }[] = [
   { key: "whatsappOrdering", name: "WhatsApp templates", note: "Write and submit message templates to Meta." },
   { key: "whatsappFlowTyping", name: "WhatsApp read receipts", note: "Blue tick and typing dots on the welcome reply." },
   { key: "whatsappcatalog", name: "WhatsApp catalogue", note: "Publish your menu as a WhatsApp catalogue." },
-  { key: "porter_bridge", name: "Delivery bridge", note: "Dispatch to Porter or Rapido from your own accounts." },
+  { key: "porter_bridge", name: "Porter & Rapido", note: "Dispatch to Porter or Rapido from your own accounts." },
   { key: "delivery_pool", name: "Menuthere delivery pool", note: "Hand orders to the shared rider network." },
   { key: "delivery_agent", name: "Delivery agents", note: "Dispatch through the delivery-agents hub." },
   { key: "growjet_delivery", name: "Growjet delivery", note: "Dispatch through Growjet." },

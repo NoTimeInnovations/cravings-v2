@@ -37,7 +37,7 @@ import { Note, SettingsCard, TextField, useDeclareSubPage } from "./controls";
  */
 
 /**
- * The row on the Delivery bridge tab that opens the accounts page.
+ * The row on the Porter & Rapido tab that opens the accounts page.
  *
  * Deliberately carries no live status: rendering a count here would mean a
  * second call to the bridge on every visit to the tab, for a number the page

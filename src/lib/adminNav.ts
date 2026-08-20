@@ -51,6 +51,13 @@ export function getNavItemState(
   if (id === "stock-management") {
     return features?.stockmanagement?.enabled ? "visible" : "hidden";
   }
+  // Porter & Rapido dispatch. `enabled`, not `access`: a partner who has the
+  // feature available but switched off has nothing to run from here. The
+  // Ordering settings tab stays reachable on `access` so they can turn it on.
+  // v3-only id — admin-v2's sidebar never asks about it.
+  if (id === "porter-rapido") {
+    return features?.porter_bridge?.enabled ? "visible" : "hidden";
+  }
   // Settlements only make sense for stores that accept online (Cashfree)
   // payments — hidden otherwise, regardless of plan.
   if (id === "settlements") {

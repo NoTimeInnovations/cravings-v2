@@ -84,7 +84,7 @@ export const ICON_BTN =
 
 /* -------------------------------------------------------------- meta pills */
 
-/** Small grey capsule: "1 item", "COD", "Delivery Bridge", "TAKEAWAY". */
+/** Small grey capsule: "1 item", "COD", "Porter & Rapido", "TAKEAWAY". */
 export function MetaPill({
   className,
   children,

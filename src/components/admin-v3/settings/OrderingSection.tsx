@@ -192,7 +192,7 @@ export function orderingTabs(
       ? [{ value: "delivery" as const, label: "Delivery" }]
       : []),
     ...(features?.porter_bridge?.access
-      ? [{ value: "bridge" as const, label: "Delivery bridge" }]
+      ? [{ value: "bridge" as const, label: "Porter & Rapido" }]
       : []),
   ];
 }
@@ -507,7 +507,7 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
     <>
       <ProviderAccountsEntry onOpen={() => setAccountsOpen(true)} />
 
-      <SettingsCard title="Delivery bridge" meta={<Chip>Porter · Rapido</Chip>}>
+      <SettingsCard title="Porter & Rapido" meta={<Chip>Porter · Rapido</Chip>}>
         <SegmentedField
           label="Vehicle"
           hint="A bike is usually cheapest for food. Parcel books a courier class; Rapido has no scooty and falls back to a bike."

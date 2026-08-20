@@ -9,7 +9,7 @@ import { useAuthStore, Partner } from "@/store/authStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { getNavItemState } from "@/lib/adminNav";
 import { getAccounts } from "@/lib/addAccount";
-import { NAV_GROUPS, navItems } from "./navItems";
+import { NAV_GROUPS, SETTINGS_DEEP_LINKS, navItems } from "./navItems";
 
 
 export function AdminV3Sidebar({
@@ -280,7 +280,14 @@ export function AdminV3Sidebar({
               )}
               {items.map((item) => {
                 const Icon = item.icon;
-                const isActive = activeView === item.view;
+                // A shortcut INTO Settings is not a destination: without this
+                // it would light up whenever Settings was open for any other
+                // reason. Scoped to view === "Settings" on purpose — Discounts
+                // also has a deep link (its admin-v2 fallback) but is a real v3
+                // screen, and must still highlight when it is the one open.
+                const isActive =
+                  activeView === item.view &&
+                  !(item.view === "Settings" && SETTINGS_DEEP_LINKS[item.id]);
                 return (
                   <button
                     key={item.id}
