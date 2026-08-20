@@ -554,9 +554,21 @@ export function AdminV3PorterRapido() {
           <V3Card className="overflow-hidden">
             <div className="flex flex-wrap items-center gap-2.5 border-b border-zinc-100 px-4 py-[13px] dark:border-zinc-800">
               <span className={CARD_TITLE}>Dispatch</span>
-              <StatusPill tone="outline" className="ml-auto font-medium">
-                Bridge on
-              </StatusPill>
+              <span className="ml-auto flex flex-wrap items-center gap-2">
+                <StatusPill tone="outline" className="font-medium">
+                  Bridge on
+                </StatusPill>
+                {/* One button for the card rather than a Connect per row: both
+                    providers are managed on the same Accounts page, so two
+                    buttons pointed at one destination. */}
+                <AdminV3Button
+                  variant="small"
+                  onClick={() => navigate("Settings", ACCOUNTS_LINK)}
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  Accounts
+                </AdminV3Button>
+              </span>
             </div>
 
             <ProviderRow
@@ -571,24 +583,11 @@ export function AdminV3PorterRapido() {
                   <StatusPill tone="outline">Not connected</StatusPill>
                 )
               }
-              onConnect={
-                !pending && !wallet
-                  ? () => navigate("Settings", ACCOUNTS_LINK)
-                  : undefined
-              }
             />
             <ProviderRow
               name="Rapido"
               note="Rider collects the fare in cash"
-              // "Cash only" describes how Rapido settles, not whether it is
-              // linked — so the connected state is read separately, from
-              // whether a Rapido login is on file.
               pill={<StatusPill tone="outline">Cash only</StatusPill>}
-              onConnect={
-                !pending && !rapido?.connectedMobile
-                  ? () => navigate("Settings", ACCOUNTS_LINK)
-                  : undefined
-              }
             />
 
             <div className="flex items-start gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
@@ -642,13 +641,10 @@ function ProviderRow({
   name,
   note,
   pill,
-  onConnect,
 }: {
   name: string;
   note: string;
   pill: React.ReactNode;
-  /** Present only while this provider has no account linked. */
-  onConnect?: () => void;
 }) {
   return (
     <div className={ROW}>
@@ -663,21 +659,7 @@ function ProviderRow({
           {note}
         </div>
       </div>
-      <span className="ml-auto flex shrink-0 items-center gap-2">
-        {pill}
-        {/* Only when there is nothing linked. A row that already dispatches
-            needs no call to action, and the status pill is the whole message. */}
-        {onConnect && (
-          <AdminV3Button
-            variant="small"
-            onClick={onConnect}
-            aria-label={`Connect ${name}`}
-          >
-            <Link2 className="h-3.5 w-3.5" />
-            Connect
-          </AdminV3Button>
-        )}
-      </span>
+      <span className="ml-auto shrink-0">{pill}</span>
     </div>
   );
 }
