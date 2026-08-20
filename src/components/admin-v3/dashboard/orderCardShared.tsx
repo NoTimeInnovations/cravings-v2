@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { Clock, MapPin } from "lucide-react";
+import { ChevronDown, Clock, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
@@ -10,10 +10,10 @@ import useOrderStore, { type Order } from "@/store/orderStore";
 import { useAdminStore } from "@/store/adminStore";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
-import { AssignDriverDialog } from "@/components/admin-v2/AssignDriverDialog";
 import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
 import { shouldPickOwnDriverOnDispatch } from "@/lib/ownDriverDispatch";
 import { AdminV3Button, StatusPill } from "../ui/primitives";
+import { RiderPicker } from "../orders/RiderPicker";
 import { useV3Navigate } from "../useV3Navigate";
 
 /**
@@ -111,11 +111,9 @@ export function useOrderCardActions({ onNavigateAway }: { onNavigateAway?: () =>
   const [advancing, setAdvancing] = React.useState<Set<string>>(new Set());
 
   // Whether this partner runs their own riders. When they do, "Dispatch" opens
-  // the driver picker instead of dispatching straight out — skipping it would
+  // the rider picker instead of dispatching straight out — skipping it would
   // silently send orders out unassigned for exactly the partners who care most.
   const hasOwnDrivers = useHasOwnDrivers();
-  const [assigningId, setAssigningId] = React.useState<string | null>(null);
-  const assigningOrder = orders.find((o) => o.id === assigningId) || null;
 
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);
   const cancellingOrder = orders.find((o) => o.id === cancellingId) || null;
@@ -141,14 +139,6 @@ export function useOrderCardActions({ onNavigateAway }: { onNavigateAway?: () =>
   const advance = React.useCallback(
     async (order: Order, next: string) => {
       if (advancing.has(order.id)) return;
-
-      if (
-        next === "dispatched" &&
-        shouldPickOwnDriverOnDispatch(order, userData as Partner, hasOwnDrivers)
-      ) {
-        setAssigningId(order.id);
-        return;
-      }
 
       setAdvancing((prev) => new Set(prev).add(order.id));
       try {
@@ -184,19 +174,22 @@ export function useOrderCardActions({ onNavigateAway }: { onNavigateAway?: () =>
           isPetpooja={isPetpooja}
         />
       )}
-      <AssignDriverDialog
-        open={!!assigningId}
-        onOpenChange={(o) => {
-          if (!o) setAssigningId(null);
-        }}
-        order={assigningOrder}
-      />
     </>
+  );
+
+  /** True when Dispatch should pick one of the partner's OWN riders rather than
+   *  flipping the status straight to dispatched. */
+  const needsOwnRider = React.useCallback(
+    (order: Order) =>
+      shouldPickOwnDriverOnDispatch(order, userData as Partner, hasOwnDrivers),
+    [hasOwnDrivers, userData],
   );
 
   return {
     orders,
     currency,
+    partner: userData as Partner | undefined,
+    needsOwnRider,
     advancing,
     openOrder,
     advance,
@@ -221,7 +214,8 @@ export function OrderCard({
   /** The pending-orders sheet always wants the full card, never the one-liner. */
   forceExpanded?: boolean;
 }) {
-  const { currency, advancing, openOrder, advance, requestCancel } = actions;
+  const { currency, advancing, openOrder, advance, requestCancel, partner, needsOwnRider } =
+    actions;
   const status = STATUS_LABEL[order.status];
   const next = nextStep(order);
   const busy = advancing.has(order.id);
@@ -357,16 +351,37 @@ export function OrderCard({
               Cancel
             </AdminV3Button>
           )}
-          {next && (
-            <AdminV3Button
-              variant="primary"
-              className="h-9 min-w-0 flex-1 px-2 text-[12.5px]"
-              disabled={busy}
-              onClick={() => advance(order, next.status)}
-            >
-              {busy ? "Working…" : next.label}
-            </AdminV3Button>
-          )}
+          {next &&
+            // Dispatching an order this partner delivers themselves is a rider
+            // choice, not a status flip, so the button IS the picker — same
+            // dropdown the order detail uses. It used to open a modal, which
+            // made one action look like two different features.
+            (next.status === "dispatched" && needsOwnRider(order) ? (
+              <RiderPicker
+                order={order}
+                partner={partner}
+                align="end"
+                trigger={
+                  <AdminV3Button
+                    variant="primary"
+                    className="h-9 min-w-0 flex-1 px-2 text-[12.5px]"
+                    disabled={busy}
+                  >
+                    {next.label}
+                    <ChevronDown className="h-3 w-3 opacity-70" />
+                  </AdminV3Button>
+                }
+              />
+            ) : (
+              <AdminV3Button
+                variant="primary"
+                className="h-9 min-w-0 flex-1 px-2 text-[12.5px]"
+                disabled={busy}
+                onClick={() => advance(order, next.status)}
+              >
+                {busy ? "Working…" : next.label}
+              </AdminV3Button>
+            ))}
         </div>
       </div>
     </div>
