@@ -54,6 +54,7 @@ import {
 } from "@/lib/assignDeliveryBoy";
 import { taxLabel } from "@/lib/taxLabel";
 import { toStatusDisplayFormat } from "@/lib/statusHistory";
+import { formatDisplayName } from "@/store/categoryStore_hasura";
 import type { DispatchHistoryRow } from "@/lib/dispatchHistory";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
@@ -1042,12 +1043,18 @@ export function OrderDetailView({
                             <span className="ml-1 text-[11px] font-bold opacity-60">(FREE)</span>
                           )}
                         </div>
-                        {(item as any).description && (
+                        {/* The category, not the menu description. A dish's
+                            description is written for a customer deciding what
+                            to eat; on an order that is already placed it is
+                            three lines of noise per row. The category is what
+                            actually helps here — it groups the ticket the way
+                            the kitchen does. */}
+                        {categoryOf(item) && (
                           <div
                             translate="no"
                             className="notranslate mt-0.5 text-[12px] font-normal leading-[1.4] text-zinc-500 dark:text-zinc-400"
                           >
-                            {(item as any).description}
+                            {categoryOf(item)}
                           </div>
                         )}
                       </div>
@@ -1518,6 +1525,28 @@ export function OrderDetailView({
       </div>
     </div>
   );
+}
+
+/**
+ * An order item's category, however it arrived.
+ *
+ * The mappers are not consistent: one carries `menu.category` as the whole
+ * object, another flattens it to `category.name`, and older rows can hold a
+ * bare string. Read all three rather than picking one and having the label
+ * silently vanish for orders that came through a different path.
+ *
+ * Names are stored lowercase_underscore, so they get the same formatting the
+ * menu screens use.
+ */
+function categoryOf(item: unknown): string {
+  const c = (item as { category?: unknown })?.category;
+  const raw =
+    typeof c === "string"
+      ? c
+      : typeof (c as { name?: unknown })?.name === "string"
+        ? ((c as { name: string }).name)
+        : "";
+  return raw ? formatDisplayName(raw) : "";
 }
 
 /* ------------------------------------------------------------------ bits */

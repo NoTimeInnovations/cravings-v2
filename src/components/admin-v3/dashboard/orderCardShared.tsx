@@ -229,7 +229,16 @@ export function OrderCard({
 
   if (collapsed) {
     return (
-      <div className="col-span-full flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-zinc-200 px-3.5 py-3 dark:border-zinc-800">
+      <div
+        // The whole row opens the order, matching the expanded cards where the
+        // header is clickable. The button below stays: a row that happens to be
+        // clickable advertises nothing, and this is the only affordance an
+        // out-for-delivery order has.
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button")) return;
+          openOrder(order);
+        }}
+        className="col-span-full flex shrink-0 cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-zinc-200 px-3.5 py-3 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60">
         <span className="text-[13px] font-semibold leading-none text-zinc-950 dark:text-zinc-50">
           {orderNumber(order)}
         </span>
@@ -244,8 +253,12 @@ export function OrderCard({
           {currency}
           {order.totalPrice}
         </span>
+        {/* "Details" rather than "Track": it opens the same order detail the
+            expanded cards' Details button does, and that screen now carries the
+            live rider map — so tracking IS the detail, and two labels for one
+            destination only made them look like different places. */}
         <AdminV3Button variant="small" onClick={() => openOrder(order)}>
-          Track
+          Details
         </AdminV3Button>
       </div>
     );
