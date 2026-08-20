@@ -15,6 +15,8 @@ import {
   Pencil,
   Phone,
   Printer,
+  Route,
+  Timer,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -37,6 +39,14 @@ import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
 import { isRealDeliveryOrder } from "@/lib/ownDriverDispatch";
 import { taxLabel } from "@/lib/taxLabel";
 import { toStatusDisplayFormat } from "@/lib/statusHistory";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import {
+  elapsedMs,
+  formatElapsed,
+  formatKm,
+  parseStatusTimestamps,
+  stampFor,
+} from "@/lib/orderMetrics";
 import { bxgyOrderLabel } from "@/lib/bxgy";
 import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings } from "@/lib/prebooking";
 import type { Order } from "@/store/orderStore";
@@ -165,6 +175,44 @@ export function OrderDetailView({
     };
   }, [order.id]);
 
+  /* ----------------------------------------------------------- metrics ---- */
+
+  /**
+   * When the order entered each status, and how far the delivery was.
+   *
+   * Fetched HERE rather than added to the order subscription every screen
+   * shares. Both columns are admin-v3-only, and widening the shared query to
+   * carry them would push new fields through admin-v2's mappers for no reason.
+   * Re-runs on `order.status` so the timeline fills in as the order advances.
+   */
+  const [metrics, setMetrics] = React.useState<{
+    status_timestamps: unknown;
+    delivery_distance_km: number | null;
+  } | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    fetchFromHasura(
+      `query OrderMetrics($id: uuid!) {
+         orders_by_pk(id: $id) {
+           status_timestamps
+           delivery_distance_km
+         }
+       }`,
+      { id: order.id },
+    )
+      .then((res: any) => {
+        if (!cancelled && res?.orders_by_pk) setMetrics(res.orders_by_pk);
+      })
+      .catch(() => {
+        /* times and distance are additive detail — a failure must not blank
+           the order, it just leaves the steps without a time. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [order.id, order.status]);
+
   /* ------------------------------------------------------------- rider ---- */
 
   const dispatchId = (order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId;
@@ -266,23 +314,56 @@ export function OrderDetailView({
 
   /* ----------------------------------------------------------- timeline --- */
 
+  // status_timestamps is the real source: the DB trigger stamps every status
+  // change, including "food ready", which status_history has no slot for.
+  // status_history is kept as the FALLBACK so orders placed before the trigger
+  // existed still show the three times they did record.
   const history = toStatusDisplayFormat(order.status_history as any);
+  const stamps = parseStatusTimestamps(metrics?.status_timestamps);
   const currentStep = STEP_INDEX[order.status] ?? 0;
   const steps = [
-    { label: "Placed", at: order.createdAt },
-    { label: "Accepted", at: history.accepted?.completedAt ?? null },
-    // The kitchen's "food ready" tick is not written to status_history — the
-    // column only carries accepted / dispatched / completed — so this step can
-    // show that it happened but never WHEN.
-    { label: "Ready", at: null as string | null },
+    // created_at, not the "pending" stamp: it is the canonical placement time
+    // and is present on every order, including ones inserted already-advanced.
+    { label: "Placed", at: order.createdAt as string | null },
+    {
+      label: "Accepted",
+      at: stampFor(stamps, "accepted") ?? history.accepted?.completedAt ?? null,
+    },
+    { label: "Ready", at: stampFor(stamps, "food_ready") },
     ...(isDelivery
-      ? [{ label: "Picked up", at: history.dispatched?.completedAt ?? null }]
+      ? [
+          {
+            label: "Picked up",
+            at:
+              stampFor(stamps, "dispatched", "in_transit") ??
+              history.dispatched?.completedAt ??
+              null,
+          },
+        ]
       : []),
     {
       label: isDelivery ? "Delivered" : "Completed",
-      at: history.completed?.completedAt ?? null,
+      at:
+        stampFor(stamps, "completed") ?? history.completed?.completedAt ?? null,
     },
   ];
+
+  /* How far, and how long from placing to completing. Delivery only — the ask
+     was about the delivery trip, and neither figure means much for a dine-in
+     ticket. `delivered_at` backs up the completed stamp for older orders. */
+  const deliveryKm = isDelivery ? Number(metrics?.delivery_distance_km) : NaN;
+  const completedAt =
+    stampFor(stamps, "completed") ??
+    history.completed?.completedAt ??
+    order.delivered_at ??
+    null;
+  const totalMs = order.status === "completed"
+    ? elapsedMs(order.createdAt, completedAt)
+    : null;
+  // Number(null) is 0 and Number(undefined) is NaN, so "> 0 and finite" covers
+  // both "not recorded" cases without a separate null check.
+  const hasKm = Number.isFinite(deliveryKm) && deliveryKm > 0;
+  const showTrip = isDelivery && (hasKm || totalMs != null);
   // With no dispatch step the completed step moves down one index.
   const stepReached = (i: number) =>
     isDelivery ? currentStep >= i : currentStep >= (i === steps.length - 1 ? 4 : i);
@@ -503,6 +584,37 @@ export function OrderDetailView({
                 })}
               </div>
             </div>
+
+            {/* The delivery trip itself: how far, and how long from placed to
+                completed. Distance is the routed figure checkout already
+                measured to price the delivery charge, stored on the order at
+                placement — not re-routed each time this screen opens. */}
+            {showTrip && (
+              <div className="mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                {hasKm && (
+                  <span className="flex items-center gap-1.5">
+                    <Route size={13} strokeWidth={1.9} className="shrink-0 text-zinc-400 dark:text-zinc-500" />
+                    <span className="text-[12.5px] font-semibold leading-none tracking-[-0.01em] text-zinc-950 dark:text-zinc-50">
+                      {formatKm(deliveryKm)}
+                    </span>
+                    <span className="text-[12px] font-normal leading-none text-zinc-400 dark:text-zinc-500">
+                      distance
+                    </span>
+                  </span>
+                )}
+                {totalMs != null && (
+                  <span className="flex items-center gap-1.5">
+                    <Timer size={13} strokeWidth={1.9} className="shrink-0 text-zinc-400 dark:text-zinc-500" />
+                    <span className="text-[12.5px] font-semibold leading-none tracking-[-0.01em] text-zinc-950 dark:text-zinc-50">
+                      {formatElapsed(totalMs)}
+                    </span>
+                    <span className="text-[12px] font-normal leading-none text-zinc-400 dark:text-zinc-500">
+                      placed to delivered
+                    </span>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -631,7 +743,7 @@ export function OrderDetailView({
                     <MetaPill className="capitalize">
                       {order.delivery_provider === "menuthere_pool"
                         ? "Delivery Pool"
-                        : order.delivery_provider || "Delivery Bridge"}
+                        : order.delivery_provider || "Porter & Rapido"}
                     </MetaPill>
                   )}
                   {order.delivery_provider_state && (

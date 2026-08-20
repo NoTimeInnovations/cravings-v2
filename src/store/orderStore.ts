@@ -1,5 +1,6 @@
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { saveDeliveryDistance } from "@/lib/orderMetrics";
 import {
   pushEcommerceEvent,
   resolveCurrencyCode,
@@ -2534,6 +2535,23 @@ const useOrderStore = create(
             throw new Error(
               orderResponse.errors?.[0]?.message || "Failed to create order"
             );
+          }
+
+          // Persist the delivery distance measured at checkout. It was already
+          // routed to price the Delivery Charge, so this stores a number we
+          // hold — no second Mapbox call — and lets the order screen read a
+          // column instead of re-routing every time an old order is opened.
+          // Fire-and-forget, like everything else in this block.
+          try {
+            // Same predicate the row itself uses for delivery_address and
+            // delivery_location: takeaway is stored as type "delivery" with no
+            // address, and has no distance to record.
+            const km = state.deliveryInfo?.distance;
+            if (type === "delivery" && !isTakeaway && typeof km === "number") {
+              saveDeliveryDistance(orderId, km);
+            }
+          } catch {
+            /* distance is a nicety; never let it fail a placed order */
           }
 
           // Attribute this checkout's Google Maps requests (address autocomplete
