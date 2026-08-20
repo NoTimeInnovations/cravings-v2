@@ -71,6 +71,7 @@ import { toast } from "sonner";
 import { AdminV3Button } from "../ui/primitives";
 import { nextStep } from "../dashboard/orderCardShared";
 import { BookingHistoryView } from "./BookingHistoryView";
+import { LiveRiderMap } from "./LiveRiderMap";
 import {
   CARD,
   CARD_HEAD,
@@ -388,6 +389,8 @@ export function OrderDetailView({
           : null;
 
   const bookings = progress?.history ?? [];
+  /** The rider on this order is one of the partner's own, not a 3PL's. */
+  const isOwnRider = !!order.delivery_boy_id;
   const trackHref = progress?.trackUrl ?? (meta.trackingUrl as string | null) ?? null;
   // Nothing to track once the order is finished, and nothing to stand down
   // either — a cancel then would reach a booking that has already ended.
@@ -1055,6 +1058,11 @@ export function OrderDetailView({
                     accepts this order.
                   </p>
                 )}
+
+                {/* Own riders report to our heartbeat hub, so where they are
+                    can be shown directly. A Porter/Rapido rider is tracked
+                    through that provider's link instead — see Track rider. */}
+                {isOwnRider && <LiveRiderMap order={order} partner={partner} />}
 
                 {/* Live controls for the booking. Track and Cancel appear only
                     while there is something live to track or stand down; the
