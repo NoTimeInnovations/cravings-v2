@@ -40,3 +40,34 @@ export function shouldPickOwnDriverOnDispatch(
   if (f.porter_bridge.enabled || f.delivery_pool.enabled) return false;
   return true;
 }
+
+/**
+ * Whether this partner uses their own delivery boys at all.
+ *
+ * Stored on `delivery_rules.use_delivery_boys`, alongside the other
+ * delivery-side partner settings. ABSENT MEANS ON: every partner who already
+ * had riders before this switch existed keeps working exactly as they did, and
+ * a new partner gets the behaviour that matches having added a rider.
+ *
+ * Turning it off is for partners who keep rider records but dispatch entirely
+ * through Porter/Rapido or the pool — it hides the manual assign control rather
+ * than deleting anything.
+ */
+export function usesOwnDeliveryBoys(
+  partner: Partner | null | undefined,
+): boolean {
+  const raw = (partner as { delivery_rules?: unknown } | null | undefined)
+    ?.delivery_rules;
+  // delivery_rules is JSON that can arrive as an object OR a stringified blob,
+  // which is the house rule for every JSON column on the partner row.
+  let rules: Record<string, unknown> | null = null;
+  if (raw && typeof raw === "object") rules = raw as Record<string, unknown>;
+  else if (typeof raw === "string") {
+    try {
+      rules = JSON.parse(raw);
+    } catch {
+      rules = null;
+    }
+  }
+  return rules?.use_delivery_boys !== false;
+}

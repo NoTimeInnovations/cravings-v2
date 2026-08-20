@@ -19,6 +19,7 @@ import {
   Route,
   Timer,
   Trash2,
+  UserPlus,
   XCircle,
 } from "lucide-react";
 
@@ -42,7 +43,9 @@ import { displayChargeName } from "@/lib/chargeLabel";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { getFeatures } from "@/lib/getFeatures";
 import { getOrderTypeLabel, getPaymentDisplayLabel } from "@/lib/orderLabels";
-import { isRealDeliveryOrder } from "@/lib/ownDriverDispatch";
+import { isRealDeliveryOrder, usesOwnDeliveryBoys } from "@/lib/ownDriverDispatch";
+import { useHasOwnDrivers } from "@/hooks/useHasOwnDrivers";
+import { AssignDriverDialog } from "@/components/admin-v2/AssignDriverDialog";
 import { taxLabel } from "@/lib/taxLabel";
 import { toStatusDisplayFormat } from "@/lib/statusHistory";
 import type { DispatchHistoryRow } from "@/lib/dispatchHistory";
@@ -392,10 +395,39 @@ export function OrderDetailView({
   const canCancelRider = !!progress?.dispatchId && liveDelivery;
 
   const isDelivery = isRealDeliveryOrder(order);
+
+  /* ------------------------------------------------- own delivery boys ---- */
+
+  const [assignOpen, setAssignOpen] = React.useState(false);
+  const hasOwnDrivers = useHasOwnDrivers();
+  /**
+   * Assigning one of the partner's OWN riders.
+   *
+   * Gated on the Delivery Boys switch (absent = on, so nothing changes for a
+   * partner who already had riders) AND on actually having an active rider to
+   * assign — offering a picker that opens onto an empty list is worse than
+   * offering nothing. Not offered once the order is finished or cancelled.
+   */
+  const canAssignOwnRider =
+    isDelivery &&
+    hasOwnDrivers &&
+    usesOwnDeliveryBoys(partner) &&
+    order.status !== "completed" &&
+    order.status !== "cancelled";
+
   const canBookRider =
     isDelivery &&
     (features.porter_bridge.enabled || features.delivery_pool.enabled) &&
     !!order.delivery_location?.coordinates;
+
+  /** Something to show, or something to do. Otherwise the card is a heading
+   *  over a sentence restating what the timeline already says. */
+  const showDeliveryCard =
+    !!rider ||
+    !!progress?.dispatchId ||
+    bookings.length > 0 ||
+    canBookRider ||
+    canAssignOwnRider;
 
   const bookRider = async () => {
     setBooking(true);
@@ -512,6 +544,14 @@ export function OrderDetailView({
 
   return (
     <div className="flex flex-col">
+      {/* The partner's OWN rider picker — the same dialog the dashboard's
+          live-order cards open, so "assign" means one thing everywhere. */}
+      <AssignDriverDialog
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        order={order}
+      />
+
       {/* ---------------------------------------------------------- header */}
       <div className="sticky top-0 z-[6] flex flex-wrap items-center gap-3 gap-y-2.5 border-b border-zinc-200 bg-white/90 px-[clamp(14px,3vw,28px)] py-3 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/90">
         <button
@@ -865,8 +905,19 @@ export function OrderDetailView({
               </div>
             </div>
 
-            {/* Delivery */}
-            {isDelivery && (
+          </div>
+
+          {/* --------------------------------------------- right column */}
+          <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5">
+            {/* Delivery — first in this column: while an order is out, the
+                rider is what the partner is actually watching.
+
+                Hidden entirely when there is neither a rider, a dispatch in
+                flight, nor an assignment to make. A card whose whole content
+                was "No rider assigned yet" occupied a slot and said nothing;
+                the timeline above already shows the order has not been picked
+                up. It comes back the moment there is something to show or do. */}
+            {isDelivery && showDeliveryCard && (
               <div className={CARD}>
                 <div className={CARD_HEAD}>
                   <span className={CARD_TITLE}>Delivery</span>
@@ -966,8 +1017,17 @@ export function OrderDetailView({
                 {/* Live controls for the booking. Track and Cancel appear only
                     while there is something live to track or stand down; the
                     history is there whenever anything has ever been booked. */}
-                {(canTrack || canCancelRider || bookings.length > 0) && (
+                {(canTrack || canCancelRider || canAssignOwnRider || bookings.length > 0) && (
                   <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
+                    {canAssignOwnRider && (
+                      <AdminV3Button
+                        variant="small"
+                        onClick={() => setAssignOpen(true)}
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        {rider ? "Change rider" : "Assign rider"}
+                      </AdminV3Button>
+                    )}
                     {canTrack && (
                       <a
                         href={trackHref || "#"}
@@ -1049,10 +1109,7 @@ export function OrderDetailView({
                 )}
               </div>
             )}
-          </div>
 
-          {/* --------------------------------------------- right column */}
-          <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5">
             {/* Customer */}
             <div className={CARD}>
               <div className={CARD_HEAD}>

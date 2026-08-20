@@ -23,6 +23,8 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { formatPrice } from "@/lib/constants";
 import { getFeatures } from "@/lib/getFeatures";
 import { Partner, useAuthStore } from "@/store/authStore";
+import { cn } from "@/lib/utils";
+import { usesOwnDeliveryBoys } from "@/lib/ownDriverDispatch";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
@@ -691,7 +693,7 @@ function RiderFormView({
 /* ------------------------------------------------------------------ screen */
 
 export function AdminV3DeliveryBoys() {
-  const { userData } = useAuthStore();
+  const { userData, setState } = useAuthStore();
   const partner = userData as Partner | undefined;
   const currency = partner?.currency || "₹";
   const partnerId = userData?.id;
@@ -711,6 +713,50 @@ export function AdminV3DeliveryBoys() {
   const [noteOpen, setNoteOpen] = React.useState(false);
   const [form, setForm] = React.useState<FormMode | null>(null);
   const [appSettings, setAppSettings] = React.useState(false);
+
+  /**
+   * "Use delivery boys" — whether the manual assign control appears on an
+   * order at all. Default ON when the setting is absent, so nothing changes
+   * for a partner who already had riders before this switch existed.
+   *
+   * Stored on delivery_rules, which is read-modify-write: it also holds the
+   * delivery pricing rules and the Porter low-balance threshold, and writing
+   * the whole object would drop them.
+   */
+  const useRiders = usesOwnDeliveryBoys(partner);
+  const [savingUse, setSavingUse] = React.useState(false);
+
+  const toggleUseRiders = async () => {
+    if (!partner?.id || savingUse) return;
+    const next = !useRiders;
+    setSavingUse(true);
+    try {
+      const raw = (partner as { delivery_rules?: unknown }).delivery_rules;
+      let rules: Record<string, unknown> = {};
+      if (raw && typeof raw === "object") rules = { ...(raw as object) };
+      else if (typeof raw === "string") {
+        try {
+          rules = JSON.parse(raw);
+        } catch {
+          rules = {};
+        }
+      }
+      rules.use_delivery_boys = next;
+      await updatePartner(partner.id, { delivery_rules: rules } as any);
+      await revalidateTag(partner.id);
+      setState({ delivery_rules: rules } as any);
+      toast.success(
+        next
+          ? "Delivery boys on — you can assign riders to orders"
+          : "Delivery boys off — orders will not offer a rider to assign",
+      );
+    } catch (e) {
+      console.error("[v3 riders] use_delivery_boys:", e);
+      toast.error("Could not save — please try again");
+    } finally {
+      setSavingUse(false);
+    }
+  };
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [togglingId, setTogglingId] = React.useState<string | null>(null);
   const [breakdownFor, setBreakdownFor] = React.useState<DeliveryBoy | null>(null);
@@ -985,6 +1031,39 @@ export function AdminV3DeliveryBoys() {
           value={statsLoading ? "—" : money(overall.deliveryCharge)}
           dim={statsLoading || overall.deliveryCharge === 0}
         />
+
+        {/* Sits in the summary strip rather than in its own card: it is one
+            switch, and a full-width card for it would push the figures down
+            the page to say less. */}
+        <div className="ml-auto flex items-center gap-3">
+          <div className="min-w-0 text-right">
+            <div className="text-[12.5px] font-medium leading-none text-zinc-950 dark:text-zinc-50">
+              Use delivery boys
+            </div>
+            <div className="mt-1.5 text-[11.5px] leading-none text-zinc-400 dark:text-zinc-500">
+              {useRiders ? "Orders can be assigned to a rider" : "No rider option on orders"}
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={useRiders}
+            aria-label="Use delivery boys"
+            disabled={savingUse}
+            onClick={() => void toggleUseRiders()}
+            className={cn(
+              "relative h-[24px] w-[42px] shrink-0 rounded-full transition-colors disabled:opacity-50",
+              useRiders ? "bg-zinc-900 dark:bg-zinc-50" : "bg-zinc-200 dark:bg-zinc-700",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white transition-all dark:bg-zinc-900",
+                useRiders ? "left-[21px]" : "left-[3px]",
+              )}
+            />
+          </button>
+        </div>
         <Stat
           label="Distance"
           value={statsLoading ? "—" : `${overall.km} km`}
