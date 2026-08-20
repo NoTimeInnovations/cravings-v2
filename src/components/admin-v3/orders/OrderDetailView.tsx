@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Copy,
   ExternalLink,
+  History,
   MapPin,
   MessageCircle,
   MoreVertical,
@@ -29,7 +30,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { getOrderLoyaltyInfo } from "@/app/actions/loyalty";
-import { dispatchViaDeliveryBridge, getDispatchProgress } from "@/app/actions/porterBridge";
+import {
+  cancelDispatch,
+  dispatchViaDeliveryBridge,
+  getDispatchProgress,
+} from "@/app/actions/porterBridge";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { dispatchDeliveryPool } from "@/app/actions/deliveryPoolDispatch";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
@@ -55,6 +61,7 @@ import { toast } from "sonner";
 
 import { AdminV3Button } from "../ui/primitives";
 import { nextStep } from "../dashboard/orderCardShared";
+import { BookingHistoryView } from "./BookingHistoryView";
 import {
   CARD,
   CARD_HEAD,
@@ -83,6 +90,50 @@ import {
  * are enforced in exactly ONE place and cannot diverge between the list and
  * this view, the way they had to be kept in step across admin-v2's three files.
  */
+
+/**
+ * One booking attempt the bridge made for this order.
+ *
+ * A single order can have several: a provider times out and the sequence
+ * escalates to the next, a rider cancels and it rebooks, or the partner cancels
+ * and books again. Each attempt is its own row with its own reference — which
+ * is what makes a booking history worth showing rather than just "the rider".
+ */
+export type DispatchBooking = {
+  bookingId: string;
+  provider: string;
+  status: string;
+  crn: string | null;
+  driverName?: string | null;
+  /** Set only for a DELIBERATE cancel (partner / customer / operator). */
+  cancelledBy?: string | null;
+  cancelReason?: string | null;
+  /** Null means a rider was never assigned to this attempt. */
+  assignedAt?: number | null;
+  createdAt: number;
+  /** Cancelled with a rider already on it and no reallocation to follow — the
+   *  provider's own app may still show that rider en route. Uncertain, not dead. */
+  cancelSuspect?: boolean;
+  /** Set when a provider reallocation moved us onto a new reference. */
+  reallocatedFrom?: string | null;
+};
+
+/** What getDispatchProgress returns, narrowed to what this screen reads. */
+type DispatchProgress = {
+  dispatchId: string | null;
+  status: string;
+  bookingStatus: string | null;
+  currentProvider: string | null;
+  wonProvider: string | null;
+  driver: {
+    name?: string | null;
+    phone?: string | null;
+    vehicleNumber?: string | null;
+  } | null;
+  driverName: string | null;
+  trackUrl: string | null;
+  history?: DispatchBooking[];
+};
 
 type Rider = {
   name?: string | null;
@@ -216,35 +267,101 @@ export function OrderDetailView({
   /* ------------------------------------------------------------- rider ---- */
 
   const dispatchId = (order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId;
-  const [bridgeRider, setBridgeRider] = React.useState<Rider | null>(null);
+  const [progress, setProgress] = React.useState<DispatchProgress | null>(null);
+  const [cancellingRider, setCancellingRider] = React.useState(false);
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+
+  /**
+   * Keep polling while the dispatch is still moving.
+   *
+   * The rider's name, phone and vehicle live on the BRIDGE, not on the order
+   * row, so a single fetch on mount showed nothing until a reload — by which
+   * time a rider had usually been assigned. Same cadence the admin-v2 panel
+   * uses: fast while hunting, and a short settle window after a local action so
+   * a cancel lands here without one either.
+   */
+  const settleUntil = React.useRef(0);
+  const [pollToken, setPollToken] = React.useState(0);
 
   React.useEffect(() => {
     if (!dispatchId) {
-      setBridgeRider(null);
+      setProgress(null);
       return;
     }
-    let cancelled = false;
-    // Same server action DeliveryRiderPanel polls — the rider's name, phone and
-    // vehicle live on the bridge, not on the order row. Fetched once, not
-    // polled: this is a detail screen, not the live tracker.
-    getDispatchProgress(order.id)
-      .then((res: any) => {
-        if (cancelled || !res?.ok) return;
-        setBridgeRider({
-          name: res.data?.driver?.name ?? res.data?.driverName ?? null,
-          phone: res.data?.driver?.phone ?? null,
-          vehicleNumber: res.data?.driver?.vehicleNumber ?? null,
-          provider: res.data?.wonProvider ?? null,
-          trackUrl: res.data?.trackUrl ?? null,
-        });
-      })
-      .catch(() => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const openedAt = Date.now();
+    /** A dispatch can report "assigned" a beat before the driver details land.
+     *  Bounded, so an order that never produces a rider stops polling instead
+     *  of running a request every few seconds for as long as the tab is open. */
+    const AWAITING_RIDER_GRACE = 3 * 60_000;
+
+    const tick = async () => {
+      try {
+        const res: any = await getDispatchProgress(order.id);
+        if (!active) return;
+        if (res?.ok) {
+          const data = res.data as DispatchProgress;
+          setProgress(data);
+          const moving = data.status === "running" || data.status === "searching";
+          const awaitingRider =
+            !(data.driver?.name || data.driverName) &&
+            Date.now() - openedAt < AWAITING_RIDER_GRACE;
+          // Stop once it has settled. A detail screen that polls a finished
+          // delivery forever is a background request per open tab, all day.
+          if (moving || awaitingRider || Date.now() < settleUntil.current) {
+            timer = setTimeout(tick, moving ? 5000 : 2500);
+          }
+        }
+      } catch {
         /* the bridge being unreachable must not blank the order */
-      });
-    return () => {
-      cancelled = true;
+      }
     };
-  }, [dispatchId, order.id]);
+    void tick();
+
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [dispatchId, order.id, pollToken]);
+
+  /** Re-arm the loop and watch closely for a few seconds after a local action. */
+  const watchBriefly = React.useCallback(() => {
+    settleUntil.current = Date.now() + 15000;
+    setPollToken((n) => n + 1);
+  }, []);
+
+  const bridgeRider: Rider | null = progress
+    ? {
+        name: progress.driver?.name ?? progress.driverName ?? null,
+        phone: progress.driver?.phone ?? null,
+        vehicleNumber: progress.driver?.vehicleNumber ?? null,
+        provider: progress.wonProvider ?? null,
+        trackUrl: progress.trackUrl ?? null,
+      }
+    : null;
+
+  const cancelRider = async () => {
+    const ok = await confirmDialog({
+      title: "Cancel this rider?",
+      description:
+        "The delivery partner is told to stand down. The order itself stays open — you can book another rider, or deliver it yourself.",
+      confirmText: "Cancel rider",
+      destructive: true,
+    });
+    if (!ok) return;
+    setCancellingRider(true);
+    try {
+      const res = await cancelDispatch(order.id, undefined, "partner");
+      if (res.ok) toast.success("Rider cancelled");
+      else toast.error(res.message || "Couldn't cancel the rider");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCancellingRider(false);
+      watchBriefly();
+    }
+  };
 
   const meta = (order.delivery_provider_meta || {}) as Record<string, any>;
   const rider: Rider | null = bridgeRider?.name
@@ -271,6 +388,18 @@ export function OrderDetailView({
               provider: "Own rider",
             }
           : null;
+
+  const bookings = progress?.history ?? [];
+  const trackHref = progress?.trackUrl ?? (meta.trackingUrl as string | null) ?? null;
+  // Nothing to track once the order is finished, and nothing to stand down
+  // either — a cancel then would reach a booking that has already ended.
+  const liveDelivery =
+    order.status !== "completed" &&
+    order.status !== "cancelled" &&
+    progress?.bookingStatus !== "ended" &&
+    progress?.bookingStatus !== "failed";
+  const canTrack = !!trackHref && liveDelivery;
+  const canCancelRider = !!progress?.dispatchId && liveDelivery;
 
   const isDelivery = isRealDeliveryOrder(order);
   const canBookRider =
@@ -378,6 +507,17 @@ export function OrderDetailView({
     order.display_id && String(order.display_id).trim()
       ? `#${order.display_id}`
       : `#${order.id.slice(0, 8)}`;
+
+  if (historyOpen) {
+    return (
+      <BookingHistoryView
+        bookings={bookings}
+        orderLabel={invoiceLabel}
+        tz={tz}
+        onBack={() => setHistoryOpen(false)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col">
@@ -830,6 +970,49 @@ export function OrderDetailView({
                     No rider assigned yet. Rider details appear here once a delivery partner
                     accepts this order.
                   </p>
+                )}
+
+                {/* Live controls for the booking. Track and Cancel appear only
+                    while there is something live to track or stand down; the
+                    history is there whenever anything has ever been booked. */}
+                {(canTrack || canCancelRider || bookings.length > 0) && (
+                  <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
+                    {canTrack && (
+                      <a
+                        href={trackHref || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-[12.5px] font-medium leading-none text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                      >
+                        <MapPin size={13} strokeWidth={1.9} />
+                        Track rider
+                        <ExternalLink size={12} strokeWidth={1.9} />
+                      </a>
+                    )}
+                    {bookings.length > 0 && (
+                      <AdminV3Button
+                        variant="small"
+                        onClick={() => setHistoryOpen(true)}
+                      >
+                        <History className="h-3.5 w-3.5" />
+                        View booking history
+                        <span className="text-zinc-400 dark:text-zinc-500">
+                          ({bookings.length})
+                        </span>
+                      </AdminV3Button>
+                    )}
+                    {canCancelRider && (
+                      <button
+                        type="button"
+                        onClick={() => void cancelRider()}
+                        disabled={cancellingRider}
+                        className="ml-auto inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-[12.5px] font-medium leading-none text-zinc-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-400"
+                      >
+                        <XCircle size={13} strokeWidth={1.9} />
+                        {cancellingRider ? "Cancelling…" : "Cancel rider"}
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {(meta.pickupPin || meta.dropPin || meta.pickupOtp) &&
