@@ -26,6 +26,7 @@ import {
   CreditCard,
   Download,
   Info,
+  Link2,
   Loader2,
   Plus,
   RefreshCw,
@@ -141,6 +142,11 @@ function tripLabel(o: OrderCharge): string {
 function money(currency: string, n: number, dp = 2): string {
   return `${currency}${n.toFixed(dp)}`;
 }
+
+/** Settings › Ordering › Porter & Rapido, opened straight on Accounts — the
+ *  page that actually connects a login. Landing on the tab instead would leave
+ *  the partner to find the row themselves. */
+const ACCOUNTS_LINK = "sg=ordering&ss=bridge&bridge=accounts";
 
 /* ==========================================================================
    Screen
@@ -317,7 +323,7 @@ export function AdminV3PorterRapido() {
         </AdminV3Button>
         <AdminV3Button
           variant="primary"
-          onClick={() => navigate("Settings", "sg=ordering&ss=bridge")}
+          onClick={() => navigate("Settings", ACCOUNTS_LINK)}
         >
           <Settings2 className="h-3.5 w-3.5" />
           Porter &amp; Rapido settings
@@ -521,7 +527,7 @@ export function AdminV3PorterRapido() {
                 <AdminV3Button
                   variant="secondary"
                   className="mt-4"
-                  onClick={() => navigate("Settings", "sg=ordering&ss=bridge")}
+                  onClick={() => navigate("Settings", ACCOUNTS_LINK)}
                 >
                   Connect an account
                 </AdminV3Button>
@@ -553,11 +559,24 @@ export function AdminV3PorterRapido() {
                   <StatusPill tone="outline">Not connected</StatusPill>
                 )
               }
+              onConnect={
+                !pending && !wallet
+                  ? () => navigate("Settings", ACCOUNTS_LINK)
+                  : undefined
+              }
             />
             <ProviderRow
               name="Rapido"
               note="Rider collects the fare in cash"
+              // "Cash only" describes how Rapido settles, not whether it is
+              // linked — so the connected state is read separately, from
+              // whether a Rapido login is on file.
               pill={<StatusPill tone="outline">Cash only</StatusPill>}
+              onConnect={
+                !pending && !rapido?.connectedMobile
+                  ? () => navigate("Settings", ACCOUNTS_LINK)
+                  : undefined
+              }
             />
 
             <div className="flex items-start gap-2 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
@@ -620,10 +639,13 @@ function ProviderRow({
   name,
   note,
   pill,
+  onConnect,
 }: {
   name: string;
   note: string;
   pill: React.ReactNode;
+  /** Present only while this provider has no account linked. */
+  onConnect?: () => void;
 }) {
   return (
     <div className={ROW}>
@@ -638,7 +660,21 @@ function ProviderRow({
           {note}
         </div>
       </div>
-      <span className="ml-auto shrink-0">{pill}</span>
+      <span className="ml-auto flex shrink-0 items-center gap-2">
+        {pill}
+        {/* Only when there is nothing linked. A row that already dispatches
+            needs no call to action, and the status pill is the whole message. */}
+        {onConnect && (
+          <AdminV3Button
+            variant="small"
+            onClick={onConnect}
+            aria-label={`Connect ${name}`}
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            Connect
+          </AdminV3Button>
+        )}
+      </span>
     </div>
   );
 }

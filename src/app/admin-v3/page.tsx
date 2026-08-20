@@ -129,6 +129,9 @@ export default function AdminV3Page() {
     if (activeView !== "Settings") {
       params.delete("sg");
       params.delete("ss");
+      // Ordering's Accounts page deep link. Left behind it reopens Accounts on
+      // the next visit to Settings, the same way a stray sg/ss would.
+      params.delete("bridge");
     }
     if (activeView !== "WhatsApp") params.delete("wa");
     // menuPanel was missing from this list. Left behind it reopens Availability

@@ -21,6 +21,7 @@ import {
   useSectionDraft,
 } from "./controls";
 import { ProviderAccounts, ProviderAccountsEntry } from "./ProviderAccounts";
+import { useBackOrReturn } from "../useV3Navigate";
 
 /* ------------------------------------------------------------------ draft */
 
@@ -211,6 +212,18 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
   // the connections so "N accounts live in group X" reflects the new tag.
   const [bridgeToken, setBridgeToken] = React.useState(0);
   const [accountsOpen, setAccountsOpen] = React.useState(false);
+  // ?bridge=accounts opens this page directly — Porter & Rapido's Connect
+  // buttons link straight here rather than dropping the partner on the tab and
+  // making them find the row. Read at MOUNT from window.location, the same way
+  // Settings reads sg/ss and Menu reads menuPanel.
+  const [enteredAtAccounts, setEnteredAtAccounts] = React.useState(false);
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("bridge") === "accounts") {
+      setAccountsOpen(true);
+      setEnteredAtAccounts(true);
+    }
+  }, []);
   const applyGroups = React.useCallback(async (partnerId: string) => {
     const res = await setProviderGroups({ partnerId });
     if (!res.ok) console.warn("[v3 bridge] setProviderGroups:", res.message);
@@ -476,6 +489,15 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
     );
   }
 
+  // Arriving straight on Accounts means the bridge tab was never on screen, so
+  // Back belongs to whoever sent us. Opening it from the tab's own row leaves
+  // enteredAtAccounts false and Back walks up to the tab as before.
+  const accountsBack = useBackOrReturn(
+    () => setAccountsOpen(false),
+    "Back to Porter & Rapido",
+    enteredAtAccounts,
+  );
+
   /* ------------------------------------------------------------- the bridge */
 
   if (tab === "bridge" && accountsOpen) {
@@ -490,7 +512,7 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
           patch({ provider_groups: { ...draft.provider_groups, [p]: v } })
         }
         reloadToken={bridgeToken}
-        onBack={() => setAccountsOpen(false)}
+        onBack={accountsBack.goBack}
       />
     );
   }
@@ -505,7 +527,12 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
 
   return (
     <>
-      <ProviderAccountsEntry onOpen={() => setAccountsOpen(true)} />
+      <ProviderAccountsEntry
+        onOpen={() => {
+          setEnteredAtAccounts(false);
+          setAccountsOpen(true);
+        }}
+      />
 
       <SettingsCard title="Porter & Rapido" meta={<Chip>Porter · Rapido</Chip>}>
         <SegmentedField
