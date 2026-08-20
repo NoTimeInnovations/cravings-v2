@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  getNavItemState,
+  settingsSectionVisible,
+  settingsTabVisible,
+} from "@/lib/adminNav";
+
 import { navItems } from "./navItems";
 
 /**
@@ -197,6 +203,44 @@ export const SEARCH_ENTRIES: SearchEntry[] = [
   ...EXTRA_ENTRIES,
 ];
 
+/** view -> the sidebar id that gates it, so an entry can be checked against the
+ *  same rule the sidebar uses. "Settings" is absent from navItems on purpose —
+ *  it is reached from the sidebar footer and is always available. */
+const VIEW_TO_NAV_ID = new Map(navItems.map((n) => [n.view, n.id]));
+
+/**
+ * The entries this partner may actually reach.
+ *
+ * The palette was searching the whole index, so a partner without POS could
+ * find "POS", press enter, and be sent to a screen their sidebar deliberately
+ * hides — advertising features they have not been given. Gated against the SAME
+ * rules the sidebar and Settings use rather than a second list: getNavItemState
+ * for whole screens, and the section/tab predicates for anything inside
+ * Settings.
+ *
+ * A Settings entry is dropped when EITHER its section or its tab is hidden —
+ * "Prebooking" lives on a tab that only exists with the feature, so gating the
+ * section alone would leave the field findable.
+ */
+export function visibleSearchEntries(
+  features: Parameters<typeof getNavItemState>[1],
+  userData: unknown,
+): SearchEntry[] {
+  return SEARCH_ENTRIES.filter((e) => {
+    if (e.sg) {
+      return (
+        settingsSectionVisible(e.sg, features) &&
+        settingsTabVisible(e.sg, e.ss, features)
+      );
+    }
+    const navId = VIEW_TO_NAV_ID.get(e.view);
+    // No nav id means it is not a gated destination (Settings, and the handful
+    // of entries that point at a screen's own sub-page).
+    if (!navId) return true;
+    return getNavItemState(navId, features, userData) !== "hidden";
+  });
+}
+
 /**
  * Rank entries against a query.
  *
@@ -205,11 +249,17 @@ export const SEARCH_ENTRIES: SearchEntry[] = [
  * sounds better than it reads here — with 100+ near-identical setting names it
  * mostly produces confident nonsense.
  */
-export function searchEntries(query: string, limit = 12): SearchEntry[] {
+export function searchEntries(
+  query: string,
+  /** Pre-filtered by visibleSearchEntries — the palette must never rank an
+   *  entry the partner cannot open. */
+  entries: SearchEntry[] = SEARCH_ENTRIES,
+  limit = 12,
+): SearchEntry[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const scored: { e: SearchEntry; score: number }[] = [];
-  for (const e of SEARCH_ENTRIES) {
+  for (const e of entries) {
     const hay = e.label.toLowerCase();
     const at = hay.indexOf(q);
     if (at === -1) {

@@ -7,6 +7,7 @@ import { setProviderGroups } from "@/app/actions/deliveryConnect";
 
 import { mergePrebookingConfig, parseOrderTypesEnabled } from "@/lib/prebooking";
 import type { FeatureFlags } from "@/lib/getFeatures";
+import { settingsTabVisible } from "@/lib/adminNav";
 
 import {
   Chip,
@@ -185,14 +186,14 @@ export function orderingTabs(
   return [
     { value: "types" as const, label: "Order types" },
     { value: "takeaway" as const, label: "Charges" },
-    ...(features?.prebooking?.access
+    ...(settingsTabVisible("ordering", "scheduled", features)
       ? [{ value: "scheduled" as const, label: "Prebooking" }]
       : []),
     { value: "checkout" as const, label: "Checkout" },
-    ...(features?.delivery?.access
+    ...(settingsTabVisible("ordering", "delivery", features)
       ? [{ value: "delivery" as const, label: "Delivery" }]
       : []),
-    ...(features?.porter_bridge?.access
+    ...(settingsTabVisible("ordering", "bridge", features)
       ? [{ value: "bridge" as const, label: "Porter & Rapido" }]
       : []),
   ];

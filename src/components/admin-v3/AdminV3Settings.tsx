@@ -23,6 +23,7 @@ import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { useAuthStore } from "@/store/authStore";
 
 import { AdminV3Button, V3Card } from "./ui/primitives";
+import { settingsSectionVisible } from "@/lib/adminNav";
 import { useReturnTo } from "./returnTo";
 import { useBackOrReturn } from "./useV3Navigate";
 import {
@@ -148,7 +149,7 @@ const SECTIONS: SectionDef[] = [
       const n = [t.delivery, t.takeaway, t.dine_in].filter(Boolean).length;
       return `${n} of 3 types on`;
     },
-    visible: (f) => !!(f?.ordering?.access || f?.delivery?.access),
+    visible: (f) => settingsSectionVisible("ordering", f),
   },
   {
     key: "payments",

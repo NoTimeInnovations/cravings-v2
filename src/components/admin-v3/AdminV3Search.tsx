@@ -6,7 +6,10 @@ import { CornerDownLeft, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdminStore } from "@/store/adminStore";
 
-import { SEARCH_ENTRIES, searchEntries, type SearchEntry } from "./searchIndex";
+import { getFeatures } from "@/lib/getFeatures";
+import { useAuthStore } from "@/store/authStore";
+
+import { searchEntries, visibleSearchEntries, type SearchEntry } from "./searchIndex";
 
 /**
  * The ⌘K palette.
@@ -96,11 +99,22 @@ export function AdminV3Search({
   const [active, setActive] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  // Only what this partner can actually open. Searching the full index let
+  // someone without POS find "POS" and be sent to a screen their own sidebar
+  // hides — the palette was advertising features they have not been given.
+  const userData = useAuthStore((s) => s.userData);
+  const entries = React.useMemo(() => {
+    const features = getFeatures(
+      (userData as { feature_flags?: string } | null)?.feature_flags || null,
+    );
+    return visibleSearchEntries(features as any, userData);
+  }, [userData]);
+
   // Empty query shows the screens rather than nothing — the palette doubles as
   // a jump list, which is most of what it gets used for.
   const results = React.useMemo(
-    () => (query.trim() ? searchEntries(query) : SEARCH_ENTRIES.slice(0, 8)),
-    [query],
+    () => (query.trim() ? searchEntries(query, entries) : entries.slice(0, 8)),
+    [query, entries],
   );
 
   React.useEffect(() => {

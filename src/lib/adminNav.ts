@@ -106,3 +106,41 @@ export function getNavItemState(
   }
   return "visible";
 }
+
+/* ------------------------------------------------------- settings gating -- */
+
+/**
+ * Whether a Settings SECTION exists for this partner.
+ *
+ * Lives here, in the light module, rather than inline in AdminV3Settings —
+ * the ⌘K palette needs the same answer and must not import the whole Settings
+ * screen (and every section component with it) to get it. One source, two
+ * readers.
+ */
+export function settingsSectionVisible(
+  sg: string,
+  features: Features | null | undefined,
+): boolean {
+  if (sg === "ordering") {
+    return !!(features?.ordering?.access || features?.delivery?.access);
+  }
+  return true;
+}
+
+/**
+ * Whether a TAB inside a section exists for this partner.
+ *
+ * Only Ordering has feature-gated tabs today; everything else is unconditional.
+ * Kept beside the section rule so the two cannot drift apart.
+ */
+export function settingsTabVisible(
+  sg: string,
+  ss: string | undefined,
+  features: Features | null | undefined,
+): boolean {
+  if (!ss || sg !== "ordering") return true;
+  if (ss === "scheduled") return !!features?.prebooking?.access;
+  if (ss === "delivery") return !!features?.delivery?.access;
+  if (ss === "bridge") return !!features?.porter_bridge?.access;
+  return true;
+}
