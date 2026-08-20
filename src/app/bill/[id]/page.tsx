@@ -8,7 +8,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { isVatEnabled, getTrn } from "@/lib/taxLabel";
-import { getBillLayout, isFullArabic, isBillDetailQrEnabled, isBillLogoEnabled, getBillLogoUrl } from "@/lib/printLayout";
+import { getBillLayout, isFullArabic, isBillDetailQrEnabled, isBillLogoEnabled, getBillLogoUrl, isBillDeliveryBoyEnabled } from "@/lib/printLayout";
 import { makeLabeler } from "@/lib/arabicBillLabels";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
@@ -53,6 +53,10 @@ query GetOrder($id: uuid!) {
     payment_method
     delivery_address
     delivery_location
+    delivery_boy {
+      name
+      phone
+    }
     display_id
     status
     status_history
@@ -337,6 +341,18 @@ const PrintOrderPage = () => {
                   google_maps_link: `https://www.google.com/maps/place/${formattedOrder.delivery_location.coordinates[1]},${formattedOrder.delivery_location.coordinates[0]}`,
                 }
                 : null,
+              // Only sent when the partner has asked for it AND a rider is
+              // actually assigned, so consumers of this payload (the Cravings
+              // app and the desktop print app) can print whatever they are
+              // given without re-reading the setting.
+              delivery_boy:
+                isBillDeliveryBoyEnabled(formattedOrder.partner?.delivery_rules) &&
+                  orders_by_pk.delivery_boy?.name
+                  ? {
+                    name: sanitizePrintText(orders_by_pk.delivery_boy.name),
+                    phone: orders_by_pk.delivery_boy.phone || "",
+                  }
+                  : null,
               order_items: withCategoryInName(
                 formattedOrder.items || [],
                 isBillCategoryNameEnabled(formattedOrder.partner?.delivery_rules)

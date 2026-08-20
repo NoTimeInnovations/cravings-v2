@@ -68,6 +68,19 @@ export function isBillLogoEnabled(deliveryRules: any): boolean {
 }
 
 /**
+ * Whether to print the assigned delivery rider's name and phone on the bill
+ * (partners.delivery_rules.bill_show_delivery_boy). Off by default: most
+ * partners do not want the rider's personal number on the customer's copy.
+ *
+ * Only meaningful on an order that actually has a rider assigned — the /bill
+ * page omits the block entirely when there is none, so consumers of the print
+ * payload can simply print what they are given.
+ */
+export function isBillDeliveryBoyEnabled(deliveryRules: any): boolean {
+  return !!parseDeliveryRules(deliveryRules)?.bill_show_delivery_boy;
+}
+
+/**
  * The uploaded bill-logo image URL (partners.delivery_rules.bill_logo_url), or
  * null when none has been set.
  */
