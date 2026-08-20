@@ -426,6 +426,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const isApp = localStorage?.getItem("isApp");
     const hotelTheme = localStorage?.getItem("hotelTheme");
     const devMode = localStorage?.getItem("dev_mode");
+    // next-themes' key for the DASHBOARD's light/dark choice (AdminThemeWrapper
+    // uses the default storage key). It is a preference of this browser, not of
+    // the account: signInPartnerWithEmail signs out first, so without this an
+    // account switch silently threw a partner back to light mode every time.
+    const dashboardTheme = localStorage?.getItem("theme");
     const accounts = await getAllAccounts();
 
     // Preserve hotel-specific localStorage items
@@ -445,6 +450,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (isApp) localStorage?.setItem("isApp", isApp);
     if (hotelTheme) localStorage?.setItem("hotelTheme", hotelTheme);
     if (devMode) localStorage?.setItem("dev_mode", devMode);
+    if (dashboardTheme) localStorage?.setItem("theme", dashboardTheme);
 
     // Restore hotel-specific items
     Object.entries(hotelLocationItems).forEach(([key, value]) => {
