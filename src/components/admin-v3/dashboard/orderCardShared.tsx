@@ -252,8 +252,8 @@ export function OrderCard({
        minimum size that would normally stop a flex item shrinking below its
        content. Without shrink-0 the whole queue squeezes to fit, every card
        clips to its header, and the items and action buttons silently vanish. */
-    <div className="shrink-0 overflow-hidden rounded-[10px] border border-zinc-200 dark:border-zinc-800">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-zinc-100 bg-zinc-50 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-800/50">
+    <div className="flex h-full shrink-0 flex-col overflow-hidden rounded-[10px] border border-zinc-200 dark:border-zinc-800">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-zinc-100 bg-zinc-50 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-800/50">
         <span className="text-[13px] font-semibold leading-none text-zinc-950 dark:text-zinc-50">
           {orderNumber(order)}
         </span>
@@ -280,7 +280,12 @@ export function OrderCard({
         </span>
       </div>
 
-      <div className="px-3 pb-3 pt-2.5">
+      {/* flex-1 + mt-auto on the action row below: cards in a grid row all
+          stretch to the tallest one, so an order with two items used to leave
+          its buttons floating halfway up while its neighbour's sat at the
+          bottom. The body absorbs the slack instead, and every card in a row
+          puts its buttons on the same line. */}
+      <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5">
         <div className="mb-2 flex items-center gap-1.5 text-[12px] font-medium leading-none text-zinc-500 dark:text-zinc-400">
           <MapPin size={14} strokeWidth={1.8} className="shrink-0" />
           <span translate="no" className="notranslate truncate">
@@ -314,7 +319,7 @@ export function OrderCard({
         {/* Compact so View details / Cancel / Accept still share ONE row in a
             ~260px grid cell — at the default 38px height they wrapped, which is
             what made every card a row taller than it needed to be. */}
-        <div className="mt-3 flex flex-nowrap items-center gap-1.5">
+        <div className="mt-auto flex flex-nowrap items-center gap-1.5 pt-3">
           <AdminV3Button
             variant="secondary"
             className="h-9 shrink-0 px-2.5 text-[12.5px]"
