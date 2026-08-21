@@ -312,6 +312,51 @@ export function IntegrationsSettings() {
         window.location.href = `/api/google-business/auth/login?partnerId=${userData.id}&redirect=${redirect}`;
     };
 
+    // Disconnect Google Business: revokes the grant at Google, then clears the
+    // stored tokens. Reconnecting is the same "Link Business Profile" button —
+    // the OAuth route forces the account chooser, so a partner who connected
+    // with the wrong Google account can pick the right one on the way back.
+    const handleDisconnectGoogle = async () => {
+        if (!userData) return;
+        const ok = await confirmDialog({
+            title: "Disconnect your Google Business Profile?",
+            description:
+                "Your Google account is unlinked from Menuthere and the access is revoked at Google. "
+                + "Your listing keeps whatever menu was last pushed to it.",
+            confirmText: "Disconnect",
+            destructive: true,
+        });
+        if (!ok) return;
+
+        setIsGoogleLoading(true);
+        try {
+            const res = await fetch("/api/google-business/auth/disconnect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ partnerId: userData.id }),
+            });
+            const json = await res.json().catch(() => null);
+            if (!res.ok) throw new Error(json?.error || "disconnect failed");
+
+            // A failed revoke still clears us locally — the grant just lingers
+            // on Google's side. Point at where the partner can finish the job
+            // rather than reporting a clean disconnect that did not happen.
+            if (json?.revokeError) {
+                toast.warning(
+                    "Disconnected here, but Google did not confirm the revoke. Remove Menuthere at myaccount.google.com/permissions to be sure.",
+                );
+            } else {
+                toast.success("Google Business Profile disconnected");
+            }
+            await checkGoogleConnection(userData.id);
+        } catch (e) {
+            console.error("[GoogleBusiness] disconnect failed:", e);
+            toast.error("Failed to disconnect");
+        } finally {
+            setIsGoogleLoading(false);
+        }
+    };
+
     const handleSendInvite = async () => {
         if (!selectedGoogleLocation || !userData) return;
         setIsGoogleLoading(true);
@@ -806,10 +851,26 @@ export function IntegrationsSettings() {
                                     </div>
                                 )}
                                 <p className="text-sm text-muted-foreground">Link your Google account to allow Menuthere to manage your menu automatically.</p>
-                                <Button disabled={isGoogleLoading} onClick={handleGoogleLogin} className="w-full sm:w-auto">
-                                    {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    {googleHasTokens ? "Re-link Business Profile" : "Link Business Profile"}
-                                </Button>
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                    <Button disabled={isGoogleLoading} onClick={handleGoogleLogin} className="w-full sm:w-auto">
+                                        {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                        {googleHasTokens ? "Re-link Business Profile" : "Link Business Profile"}
+                                    </Button>
+                                    {/* Tokens exist but the profile won't load — usually the wrong
+                                        Google account. Clearing them first makes the re-link start
+                                        from a clean slate instead of overwriting a half-broken row. */}
+                                    {googleHasTokens && (
+                                        <Button
+                                            variant="outline"
+                                            disabled={isGoogleLoading}
+                                            onClick={handleDisconnectGoogle}
+                                            className="w-full sm:w-auto"
+                                        >
+                                            <Unplug className="mr-2 h-4 w-4" />
+                                            Disconnect
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                         ) : linkedLocationId ? (
                             <div className="space-y-4">
@@ -822,14 +883,25 @@ export function IntegrationsSettings() {
                                         <p className="text-sm text-green-700">Your restaurant is linked. Menu sync is active.</p>
                                     </div>
                                 </div>
-                                <Button
-                                    onClick={handleSyncMenu}
-                                    disabled={isSyncingMenu}
-                                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-                                >
-                                    {isSyncingMenu ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                                    Sync Menu Now
-                                </Button>
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                    <Button
+                                        onClick={handleSyncMenu}
+                                        disabled={isSyncingMenu}
+                                        className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                        {isSyncingMenu ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                        Sync Menu Now
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        disabled={isGoogleLoading || isSyncingMenu}
+                                        onClick={handleDisconnectGoogle}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Unplug className="mr-2 h-4 w-4" />}
+                                        Disconnect
+                                    </Button>
+                                </div>
                             </div>
                         ) : (
                             <div className="space-y-4">
@@ -848,14 +920,27 @@ export function IntegrationsSettings() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <Button
-                                    onClick={handleSendInvite}
-                                    disabled={!selectedGoogleLocation || isGoogleLoading}
-                                    className="w-full sm:w-auto"
-                                >
-                                    {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Give Management Access
-                                </Button>
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                    <Button
+                                        onClick={handleSendInvite}
+                                        disabled={!selectedGoogleLocation || isGoogleLoading}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                        Give Management Access
+                                    </Button>
+                                    {/* Connected but no location linked yet — the common escape
+                                        hatch when the listing you need isn't in this account. */}
+                                    <Button
+                                        variant="outline"
+                                        disabled={isGoogleLoading}
+                                        onClick={handleDisconnectGoogle}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        <Unplug className="mr-2 h-4 w-4" />
+                                        Disconnect
+                                    </Button>
+                                </div>
                                 <p className="text-xs text-muted-foreground">
                                     This will invite our MenuThere admin as manager of your Google Business location. Once we accept, your store joins the MenuThere organisation and we can sync your menu.
                                 </p>

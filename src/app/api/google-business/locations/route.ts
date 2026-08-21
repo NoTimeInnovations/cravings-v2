@@ -22,7 +22,12 @@ export async function GET(request: NextRequest) {
         tokens = await getTokensFromHasura(MASTER_PARTNER_ID);
     }
 
-    if (!tokens) {
+    // A row with no access_token is a disconnected (or link-only) integration,
+    // not a connected one. Without this check the token-less row sails past as
+    // truthy and we call Google with no credentials, turning "not connected"
+    // into an opaque 401/500 — which the settings UI then reports as a broken
+    // connection instead of offering the Connect button.
+    if (!tokens || !tokens.access_token) {
       return NextResponse.json({ error: 'Partner not connected to Google' }, { status: 404 });
     }
 

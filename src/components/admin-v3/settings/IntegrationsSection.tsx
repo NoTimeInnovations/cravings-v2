@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, Loader2, Pencil, SquareArrowOutUpRight } from "lucide-react";
+import { ChevronRight, Loader2, Pencil, SquareArrowOutUpRight, Unplug } from "lucide-react";
 import { toast } from "sonner";
 
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuthStore } from "@/store/authStore";
 
 import { AdminV3Button } from "../ui/primitives";
@@ -122,29 +123,43 @@ function ConnectionRow({
 
 function useGoogleBusiness(partnerId?: string) {
   const [state, setState] = React.useState<"loading" | "connected" | "off">("loading");
+
+  // `alive` is a ref, not an effect-local flag, so the same routine serves both
+  // the mount check and the post-disconnect recheck: an unmount mid-flight is
+  // ignored either way, and there is only one copy of the fetch to keep right.
+  const alive = React.useRef(true);
   React.useEffect(() => {
-    let alive = true;
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  const check = React.useCallback(async () => {
     if (!partnerId) {
       setState("off");
       return;
     }
-    (async () => {
-      try {
-        const res = await fetch(
-          `/api/google-business/locations?partnerId=${partnerId}&mode=partner`,
-        );
-        const json = await res.json().catch(() => null);
-        if (!alive) return;
-        setState(res.ok && json?.success ? "connected" : "off");
-      } catch {
-        if (alive) setState("off");
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+    setState("loading");
+    try {
+      // `mode=partner` suppresses the master-account fallback, so this answers
+      // "is THIS partner connected?" rather than "can Menuthere reach Google?".
+      const res = await fetch(
+        `/api/google-business/locations?partnerId=${partnerId}&mode=partner`,
+      );
+      const json = await res.json().catch(() => null);
+      if (!alive.current) return;
+      setState(res.ok && json?.success ? "connected" : "off");
+    } catch {
+      if (alive.current) setState("off");
+    }
   }, [partnerId]);
-  return state;
+
+  React.useEffect(() => {
+    void check();
+  }, [check]);
+
+  return { state, recheck: check };
 }
 
 /* ----------------------------------------------------------------- screen */
@@ -157,7 +172,8 @@ export function IntegrationsSection() {
   );
   const { status: whatsapp } = useWhatsAppStatus();
   const navigate = useV3Navigate();
-  const google = useGoogleBusiness(partner?.id);
+  const { state: google, recheck: recheckGoogle } = useGoogleBusiness(partner?.id);
+  const [googleBusy, setGoogleBusy] = React.useState(false);
   const { features, toggle, busy } = useFeatureToggle();
 
   const petpoojaId = partner?.petpooja_restaurant_id;
@@ -201,6 +217,47 @@ export function IntegrationsSection() {
       toast.error("Could not save the restaurant ID");
     } finally {
       setPpSaving(false);
+    }
+  };
+
+  const disconnectGoogle = async () => {
+    if (!partner?.id || googleBusy) return;
+    const ok = await confirmDialog({
+      title: "Disconnect Google Business Profile?",
+      description:
+        "Your Google account is unlinked from Menuthere and the access is revoked at Google. " +
+        "Your listing keeps whatever menu was last pushed to it.",
+      confirmText: "Disconnect",
+      destructive: true,
+    });
+    if (!ok) return;
+
+    setGoogleBusy(true);
+    try {
+      const res = await fetch("/api/google-business/auth/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerId: partner.id }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || "disconnect failed");
+
+      // The local tokens are gone either way; a failed revoke only means the
+      // grant still shows on Google's side, which the partner can clear from
+      // their own account page. Say so instead of claiming a clean disconnect.
+      if (json?.revokeError) {
+        toast.warning(
+          "Disconnected here, but Google did not confirm the revoke. Remove Menuthere at myaccount.google.com/permissions to be sure.",
+        );
+      } else {
+        toast.success("Google Business Profile disconnected");
+      }
+      await recheckGoogle();
+    } catch (e) {
+      console.error("[v3 integrations] google disconnect failed:", e);
+      toast.error("Could not disconnect");
+    } finally {
+      setGoogleBusy(false);
     }
   };
 
@@ -255,7 +312,24 @@ export function IntegrationsSection() {
                 `/api/google-business/auth/login?partnerId=${encodeURIComponent(partner.id)}&redirect=${encodeURIComponent("/admin-v3?sg=integrations")}`
               : undefined
           }
-          action={google === "connected" ? "Manage" : "Connect"}
+          action={google === "connected" ? "Reconnect" : "Connect"}
+          trailing={
+            google === "connected" ? (
+              <AdminV3Button
+                variant="secondary"
+                className="h-[30px] shrink-0 px-3 text-[13px]"
+                disabled={googleBusy}
+                onClick={disconnectGoogle}
+              >
+                {googleBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Unplug className="h-3.5 w-3.5" />
+                )}
+                Disconnect
+              </AdminV3Button>
+            ) : undefined
+          }
         />
 
         {/* No outbound link: there is nothing to "open" for Petpooja — the

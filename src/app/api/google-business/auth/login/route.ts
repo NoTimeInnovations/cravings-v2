@@ -29,10 +29,15 @@ export async function GET(request: NextRequest) {
   // Encode state
   const state = JSON.stringify({ partnerId, redirect });
 
+  // `select_account` matters on RECONNECT: with `consent` alone Google reuses
+  // whatever account the browser is already signed into, which is how staff
+  // sessions ended up storing a Menuthere account's tokens against a partner.
+  // Forcing the chooser makes "which account owns this listing?" an explicit
+  // choice. `consent` stays so we always get a refresh token back.
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
-    prompt: 'consent',
+    prompt: 'select_account consent',
     state: state
   });
 
