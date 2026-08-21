@@ -124,3 +124,85 @@ export function getBillAutoPrintStatus(deliveryRules: any): string {
     ? (v as string)
     : DEFAULT_BILL_AUTO_PRINT_STATUS;
 }
+
+/* ------------------------------------------------------------------------ *
+ * Which documents auto-print, and on which status each one fires.
+ *
+ * The KOT and the bill are separate print jobs on purpose (see printOrder.ts):
+ * they usually go to different printers, and they are wanted at different
+ * moments — the kitchen ticket the second the order is taken, the receipt when
+ * it is handed over. So "print both" is a choice of documents, not a choice of
+ * one bigger document, and each document carries its own trigger status.
+ * ------------------------------------------------------------------------ */
+
+/** The two printable documents. Mirrors PrintDoc in src/lib/printOrder.ts. */
+export type AutoPrintDoc = "kot" | "bill";
+
+/** Kitchen first — the KOT is the one somebody is actually waiting on. */
+const AUTO_PRINT_DOC_ORDER: AutoPrintDoc[] = ["kot", "bill"];
+
+/** What the picker offers. "both" is stored as the two-element array. */
+export type AutoPrintDocMode = "bill" | "kot" | "both";
+
+export const BILL_AUTO_PRINT_DOC_OPTIONS: { value: AutoPrintDocMode; label: string }[] = [
+  { value: "bill", label: "Bill only" },
+  { value: "kot", label: "KOT only" },
+  { value: "both", label: "Bill + KOT" },
+];
+
+export function autoPrintDocsToMode(docs: AutoPrintDoc[]): AutoPrintDocMode {
+  if (docs.length > 1) return "both";
+  return docs[0] === "kot" ? "kot" : "bill";
+}
+
+export function autoPrintModeToDocs(mode: AutoPrintDocMode): AutoPrintDoc[] {
+  return mode === "both" ? ["kot", "bill"] : [mode];
+}
+
+/**
+ * Documents the partner wants auto-printed
+ * (partners.delivery_rules.bill_auto_print_docs).
+ *
+ * Rows written before this setting existed have no such field, and auto-print
+ * only ever produced the bill — so an absent (or entirely unrecognised) value
+ * means ["bill"], never "nothing". Printing nothing is the one failure mode
+ * nobody notices until the middle of service.
+ */
+export function getBillAutoPrintDocs(deliveryRules: any): AutoPrintDoc[] {
+  const raw = parseDeliveryRules(deliveryRules)?.bill_auto_print_docs;
+  const picked = Array.isArray(raw) ? AUTO_PRINT_DOC_ORDER.filter((d) => raw.includes(d)) : [];
+  return picked.length ? picked : ["bill"];
+}
+
+/** The KOT wants the earliest status that means "this order is real". */
+export const DEFAULT_KOT_AUTO_PRINT_STATUS = "accepted";
+
+/**
+ * Which status prints the KOT (partners.delivery_rules.kot_auto_print_status).
+ * Kept apart from the bill's status because pinning both to one status would
+ * make "Bill + KOT" useless for one of them: a kitchen ticket that arrives at
+ * "completed" is a ticket for food that is already cooked.
+ */
+export function getKotAutoPrintStatus(deliveryRules: any): string {
+  const v = parseDeliveryRules(deliveryRules)?.kot_auto_print_status;
+  return BILL_AUTO_PRINT_STATUSES.some((s) => s.value === v)
+    ? (v as string)
+    : DEFAULT_KOT_AUTO_PRINT_STATUS;
+}
+
+/**
+ * The documents to print now that an order has just reached `status` — the only
+ * question the order store actually asks. Empty when auto-print is off, or when
+ * nothing is armed on this particular status.
+ */
+export function getAutoPrintDocsForStatus(
+  deliveryRules: any,
+  status: string,
+): AutoPrintDoc[] {
+  if (!isBillAutoPrintEnabled(deliveryRules)) return [];
+  const statusOf: Record<AutoPrintDoc, string> = {
+    kot: getKotAutoPrintStatus(deliveryRules),
+    bill: getBillAutoPrintStatus(deliveryRules),
+  };
+  return getBillAutoPrintDocs(deliveryRules).filter((d) => statusOf[d] === status);
+}

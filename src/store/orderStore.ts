@@ -16,7 +16,8 @@ import { getSafeStorage } from "@/lib/safeStorage";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useAuthStore, Captain } from "./authStore";
-import { isBillAutoPrintEnabled, getBillAutoPrintStatus } from "@/lib/printLayout";
+import { getAutoPrintDocsForStatus } from "@/lib/printLayout";
+import { printKotAndBill } from "@/lib/printOrder";
 import {
   createOrderItemsMutation,
   createOrderMutation,
@@ -1185,31 +1186,33 @@ const useOrderStore = create(
           setOrders(updatedOrders);
           toast.success(`Order marked as ${newStatus}`);
 
-          // Auto print the bill (Settings → Bill Printing → Auto print).
+          // Auto print the KOT and/or the bill (Settings → Bill Printing →
+          // Auto print). Which documents, and the status each one fires on,
+          // are the partner's choice — getAutoPrintDocsForStatus answers both
+          // in one call, so this stays a single question no matter how many
+          // documents the setting grows to cover.
           //
           // Hooked HERE rather than at the six admin-v2 call sites, because a
           // seventh would eventually be added without it. Printing means opening
-          // /bill/<id>, which needs a browser tab, so this only ever fires on the
-          // device that made the change — there is no way to reach the counter's
-          // printer from a status change made anywhere else.
+          // /kot/<id> or /bill/<id>, which needs a browser tab, so this only ever
+          // fires on the device that made the change — there is no way to reach
+          // the counter's printer from a status change made anywhere else.
           //
           // Captains are excluded deliberately: they share this store, and a
-          // captain marking food ready would otherwise print a bill on their own
-          // tablet instead of at the till.
+          // captain marking food ready would otherwise print on their own tablet
+          // instead of at the till.
           try {
             const role = (userData as any)?.role;
-            const dr = (userData as any)?.delivery_rules;
-            if (
-              (role === "partner" || role === "superadmin") &&
-              isBillAutoPrintEnabled(dr) &&
-              getBillAutoPrintStatus(dr) === newStatus
-            ) {
-              // Popups after an await can be blocked; when that happens say so
-              // and leave a way through, rather than silently not printing.
-              const w = window.open(`/bill/${orderId}`, "_blank");
-              if (!w) {
-                toast.warning("Allow pop-ups to auto print the bill, or press Print on the order.");
-              }
+            const docs =
+              role === "partner" || role === "superadmin"
+                ? getAutoPrintDocsForStatus((userData as any)?.delivery_rules, newStatus)
+                : [];
+            if (docs.length) {
+              // printKotAndBill owns the blocked-popup path: it opens what it
+              // can, staggers the two dialogs so they don't race, and offers a
+              // toast action (a fresh gesture, never blocked) for whatever the
+              // popup blocker ate.
+              printKotAndBill(orderId, { docs });
             }
           } catch (e) {
             console.warn("[auto-print] skipped:", e);
