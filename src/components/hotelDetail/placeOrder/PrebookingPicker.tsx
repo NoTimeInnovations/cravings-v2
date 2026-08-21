@@ -443,7 +443,10 @@ export function PrebookingPicker({
                     // This REPLACES the slot list while the setting is on, so it is the
                     // only time control on screen — hence no "use a slot instead" escape.
                     <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        {/* Relative so the placeholder below can sit on top of the input:
+                            type="time" ignores the placeholder attribute, and an empty one
+                            renders as a blank box on Android Chrome. */}
+                        <div className="relative flex items-center gap-2">
                             <input
                                 type="time"
                                 value={customTime}
@@ -474,10 +477,25 @@ export function PrebookingPicker({
                                 }}
                                 aria-label="Enter your own time"
                                 aria-invalid={!!customTimeError}
-                                className={`flex-1 min-w-0 py-3 px-2.5 rounded-xl text-xs font-semibold border-2 bg-gray-50 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
+                                className={`flex-1 min-w-0 py-3 px-2.5 rounded-xl text-xs font-semibold border-2 bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
                                     customTimeError ? "border-red-300" : "border-gray-100"
+                                } ${
+                                    // Hide the browser's own empty rendering ("--:--", or
+                                    // nothing at all) so only our placeholder shows. The
+                                    // picker glyph draws its own image, so it survives.
+                                    customTime ? "text-gray-700" : "text-transparent"
                                 }`}
                             />
+                            {!customTime && (
+                                <span
+                                    aria-hidden
+                                    className={`pointer-events-none absolute left-2.5 text-xs font-semibold text-gray-400 ${
+                                        !date ? "opacity-50" : ""
+                                    }`}
+                                >
+                                    Select a time
+                                </span>
+                            )}
                         </div>
                         <p className={`text-[11px] ${customTimeError ? "font-medium text-red-600" : "text-gray-400"}`}>
                             {/* Deliberately vague: what's enforced differs by slot mode
