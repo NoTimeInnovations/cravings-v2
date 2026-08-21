@@ -23,8 +23,14 @@ import {
     getBillLogoUrl,
     isBillAutoPrintEnabled,
     getBillAutoPrintStatus,
+    getKotAutoPrintStatus,
+    getBillAutoPrintDocs,
+    autoPrintDocsToMode,
+    autoPrintModeToDocs,
     BILL_AUTO_PRINT_STATUSES,
+    BILL_AUTO_PRINT_DOC_OPTIONS,
     type BillLayout,
+    type AutoPrintDocMode,
 } from "@/lib/printLayout";
 
 // Layout choices, mirrored in the desktop print app (main.js VALID_BILL_LAYOUTS)
@@ -53,7 +59,15 @@ export function BillPrintingSettings() {
     const [billLogoUrl, setBillLogoUrl] = useState<string | null>(null);
     const [isLogoUploading, setIsLogoUploading] = useState(false);
     const [autoPrint, setAutoPrint] = useState(false);
+    // Which documents auto-print, and the status each one fires on. The KOT and
+    // the bill keep separate triggers because they are wanted at different
+    // moments — the kitchen ticket when the order is taken, the receipt when it
+    // is handed over.
+    const [autoPrintMode, setAutoPrintMode] = useState<AutoPrintDocMode>("bill");
     const [autoPrintStatus, setAutoPrintStatus] = useState("completed");
+    const [kotAutoPrintStatus, setKotAutoPrintStatus] = useState("accepted");
+
+    const autoPrintDocs = autoPrintModeToDocs(autoPrintMode);
 
     useEffect(() => {
         if (userData) {
@@ -66,7 +80,9 @@ export function BillPrintingSettings() {
             setShowLogo(isBillLogoEnabled(data.delivery_rules));
             setBillLogoUrl(getBillLogoUrl(data.delivery_rules));
             setAutoPrint(isBillAutoPrintEnabled(data.delivery_rules));
+            setAutoPrintMode(autoPrintDocsToMode(getBillAutoPrintDocs(data.delivery_rules)));
             setAutoPrintStatus(getBillAutoPrintStatus(data.delivery_rules));
+            setKotAutoPrintStatus(getKotAutoPrintStatus(data.delivery_rules));
         }
     }, [userData]);
 
@@ -127,7 +143,9 @@ export function BillPrintingSettings() {
                     bill_show_logo: showLogo,
                     bill_logo_url: billLogoUrl || "",
                     bill_auto_print_enabled: autoPrint,
+                    bill_auto_print_docs: autoPrintModeToDocs(autoPrintMode),
                     bill_auto_print_status: autoPrintStatus,
+                    kot_auto_print_status: kotAutoPrintStatus,
                 },
             };
 
@@ -142,7 +160,7 @@ export function BillPrintingSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, includeCategoryName, billLayout, fullArabic, showDetailQr, showDeliveryBoy, showLogo, billLogoUrl, autoPrint, autoPrintStatus, setState]);
+    }, [userData, includeCategoryName, billLayout, fullArabic, showDetailQr, showDeliveryBoy, showLogo, billLogoUrl, autoPrint, autoPrintMode, autoPrintStatus, kotAutoPrintStatus, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -170,9 +188,11 @@ export function BillPrintingSettings() {
             showLogo !== isBillLogoEnabled(data.delivery_rules) ||
             (billLogoUrl || null) !== getBillLogoUrl(data.delivery_rules) ||
             autoPrint !== isBillAutoPrintEnabled(data.delivery_rules) ||
-            autoPrintStatus !== getBillAutoPrintStatus(data.delivery_rules);
+            autoPrintMode !== autoPrintDocsToMode(getBillAutoPrintDocs(data.delivery_rules)) ||
+            autoPrintStatus !== getBillAutoPrintStatus(data.delivery_rules) ||
+            kotAutoPrintStatus !== getKotAutoPrintStatus(data.delivery_rules);
         setHasChanges(changed);
-    }, [includeCategoryName, billLayout, fullArabic, showDetailQr, showDeliveryBoy, showLogo, billLogoUrl, autoPrint, autoPrintStatus, userData, setHasChanges]);
+    }, [includeCategoryName, billLayout, fullArabic, showDetailQr, showDeliveryBoy, showLogo, billLogoUrl, autoPrint, autoPrintMode, autoPrintStatus, kotAutoPrintStatus, userData, setHasChanges]);
 
     return (
         <div className="space-y-6">
@@ -336,14 +356,14 @@ export function BillPrintingSettings() {
                 <CardHeader>
                     <CardTitle>Auto print</CardTitle>
                     <CardDescription>
-                        Open the bill automatically when an order reaches a chosen status,
-                        so nobody has to press Print.
+                        Print the KOT, the bill, or both automatically when an order reaches a
+                        chosen status, so nobody has to press Print.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5 pr-4">
-                            <Label>Auto print the bill</Label>
+                            <Label>Auto print</Label>
                             <p className="text-sm text-muted-foreground">
                                 Prints from the device where the status is changed, so keep
                                 this dashboard open on the machine with the printer.
@@ -353,23 +373,68 @@ export function BillPrintingSettings() {
                     </div>
 
                     {autoPrint && (
-                        <div className="space-y-2 rounded-lg border p-4">
-                            <Label>Print when the order status changes to</Label>
-                            <select
-                                value={autoPrintStatus}
-                                onChange={(e) => setAutoPrintStatus(e.target.value)}
-                                className="h-9 w-full max-w-xs rounded-md border bg-background px-3 text-sm"
-                            >
-                                {BILL_AUTO_PRINT_STATUSES.map((s) => (
-                                    <option key={s.value} value={s.value}>
-                                        {s.label}
-                                    </option>
-                                ))}
-                            </select>
+                        <div className="space-y-4 rounded-lg border p-4">
+                            <div className="space-y-2">
+                                <Label>What to print</Label>
+                                <select
+                                    value={autoPrintMode}
+                                    onChange={(e) =>
+                                        setAutoPrintMode(e.target.value as AutoPrintDocMode)
+                                    }
+                                    className="h-9 w-full max-w-xs rounded-md border bg-background px-3 text-sm"
+                                >
+                                    {BILL_AUTO_PRINT_DOC_OPTIONS.map((d) => (
+                                        <option key={d.value} value={d.value}>
+                                            {d.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-muted-foreground">
+                                    The KOT is the kitchen ticket, the bill is the customer&apos;s
+                                    receipt. They stay two separate print jobs, so each can go to
+                                    its own printer.
+                                </p>
+                            </div>
+
+                            {autoPrintDocs.includes("kot") && (
+                                <div className="space-y-2">
+                                    <Label>Print the KOT when the order status changes to</Label>
+                                    <select
+                                        value={kotAutoPrintStatus}
+                                        onChange={(e) => setKotAutoPrintStatus(e.target.value)}
+                                        className="h-9 w-full max-w-xs rounded-md border bg-background px-3 text-sm"
+                                    >
+                                        {BILL_AUTO_PRINT_STATUSES.map((s) => (
+                                            <option key={s.value} value={s.value}>
+                                                {s.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {autoPrintDocs.includes("bill") && (
+                                <div className="space-y-2">
+                                    <Label>Print the bill when the order status changes to</Label>
+                                    <select
+                                        value={autoPrintStatus}
+                                        onChange={(e) => setAutoPrintStatus(e.target.value)}
+                                        className="h-9 w-full max-w-xs rounded-md border bg-background px-3 text-sm"
+                                    >
+                                        {BILL_AUTO_PRINT_STATUSES.map((s) => (
+                                            <option key={s.value} value={s.value}>
+                                                {s.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
                             <p className="text-xs text-muted-foreground">
-                                Only this status prints — moving an order through earlier
+                                Only the chosen status prints — moving an order through earlier
                                 statuses on the way there does not. Cancelled is not offered:
-                                there is nothing to bill.
+                                there is nothing to bill. Picking the same status for both prints
+                                the KOT first, then the bill.
                             </p>
                         </div>
                     )}

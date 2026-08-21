@@ -6,15 +6,21 @@ import { toast } from "sonner";
 
 import { deleteFileFromS3, uploadFileToS3 } from "@/app/actions/aws-s3";
 import {
+  autoPrintDocsToMode,
+  autoPrintModeToDocs,
+  BILL_AUTO_PRINT_DOC_OPTIONS,
   BILL_AUTO_PRINT_STATUSES,
+  getBillAutoPrintDocs,
   getBillAutoPrintStatus,
   getBillLayout,
   getBillLogoUrl,
+  getKotAutoPrintStatus,
   isBillAutoPrintEnabled,
   isBillDeliveryBoyEnabled,
   isBillDetailQrEnabled,
   isBillLogoEnabled,
   isFullArabic,
+  type AutoPrintDocMode,
   type BillLayout,
 } from "@/lib/printLayout";
 import { cn } from "@/lib/utils";
@@ -41,7 +47,12 @@ interface PrintingDraft {
   layout: BillLayout;
   fullArabic: boolean;
   autoPrint: boolean;
+  /** Bill only / KOT only / both. Stored as the doc array `build` writes out. */
+  autoPrintMode: AutoPrintDocMode;
   autoPrintStatus: string;
+  /** The KOT's own trigger — it is wanted when the order is taken, not when the
+   *  bill is. */
+  kotAutoPrintStatus: string;
   /** partners.fssai_licence_no — a column, not part of the delivery_rules blob. */
   fssaiNumber: string;
 }
@@ -57,7 +68,9 @@ function read(partner: any): PrintingDraft {
     layout: getBillLayout(rules),
     fullArabic: isFullArabic(rules),
     autoPrint: isBillAutoPrintEnabled(rules),
+    autoPrintMode: autoPrintDocsToMode(getBillAutoPrintDocs(rules)),
     autoPrintStatus: getBillAutoPrintStatus(rules),
+    kotAutoPrintStatus: getKotAutoPrintStatus(rules),
     fssaiNumber: partner?.fssai_licence_no || "",
   };
 }
@@ -76,7 +89,9 @@ function build(d: PrintingDraft, partner: any): Record<string, unknown> {
       bill_show_logo: d.showLogo,
       bill_logo_url: d.logoUrl || "",
       bill_auto_print_enabled: d.autoPrint,
+      bill_auto_print_docs: autoPrintModeToDocs(d.autoPrintMode),
       bill_auto_print_status: d.autoPrintStatus,
+      kot_auto_print_status: d.kotAutoPrintStatus,
     },
   };
 }
@@ -318,10 +333,12 @@ export function PrintingSection({ tab }: { tab: PrintingTab }) {
     );
   }
 
+  const autoDocs = autoPrintModeToDocs(draft.autoPrintMode);
+
   return (
     <SettingsCard>
       <ToggleRow
-        title="Print the bill automatically"
+        title="Print automatically"
         desc="Prints from the device where the status is changed, so keep this dashboard open on the machine with the printer."
         checked={draft.autoPrint}
         onChange={(v) => patch({ autoPrint: v })}
@@ -329,14 +346,44 @@ export function PrintingSection({ tab }: { tab: PrintingTab }) {
       />
       <FieldRow>
         <SelectField
-          label="Print when the order becomes"
-          value={draft.autoPrintStatus}
-          onChange={(v) => patch({ autoPrintStatus: v })}
-          options={BILL_AUTO_PRINT_STATUSES}
+          label="What to print"
+          value={draft.autoPrintMode}
+          onChange={(v) => patch({ autoPrintMode: v as AutoPrintDocMode })}
+          options={BILL_AUTO_PRINT_DOC_OPTIONS}
           basis="100%"
           disabled={!draft.autoPrint}
         />
       </FieldRow>
+      {/* One trigger per document: a kitchen ticket that lands at "completed"
+          is a ticket for food that is already cooked. */}
+      {autoDocs.includes("kot") ? (
+        <FieldRow>
+          <SelectField
+            label="Print the KOT when the order becomes"
+            value={draft.kotAutoPrintStatus}
+            onChange={(v) => patch({ kotAutoPrintStatus: v })}
+            options={BILL_AUTO_PRINT_STATUSES}
+            basis="100%"
+            disabled={!draft.autoPrint}
+          />
+        </FieldRow>
+      ) : null}
+      {autoDocs.includes("bill") ? (
+        <FieldRow>
+          <SelectField
+            label="Print the bill when the order becomes"
+            value={draft.autoPrintStatus}
+            onChange={(v) => patch({ autoPrintStatus: v })}
+            options={BILL_AUTO_PRINT_STATUSES}
+            basis="100%"
+            disabled={!draft.autoPrint}
+          />
+        </FieldRow>
+      ) : null}
+      <Note>
+        The KOT and the bill stay two print jobs, so each can go to its own
+        printer. Pick the same status for both and the KOT prints first.
+      </Note>
     </SettingsCard>
   );
 }
