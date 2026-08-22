@@ -7,7 +7,14 @@ import { setProviderGroups } from "@/app/actions/deliveryConnect";
 
 import { mergePrebookingConfig, parseOrderTypesEnabled } from "@/lib/prebooking";
 import type { FeatureFlags } from "@/lib/getFeatures";
+import { cn } from "@/lib/utils";
 import { settingsTabVisible } from "@/lib/adminNav";
+import {
+  SELF_COURIER_BRANDS,
+  SELF_COURIER_SETTING,
+  readSelfCourierRules,
+  type SelfCourierRules,
+} from "@/lib/selfCourier";
 
 import {
   Chip,
@@ -58,6 +65,7 @@ interface OrderingDraft {
   hide_delivery_charge: boolean;
   pool_pickup_otp: boolean;
   pool_drop_otp: boolean;
+  self_courier: SelfCourierRules;
 
   delivery_vehicle_mode: string;
   delivery_wait_seconds: number;
@@ -103,6 +111,7 @@ function read(partner: any): OrderingDraft {
     hide_delivery_charge: !!r.hide_delivery_charge,
     pool_pickup_otp: !!r.pool_pickup_otp,
     pool_drop_otp: !!r.pool_drop_otp,
+    self_courier: readSelfCourierRules({ delivery_rules: r }),
 
     delivery_vehicle_mode: r.delivery_vehicle_mode || "bike",
     delivery_wait_seconds: num(r.delivery_wait_seconds, 600),
@@ -151,6 +160,7 @@ function build(d: OrderingDraft, partner: any): Record<string, unknown> {
       hide_delivery_charge: d.hide_delivery_charge,
       pool_pickup_otp: d.pool_pickup_otp,
       pool_drop_otp: d.pool_drop_otp,
+      self_courier: d.self_courier,
       delivery_vehicle_mode: d.delivery_vehicle_mode,
       delivery_wait_seconds: d.delivery_wait_seconds,
       porter_auto_dispatch: d.porter_auto_dispatch,
@@ -509,6 +519,80 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
           checked={draft.pool_drop_otp}
           onChange={(v) => patch({ pool_drop_otp: v })}
         />
+
+        {/* Customer-booked couriers. The same card as admin-v2's Delivery
+            settings — 1,086 partners are on v2 and every new one lands on v3,
+            so both dashboards carry it. Strings come from SELF_COURIER_SETTING
+            so the two screens cannot say different things. */}
+        <ToggleRow
+          divider
+          title={SELF_COURIER_SETTING.title}
+          desc={SELF_COURIER_SETTING.description}
+          checked={draft.self_courier.enabled}
+          onChange={(v) => patch({ self_courier: { ...draft.self_courier, enabled: v } })}
+        />
+        {draft.self_courier.enabled && (
+          <>
+            <SegmentedField
+              label={SELF_COURIER_SETTING.typesLabel}
+              value={draft.self_courier.types}
+              options={SELF_COURIER_SETTING.typeOptions.map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+              onChange={(v) =>
+                patch({
+                  self_courier: {
+                    ...draft.self_courier,
+                    types: v as "takeaway" | "both",
+                  },
+                })
+              }
+            />
+            <div>
+              <div className="text-[12.5px] font-medium text-zinc-950 dark:text-zinc-50">
+                {SELF_COURIER_SETTING.providersLabel}
+              </div>
+              <div className="mt-1 text-[12px] leading-[1.5] text-zinc-400 dark:text-zinc-500">
+                {SELF_COURIER_SETTING.providersHint}
+              </div>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {SELF_COURIER_BRANDS.filter((b) => b.slug !== "other").map((b) => {
+                  const on = draft.self_courier.providers.includes(b.slug);
+                  return (
+                    <button
+                      key={b.slug}
+                      type="button"
+                      onClick={() => {
+                        const next = on
+                          ? draft.self_courier.providers.filter((x) => x !== b.slug)
+                          : [...draft.self_courier.providers, b.slug];
+                        patch({
+                          self_courier: {
+                            ...draft.self_courier,
+                            // "other" always stays: a customer who used a local
+                            // courier still needs a way to tell the restaurant.
+                            providers: Array.from(
+                              new Set([...next, "other"]),
+                            ) as SelfCourierRules["providers"],
+                          },
+                        });
+                      }}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-[12.5px] font-medium leading-none transition-colors",
+                        on
+                          ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900"
+                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
+                      )}
+                    >
+                      {b.label} &middot; {b.subtitle}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
         <Note>
           Distance bands, per-area pricing and rider contact numbers are still set
           in the classic dashboard.

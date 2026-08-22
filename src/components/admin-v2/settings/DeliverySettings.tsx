@@ -18,6 +18,12 @@ import { HybridBookingBands } from "./HybridBookingBands";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { countryCodes } from "@/utils/countryCodes";
+import {
+    DEFAULT_SELF_COURIER_RULES,
+    SELF_COURIER_BRANDS,
+    SELF_COURIER_SETTING,
+    readSelfCourierRules,
+} from "@/lib/selfCourier";
 import { getDeliveryAgentWallet } from "@/app/actions/deliveryAgent";
 import { DeliveryConnectDialog } from "./DeliveryConnectDialog";
 import { getDeliveryConnections, logoutDeliveryProvider, setProviderGroups } from "@/app/actions/deliveryConnect";
@@ -967,6 +973,112 @@ export function DeliverySettings() {
                     </CardContent>
                 </Card>
             )}
+
+            {/* Customer-booked couriers. Deliberately NOT gated on a feature flag:
+                it needs no account, no integration and no cost to us — the only
+                gate that matters is the restaurant deciding they want it. The
+                same card exists in admin-v3's Ordering > Delivery tab; both read
+                their strings from SELF_COURIER_SETTING so they cannot drift. */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>{SELF_COURIER_SETTING.title}</CardTitle>
+                    <CardDescription>{SELF_COURIER_SETTING.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Show it to customers</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Off by default. Turn it on only if couriers actually operate near you.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={readSelfCourierRules({ delivery_rules: deliveryRules }).enabled}
+                            onCheckedChange={(checked) =>
+                                setDeliveryRules((prev: any) => ({
+                                    ...prev,
+                                    self_courier: {
+                                        ...DEFAULT_SELF_COURIER_RULES,
+                                        ...(prev.self_courier || {}),
+                                        enabled: checked,
+                                    },
+                                }))
+                            }
+                        />
+                    </div>
+
+                    {readSelfCourierRules({ delivery_rules: deliveryRules }).enabled && (
+                        <>
+                            <div className="space-y-2">
+                                <Label className="text-base">{SELF_COURIER_SETTING.typesLabel}</Label>
+                                <Select
+                                    value={readSelfCourierRules({ delivery_rules: deliveryRules }).types}
+                                    onValueChange={(value) =>
+                                        setDeliveryRules((prev: any) => ({
+                                            ...prev,
+                                            self_courier: {
+                                                ...DEFAULT_SELF_COURIER_RULES,
+                                                ...(prev.self_courier || {}),
+                                                types: value,
+                                            },
+                                        }))
+                                    }
+                                >
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {SELF_COURIER_SETTING.typeOptions.map((o) => (
+                                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-base">{SELF_COURIER_SETTING.providersLabel}</Label>
+                                <p className="text-sm text-muted-foreground">{SELF_COURIER_SETTING.providersHint}</p>
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    {SELF_COURIER_BRANDS.filter((b) => b.slug !== "other").map((b) => {
+                                        const current = readSelfCourierRules({ delivery_rules: deliveryRules }).providers;
+                                        const on = current.includes(b.slug);
+                                        return (
+                                            <button
+                                                key={b.slug}
+                                                type="button"
+                                                onClick={() =>
+                                                    setDeliveryRules((prev: any) => {
+                                                        const prevRules = readSelfCourierRules({ delivery_rules: prev });
+                                                        const next = on
+                                                            ? prevRules.providers.filter((p) => p !== b.slug)
+                                                            : [...prevRules.providers, b.slug];
+                                                        return {
+                                                            ...prev,
+                                                            self_courier: {
+                                                                ...DEFAULT_SELF_COURIER_RULES,
+                                                                ...(prev.self_courier || {}),
+                                                                // "other" always stays — a customer who used a local
+                                                                // courier still needs a way to tell the restaurant.
+                                                                providers: Array.from(new Set([...next, "other"])),
+                                                            },
+                                                        };
+                                                    })
+                                                }
+                                                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                                                    on
+                                                        ? "border-primary bg-primary/10 text-primary"
+                                                        : "border-border text-muted-foreground hover:bg-muted"
+                                                }`}
+                                            >
+                                                {b.label} &middot; {b.subtitle}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle>Delivery Configuration</CardTitle>
