@@ -206,3 +206,41 @@ export function getAutoPrintDocsForStatus(
   };
   return getBillAutoPrintDocs(deliveryRules).filter((d) => statusOf[d] === status);
 }
+
+/**
+ * Resolve the rider whose name/phone belongs on the bill, from whichever place
+ * this order's courier actually recorded them.
+ *
+ * There is no single column: an order's rider reaches us by one of four routes,
+ * and only the first writes `orders.delivery_boy`.
+ *
+ *   partner's own rider   → delivery_boy { name, phone }        (relationship)
+ *   Adloggs / Growjet     → delivery_agent { name, phone }      (jsonb)
+ *   Porter / Rapido       → delivery_provider_meta.driver       (jsonb, merged)
+ *   Menuthere pool        → delivery_provider_meta.riderName/riderPhone
+ *
+ * Reading only `delivery_boy` printed an empty block for every 3PL order, which
+ * is most of them. First non-empty wins, in the order above — a partner who
+ * assigned their own rider outranks whatever a provider later back-filled.
+ *
+ * `delivery_provider_meta` is written with jsonb `_append` (a merge), so a
+ * re-dispatched order can carry a stale rider from the failed attempt; that is
+ * still the best name available and beats printing nothing.
+ */
+export function resolveBillRider(order: any): { name: string; phone: string } | null {
+  const meta =
+    order?.delivery_provider_meta && typeof order.delivery_provider_meta === "object"
+      ? order.delivery_provider_meta
+      : {};
+  const agent =
+    order?.delivery_agent && typeof order.delivery_agent === "object" ? order.delivery_agent : {};
+
+  const name = String(
+    order?.delivery_boy?.name || agent.name || meta.driver?.name || meta.riderName || "",
+  ).trim();
+  const phone = String(
+    order?.delivery_boy?.phone || agent.phone || meta.driver?.phone || meta.riderPhone || "",
+  ).trim();
+
+  return name || phone ? { name, phone } : null;
+}

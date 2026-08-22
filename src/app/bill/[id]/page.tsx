@@ -8,7 +8,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { isVatEnabled, getTrn } from "@/lib/taxLabel";
-import { getBillLayout, isFullArabic, isBillDetailQrEnabled, isBillLogoEnabled, getBillLogoUrl, isBillDeliveryBoyEnabled } from "@/lib/printLayout";
+import { getBillLayout, isFullArabic, isBillDetailQrEnabled, isBillLogoEnabled, getBillLogoUrl, isBillDeliveryBoyEnabled, resolveBillRider } from "@/lib/printLayout";
 import { makeLabeler } from "@/lib/arabicBillLabels";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
@@ -57,6 +57,8 @@ query GetOrder($id: uuid!) {
       name
       phone
     }
+    delivery_agent
+    delivery_provider_meta
     display_id
     status
     status_history
@@ -345,14 +347,15 @@ const PrintOrderPage = () => {
               // actually assigned, so consumers of this payload (the Cravings
               // app and the desktop print app) can print whatever they are
               // given without re-reading the setting.
-              delivery_boy:
-                isBillDeliveryBoyEnabled(formattedOrder.partner?.delivery_rules) &&
-                  orders_by_pk.delivery_boy?.name
-                  ? {
-                    name: sanitizePrintText(orders_by_pk.delivery_boy.name),
-                    phone: orders_by_pk.delivery_boy.phone || "",
-                  }
-                  : null,
+              delivery_boy: (() => {
+                if (!isBillDeliveryBoyEnabled(formattedOrder.partner?.delivery_rules)) return null;
+                // Porter/Rapido/pool riders never touch orders.delivery_boy —
+                // see resolveBillRider for where each courier writes its rider.
+                const rider = resolveBillRider(orders_by_pk);
+                return rider
+                  ? { name: sanitizePrintText(rider.name), phone: rider.phone }
+                  : null;
+              })(),
               order_items: withCategoryInName(
                 formattedOrder.items || [],
                 isBillCategoryNameEnabled(formattedOrder.partner?.delivery_rules)
