@@ -1,15 +1,12 @@
 import { Metadata } from "next";
-import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import {
-  ArrowRight,
   CheckCircle2,
   TrendingUp,
-  ArrowUpRight,
   Sparkles,
   IndianRupee,
   Users,
@@ -25,7 +22,6 @@ import {
   Lock,
   Heart,
   AlertTriangle,
-  Clock,
 } from "lucide-react";
 import {
   Accordion,
@@ -246,35 +242,55 @@ export default async function PetPoojaPage() {
       <JsonLd data={breadcrumbSchema} />
 
       {/* ═══════════════ HERO ═══════════════ */}
-      <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
-        <div className="w-full max-w-2xl mx-auto text-center">
-          <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
-            {c.heroTitle}
-          </h1>
-          <p className="geist-font text-lg text-stone-500 max-w-lg mx-auto mt-5 leading-relaxed">
-            {c.heroSubtitle}
-          </p>
-          <div className="flex items-center gap-3 mt-8 justify-center">
-            <ButtonV2 href="https://wa.me/918590115462?text=Hi%2C%20I%27m%20interested%20in%20PetPooja%20%2B%20Menuthere" variant="primary" className="text-nowrap">
-              {c.heroPrimaryCta}
-            </ButtonV2>
-            <ButtonV2 href="https://cal.id/menuthere" variant="secondary" className="text-nowrap">
-              {shared.bookDemoCta}
-            </ButtonV2>
+      <section
+        className="relative pt-32 md:pt-40 pb-16 md:pb-24 bg-[#FAF7F0]"
+        style={{
+          backgroundImage:
+            "radial-gradient(120% 90% at 100% 0%, rgba(255,138,66,0.10) 0%, rgba(255,138,66,0.04) 35%, transparent 70%)",
+        }}
+      >
+        <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-12">
+          <div className="max-w-2xl mx-auto text-center">
+            {/* Eyebrow pill */}
+            <div className="inline-flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-white border border-[rgba(232,93,4,0.18)] text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#E85D04] shadow-[0_2px_8px_-3px_rgba(232,93,4,0.25)]">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-[#E85D04] opacity-70 animate-ping" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#E85D04]" />
+              </span>
+              <span>{c.breadcrumbCurrent}</span>
+            </div>
+
+            <h1
+              className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-[clamp(40px,5.2vw,64px)] leading-[1.05] mt-6"
+              style={{ letterSpacing: "-0.03em" }}
+            >
+              {c.heroTitle}
+            </h1>
+            <p className="text-[16px] md:text-[17px] text-[#4A4A50] max-w-lg mx-auto mt-6 leading-relaxed">
+              {c.heroSubtitle}
+            </p>
+            <div className="flex items-center gap-3 mt-8 justify-center">
+              <ButtonV2 href="https://wa.me/918590115462?text=Hi%2C%20I%27m%20interested%20in%20PetPooja%20%2B%20Menuthere" variant="primary" className="text-nowrap">
+                {c.heroPrimaryCta}
+              </ButtonV2>
+              <ButtonV2 href="https://cal.id/menuthere" variant="secondary" className="text-nowrap">
+                {shared.bookDemoCta}
+              </ButtonV2>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Stats Bar */}
-      <section className="bg-orange-600 py-8 border-t border-b border-stone-200">
-        <div className="max-w-5xl mx-auto px-6">
+      <section className="bg-[#E85D04] py-10 border-t border-b border-[rgba(11,11,12,0.08)]">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-white text-center">
             {STATS.map((stat, idx) => (
               <div key={idx}>
-                <div className="text-2xl md:text-3xl font-semibold">
+                <div className="font-bricolage tracking-tight font-semibold text-3xl md:text-4xl">
                   {stat.value}
                 </div>
-                <div className="text-sm opacity-80 mt-1">{stat.label}</div>
+                <div className="text-sm text-white/80 mt-1.5">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -282,14 +298,16 @@ export default async function PetPoojaPage() {
       </section>
 
       {/* Introduction */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-3xl mx-auto px-6 md:px-16">
-          <p className="text-stone-600 leading-relaxed text-base mb-6">
-            {c.introParagraph1}
-          </p>
-          <p className="text-stone-600 leading-relaxed text-base">
-            {c.introParagraph2}
-          </p>
+      <section className="bg-[#FAF7F0]">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-3xl mx-auto">
+            <p className="text-[#4A4A50] leading-relaxed text-[16px] md:text-[17px] mb-6">
+              {c.introParagraph1}
+            </p>
+            <p className="text-[#4A4A50] leading-relaxed text-[16px] md:text-[17px]">
+              {c.introParagraph2}
+            </p>
+          </div>
         </div>
       </section>
 
@@ -297,33 +315,35 @@ export default async function PetPoojaPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* ═══════════════ THE PROBLEM ═══════════════ */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            {c.problemsHeading}
-          </h2>
-          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
-            {c.problemsSubheading}
-          </p>
-        </div>
+      <section className="bg-white">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
+              {c.problemsHeading}
+            </h2>
+            <p className="text-[16px] md:text-[17px] text-[#76767B] max-w-xl leading-relaxed mb-12">
+              {c.problemsSubheading}
+            </p>
 
-        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {AGGREGATOR_PROBLEMS.map((problem, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-xl p-6 border border-stone-200"
-            >
-              <div className="w-10 h-10 rounded-lg bg-red-100/70 flex items-center justify-center mb-4">
-                <problem.icon className="w-5 h-5 text-red-600" />
-              </div>
-              <h3 className="text-base font-semibold text-stone-900 mb-2">
-                {problem.title}
-              </h3>
-              <p className="text-stone-500 text-sm leading-relaxed">
-                {problem.description}
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {AGGREGATOR_PROBLEMS.map((problem, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#E85D04]/10 text-[#E85D04] grid place-items-center mb-4">
+                    <problem.icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-[15px] font-semibold text-[#0A0A0B] mb-2">
+                    {problem.title}
+                  </h3>
+                  <p className="text-[#76767B] text-sm leading-relaxed">
+                    {problem.description}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </section>
 
@@ -331,62 +351,64 @@ export default async function PetPoojaPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* ═══════════════ COMMISSION BREAKDOWN TABLE ═══════════════ */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            {c.commissionHeading}
-          </h2>
-          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
-            {c.commissionSubheading}
-          </p>
+      <section className="bg-[#FAF7F0]">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
+              {c.commissionHeading}
+            </h2>
+            <p className="text-[16px] md:text-[17px] text-[#76767B] max-w-xl leading-relaxed mb-12">
+              {c.commissionSubheading}
+            </p>
 
-          <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-            {/* Table Header */}
-            <div className="grid grid-cols-3 bg-stone-900 text-white">
-              <div className="p-4 md:p-5 text-sm font-medium">
-                {c.commissionColCharge}
+            <div className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white overflow-hidden shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]">
+              {/* Table Header */}
+              <div className="grid grid-cols-3 bg-[#0A0A0B] text-white">
+                <div className="p-4 md:p-5 text-sm font-medium">
+                  {c.commissionColCharge}
+                </div>
+                <div className="p-4 md:p-5 text-sm font-medium text-center border-l border-white/10">
+                  {c.commissionColPlatforms}
+                </div>
+                <div className="p-4 md:p-5 text-sm font-medium text-center border-l border-white/10">
+                  Menuthere
+                </div>
               </div>
-              <div className="p-4 md:p-5 text-sm font-medium text-center border-l border-stone-700">
-                {c.commissionColPlatforms}
-              </div>
-              <div className="p-4 md:p-5 text-sm font-medium text-center border-l border-stone-700">
-                Menuthere
+
+              {/* Table Rows */}
+              {COMMISSION_BREAKDOWN.map((row, idx) => (
+                <div
+                  key={idx}
+                  className={`grid grid-cols-3 ${idx < COMMISSION_BREAKDOWN.length - 1 ? "border-b border-stone-100" : ""}`}
+                >
+                  <div className="p-4 md:p-5 text-sm text-[#0A0A0B] font-medium">
+                    {row.label}
+                  </div>
+                  <div className="p-4 md:p-5 text-sm text-center border-l border-stone-100 text-red-600 font-semibold">
+                    {row.aggregator}
+                  </div>
+                  <div className="p-4 md:p-5 text-sm text-center border-l border-stone-100 text-green-600 font-semibold">
+                    {row.menuthere}
+                  </div>
+                </div>
+              ))}
+
+              {/* Total Row */}
+              <div className="grid grid-cols-3 bg-[#0A0A0B] text-white">
+                <div className="p-4 md:p-5 text-sm font-semibold">
+                  {c.commissionTotalLabel}
+                </div>
+                <div className="p-4 md:p-5 text-sm text-center border-l border-white/10 font-semibold text-red-400">
+                  {c.commissionTotalAggregator}
+                </div>
+                <div className="p-4 md:p-5 text-sm text-center border-l border-white/10 font-semibold text-green-400">
+                  {c.commissionTotalMenuthere}
+                </div>
               </div>
             </div>
 
-            {/* Table Rows */}
-            {COMMISSION_BREAKDOWN.map((row, idx) => (
-              <div
-                key={idx}
-                className={`grid grid-cols-3 ${idx < COMMISSION_BREAKDOWN.length - 1 ? "border-b border-stone-100" : ""}`}
-              >
-                <div className="p-4 md:p-5 text-sm text-stone-900 font-medium">
-                  {row.label}
-                </div>
-                <div className="p-4 md:p-5 text-sm text-center border-l border-stone-100 text-red-600 font-semibold">
-                  {row.aggregator}
-                </div>
-                <div className="p-4 md:p-5 text-sm text-center border-l border-stone-100 text-green-600 font-semibold">
-                  {row.menuthere}
-                </div>
-              </div>
-            ))}
-
-            {/* Total Row */}
-            <div className="grid grid-cols-3 bg-stone-900 text-white">
-              <div className="p-4 md:p-5 text-sm font-semibold">
-                {c.commissionTotalLabel}
-              </div>
-              <div className="p-4 md:p-5 text-sm text-center border-l border-stone-700 font-semibold text-red-400">
-                {c.commissionTotalAggregator}
-              </div>
-              <div className="p-4 md:p-5 text-sm text-center border-l border-stone-700 font-semibold text-green-400">
-                {c.commissionTotalMenuthere}
-              </div>
-            </div>
+            <p className="text-xs text-[#8E8E94] mt-4">{c.commissionFootnote}</p>
           </div>
-
-          <p className="text-xs text-stone-400 mt-4">{c.commissionFootnote}</p>
         </div>
       </section>
 
@@ -394,33 +416,35 @@ export default async function PetPoojaPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* ═══════════════ OUR SOLUTION ═══════════════ */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            {c.solutionHeading}
-          </h2>
-          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
-            {c.solutionSubheading}
-          </p>
-        </div>
+      <section className="bg-white">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
+              {c.solutionHeading}
+            </h2>
+            <p className="text-[16px] md:text-[17px] text-[#76767B] max-w-xl leading-relaxed mb-12">
+              {c.solutionSubheading}
+            </p>
 
-        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {OUR_SOLUTION.map((item, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-xl p-6 border border-stone-200"
-            >
-              <div className="w-10 h-10 rounded-lg bg-orange-100/70 flex items-center justify-center mb-4">
-                <item.icon className="w-5 h-5 text-orange-600" />
-              </div>
-              <h3 className="text-base font-semibold text-stone-900 mb-2">
-                {item.title}
-              </h3>
-              <p className="text-stone-500 text-sm leading-relaxed">
-                {item.description}
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {OUR_SOLUTION.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#E85D04]/10 text-[#E85D04] grid place-items-center mb-4">
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-[15px] font-semibold text-[#0A0A0B] mb-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-[#76767B] text-sm leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </section>
 
@@ -428,48 +452,50 @@ export default async function PetPoojaPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* ═══════════════ BEFORE / AFTER COMPARISON ═══════════════ */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            {c.realNumbersHeading}
-          </h2>
-          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
-            {c.realNumbersSubheading}
-          </p>
+      <section className="bg-[#FAF7F0]">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
+              {c.realNumbersHeading}
+            </h2>
+            <p className="text-[16px] md:text-[17px] text-[#76767B] max-w-xl leading-relaxed mb-12">
+              {c.realNumbersSubheading}
+            </p>
 
-          <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-            {/* Table Header */}
-            <div className="grid grid-cols-3 bg-stone-900 text-white text-sm">
-              <div className="p-4 font-medium"></div>
-              <div className="p-4 font-medium text-center border-l border-stone-700">
-                {c.realNumbersColAggregators}
+            <div className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white overflow-hidden shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]">
+              {/* Table Header */}
+              <div className="grid grid-cols-3 bg-[#0A0A0B] text-white text-sm">
+                <div className="p-4 font-medium"></div>
+                <div className="p-4 font-medium text-center border-l border-white/10">
+                  {c.realNumbersColAggregators}
+                </div>
+                <div className="p-4 font-medium text-center border-l border-white/10">
+                  Menuthere
+                </div>
               </div>
-              <div className="p-4 font-medium text-center border-l border-stone-700">
-                Menuthere
-              </div>
+
+              {/* Table Rows */}
+              {REAL_NUMBERS.map((row, idx) => (
+                <div
+                  key={idx}
+                  className={`grid grid-cols-3 text-sm ${idx < REAL_NUMBERS.length - 1 ? "border-b border-stone-100" : ""}`}
+                >
+                  <div className="p-4 text-[#0A0A0B] font-medium">
+                    {row.metric}
+                  </div>
+                  <div className="p-4 text-center border-l border-stone-100 flex items-center justify-center gap-1.5">
+                    <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                    <span className="text-red-600 font-medium text-xs sm:text-sm">{row.aggregator}</span>
+                  </div>
+                  <div className="p-4 text-center border-l border-stone-100 flex items-center justify-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                    <span className="text-green-600 font-medium text-xs sm:text-sm">
+                      {row.direct}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-
-            {/* Table Rows */}
-            {REAL_NUMBERS.map((row, idx) => (
-              <div
-                key={idx}
-                className={`grid grid-cols-3 text-sm ${idx < REAL_NUMBERS.length - 1 ? "border-b border-stone-100" : ""}`}
-              >
-                <div className="p-4 text-stone-900 font-medium">
-                  {row.metric}
-                </div>
-                <div className="p-4 text-center border-l border-stone-100 flex items-center justify-center gap-1.5">
-                  <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
-                  <span className="text-red-600 font-medium text-xs sm:text-sm">{row.aggregator}</span>
-                </div>
-                <div className="p-4 text-center border-l border-stone-100 flex items-center justify-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                  <span className="text-green-600 font-medium text-xs sm:text-sm">
-                    {row.direct}
-                  </span>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -478,78 +504,84 @@ export default async function PetPoojaPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* ═══════════════ IMPORTANT NOTES (Delivery & Payment) ═══════════════ */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            {c.transparencyHeading}
-          </h2>
-          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
-            {c.transparencySubheading}
-          </p>
+      <section className="bg-white">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
+              {c.transparencyHeading}
+            </h2>
+            <p className="text-[16px] md:text-[17px] text-[#76767B] max-w-xl leading-relaxed mb-12">
+              {c.transparencySubheading}
+            </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Delivery Note */}
-            <div className="bg-amber-50/50 rounded-xl p-6 border border-amber-200/60">
-              <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center mb-4">
-                <Truck className="w-5 h-5 text-amber-700" />
-              </div>
-              <h3 className="text-base font-semibold text-stone-900 mb-2">
-                {c.deliveryTitle}
-              </h3>
-              <p className="text-stone-500 text-sm leading-relaxed mb-4">
-                {c.deliveryBody}
-              </p>
-              <ul className="space-y-2.5">
-                {[
-                  c.deliveryPoint1,
-                  c.deliveryPoint2,
-                  c.deliveryPoint3,
-                  c.deliveryPoint4,
-                ].map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-stone-600 text-sm">{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs text-amber-700 mt-4 font-medium">
-                {c.deliveryNote}
-              </p>
-            </div>
-
-            {/* Payment Integration Note */}
-            <div className="bg-blue-50/50 rounded-xl p-6 border border-blue-200/60">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
-                <CreditCard className="w-5 h-5 text-blue-700" />
-              </div>
-              <div className="flex items-center gap-2.5 mb-2">
-                <h3 className="text-base font-semibold text-stone-900">
-                  {c.paymentTitle}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Delivery Note */}
+              <div className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]">
+                <div className="w-10 h-10 rounded-xl bg-[#E85D04]/10 text-[#E85D04] grid place-items-center mb-4">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <h3 className="text-[15px] font-semibold text-[#0A0A0B] mb-2">
+                  {c.deliveryTitle}
                 </h3>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[11px] font-semibold border border-green-200">
-                  <Sparkles className="w-3 h-3" />
-                  {c.paymentBadge}
-                </span>
+                <p className="text-[#76767B] text-sm leading-relaxed mb-4">
+                  {c.deliveryBody}
+                </p>
+                <ul className="space-y-2.5">
+                  {[
+                    c.deliveryPoint1,
+                    c.deliveryPoint2,
+                    c.deliveryPoint3,
+                    c.deliveryPoint4,
+                  ].map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5">
+                      <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-[#E85D04]/12 text-[#E85D04] flex-shrink-0 mt-0.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </span>
+                      <span className="text-[#4A4A50] text-sm">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-[#E85D04] mt-4 font-medium">
+                  {c.deliveryNote}
+                </p>
               </div>
-              <p className="text-stone-500 text-sm leading-relaxed mb-4">
-                {c.paymentBody}
-              </p>
-              <ul className="space-y-2.5">
-                {[
-                  c.paymentPoint1,
-                  c.paymentPoint2,
-                  c.paymentPoint3,
-                  c.paymentPoint4,
-                ].map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-stone-600 text-sm">{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs text-blue-700 mt-4 font-medium">
-                {c.paymentNote}
-              </p>
+
+              {/* Payment Integration Note */}
+              <div className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]">
+                <div className="w-10 h-10 rounded-xl bg-[#E85D04]/10 text-[#E85D04] grid place-items-center mb-4">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div className="flex items-center gap-2.5 mb-2">
+                  <h3 className="text-[15px] font-semibold text-[#0A0A0B]">
+                    {c.paymentTitle}
+                  </h3>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#E85D04]/10 text-[#E85D04] rounded-full text-[11px] font-semibold border border-[rgba(232,93,4,0.2)]">
+                    <Sparkles className="w-3 h-3" />
+                    {c.paymentBadge}
+                  </span>
+                </div>
+                <p className="text-[#76767B] text-sm leading-relaxed mb-4">
+                  {c.paymentBody}
+                </p>
+                <ul className="space-y-2.5">
+                  {[
+                    c.paymentPoint1,
+                    c.paymentPoint2,
+                    c.paymentPoint3,
+                    c.paymentPoint4,
+                  ].map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5">
+                      <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-[#E85D04]/12 text-[#E85D04] flex-shrink-0 mt-0.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </span>
+                      <span className="text-[#4A4A50] text-sm">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-[#E85D04] mt-4 font-medium">
+                  {c.paymentNote}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -559,46 +591,48 @@ export default async function PetPoojaPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* ═══════════════ INDUSTRY FACTS ═══════════════ */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            {c.factsHeading}
-          </h2>
-          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
-            {c.factsSubheading}
-          </p>
+      <section className="bg-[#FAF7F0]">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
+              {c.factsHeading}
+            </h2>
+            <p className="text-[16px] md:text-[17px] text-[#76767B] max-w-xl leading-relaxed mb-12">
+              {c.factsSubheading}
+            </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              {
-                stat: c.value35Percent,
-                text: c.fact1Text,
-              },
-              {
-                stat: c.fact2Value,
-                text: c.fact2Text,
-              },
-              {
-                stat: c.fact3Value,
-                text: c.fact3Text,
-              },
-              {
-                stat: c.fact4Value,
-                text: c.fact4Text,
-              },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="bg-white rounded-xl p-6 border border-stone-200"
-              >
-                <div className="text-2xl md:text-3xl font-semibold text-orange-600 mb-2">
-                  {item.stat}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {[
+                {
+                  stat: c.value35Percent,
+                  text: c.fact1Text,
+                },
+                {
+                  stat: c.fact2Value,
+                  text: c.fact2Text,
+                },
+                {
+                  stat: c.fact3Value,
+                  text: c.fact3Text,
+                },
+                {
+                  stat: c.fact4Value,
+                  text: c.fact4Text,
+                },
+              ].map((item, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]"
+                >
+                  <div className="font-bricolage tracking-tight text-3xl md:text-4xl font-semibold text-[#E85D04] mb-2">
+                    {item.stat}
+                  </div>
+                  <p className="text-[#76767B] text-sm leading-relaxed">
+                    {item.text}
+                  </p>
                 </div>
-                <p className="text-stone-500 text-sm leading-relaxed">
-                  {item.text}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -607,55 +641,57 @@ export default async function PetPoojaPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* ═══════════════ HOW IT WORKS ═══════════════ */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            {c.howItWorksHeading}
-          </h2>
-          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
-            {c.howItWorksSubheading}
-          </p>
-        </div>
+      <section className="bg-white">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
+              {c.howItWorksHeading}
+            </h2>
+            <p className="text-[16px] md:text-[17px] text-[#76767B] max-w-xl leading-relaxed mb-12">
+              {c.howItWorksSubheading}
+            </p>
 
-        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            {
-              step: "01",
-              icon: Store,
-              title: c.step1Title,
-              description: c.step1Body,
-            },
-            {
-              step: "02",
-              icon: TrendingUp,
-              title: c.step2Title,
-              description: c.step2Body,
-            },
-            {
-              step: "03",
-              icon: Users,
-              title: c.step3Title,
-              description: c.step3Body,
-            },
-          ].map((item, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-xl p-6 border border-stone-200 text-center"
-            >
-              <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-orange-100/70 mb-4">
-                <item.icon className="w-5 h-5 text-orange-600" />
-              </div>
-              <div className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2">
-                {interpolate(shared.stepLabel, { step: item.step })}
-              </div>
-              <h3 className="text-base font-semibold text-stone-900 mb-2">
-                {item.title}
-              </h3>
-              <p className="text-stone-500 text-sm leading-relaxed">
-                {item.description}
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {[
+                {
+                  step: "01",
+                  icon: Store,
+                  title: c.step1Title,
+                  description: c.step1Body,
+                },
+                {
+                  step: "02",
+                  icon: TrendingUp,
+                  title: c.step2Title,
+                  description: c.step2Body,
+                },
+                {
+                  step: "03",
+                  icon: Users,
+                  title: c.step3Title,
+                  description: c.step3Body,
+                },
+              ].map((item, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)] text-center"
+                >
+                  <div className="inline-grid place-items-center w-10 h-10 rounded-xl bg-[#E85D04]/10 text-[#E85D04] mb-4">
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <div className="text-xs font-semibold text-[#E85D04] uppercase tracking-wider mb-2">
+                    {interpolate(shared.stepLabel, { step: item.step })}
+                  </div>
+                  <h3 className="text-[15px] font-semibold text-[#0A0A0B] mb-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-[#76767B] text-sm leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </section>
 
@@ -663,22 +699,24 @@ export default async function PetPoojaPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* ═══════════════ SAVINGS CTA ═══════════════ */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <div className="bg-orange-600 rounded-xl p-8 md:p-12 text-white">
-            <h2 className="geist-font font-semibold text-2xl md:text-3xl mb-4">
-              {c.savingsHeading}
-            </h2>
-            <p className="text-white/70 mb-6 max-w-xl leading-relaxed">
-              {c.savingsBody}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <ButtonV2 href="https://wa.me/918590115462?text=Hi%2C%20I%27m%20interested%20in%20PetPooja%20%2B%20Menuthere" variant="primary" className="bg-stone-900 text-white border-stone-700 hover:bg-stone-800 hover:text-white text-nowrap">
-                {c.heroPrimaryCta}
-              </ButtonV2>
-              <ButtonV2 href="/pricing#plan-petpooja" variant="secondary" className="border-white/40 text-white hover:bg-white/10 hover:text-white hover:border-white/60 text-nowrap">
-                {c.savingsSecondaryCta}
-              </ButtonV2>
+      <section className="bg-[#FAF7F0]">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto">
+            <div className="rounded-2xl bg-[#E85D04] p-8 md:p-12 text-white shadow-[0_24px_60px_-24px_rgba(232,93,4,0.5)]">
+              <h2 className="font-bricolage tracking-tight font-semibold text-2xl md:text-[34px] leading-[1.1] mb-4">
+                {c.savingsHeading}
+              </h2>
+              <p className="text-white/80 mb-6 max-w-xl leading-relaxed text-[15px] md:text-base">
+                {c.savingsBody}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <ButtonV2 href="https://wa.me/918590115462?text=Hi%2C%20I%27m%20interested%20in%20PetPooja%20%2B%20Menuthere" variant="primary" className="bg-[#0A0A0B] text-white border-white/20 hover:bg-[#1A1A1C] hover:text-white hover:border-white/30 text-nowrap">
+                  {c.heroPrimaryCta}
+                </ButtonV2>
+                <ButtonV2 href="/pricing#plan-petpooja" variant="secondary" className="border-white/40 text-white hover:bg-white/10 hover:text-white hover:border-white/60 text-nowrap">
+                  {c.savingsSecondaryCta}
+                </ButtonV2>
+              </div>
             </div>
           </div>
         </div>
@@ -688,28 +726,30 @@ export default async function PetPoojaPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* ═══════════════ FAQ ═══════════════ */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-3xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
-            {shared.faqHeading}
-          </h2>
-          <p className="text-base text-stone-500 mb-12">{c.faqSubheading}</p>
-          <Accordion type="single" collapsible className="w-full">
-            {FAQ_DATA.map((faq, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="border-b border-stone-200 last:border-b-0 py-1"
-              >
-                <AccordionTrigger className="text-left text-base font-medium text-stone-900 hover:no-underline py-5">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-stone-500 text-sm leading-relaxed pb-5">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+      <section className="bg-white">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
+              {shared.faqHeading}
+            </h2>
+            <p className="text-[16px] md:text-[17px] text-[#76767B] mb-12">{c.faqSubheading}</p>
+            <Accordion type="single" collapsible className="w-full">
+              {FAQ_DATA.map((faq, index) => (
+                <AccordionItem
+                  key={index}
+                  value={`item-${index}`}
+                  className="border-b border-stone-200 last:border-b-0 py-1"
+                >
+                  <AccordionTrigger className="text-left text-base font-medium text-[#0A0A0B] hover:no-underline py-5">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-[#76767B] text-sm leading-relaxed pb-5">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         </div>
       </section>
 

@@ -24,7 +24,7 @@ import {
   Wine,
   PartyPopper,
   Clock,
-  CheckCircle2,
+  Check,
   Star,
   Smartphone,
   CreditCard,
@@ -39,6 +39,7 @@ import {
   Palette,
   Globe,
   TrendingUp,
+  ArrowRight,
 } from "lucide-react";
 
 // Solution data with comprehensive SEO content
@@ -1233,39 +1234,55 @@ export default async function SolutionPage({
       <JsonLd data={breadcrumbSchema} />
 
       {/* Hero Section */}
-      <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
-        <div className="w-full max-w-2xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100/70 text-orange-600 text-xs font-medium mb-6">
-            <IconComponent className="w-3.5 h-3.5" />
-            {solution.title}
-          </div>
-          <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
-            {solution.headline}
-          </h1>
-          <p className="geist-font text-lg text-stone-500 max-w-lg mx-auto mt-5 leading-relaxed">
-            {solution.subheadline}
-          </p>
-          <div className="flex items-center gap-3 mt-8 justify-center">
-            <ButtonV2 href="/get-started" variant="primary">
-              {t.solutionsSlug.heroPrimaryCta}
-            </ButtonV2>
-            <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
-              {t.solutionsSlug.heroSecondaryCta}
-            </ButtonV2>
+      <section
+        className="relative pt-32 md:pt-40 pb-16 md:pb-24 bg-[#FAF7F0]"
+        style={{
+          backgroundImage:
+            "radial-gradient(120% 90% at 100% 0%, rgba(255,138,66,0.10) 0%, rgba(255,138,66,0.04) 35%, transparent 70%)",
+        }}
+      >
+        <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-12">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-white border border-[rgba(232,93,4,0.18)] text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#E85D04] shadow-[0_2px_8px_-3px_rgba(232,93,4,0.25)]">
+              <span className="grid place-items-center">
+                <IconComponent className="w-3.5 h-3.5" />
+              </span>
+              <span>{solution.title}</span>
+            </div>
+            <h1
+              className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold mt-6 text-[clamp(38px,5.2vw,60px)] leading-[1.05]"
+              style={{ letterSpacing: "-0.03em" }}
+            >
+              {solution.headline}
+            </h1>
+            <p className="text-[16px] sm:text-[17px] text-[#4A4A50] max-w-lg mx-auto mt-6 leading-relaxed">
+              {solution.subheadline}
+            </p>
+            <div className="flex flex-wrap items-center gap-3 mt-8 justify-center">
+              <ButtonV2 href="/get-started" variant="primary">
+                {t.solutionsSlug.heroPrimaryCta}
+              </ButtonV2>
+              <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
+                {t.solutionsSlug.heroSecondaryCta}
+              </ButtonV2>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Stats Bar */}
-      <section className="bg-orange-600 py-8 border-t border-b border-stone-200">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-white text-center">
+      <section className="bg-[#FAF7F0] border-t border-b border-[rgba(11,11,12,0.08)] py-12 md:py-14">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {solution.stats.map((stat, idx) => (
-              <div key={idx}>
-                <div className="text-2xl md:text-3xl font-semibold">
+              <div
+                key={idx}
+                className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white px-4 py-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]"
+              >
+                <div className="font-bricolage tracking-tight font-semibold text-3xl md:text-4xl text-[#E85D04]">
                   {stat.value}
                 </div>
-                <div className="text-sm opacity-80 mt-1">
+                <div className="text-sm text-[#76767B] mt-1.5">
                   {stat.label}
                 </div>
               </div>
@@ -1275,17 +1292,22 @@ export default async function SolutionPage({
       </section>
 
       {/* Introduction */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-3xl mx-auto px-6 md:px-16">
-          {solution.introduction
-            .replace(/\{appName\}/g, "Menuthere")
-            .split("\n\n")
-            .filter((p) => p.trim())
-            .map((paragraph, idx) => (
-              <p key={idx} className="text-stone-600 leading-relaxed text-base mb-6 last:mb-0">
-                {paragraph.trim()}
-              </p>
-            ))}
+      <section className="bg-white py-16 md:py-24">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
+          <div className="max-w-3xl mx-auto">
+            {solution.introduction
+              .replace(/\{appName\}/g, "Menuthere")
+              .split("\n\n")
+              .filter((p) => p.trim())
+              .map((paragraph, idx) => (
+                <p
+                  key={idx}
+                  className="text-[#4A4A50] leading-relaxed text-[16px] md:text-[17px] mb-6 last:mb-0"
+                >
+                  {paragraph.trim()}
+                </p>
+              ))}
+          </div>
         </div>
       </section>
 
@@ -1293,11 +1315,11 @@ export default async function SolutionPage({
       <div className="w-full h-px bg-stone-200" />
 
       {/* Benefits Grid */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
+      <section className="bg-[#FAF7F0] py-16 md:py-24">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
+          <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
             {t.solutionsSlug.benefitsHeadingLead}{" "}
-            <span className="text-stone-500">
+            <span className="text-[#8E8E94]">
               {interpolate(t.solutionsSlug.benefitsHeadingIndustry, {
                 industry:
                   solution.title.split(" for ")[1]?.toLowerCase() ||
@@ -1305,28 +1327,28 @@ export default async function SolutionPage({
               })}
             </span>
           </h2>
-          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
+          <p className="text-[16px] text-[#76767B] max-w-xl leading-relaxed mb-12">
             {t.solutionsSlug.benefitsSubheading}
           </p>
-        </div>
 
-        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {solution.benefits.map((benefit, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-xl p-6 border border-stone-200"
-            >
-              <div className="w-10 h-10 rounded-lg bg-orange-100/70 flex items-center justify-center mb-4">
-                <benefit.icon className="w-5 h-5 text-orange-600" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {solution.benefits.map((benefit, idx) => (
+              <div
+                key={idx}
+                className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#E85D04]/10 text-[#E85D04] grid place-items-center mb-4">
+                  <benefit.icon className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-semibold text-[#0A0A0B] mb-2">
+                  {benefit.title}
+                </h3>
+                <p className="text-[#4A4A50] text-sm leading-relaxed">
+                  {benefit.description}
+                </p>
               </div>
-              <h3 className="text-base font-semibold text-stone-900 mb-2">
-                {benefit.title}
-              </h3>
-              <p className="text-stone-500 text-sm leading-relaxed">
-                {benefit.description}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
@@ -1334,40 +1356,49 @@ export default async function SolutionPage({
       <div className="w-full h-px bg-stone-200" />
 
       {/* Features List */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+      <section className="bg-white py-16 md:py-24">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
           <div>
-            <h2 className="geist-font font-semibold text-2xl md:text-3xl text-stone-900 leading-tight mb-4">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
               {t.solutionsSlug.featuresHeadingLead}{" "}
-              <span className="text-stone-500">
+              <span className="text-[#8E8E94]">
                 {t.solutionsSlug.featuresHeadingEmphasis}
               </span>
             </h2>
-            <p className="text-base text-stone-500 mb-8 leading-relaxed">
+            <p className="text-[16px] text-[#76767B] mb-8 leading-relaxed">
               {t.solutionsSlug.featuresSubheading}
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {solution.features.map((feature, idx) => (
                 <div key={idx} className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-green-500" />
-                  <span className="text-stone-600 text-sm">{feature}</span>
+                  <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-[#E85D04]/12 text-[#E85D04] shrink-0">
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </span>
+                  <span className="text-[#4A4A50] text-sm">{feature}</span>
                 </div>
               ))}
             </div>
           </div>
-          <div className="bg-orange-600 rounded-2xl p-8 text-white">
-            <IconComponent className="w-12 h-12 mb-6 opacity-80" />
-            <h3 className="text-xl font-semibold mb-3">
+          <div
+            className="relative overflow-hidden rounded-2xl p-8 md:p-10 text-white shadow-[0_20px_48px_-24px_rgba(232,93,4,0.55)]"
+            style={{
+              backgroundImage:
+                "linear-gradient(135deg, #E85D04 0%, #FF8A42 100%)",
+            }}
+          >
+            <IconComponent className="w-12 h-12 mb-6 opacity-90" />
+            <h3 className="font-bricolage tracking-tight text-2xl font-semibold mb-3">
               {t.solutionsSlug.featuresCtaCardHeading}
             </h3>
-            <p className="text-white/80 mb-6">
+            <p className="text-white/85 mb-7 leading-relaxed">
               {t.solutionsSlug.featuresCtaCardBody}
             </p>
             <Link
               href="/get-started"
-              className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium bg-white text-stone-900 rounded-full hover:bg-stone-100 transition-colors"
+              className="inline-flex items-center gap-1.5 bg-[#0A0A0B] hover:bg-[#1A1A1C] text-white rounded-[12px] px-5 py-3 text-sm font-semibold transition-all duration-300 active:scale-[0.98] shadow-[0_8px_20px_-10px_rgba(11,11,12,0.45)]"
             >
               {t.solutionsSlug.featuresCtaCardButton}
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
@@ -1377,11 +1408,11 @@ export default async function SolutionPage({
       <div className="w-full h-px bg-stone-200" />
 
       {/* Use Cases */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12">
+      <section className="bg-[#FAF7F0] py-16 md:py-24">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
+          <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-12">
             {t.solutionsSlug.useCasesHeadingLead}{" "}
-            <span className="text-stone-500">
+            <span className="text-[#8E8E94]">
               {interpolate(t.solutionsSlug.useCasesHeadingIndustry, {
                 industry:
                   solution.title.split(" for ")[1]?.split(" ")[0]?.toLowerCase() ||
@@ -1390,16 +1421,16 @@ export default async function SolutionPage({
             </span>
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {solution.useCases.map((useCase, idx) => (
               <div
                 key={idx}
-                className="bg-white rounded-xl p-6 border border-stone-200"
+                className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]"
               >
-                <h3 className="text-base font-semibold text-stone-900 mb-2">
+                <h3 className="text-base font-semibold text-[#0A0A0B] mb-2">
                   {useCase.title}
                 </h3>
-                <p className="text-stone-500 text-sm leading-relaxed">
+                <p className="text-[#4A4A50] text-sm leading-relaxed">
                   {useCase.description}
                 </p>
               </div>
@@ -1412,24 +1443,32 @@ export default async function SolutionPage({
       <div className="w-full h-px bg-stone-200" />
 
       {/* Testimonial */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-3xl mx-auto px-6 md:px-16">
-          <div className="bg-orange-600 rounded-2xl p-8 md:p-12 text-white">
-            <div className="flex gap-1 mb-6">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star key={star} className="w-5 h-5 fill-current" />
-              ))}
-            </div>
-            <blockquote className="text-lg md:text-xl font-medium leading-relaxed mb-8">
-              &ldquo;{solution.testimonial.quote.replace(/\{appName\}/g, "Menuthere")}&rdquo;
-            </blockquote>
-            <div>
-              <div className="font-semibold">
-                {solution.testimonial.author}
+      <section className="bg-white py-16 md:py-24">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
+          <div className="max-w-3xl mx-auto">
+            <div
+              className="relative overflow-hidden rounded-2xl p-8 md:p-12 text-white shadow-[0_24px_56px_-28px_rgba(232,93,4,0.55)]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, #E85D04 0%, #FF8A42 100%)",
+              }}
+            >
+              <div className="flex gap-1 mb-6">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star key={star} className="w-5 h-5 fill-current" />
+                ))}
               </div>
-              <div className="text-white/70 text-sm">{solution.testimonial.role}</div>
-              <div className="text-white/50 text-xs mt-1">
-                {solution.testimonial.location}
+              <blockquote className="font-bricolage tracking-tight text-xl md:text-2xl font-semibold leading-relaxed mb-8">
+                &ldquo;{solution.testimonial.quote.replace(/\{appName\}/g, "Menuthere")}&rdquo;
+              </blockquote>
+              <div>
+                <div className="font-semibold">
+                  {solution.testimonial.author}
+                </div>
+                <div className="text-white/80 text-sm">{solution.testimonial.role}</div>
+                <div className="text-white/60 text-xs mt-1">
+                  {solution.testimonial.location}
+                </div>
               </div>
             </div>
           </div>
@@ -1437,33 +1476,35 @@ export default async function SolutionPage({
       </section>
 
       {/* FAQ */}
-      <section className="py-24 bg-white sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto border-r border-l border-stone-200">
-        <div className="max-w-3xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
-              {t.solutionsSlug.faqHeadingLead}{" "}
-              <span className="text-gray-400 italic">
-                {t.solutionsSlug.faqHeadingEmphasis}
-              </span>
-            </h2>
-          </div>
+      <section className="py-16 md:py-24 bg-[#FAF7F0] border-t border-[rgba(11,11,12,0.08)]">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-14">
+              <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1]">
+                {t.solutionsSlug.faqHeadingLead}{" "}
+                <span className="text-[#8E8E94]">
+                  {t.solutionsSlug.faqHeadingEmphasis}
+                </span>
+              </h2>
+            </div>
 
-          <Accordion type="single" collapsible className="w-full">
-            {solution.faq.map((item, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="border-b border-gray-200 last:border-b-0 py-1"
-              >
-                <AccordionTrigger className="text-left text-base font-medium text-gray-900 hover:no-underline py-5">
-                  {item.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-gray-600 text-sm leading-relaxed pb-5">
-                  {item.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+            <Accordion type="single" collapsible className="w-full">
+              {solution.faq.map((item, index) => (
+                <AccordionItem
+                  key={index}
+                  value={`item-${index}`}
+                  className="border-b border-[rgba(11,11,12,0.08)] last:border-b-0 py-1"
+                >
+                  <AccordionTrigger className="text-left text-base font-medium text-[#0A0A0B] hover:no-underline py-5">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-[#4A4A50] text-sm leading-relaxed pb-5">
+                    {item.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         </div>
       </section>
 

@@ -6,7 +6,7 @@ import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import Image from "next/image";
 import {
-  ArrowRight,
+  Check,
   Globe,
   CheckCircle2,
   RefreshCw,
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/accordion";
 import { getT } from "@/lib/i18n/server";
 import { interpolate } from "@/lib/i18n/dictionaries";
+import { ButtonV2 } from "@/components/ui/ButtonV2";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getT();
@@ -167,20 +168,23 @@ export default async function GoogleBusinessPage() {
   };
 
   return (
-    <main className="min-h-screen bg-white relative">
+    <main className="geist-font min-h-screen bg-white relative">
       <JsonLd data={breadcrumbSchema} />
 
-      {/* Grid Background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-
       {/* ═══════════════ HERO ═══════════════ */}
-      <section className="relative pt-32 pb-24 overflow-hidden">
-        <div className="max-w-[90%] mx-auto px-4 sm:px-6 relative">
-          <div className="grid grid-cols-1 lg:grid-cols-2 md:gap-40 gap-20 items-center ">
+      <section
+        className="relative pt-32 md:pt-40 pb-16 md:pb-24 bg-[#FAF7F0] overflow-hidden"
+        style={{
+          backgroundImage:
+            "radial-gradient(120% 90% at 100% 0%, rgba(255,138,66,0.10) 0%, rgba(255,138,66,0.04) 35%, transparent 70%)",
+        }}
+      >
+        <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left Content */}
             <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#e65a22]/10 text-[#e65a22] rounded-full text-sm font-medium mb-6 border border-[#e65a22]/20">
-                <div className="w-5 h-5 relative rounded-full overflow-hidden flex-shrink-0">
+              <div className="inline-flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-white border border-[rgba(232,93,4,0.18)] text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#E85D04] shadow-[0_2px_8px_-3px_rgba(232,93,4,0.25)] mb-6">
+                <div className="w-4 h-4 relative rounded-full overflow-hidden flex-shrink-0">
                   <Image
                     src="/google_business_logo.png"
                     alt="Google Business"
@@ -190,37 +194,33 @@ export default async function GoogleBusinessPage() {
                 </div>
                 {c.heroBadge}
               </div>
-              <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-gray-900 leading-[1.1] mb-2 tracking-tight">
+              <h1
+                className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-[clamp(40px,5.2vw,64px)] leading-[1.05] mb-4"
+                style={{ letterSpacing: "-0.03em" }}
+              >
                 {c.heroTitle}
               </h1>
-              <p className="text-base text-gray-600 leading-relaxed mb-8 max-w-xl">
+              <p className="text-[16px] text-[#4A4A50] leading-relaxed mb-8 max-w-xl">
                 {c.heroSubtitle}
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link
-                  href="/get-started"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-[#e65a22] rounded-xl hover:bg-[#d14d1a] hover:shadow-lg hover:shadow-[#e65a22]/25 transition-all duration-300"
-                >
+              <div className="flex flex-col sm:flex-row gap-3">
+                <ButtonV2 href="/get-started" variant="primary" className="justify-center sm:justify-start">
                   {c.heroPrimaryCta}
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Link>
-                <Link
-                  href="/help-center"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-900 bg-white border-2 border-gray-200 rounded-xl hover:border-[#e65a22] hover:text-[#e65a22] transition-all duration-300"
-                >
+                </ButtonV2>
+                <ButtonV2 href="/help-center" variant="secondary" className="justify-center sm:justify-start">
                   {shared.bookDemoCta}
-                </Link>
+                </ButtonV2>
               </div>
             </div>
 
             {/* Right - Google Business Card Mockup */}
             <div className="relative">
               {/* Glow */}
-              <div className="absolute -inset-4 bg-gradient-to-br from-blue-400/20 via-green-400/10 to-yellow-400/20 rounded-3xl blur-2xl" />
+              <div className="absolute -inset-4 bg-[#FF8A42]/15 rounded-3xl blur-2xl" />
 
-              <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+              <div className="relative bg-white rounded-2xl shadow-[0_24px_60px_-24px_rgba(11,11,12,0.28)] border border-[rgba(11,11,12,0.08)] overflow-hidden">
                 {/* Card Header */}
-                <div className="bg-gradient-to-r from-[#4285F4] to-[#3367D6] p-6">
+                <div className="bg-gradient-to-r from-[#E85D04] to-[#d15503] p-6">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-md overflow-hidden">
                       <div className="w-9 h-9 relative">
@@ -236,7 +236,7 @@ export default async function GoogleBusinessPage() {
                       <div className="font-bold text-white text-lg">
                         {c.mockupCardTitle}
                       </div>
-                      <div className="text-blue-100 text-sm">
+                      <div className="text-orange-100 text-sm">
                         {c.mockupCardSubtitle}
                       </div>
                     </div>
@@ -267,25 +267,25 @@ export default async function GoogleBusinessPage() {
 
                   {/* Stats Grid */}
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-gray-50 rounded-xl p-3 text-center">
-                      <div className="text-2xl font-bold text-gray-900">
+                    <div className="bg-[#FAF7F0] rounded-xl p-3 text-center">
+                      <div className="font-bricolage tracking-tight text-2xl font-semibold text-[#0A0A0B]">
                         156
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-[#76767B] mt-1">
                         {c.mockupStatItemsLabel}
                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded-xl p-3 text-center">
-                      <div className="text-2xl font-bold text-gray-900">12</div>
-                      <div className="text-xs text-gray-500 mt-1">
+                    <div className="bg-[#FAF7F0] rounded-xl p-3 text-center">
+                      <div className="font-bricolage tracking-tight text-2xl font-semibold text-[#0A0A0B]">12</div>
+                      <div className="text-xs text-[#76767B] mt-1">
                         {c.mockupStatCategoriesLabel}
                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded-xl p-3 text-center">
-                      <div className="text-2xl font-bold text-gray-900">
+                    <div className="bg-[#FAF7F0] rounded-xl p-3 text-center">
+                      <div className="font-bricolage tracking-tight text-2xl font-semibold text-[#0A0A0B]">
                         98%
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-[#76767B] mt-1">
                         {c.mockupStatImagesLabel}
                       </div>
                     </div>
@@ -293,7 +293,7 @@ export default async function GoogleBusinessPage() {
 
                   {/* Sample Menu Items */}
                   <div className="space-y-2">
-                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <div className="text-xs font-semibold text-[#8E8E94] uppercase tracking-wider">
                       {c.mockupRecentlySyncedLabel}
                     </div>
                     {[
@@ -315,22 +315,22 @@ export default async function GoogleBusinessPage() {
                     ].map((item) => (
                       <div
                         key={item.name}
-                        className="flex items-center justify-between py-2 px-3 bg-gray-50/50 rounded-lg"
+                        className="flex items-center justify-between py-2 px-3 bg-[#FAF7F0]/60 rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <Utensils className="w-4 h-4 text-orange-600" />
+                          <div className="w-8 h-8 bg-[#E85D04]/10 rounded-lg flex items-center justify-center">
+                            <Utensils className="w-4 h-4 text-[#E85D04]" />
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-[#0A0A0B]">
                               {item.name}
                             </div>
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs text-[#8E8E94]">
                               {item.cat}
                             </div>
                           </div>
                         </div>
-                        <div className="text-sm font-semibold text-gray-700">
+                        <div className="text-sm font-semibold text-[#4A4A50]">
                           {item.price}
                         </div>
                       </div>
@@ -340,12 +340,12 @@ export default async function GoogleBusinessPage() {
               </div>
 
               {/* Floating badge */}
-              <div className="absolute -left-4 bottom-12 bg-white rounded-xl shadow-xl p-3 border border-gray-100 hidden md:flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#e65a22]/10 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-[#e65a22]" />
+              <div className="absolute -left-4 bottom-12 bg-white rounded-xl shadow-[0_12px_32px_-16px_rgba(11,11,12,0.28)] p-3 border border-[rgba(11,11,12,0.08)] hidden md:flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#E85D04]/10 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-[#E85D04]" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-gray-900">
+                  <div className="text-xs font-bold text-[#0A0A0B]">
                     {c.mockupBadgeTitle}
                   </div>
                   <div className="text-xs text-green-600 font-semibold">
@@ -359,15 +359,15 @@ export default async function GoogleBusinessPage() {
       </section>
 
       {/* ═══════════════ STATS BAR ═══════════════ */}
-      <section className="py-8 bg-gradient-to-r from-[#e65a22] via-[#d14d1a] to-[#e65a22] relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section className="py-10 bg-[#E85D04] relative">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-white text-center">
             {STATS.map((stat, idx) => (
               <div key={idx}>
-                <div className="text-3xl md:text-4xl font-bold">
+                <div className="font-bricolage tracking-tight font-semibold text-3xl md:text-4xl">
                   {stat.value}
                 </div>
-                <div className="text-sm md:text-base text-orange-100">
+                <div className="text-sm md:text-base text-orange-100 mt-1">
                   {stat.label}
                 </div>
               </div>
@@ -377,40 +377,44 @@ export default async function GoogleBusinessPage() {
       </section>
 
       {/* ═══════════════ HOW IT WORKS ═══════════════ */}
-      <section className="py-24 bg-white/60 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section className="py-16 md:py-24 bg-[#FAF7F0] relative">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
           <div className="text-center mb-16">
-            <span className="inline-block px-4 py-2 bg-[#e65a22]/10 text-[#d14d1a] rounded-full text-sm font-medium mb-4">
-              {c.howItWorksBadge}
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <div className="inline-flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-white border border-[rgba(232,93,4,0.18)] text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#E85D04] shadow-[0_2px_8px_-3px_rgba(232,93,4,0.25)] mb-5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-[#E85D04] opacity-70 animate-ping" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#E85D04]" />
+              </span>
+              <span>{c.howItWorksBadge}</span>
+            </div>
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
               {c.howItWorksHeading}
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-[17px] text-[#4A4A50] max-w-2xl mx-auto leading-relaxed">
               {c.howItWorksSubheading}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto relative">
             {/* Connection line (desktop) */}
-            <div className="hidden md:block absolute top-20 left-[20%] right-[20%] h-[2px] bg-gradient-to-r from-[#e65a22]/30 via-[#e65a22] to-[#e65a22]/30" />
+            <div className="hidden md:block absolute top-20 left-[20%] right-[20%] h-[2px] bg-gradient-to-r from-[#E85D04]/30 via-[#E85D04] to-[#E85D04]/30" />
 
             {HOW_IT_WORKS.map((item, idx) => (
               <div
                 key={idx}
-                className="relative bg-white rounded-2xl p-8 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 text-center group"
+                className="relative rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-8 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)] hover:shadow-[0_20px_44px_-18px_rgba(11,11,12,0.22)] transition-all duration-300 hover:-translate-y-1 text-center group"
               >
                 <div className="relative z-10">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#e65a22] text-white mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-[#e65a22]/20">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#E85D04] text-white mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_12px_24px_-10px_rgba(232,93,4,0.5)]">
                     <item.icon className="w-8 h-8" />
                   </div>
-                  <div className="text-xs font-bold text-[#e65a22] uppercase tracking-widest mb-2">
+                  <div className="text-xs font-bold text-[#E85D04] uppercase tracking-widest mb-2">
                     {interpolate(shared.stepLabel, { step: item.step })}
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  <h3 className="font-bricolage text-xl font-semibold tracking-tight text-[#0A0A0B] mb-3">
                     {item.title}
                   </h3>
-                  <p className="text-gray-600 leading-relaxed">
+                  <p className="text-[#4A4A50] leading-relaxed">
                     {item.description}
                   </p>
                 </div>
@@ -421,13 +425,13 @@ export default async function GoogleBusinessPage() {
       </section>
 
       {/* ═══════════════ BENEFITS ═══════════════ */}
-      <section className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section className="py-16 md:py-24 bg-white relative">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
               {c.benefitsHeading}
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-[17px] text-[#4A4A50] max-w-2xl mx-auto leading-relaxed">
               {c.benefitsSubheading}
             </p>
           </div>
@@ -436,15 +440,15 @@ export default async function GoogleBusinessPage() {
             {BENEFITS.map((benefit, idx) => (
               <div
                 key={idx}
-                className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group hover:-translate-y-1"
+                className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-8 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)] hover:shadow-[0_20px_44px_-18px_rgba(11,11,12,0.22)] transition-all duration-300 group hover:-translate-y-1"
               >
-                <div className="w-14 h-14 rounded-xl bg-[#e65a22]/10 flex items-center justify-center mb-5 group-hover:bg-[#e65a22] group-hover:scale-110 transition-all duration-300">
-                  <benefit.icon className="w-7 h-7 text-[#e65a22] group-hover:text-white transition-colors duration-300" />
+                <div className="w-12 h-12 rounded-xl bg-[#E85D04]/10 grid place-items-center mb-5 group-hover:bg-[#E85D04] group-hover:scale-110 transition-all duration-300">
+                  <benefit.icon className="w-6 h-6 text-[#E85D04] group-hover:text-white transition-colors duration-300" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                <h3 className="font-bricolage text-xl font-semibold tracking-tight text-[#0A0A0B] mb-3">
                   {benefit.title}
                 </h3>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-[#4A4A50] leading-relaxed">
                   {benefit.description}
                 </p>
               </div>
@@ -453,21 +457,23 @@ export default async function GoogleBusinessPage() {
         </div>
       </section>
 
+      <div className="w-full h-px bg-stone-200" />
+
       {/* ═══════════════ BEFORE / AFTER ═══════════════ */}
-      <section className="py-24 bg-white/60 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section className="py-16 md:py-24 bg-[#FAF7F0] relative">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
               {c.comparisonHeading}
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-[17px] text-[#4A4A50] max-w-2xl mx-auto leading-relaxed">
               {c.comparisonSubheading}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {/* Before */}
-            <div className="bg-white rounded-2xl border-2 border-red-100 p-8 relative">
+            <div className="bg-white rounded-2xl border border-[rgba(11,11,12,0.08)] p-8 relative shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]">
               <div className="absolute -top-4 left-6">
                 <span className="bg-red-100 text-red-700 text-sm font-bold px-4 py-1.5 rounded-full">
                   {c.comparisonWithoutBadge}
@@ -484,16 +490,16 @@ export default async function GoogleBusinessPage() {
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-start gap-3">
                     <span className="text-red-400 text-lg mt-0.5">✕</span>
-                    <span className="text-gray-600">{item}</span>
+                    <span className="text-[#4A4A50]">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
             {/* After */}
-            <div className="bg-white rounded-2xl border-2 border-green-100 p-8 relative shadow-lg shadow-green-50">
+            <div className="bg-white rounded-2xl border border-[#E85D04]/25 p-8 relative shadow-[0_20px_44px_-18px_rgba(232,93,4,0.28)]">
               <div className="absolute -top-4 left-6">
-                <span className="bg-green-100 text-green-700 text-sm font-bold px-4 py-1.5 rounded-full">
+                <span className="bg-[#E85D04]/12 text-[#E85D04] text-sm font-bold px-4 py-1.5 rounded-full">
                   {c.comparisonWithBadge}
                 </span>
               </div>
@@ -507,8 +513,10 @@ export default async function GoogleBusinessPage() {
                   c.comparisonWith6,
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{item}</span>
+                    <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-[#E85D04]/12 text-[#E85D04] flex-shrink-0 mt-0.5">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </span>
+                    <span className="text-[#4A4A50]">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -517,45 +525,49 @@ export default async function GoogleBusinessPage() {
         </div>
       </section>
 
+      <div className="w-full h-px bg-stone-200" />
+
       {/* ═══════════════ FEATURES LIST ═══════════════ */}
-      <section className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <section className="py-16 md:py-24 bg-white relative">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
+              <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-6">
                 {c.featuresHeading}
               </h2>
-              <p className="text-xl text-gray-600 mb-10">
+              <p className="text-[17px] text-[#4A4A50] mb-10 leading-relaxed">
                 {c.featuresSubheading}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {FEATURES.map((feature, idx) => (
                   <div key={idx} className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-green-500" />
-                    <span className="text-gray-700">{feature}</span>
+                    <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-[#E85D04]/12 text-[#E85D04] flex-shrink-0">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </span>
+                    <span className="text-[#4A4A50]">{feature}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* CTA Box */}
-            <div className="bg-gradient-to-br from-[#e65a22] to-[#d14d1a] rounded-2xl p-10 text-white shadow-2xl relative overflow-hidden">
+            <div className="bg-gradient-to-br from-[#E85D04] to-[#d15503] rounded-2xl p-10 text-white shadow-[0_28px_60px_-24px_rgba(232,93,4,0.5)] relative overflow-hidden">
               {/* Decorative circles */}
               <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
 
               <div className="relative z-10">
                 <Globe className="w-16 h-16 mb-6 text-white/80" />
-                <h3 className="text-2xl font-bold mb-4">{c.ctaBoxHeading}</h3>
+                <h3 className="font-bricolage text-2xl font-semibold tracking-tight mb-4">{c.ctaBoxHeading}</h3>
                 <p className="text-lg text-orange-100 mb-8 leading-relaxed">
                   {c.ctaBoxBody}
                 </p>
                 <Link
                   href="/get-started"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold bg-white text-[#e65a22] rounded-xl hover:bg-gray-50 transition-colors shadow-lg"
+                  className="inline-flex items-center gap-1.5 bg-[#0A0A0B] hover:bg-[#1A1A1C] text-white rounded-[12px] px-5 py-3 text-sm font-semibold transition-all duration-300 active:scale-[0.98] shadow-[0_8px_20px_-10px_rgba(11,11,12,0.45)]"
                 >
                   {c.ctaBoxButton}
-                  <ArrowUpRight className="ml-2 w-5 h-5" />
+                  <ArrowUpRight className="ml-1 w-4 h-4" />
                 </Link>
               </div>
             </div>
@@ -564,23 +576,23 @@ export default async function GoogleBusinessPage() {
       </section>
 
       {/* ═══════════════ COMING SOON ═══════════════ */}
-      <section className="py-20 bg-[#e65a22] relative overflow-hidden">
+      <section className="py-16 md:py-20 bg-[#E85D04] relative overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-orange-600/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#d15503]/40 rounded-full blur-3xl" />
         </div>
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10">
+        <div className="max-w-5xl mx-auto px-6 md:px-10 lg:px-12 relative z-10">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-sm font-medium mb-5">
               <Sparkles className="w-4 h-4 text-white" />
               <span className="text-white">{c.comingSoonBadge}</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            <h2 className="font-bricolage text-white tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1] mb-4">
               {c.comingSoonHeading}
             </h2>
-            <p className="text-orange-100 max-w-xl mx-auto">
+            <p className="text-orange-100 max-w-xl mx-auto leading-relaxed">
               {c.comingSoonBody}
             </p>
           </div>
@@ -592,7 +604,7 @@ export default async function GoogleBusinessPage() {
                 <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
                   <Send className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="font-bricolage text-lg font-semibold tracking-tight text-white">
                   {c.autoPostTitle}
                 </h3>
               </div>
@@ -620,7 +632,7 @@ export default async function GoogleBusinessPage() {
                 <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
                   <MessageSquare className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="font-bricolage text-lg font-semibold tracking-tight text-white">
                   {c.reviewRepliesTitle}
                 </h3>
               </div>
@@ -646,9 +658,9 @@ export default async function GoogleBusinessPage() {
       </section>
 
       {/* ═══════════════ TESTIMONIAL ═══════════════ */}
-      <section className="py-24 bg-white/60 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="bg-gradient-to-br from-[#e65a22] to-[#d14d1a] rounded-2xl p-8 md:p-12 text-white shadow-2xl relative overflow-hidden">
+      <section className="py-16 md:py-24 bg-[#FAF7F0] relative">
+        <div className="max-w-4xl mx-auto px-6 md:px-10 lg:px-12">
+          <div className="bg-gradient-to-br from-[#E85D04] to-[#d15503] rounded-2xl p-8 md:p-12 text-white shadow-[0_28px_60px_-24px_rgba(232,93,4,0.5)] relative overflow-hidden">
             {/* Decorative */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
 
@@ -658,7 +670,7 @@ export default async function GoogleBusinessPage() {
                   <Star key={star} className="w-6 h-6 fill-current" />
                 ))}
               </div>
-              <blockquote className="text-xl md:text-2xl font-medium leading-relaxed mb-8">
+              <blockquote className="font-bricolage tracking-tight text-xl md:text-2xl font-medium leading-relaxed mb-8">
                 {c.testimonialQuote}
               </blockquote>
               <div>
@@ -672,25 +684,25 @@ export default async function GoogleBusinessPage() {
       </section>
 
       {/* ═══════════════ FAQ ═══════════════ */}
-      <section className="py-24 bg-white relative">
-        <div className="max-w-3xl mx-auto px-6 lg:px-8">
+      <section className="py-16 md:py-24 bg-white relative">
+        <div className="max-w-3xl mx-auto px-6 md:px-10 lg:px-12">
           <div className="text-center mb-14">
-            <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
+            <h2 className="font-bricolage text-[#0A0A0B] text-3xl md:text-[42px] font-semibold tracking-tight leading-[1.1]">
               {shared.faqHeading}
             </h2>
-            <p className="text-stone-500 mt-4">{c.faqSubheading}</p>
+            <p className="text-[#76767B] mt-4">{c.faqSubheading}</p>
           </div>
           <Accordion type="single" collapsible className="w-full">
             {FAQ.map((faq, index) => (
               <AccordionItem
                 key={index}
                 value={`item-${index}`}
-                className="border-b border-gray-200 last:border-b-0 py-1"
+                className="border-b border-[rgba(11,11,12,0.08)] last:border-b-0 py-1"
               >
-                <AccordionTrigger className="text-left text-base font-medium text-gray-900 hover:no-underline py-5">
+                <AccordionTrigger className="text-left text-base font-medium text-[#0A0A0B] hover:no-underline py-5">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-gray-600 text-sm leading-relaxed pb-5">
+                <AccordionContent className="text-[#4A4A50] text-sm leading-relaxed pb-5">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>

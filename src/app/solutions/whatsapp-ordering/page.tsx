@@ -218,30 +218,35 @@ export default async function WhatsAppOrderingPage() {
       <JsonLd data={productLd} />
 
       {/* ───────────────────────── Hero ───────────────────────── */}
-      <section className="relative overflow-hidden bg-[#fcfbf7] pt-28 md:pt-36 pb-16 md:pb-24">
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage:
-              "radial-gradient(120% 90% at 100% 0%, rgba(37,211,102,0.10) 0%, rgba(37,211,102,0.04) 35%, transparent 70%)",
-          }}
-        />
+      <section
+        className="relative overflow-hidden bg-[#FAF7F0] pt-32 md:pt-40 pb-16 md:pb-24"
+        style={{
+          backgroundImage:
+            "radial-gradient(120% 90% at 100% 0%, rgba(37,211,102,0.10) 0%, rgba(37,211,102,0.04) 35%, transparent 70%)",
+        }}
+      >
         <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-6 md:px-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:px-12">
           {/* copy */}
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#25D366]/30 bg-white px-3 py-1 text-[11.5px] font-semibold uppercase tracking-[0.07em] text-[#0f9d58] shadow-sm">
-              <MessageCircle className="h-3.5 w-3.5" />
-              {c.heroBadge}
-              <span className="ml-1 rounded bg-[#25D366] px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
+            <div className="inline-flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-white border border-[#25D366]/25 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#0f9d58] shadow-[0_2px_8px_-3px_rgba(37,211,102,0.25)]">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-[#25D366] opacity-70 animate-ping" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#25D366]" />
+              </span>
+              <span>{c.heroBadge}</span>
+              <span className="ml-0.5 rounded bg-[#25D366] px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
                 {c.heroBadgeNew}
               </span>
             </div>
 
-            <h1 className="mt-6 text-4xl font-semibold leading-[1.05] tracking-tight text-stone-900 md:text-[3.4rem]">
+            <h1
+              className="mt-6 font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-[clamp(40px,5.2vw,64px)] leading-[1.05]"
+              style={{ letterSpacing: "-0.03em" }}
+            >
               {c.heroTitle}
             </h1>
 
-            <p className="mt-6 max-w-[520px] text-[16px] leading-relaxed text-stone-600">
+            <p className="mt-6 max-w-[520px] text-[16px] leading-relaxed text-[#4A4A50]">
               {c.heroSubtitle}
             </p>
 
@@ -254,11 +259,11 @@ export default async function WhatsAppOrderingPage() {
               </ButtonV2>
             </div>
 
-            <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2.5 text-[13.5px] font-medium text-stone-600">
+            <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2.5 text-[13.5px] font-medium text-[#3F3F44]">
               {[c.heroTrust1, c.heroTrust2, c.heroTrust3].map(
                 (b) => (
                   <span key={b} className="inline-flex items-center gap-1.5">
-                    <span className="inline-grid h-4 w-4 place-items-center rounded-full bg-[#25D366]/15 text-[#0f9d58]">
+                    <span className="inline-grid h-4 w-4 place-items-center rounded-full bg-[#25D366]/12 text-[#0f9d58]">
                       <Check className="h-2.5 w-2.5 stroke-[3]" />
                     </span>
                     {b}
@@ -280,10 +285,10 @@ export default async function WhatsAppOrderingPage() {
       {/* ─────────────────────── How it works ─────────────────────── */}
       <section className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-24 lg:px-12">
         <div className="max-w-2xl">
-          <h2 className="text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
+          <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1]">
             {c.stepsHeading}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-stone-500">
+          <p className="mt-4 text-base leading-relaxed text-[#76767B]">
             {c.stepsSubheading}
           </p>
         </div>
@@ -292,18 +297,18 @@ export default async function WhatsAppOrderingPage() {
           {STEPS.map((s) => (
             <div
               key={s.n}
-              className="relative rounded-2xl border border-stone-200 bg-white p-6 transition-colors hover:border-stone-300"
+              className="relative rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)] transition-colors hover:border-[#25D366]/30"
             >
-              <span className="text-[13px] font-bold tracking-wider text-stone-300">
+              <span className="font-bricolage text-[13px] font-bold tracking-wider text-stone-300">
                 {s.n}
               </span>
-              <div className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#25D366]/12">
-                <s.icon className="h-5 w-5 text-[#0f9d58]" />
+              <div className="mt-3 grid h-11 w-11 place-items-center rounded-xl bg-[#25D366]/10 text-[#0f9d58]">
+                <s.icon className="h-5 w-5" />
               </div>
-              <h3 className="mt-4 text-[17px] font-semibold text-stone-900">
+              <h3 className="mt-4 font-bricolage text-[17px] font-semibold tracking-tight text-[#0A0A0B]">
                 {s.title}
               </h3>
-              <p className="mt-2 text-[14px] leading-relaxed text-stone-500">
+              <p className="mt-2 text-[14px] leading-relaxed text-[#76767B]">
                 {s.body}
               </p>
             </div>
@@ -316,10 +321,10 @@ export default async function WhatsAppOrderingPage() {
       {/* ─────────────────────── Features grid ─────────────────────── */}
       <section className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-24 lg:px-12">
         <div className="max-w-2xl">
-          <h2 className="text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
+          <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1]">
             {c.featuresHeading}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-stone-500">
+          <p className="mt-4 text-base leading-relaxed text-[#76767B]">
             {c.featuresSubheading}
           </p>
         </div>
@@ -328,15 +333,15 @@ export default async function WhatsAppOrderingPage() {
           {FEATURES.map((f) => (
             <div
               key={f.title}
-              className="rounded-2xl border border-stone-200 bg-white p-6"
+              className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100/70">
-                <f.icon className="h-5 w-5 text-orange-600" />
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#25D366]/10 text-[#0f9d58]">
+                <f.icon className="h-5 w-5" />
               </div>
-              <h3 className="mt-4 text-[15px] font-semibold text-stone-900">
+              <h3 className="mt-4 font-bricolage text-[15px] font-semibold tracking-tight text-[#0A0A0B]">
                 {f.title}
               </h3>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-stone-500">
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#76767B]">
                 {f.body}
               </p>
             </div>
@@ -347,24 +352,24 @@ export default async function WhatsAppOrderingPage() {
       <div className="h-px w-full bg-stone-200" />
 
       {/* ─────────────────────── Friction comparison ─────────────────────── */}
-      <section className="bg-[#fcfbf7]">
+      <section className="bg-[#FAF7F0]">
         <div className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-24 lg:px-12">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
             <div>
-              <h2 className="text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
+              <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1]">
                 {c.frictionHeading}
               </h2>
-              <p className="mt-4 max-w-md text-base leading-relaxed text-stone-500">
+              <p className="mt-4 max-w-md text-base leading-relaxed text-[#76767B]">
                 {c.frictionSubheading}
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-stone-200 bg-white p-5">
-                <p className="text-[12px] font-semibold uppercase tracking-wider text-stone-400">
+              <div className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-5 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]">
+                <p className="text-[12px] font-semibold uppercase tracking-wider text-[#8E8E94]">
                   {c.frictionAggregatorLabel}
                 </p>
-                <ol className="mt-3 space-y-2 text-[13.5px] text-stone-500">
+                <ol className="mt-3 space-y-2 text-[13.5px] text-[#4A4A50]">
                   {[
                     c.frictionAggregatorStep1,
                     c.frictionAggregatorStep2,
@@ -382,7 +387,7 @@ export default async function WhatsAppOrderingPage() {
                 </ol>
               </div>
 
-              <div className="rounded-2xl border-2 border-[#25D366]/40 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(37,211,102,0.6)]">
+              <div className="rounded-2xl border-2 border-[#25D366]/40 bg-white p-5 shadow-[0_16px_36px_-18px_rgba(37,211,102,0.55)]">
                 <p className="text-[12px] font-semibold uppercase tracking-wider text-[#0f9d58]">
                   {c.frictionWhatsappLabel}
                 </p>
@@ -414,10 +419,10 @@ export default async function WhatsAppOrderingPage() {
       {/* ─────────────────────── Comparison table ─────────────────────── */}
       <section className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-24 lg:px-12">
         <div className="max-w-2xl">
-          <h2 className="text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
+          <h2 className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1]">
             {c.comparisonHeading}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-stone-500">
+          <p className="mt-4 text-base leading-relaxed text-[#76767B]">
             {c.comparisonSubheading}
           </p>
         </div>
@@ -486,13 +491,15 @@ export default async function WhatsAppOrderingPage() {
           ].map((o) => (
             <div
               key={o.stat}
-              className="rounded-2xl border border-stone-200 bg-[#fcfbf7] p-7"
+              className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-[#FAF7F0] p-7 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]"
             >
-              <o.icon className="h-6 w-6 text-[#0f9d58]" />
-              <p className="mt-4 text-3xl font-semibold tracking-tight text-stone-900">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#25D366]/10 text-[#0f9d58]">
+                <o.icon className="h-5 w-5" />
+              </span>
+              <p className="mt-4 font-bricolage text-3xl font-semibold tracking-tight text-[#0A0A0B]">
                 {o.stat}
               </p>
-              <p className="mt-2 text-[14px] leading-relaxed text-stone-500">
+              <p className="mt-2 text-[14px] leading-relaxed text-[#76767B]">
                 {o.label}
               </p>
             </div>
@@ -504,16 +511,20 @@ export default async function WhatsAppOrderingPage() {
 
       {/* ─────────────────────────── FAQ ─────────────────────────── */}
       <section className="mx-auto max-w-3xl px-6 py-16 md:py-24">
-        <h2 className="text-center text-3xl font-semibold leading-tight text-stone-900 md:text-4xl">
+        <h2 className="text-center font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-3xl md:text-[42px] leading-[1.1]">
           {c.faqHeading}
         </h2>
         <Accordion type="single" collapsible className="mt-10 w-full">
           {FAQ.map((f, i) => (
-            <AccordionItem key={i} value={`item-${i}`} className="border-stone-200">
-              <AccordionTrigger className="text-left text-[15px] font-semibold text-stone-900 hover:no-underline">
+            <AccordionItem
+              key={i}
+              value={`item-${i}`}
+              className="border-[rgba(11,11,12,0.08)]"
+            >
+              <AccordionTrigger className="text-left text-[15px] font-semibold text-[#0A0A0B] hover:no-underline">
                 {f.q}
               </AccordionTrigger>
-              <AccordionContent className="text-[14px] leading-relaxed text-stone-600">
+              <AccordionContent className="text-[14px] leading-relaxed text-[#4A4A50]">
                 {f.a}
               </AccordionContent>
             </AccordionItem>
@@ -521,14 +532,14 @@ export default async function WhatsAppOrderingPage() {
         </Accordion>
 
         <div className="mt-12 flex flex-col items-center gap-3 text-center">
-          <p className="text-[15px] text-stone-500">{c.faqCtaPrompt}</p>
+          <p className="text-[15px] text-[#76767B]">{c.faqCtaPrompt}</p>
           <div className="flex items-center gap-3">
             <ButtonV2 href="/get-started" variant="primary">
               {c.primaryCta}
             </ButtonV2>
             <Link
               href="/solutions/petpooja"
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-stone-600 hover:text-stone-900"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#4A4A50] transition-colors hover:text-[#0f9d58]"
             >
               {c.faqSecondaryLink}
               <ArrowRight className="h-3.5 w-3.5" />

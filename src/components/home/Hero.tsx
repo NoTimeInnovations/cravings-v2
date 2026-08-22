@@ -1,6 +1,6 @@
 "use client";
 
-import { useT, interpolate } from "@/lib/i18n/LocaleProvider";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -34,7 +34,9 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [selected, setSelected] = useState<SelectedPlace | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [typedPlaceholder, setTypedPlaceholder] = useState("Burger Town");
+  const [typedPlaceholder, setTypedPlaceholder] = useState(
+    "Type your restaurant name",
+  );
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Drops out-of-order async responses (latest debounced request wins).
@@ -68,12 +70,14 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
 
   useEffect(() => {
     if (search || selected) return;
+    // Full-phrase prompts (not sample names): the input types out the whole
+    // line, cycling through the business types Menuthere supports.
     const examples = [
-      "Burger Town",
-      "Pizza Palace",
-      "Spice Garden",
-      "Brew & Bite",
-      "Sushi Express",
+      "Type your restaurant name",
+      "Type your cake shop name",
+      "Type your cafe name",
+      "Type your cafeteria name",
+      "Type your Cloud kitchen name",
     ];
     let exampleIdx = 0;
     let charIdx = examples[0].length;
@@ -258,7 +262,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                       <Search className="h-4 w-4 text-[#A6A6AB] shrink-0" />
                       <input
                         type="text"
-                        placeholder={interpolate(t.hero.searchPlaceholder, { name: typedPlaceholder || "Burger Town" })}
+                        placeholder={typedPlaceholder || "Type your restaurant name"}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="flex-1 min-w-0 bg-transparent border-none outline-none text-[15px] text-[#0A0A0B] placeholder:text-[#B2B2B7] tracking-[-0.005em]"

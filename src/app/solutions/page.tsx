@@ -146,25 +146,44 @@ export default async function SolutionsPage() {
   return (
     <main className="min-h-screen w-full bg-white geist-font">
       {/* Hero Section */}
-      <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
-        <div className="w-full max-w-2xl mx-auto text-center">
-          <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
-            {t.solutionsIndex.heroTitleLead}{" "}
-            <span className="text-stone-500 italic">
-              {t.solutionsIndex.heroTitleEmphasis}
-            </span>{" "}
-            {t.solutionsIndex.heroTitleTail}
-          </h1>
-          <p className="geist-font text-lg text-stone-500 max-w-lg mx-auto mt-5 leading-relaxed">
-            {t.solutionsIndex.heroSubtitle}
-          </p>
-          <div className="flex items-center gap-3 mt-8 justify-center">
-            <ButtonV2 href="/get-started" variant="primary">
-              {t.solutionsIndex.heroPrimaryCta}
-            </ButtonV2>
-            <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
-              {t.solutionsIndex.heroSecondaryCta}
-            </ButtonV2>
+      <section
+        className="relative pt-32 md:pt-40 pb-16 md:pb-24 bg-[#FAF7F0]"
+        style={{
+          backgroundImage:
+            "radial-gradient(120% 90% at 100% 0%, rgba(255,138,66,0.10) 0%, rgba(255,138,66,0.04) 35%, transparent 70%)",
+        }}
+      >
+        <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-12">
+          <div className="w-full max-w-2xl mx-auto text-center">
+            {/* Eyebrow pill */}
+            <div className="inline-flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-white border border-[rgba(232,93,4,0.18)] text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#E85D04] shadow-[0_2px_8px_-3px_rgba(232,93,4,0.25)]">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-[#E85D04] opacity-70 animate-ping" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#E85D04]" />
+              </span>
+              <span>{t.solutionsIndex.heroTitleEmphasis}</span>
+            </div>
+            <h1
+              className="font-bricolage text-[#0A0A0B] tracking-tight font-semibold text-[clamp(40px,5.2vw,64px)] leading-[1.05] mt-6"
+              style={{ letterSpacing: "-0.03em" }}
+            >
+              {t.solutionsIndex.heroTitleLead}{" "}
+              <span className="text-[#E85D04]">
+                {t.solutionsIndex.heroTitleEmphasis}
+              </span>{" "}
+              {t.solutionsIndex.heroTitleTail}
+            </h1>
+            <p className="text-[15px] sm:text-[17px] text-[#4A4A50] max-w-lg mx-auto mt-6 leading-relaxed">
+              {t.solutionsIndex.heroSubtitle}
+            </p>
+            <div className="flex items-center gap-3 mt-8 justify-center">
+              <ButtonV2 href="/get-started" variant="primary">
+                {t.solutionsIndex.heroPrimaryCta}
+              </ButtonV2>
+              <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
+                {t.solutionsIndex.heroSecondaryCta}
+              </ButtonV2>
+            </div>
           </div>
         </div>
       </section>
@@ -173,36 +192,36 @@ export default async function SolutionsPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* Solutions Grid */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
+      <section className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="font-bricolage font-semibold text-3xl md:text-[42px] text-[#0A0A0B] tracking-tight leading-[1.1] mb-4">
             {t.solutionsIndex.industriesHeadingLead}{" "}
-            <span className="text-stone-500">
+            <span className="text-[#E85D04]">
               {t.solutionsIndex.industriesHeadingEmphasis}
             </span>
           </h2>
-          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
+          <p className="text-[15px] md:text-[17px] text-[#4A4A50] max-w-xl leading-relaxed mb-12">
             {t.solutionsIndex.industriesIntro}
           </p>
         </div>
 
-        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {SOLUTIONS.map((solution) => (
             <Link
               key={solution.slug}
               href={`/solutions/${solution.slug}`}
-              className="group relative bg-white rounded-xl border border-stone-200 p-6 hover:border-stone-400 transition-all duration-300"
+              className="group relative rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)] hover:border-[rgba(232,93,4,0.35)] hover:-translate-y-0.5 transition-all duration-300"
             >
-              <div className="w-10 h-10 rounded-lg bg-orange-100/70 flex items-center justify-center mb-4 group-hover:bg-orange-600 transition-colors duration-300">
-                <solution.icon className="w-5 h-5 text-orange-600 group-hover:text-white transition-colors duration-300" />
+              <div className="w-10 h-10 rounded-xl bg-[#E85D04]/10 text-[#E85D04] grid place-items-center mb-4 group-hover:bg-[#E85D04] transition-colors duration-300">
+                <solution.icon className="w-5 h-5 group-hover:text-white transition-colors duration-300" />
               </div>
-              <h3 className="text-base font-semibold text-stone-900 mb-1 group-hover:text-orange-600 transition-colors">
+              <h3 className="text-base font-semibold text-[#0A0A0B] mb-1 group-hover:text-[#E85D04] transition-colors">
                 {t.solutionsIndex[solution.titleKey]}
               </h3>
-              <p className="text-stone-500 text-sm leading-relaxed">
+              <p className="text-[#76767B] text-sm leading-relaxed">
                 {t.solutionsIndex[solution.shortDescKey]}
               </p>
-              <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#E85D04] opacity-0 group-hover:opacity-100 transition-opacity">
                 {t.solutionsIndex.cardLearnMoreLink}
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
@@ -211,37 +230,36 @@ export default async function SolutionsPage() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="w-full h-px bg-stone-200" />
-
       {/* Features Section */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16">
-          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12">
-            {t.solutionsIndex.featuresHeadingLead}{" "}
-            <span className="text-stone-500">
-              {t.solutionsIndex.featuresHeadingEmphasis}
-            </span>
-          </h2>
-        </div>
+      <section className="bg-[#FAF7F0] border-y border-[rgba(11,11,12,0.08)]">
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="font-bricolage font-semibold text-3xl md:text-[42px] text-[#0A0A0B] tracking-tight leading-[1.1] mb-12">
+              {t.solutionsIndex.featuresHeadingLead}{" "}
+              <span className="text-[#E85D04]">
+                {t.solutionsIndex.featuresHeadingEmphasis}
+              </span>
+            </h2>
+          </div>
 
-        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 md:grid-cols-2 gap-6">
-          {FEATURES.map((feature, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-xl p-6 border border-stone-200"
-            >
-              <div className="w-10 h-10 rounded-lg bg-orange-100/70 flex items-center justify-center mb-4">
-                <feature.icon className="w-5 h-5 text-orange-600" />
+          <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+            {FEATURES.map((feature, idx) => (
+              <div
+                key={idx}
+                className="rounded-2xl border border-[rgba(11,11,12,0.08)] bg-white p-6 shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#E85D04]/10 text-[#E85D04] grid place-items-center mb-4">
+                  <feature.icon className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-semibold text-[#0A0A0B] mb-2">
+                  {t.solutionsIndex[feature.titleKey]}
+                </h3>
+                <p className="text-[#76767B] text-sm leading-relaxed">
+                  {t.solutionsIndex[feature.descriptionKey]}
+                </p>
               </div>
-              <h3 className="text-base font-semibold text-stone-900 mb-2">
-                {t.solutionsIndex[feature.titleKey]}
-              </h3>
-              <p className="text-stone-500 text-sm leading-relaxed">
-                {t.solutionsIndex[feature.descriptionKey]}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
@@ -249,16 +267,16 @@ export default async function SolutionsPage() {
       <div className="w-full h-px bg-stone-200" />
 
       {/* Google Business Section */}
-      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
-        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <section className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 py-16 md:py-24">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
-            <span className="inline-block px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium mb-6">
+            <span className="inline-flex items-center px-3 py-1.5 bg-[#E85D04]/10 text-[#E85D04] rounded-full text-xs font-semibold uppercase tracking-[0.06em] mb-6">
               {t.solutionsIndex.googleBadge}
             </span>
-            <h2 className="geist-font font-semibold text-2xl md:text-3xl text-stone-900 leading-tight mb-4">
+            <h2 className="font-bricolage font-semibold text-2xl md:text-3xl text-[#0A0A0B] tracking-tight leading-[1.1] mb-4">
               {t.solutionsIndex.googleHeading}
             </h2>
-            <p className="text-base text-stone-500 mb-6 leading-relaxed">
+            <p className="text-[15px] md:text-[17px] text-[#4A4A50] mb-6 leading-relaxed">
               {t.solutionsIndex.googleBody}
             </p>
             <ul className="space-y-3 mb-6">
@@ -269,20 +287,22 @@ export default async function SolutionsPage() {
                 t.solutionsIndex.googleBenefitMoreCustomers,
               ].map((item, idx) => (
                 <li key={idx} className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-stone-600 text-sm">{item}</span>
+                  <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-[#E85D04]/12 text-[#E85D04] flex-shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="text-[#4A4A50] text-sm">{item}</span>
                 </li>
               ))}
             </ul>
             <Link
               href="/solutions/google-business"
-              className="inline-flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors group"
+              className="inline-flex items-center gap-2 text-sm font-medium text-[#E85D04] hover:text-[#d15503] transition-colors group"
             >
               {t.solutionsIndex.googleManagerLink}
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
-          <div className="bg-blue-600 rounded-2xl p-8 text-white">
+          <div className="bg-[#0A0A0B] rounded-2xl p-8 text-white shadow-[0_24px_60px_-24px_rgba(11,11,12,0.5)]">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6" viewBox="0 0 24 24">
@@ -308,20 +328,22 @@ export default async function SolutionsPage() {
                 <div className="font-semibold">
                   {t.solutionsIndex.googleCardTitle}
                 </div>
-                <div className="text-blue-200 text-sm">
+                <div className="text-[#FF8A42] text-sm">
                   {t.solutionsIndex.googleCardSubtitle}
                 </div>
               </div>
             </div>
             <div className="space-y-3">
-              <div className="bg-white/10 rounded-lg p-4">
-                <div className="text-sm text-blue-200 mb-1">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="text-sm text-[#B2B2B7] mb-1">
                   {t.solutionsIndex.googleCardSyncedLabel}
                 </div>
-                <div className="text-2xl font-bold">247</div>
+                <div className="font-bricolage text-2xl font-semibold tracking-tight text-[#FF8A42]">
+                  247
+                </div>
               </div>
-              <div className="bg-white/10 rounded-lg p-4">
-                <div className="text-sm text-blue-200 mb-1">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="text-sm text-[#B2B2B7] mb-1">
                   {t.solutionsIndex.googleCardLastSyncLabel}
                 </div>
                 <div className="text-lg font-semibold">

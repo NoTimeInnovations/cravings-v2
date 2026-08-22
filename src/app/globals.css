@@ -135,6 +135,15 @@ body {
   font-style: normal;
 }
 
+/* Base display face for Latin locales. The per-language rules further down
+   (html[lang="ml"] .font-bricolage, etc.) have higher specificity and keep
+   overriding this for non-Latin scripts, so this only fills the English/Latin
+   gap that previously forced the landing hero to inline var(--font-bricolage). */
+.font-bricolage {
+  font-family: var(--font-bricolage), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+}
+
 @font-face {
   font-family: "Tango BT";
   src: url("/fonts/tango-bt-regular.ttf") format("truetype");

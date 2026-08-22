@@ -90,7 +90,32 @@ const PRODUCTS = [
   },
 ];
 
-const SOLUTIONS_FEATURES = [
+type MegaMenuItem = {
+  i18nKey?: string;
+  title: string;
+  description: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string;
+};
+
+// PetPooja + WhatsApp used to sit above the menu as big featured cards; they
+// now live inside "Features" alongside Google Business Sync.
+const SOLUTIONS_FEATURES: MegaMenuItem[] = [
+  {
+    title: "PetPooja Integration",
+    description: "0% commission with PetPooja POS",
+    href: "/solutions/petpooja",
+    icon: ShoppingCart,
+    badge: "New",
+  },
+  {
+    title: "WhatsApp Ordering",
+    description: "Customers order by sending “Hi”",
+    href: "/solutions/whatsapp-ordering",
+    icon: MessageCircle,
+    badge: "New",
+  },
   {
     i18nKey: "googleBusinessSync",
     title: "Google Business Sync",
@@ -708,57 +733,6 @@ export function Navbar() {
               )}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Featured Links */}
-              <div className="px-5 pt-5 pb-4 space-y-2.5">
-                <Link
-                  href="/solutions/petpooja"
-                  className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-orange-600/8 to-orange-600/4 border border-orange-600/10 hover:border-orange-600/25 hover:from-orange-600/12 hover:to-orange-600/6 transition-all duration-200 group/pp"
-                  onClick={() => setIsSolutionsOpen(false)}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm ring-1 ring-stone-100">
-                    <ShoppingCart className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-stone-900 font-semibold text-sm group-hover/pp:text-orange-600 transition-colors">
-                        PetPooja Integration
-                      </h3>
-                      <span className="px-1.5 py-0.5 bg-orange-600 text-white text-[9px] font-bold rounded-md uppercase leading-none tracking-wide">
-                        New
-                      </span>
-                    </div>
-                    <p className="text-stone-500 text-xs mt-0.5">
-                      Just 0% commission with PetPooja POS integration
-                    </p>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/solutions/whatsapp-ordering"
-                  className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-[#25D366]/10 to-[#25D366]/5 border border-[#25D366]/15 hover:border-[#25D366]/35 hover:from-[#25D366]/15 hover:to-[#25D366]/8 transition-all duration-200 group/wa"
-                  onClick={() => setIsSolutionsOpen(false)}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm ring-1 ring-stone-100">
-                    <MessageCircle className="w-5 h-5 text-[#0f9d58]" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-stone-900 font-semibold text-sm group-hover/wa:text-[#0f9d58] transition-colors">
-                        WhatsApp Ordering
-                      </h3>
-                      <span className="px-1.5 py-0.5 bg-[#25D366] text-white text-[9px] font-bold rounded-md uppercase leading-none tracking-wide">
-                        New
-                      </span>
-                    </div>
-                    <p className="text-stone-500 text-xs mt-0.5">
-                      Customers order by just sending “Hi” — no app, no signup
-                    </p>
-                  </div>
-                </Link>
-              </div>
-
-              <div className="h-px bg-stone-100 mx-5" />
-
               <div className="grid grid-cols-[1fr_1fr_2fr] gap-0 p-5">
                 {/* Features Column */}
                 <div className="pr-5 border-r border-stone-100">
@@ -777,9 +751,16 @@ export function Navbar() {
                           <item.icon className="w-4 h-4 text-stone-500 group-hover/item:text-orange-600 transition-colors" />
                         </div>
                         <div>
-                          <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors">
-                            {navCopy(item).title}
-                          </h3>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors">
+                              {navCopy(item).title}
+                            </h3>
+                            {item.badge && (
+                              <span className="px-1.5 py-0.5 bg-orange-600 text-white text-[8px] font-bold rounded uppercase leading-none tracking-wide">
+                                {item.badge}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-stone-400 text-[11px] leading-snug">
                             {navCopy(item).description}
                           </p>
@@ -1106,47 +1087,6 @@ export function Navbar() {
                         : "max-h-0 opacity-0",
                     )}
                   >
-                    {/* Featured Links */}
-                    <Link
-                      href="/solutions/petpooja"
-                      className="flex items-center gap-3 p-3 rounded-lg bg-orange-100/30 border border-orange-600/10"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <ShoppingCart className="w-5 h-5 text-orange-600" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-gray-900">
-                            PetPooja Integration
-                          </span>
-                          <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded uppercase leading-none">
-                            New
-                          </span>
-                        </div>
-                        <span className="text-gray-500 text-xs">
-                          0% commission, PetPooja POS integration
-                        </span>
-                      </div>
-                    </Link>
-                    <Link
-                      href="/solutions/whatsapp-ordering"
-                      className="flex items-center gap-3 p-3 rounded-lg bg-[#25D366]/10 border border-[#25D366]/15"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <MessageCircle className="w-5 h-5 text-[#0f9d58]" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-gray-900">
-                            WhatsApp Ordering
-                          </span>
-                          <span className="px-1.5 py-0.5 bg-[#25D366] text-white text-[10px] font-bold rounded uppercase leading-none">
-                            New
-                          </span>
-                        </div>
-                        <span className="text-gray-500 text-xs">
-                          Customers order by sending “Hi”
-                        </span>
-                      </div>
-                    </Link>
                     {/* Features */}
                     <div>
                       <h4 className="text-gray-400 text-xs font-bold mb-3 uppercase tracking-wider">
@@ -1162,6 +1102,11 @@ export function Navbar() {
                           >
                             <item.icon className="w-4 h-4 text-orange-600" />
                             <span className="font-medium">{navCopy(item).title}</span>
+                            {item.badge && (
+                              <span className="px-1.5 py-0.5 bg-orange-600 text-white text-[9px] font-bold rounded uppercase leading-none tracking-wide">
+                                {item.badge}
+                              </span>
+                            )}
                           </Link>
                         ))}
                       </div>
