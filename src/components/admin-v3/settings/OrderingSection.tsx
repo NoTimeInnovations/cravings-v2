@@ -44,6 +44,9 @@ interface OrderingDraft {
 
   need_user_name: boolean;
   need_address_details: boolean;
+  /** delivery_rules.auto_accept_orders — applied server-side on the Hasura
+   *  order event, so it covers POS and API orders too. */
+  auto_accept_orders: boolean;
 
   delivery_radius: number;
   minimum_order_amount: number;
@@ -88,6 +91,7 @@ function read(partner: any): OrderingDraft {
 
     need_user_name: !!r.need_user_name,
     need_address_details: !!r.need_address_details,
+    auto_accept_orders: !!r.auto_accept_orders,
 
     delivery_radius: num(r.delivery_radius, 15),
     minimum_order_amount: num(r.minimum_order_amount, 0),
@@ -138,6 +142,7 @@ function build(d: OrderingDraft, partner: any): Record<string, unknown> {
       round_off: d.round_off,
       need_user_name: d.need_user_name,
       need_address_details: d.need_address_details,
+      auto_accept_orders: d.auto_accept_orders,
       delivery_radius: d.delivery_radius,
       minimum_order_amount: d.minimum_order_amount,
       first_km_range: { km: d.first_km, rate: d.first_km_rate },
@@ -409,6 +414,12 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
           desc="Flat, floor and landmark must be filled before a delivery order can be placed."
           checked={draft.need_address_details}
           onChange={(v) => patch({ need_address_details: v })}
+        />
+        <ToggleRow
+          title="Auto-accept orders"
+          desc="New orders go straight to Accepted instead of waiting to be accepted, so the alarm stops and the kitchen can start. Online payments are still only accepted once payment confirms."
+          checked={draft.auto_accept_orders}
+          onChange={(v) => patch({ auto_accept_orders: v })}
         />
       </SettingsCard>
     );

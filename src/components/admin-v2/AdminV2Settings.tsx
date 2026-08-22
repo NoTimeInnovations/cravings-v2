@@ -14,6 +14,7 @@ import { InfoPageSettings } from "./settings/InfoPageSettings";
 import { PrebookingSettings } from "./settings/PrebookingSettings";
 import { SlotBookingSettings } from "./settings/SlotBookingSettings";
 import { OrderTypesSettings } from "./settings/OrderTypesSettings";
+import { OrderHandlingSettings } from "./settings/OrderHandlingSettings";
 import { BrandingSettings } from "./settings/BrandingSettings";
 import { IntegrationsSettings } from "./settings/IntegrationsSettings";
 import { LoyaltyPointsSettings } from "./settings/LoyaltyPointsSettings";
@@ -132,6 +133,7 @@ export function AdminV2Settings() {
             sections: showOrderRelatedSettings
                 ? [
                       { key: "order-types", label: "Order Types", Component: OrderTypesSettings },
+                      { key: "order-handling", label: "Order Handling", Component: OrderHandlingSettings },
                       { key: "delivery", label: "Delivery", Component: DeliverySettings },
                       ...(showThirdPartyCharges
                           ? [

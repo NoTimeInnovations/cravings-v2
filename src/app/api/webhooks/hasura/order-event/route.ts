@@ -52,6 +52,69 @@ function unauthorized() {
   return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 }
 
+/**
+ * Auto-accept, for partners who have opted in.
+ *
+ * Lives HERE, in the database event, rather than at the point of sale for the
+ * same reason order.created does: the browser is only one of the ways an order
+ * comes into being. POS, the captain app and the public API all insert orders
+ * too, and none of them run the checkout code. Hooking the row means every path
+ * is covered by construction, and Hasura owns the retries.
+ *
+ * It also lands on the right MOMENT for free. An online order is inserted as
+ * `pending_payment`, and auto-accepting it there would accept an order nobody
+ * has paid for; this runs on the transition that makes the order real, so cash
+ * accepts at insert and online accepts when payment confirms.
+ *
+ * Only `pending` is touched. An order that arrived in any other live status was
+ * put there deliberately — a POS sale rung up as completed must not be dragged
+ * backwards to accepted.
+ *
+ * Idempotent by construction: the update is conditional on the row still being
+ * `pending`, so a Hasura retry (or two racers finalizing the same online order)
+ * changes nothing the second time. It also cannot loop — flipping pending →
+ * accepted is an UPDATE whose OLD status is not in NOT_YET_REAL, so `fire` is
+ * false for it and this route stops there.
+ */
+async function maybeAutoAccept(
+  orderId: string,
+  partnerId: string,
+  status: string,
+): Promise<boolean> {
+  if (!partnerId || status !== "pending") return false;
+  try {
+    const p: any = await fetchFromHasuraServer(
+      `query AutoAcceptFlag($id: uuid!) {
+         partners_by_pk(id: $id) { delivery_rules }
+       }`,
+      { id: partnerId },
+    );
+    const rules = p?.partners_by_pk?.delivery_rules;
+    const on =
+      rules && typeof rules === "object"
+        ? !!(rules as Record<string, unknown>).auto_accept_orders
+        : false;
+    if (!on) return false;
+
+    const res: any = await fetchFromHasuraServer(
+      `mutation AutoAccept($id: uuid!) {
+         update_orders(
+           where: { id: { _eq: $id }, status: { _eq: "pending" } }
+           _set: { status: "accepted" }
+         ) { affected_rows }
+       }`,
+      { id: orderId },
+    );
+    return (res?.update_orders?.affected_rows ?? 0) > 0;
+  } catch (e) {
+    // Never fail the event over this. A partner who does not get an auto-accept
+    // is left with an order to accept by hand, which is the pre-existing
+    // behaviour; failing here would make Hasura retry and re-send order.created.
+    console.warn("[order-event] auto-accept failed:", e);
+    return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   // Shared secret: without it this route is an open "send a webhook" endpoint,
   // and it runs with the admin secret behind it.
@@ -108,9 +171,24 @@ export async function POST(req: NextRequest) {
        envelope id lets a conforming receiver de-duplicate */
   }
 
+  // Auto-accept BEFORE the webhook. sendOrderWebhook re-reads the order, so
+  // doing it in this order means the single order.created the partner receives
+  // already carries `accepted` — rather than announcing `pending` and never
+  // following up, since nothing server-side sends a status webhook.
+  const autoAccepted = await maybeAutoAccept(
+    orderId,
+    String(after?.partner_id ?? ""),
+    newStatus,
+  );
+
   // sendOrderWebhook re-reads the order from Hasura, so the payload always
   // reflects what was STORED (real invoice number, post-loyalty total), not the
   // half-built row that happened to trigger this event.
   const result = await sendOrderWebhook(orderId);
-  return NextResponse.json({ ok: true, delivered: result.ok, detail: result.error ?? null });
+  return NextResponse.json({
+    ok: true,
+    delivered: result.ok,
+    autoAccepted,
+    detail: result.error ?? null,
+  });
 }
