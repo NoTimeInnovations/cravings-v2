@@ -25,6 +25,7 @@ import DeleteCustomer from "@/components/superAdmin/DeleteCustomer";
 import SuperadminGlobalFlows from "@/components/superAdmin/SuperadminGlobalFlows";
 import TutorialsManagement from "@/components/superAdmin/TutorialsManagement";
 import DeliveryUndoManagement from "@/components/superAdmin/DeliveryUndoManagement";
+import RestaurantsNearby from "@/components/superAdmin/RestaurantsNearby";
 
 type SearchParams = Promise<{ [key: string]: string | undefined }>;
 
@@ -48,6 +49,11 @@ const page = async (props: { searchParams: SearchParams }) => {
       component: null,
       id: "create-pp-partner",
       href: "/superadmin/create-pp-partner",
+    },
+    {
+      name: "Restaurants Nearby",
+      component: <RestaurantsNearby />,
+      id: "restaurants-nearby",
     },
     {
       name: "Delivery Undo",
