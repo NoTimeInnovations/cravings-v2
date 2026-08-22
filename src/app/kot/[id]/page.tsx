@@ -4,7 +4,7 @@ import { getDateOnly } from "@/lib/formatDate";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { RECEIPT_FONT_FAMILY } from "@/lib/receiptFont";
-import { isFullArabic } from "@/lib/printLayout";
+import { isFullArabic, formatGeneratedAt } from "@/lib/printLayout";
 import { makeLabeler } from "@/lib/arabicBillLabels";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
@@ -156,7 +156,7 @@ const PrintKOTPage = () => {
                 formattedOrder.items || [],
                 isBillCategoryNameEnabled(orders_by_pk.partner?.delivery_rules)
               ),
-              generated_at: new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date()),
+              generated_at: formatGeneratedAt(tz),
               // Full Arabic print option (delivery_rules). The desktop app reads
               // this from the payload; its presence also tells the desktop this web
               // build already rendered the Arabic labels itself.
@@ -301,7 +301,7 @@ const PrintKOTPage = () => {
 
         {/* Footer */}
         <div className="border-t border-black mt-4 pt-2 text-center text-sm">
-          <p>Generated at: {new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date())}</p>
+          <p>Generated at: {formatGeneratedAt(tz)}</p>
           {(Number(order.display_id) ?? 0) > 0 && (
             <h2 className="text-sm font-light text-center mt-1">
               ID: {order.id.slice(0, 8)}

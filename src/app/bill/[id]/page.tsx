@@ -8,7 +8,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { displayChargeName } from "@/lib/chargeLabel";
 import { withCategoryInName, isBillCategoryNameEnabled } from "@/lib/billItemName";
 import { isVatEnabled, getTrn } from "@/lib/taxLabel";
-import { getBillLayout, isFullArabic, isBillDetailQrEnabled, isBillLogoEnabled, getBillLogoUrl, isBillDeliveryBoyEnabled, resolveBillRider } from "@/lib/printLayout";
+import { getBillLayout, isFullArabic, isBillDetailQrEnabled, isBillLogoEnabled, getBillLogoUrl, isBillDeliveryBoyEnabled, resolveBillRider, formatGeneratedAt } from "@/lib/printLayout";
 import { makeLabeler } from "@/lib/arabicBillLabels";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
@@ -356,6 +356,10 @@ const PrintOrderPage = () => {
                   ? { name: sanitizePrintText(rider.name), phone: rider.phone }
                   : null;
               })(),
+              // Printed-at stamp, so a reprint is distinguishable from the
+              // original. Supplied here rather than left to the till's clock so
+              // the bill and the KOT for one order always agree.
+              generated_at: formatGeneratedAt(tz),
               order_items: withCategoryInName(
                 formattedOrder.items || [],
                 isBillCategoryNameEnabled(formattedOrder.partner?.delivery_rules)
@@ -899,6 +903,7 @@ const PrintOrderPage = () => {
         {/* Footer */}
         <div className="text-center text-sm mt-4 pt-2 border-t border-dashed border-gray-400">
           <p>{L("Thank you for your visit!")}</p>
+          <p className="mt-1">Generated at: {formatGeneratedAt(tz)}</p>
           <p className="mt-1">
             {order?.partner?.gst_no
               ? `${showVat ? "VAT" : "GST"}: ${order?.partner.gst_no}`

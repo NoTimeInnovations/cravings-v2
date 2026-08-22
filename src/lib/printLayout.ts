@@ -244,3 +244,33 @@ export function resolveBillRider(order: any): { name: string; phone: string } | 
 
   return name || phone ? { name, phone } : null;
 }
+
+/**
+ * "When this receipt was printed", in the format both print paths share:
+ * `22/08/2026, 4:16:31 PM`.
+ *
+ * The /kot page used to emit a bare `Intl.DateTimeFormat("en-GB", { timeZone })`
+ * into the print payload — no time options, so the ESC/POS slip read
+ * "Generated at: 22/08/2026" while the rasterized one (which screenshots the
+ * page, and the page did pass hour/minute) showed a time. Same receipt, two
+ * answers, depending on print mode.
+ *
+ * Kept byte-identical to the desktop app's generatedStamp() so a slip looks the
+ * same whether the stamp came from this payload or the till's own clock, and
+ * forced to 12-hour because every other time on the receipt is.
+ */
+export function formatGeneratedAt(timeZone: string, when: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  })
+    .format(when)
+    // en-GB renders the period lowercase ("pm"); the desktop uses "PM".
+    .replace(/\b(am|pm)\b/gi, (p) => p.toUpperCase());
+}
