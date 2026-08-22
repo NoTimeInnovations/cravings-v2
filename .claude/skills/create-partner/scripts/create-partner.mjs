@@ -26,7 +26,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+// @aws-sdk/client-s3 is imported lazily inside uploadLogo() so the script can run
+// without it installed when no logo is being uploaded.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,7 +44,8 @@ function findRepoRoot(start) {
   while (dir !== path.dirname(dir)) {
     if (
       fs.existsSync(path.join(dir, "package.json")) &&
-      fs.existsSync(path.join(dir, ".env.local"))
+      (fs.existsSync(path.join(dir, ".env.local")) ||
+        fs.existsSync(path.join(dir, ".env")))
     )
       return dir;
     dir = path.dirname(dir);
@@ -70,7 +72,11 @@ function loadEnvFile(file) {
   }
   return env;
 }
-const ENV = { ...loadEnvFile(path.join(REPO_ROOT, ".env.local")), ...process.env };
+const ENV = {
+  ...loadEnvFile(path.join(REPO_ROOT, ".env")),
+  ...loadEnvFile(path.join(REPO_ROOT, ".env.local")),
+  ...process.env,
+};
 
 const HASURA_ENDPOINT =
   ENV.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT ||
@@ -297,6 +303,7 @@ function buildTheme(brandHex) {
 }
 async function uploadLogo(localPath) {
   if (!fs.existsSync(localPath)) throw new Error("logoPath not found: " + localPath);
+  const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
   const bucket = ENV.NEXT_PUBLIC_S3_BUCKET;
   const region = ENV.NEXT_PUBLIC_S3_REGION;
   if (!bucket || !region || !ENV.NEXT_PUBLIC_S3_ACCESS_KEY)
