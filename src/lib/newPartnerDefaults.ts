@@ -20,6 +20,18 @@ export interface NewPartnerTheme {
   [key: string]: unknown;
 }
 
+// Which admin dashboard a brand-new partner lands on
+// (partners.admin_dashboard_version, read by proxy.ts and dashboardVersionEdge).
+//
+// New signups start on the redesign; existing partners are unaffected because
+// this is only ever applied at creation. Superadmin can still move any partner
+// either way from Admin Dashboard, and that switch remains the override — this
+// is only the starting point.
+//
+// The column is nullable and every reader treats anything other than "v3" as
+// "v2", so an older client that has never heard of it still behaves sanely.
+export const NEW_PARTNER_ADMIN_DASHBOARD_VERSION = "v3";
+
 // New partners default to the "Charcoal Noir" brand colour.
 export const NEW_PARTNER_BRAND_COLOR = "charcoal-noir";
 

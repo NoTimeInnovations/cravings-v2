@@ -8,6 +8,7 @@ import { setAuthCookie } from "@/app/auth/actions";
 import { INSERT_QR_CODE } from "@/api/qrcodes";
 import {
     NEW_PARTNER_FEATURE_FLAGS,
+    NEW_PARTNER_ADMIN_DASHBOARD_VERSION,
     applyNewPartnerThemeDefaults,
     NEW_PARTNER_DELIVERY_RATE,
     resolveNewPartnerDeliveryRules,
@@ -46,6 +47,13 @@ export const onBoardUserSignup = async (
             // that already provided canonical rules; otherwise uses the defaults.
             delivery_rules: resolveNewPartnerDeliveryRules(partner?.delivery_rules),
             delivery_rate: partner?.delivery_rate || NEW_PARTNER_DELIVERY_RATE,
+            // Land new signups on the redesigned dashboard. Both self-serve paths
+            // reach this action — the /get-started wizard and the Google-listing
+            // quick signup — so setting it here covers them without either page
+            // having to know the column exists. An explicit caller value still
+            // wins, and superadmin's Admin Dashboard switch can move them later.
+            admin_dashboard_version:
+                partner?.admin_dashboard_version || NEW_PARTNER_ADMIN_DASHBOARD_VERSION,
             // referral_code is already in partner object from get-started
         };
 
