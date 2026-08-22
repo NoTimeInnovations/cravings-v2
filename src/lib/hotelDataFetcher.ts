@@ -33,6 +33,37 @@ export interface PartnerContact {
   storeName?: string | null;
 }
 
+// Expiring custom menu items is a Hasura WRITE that used to fire on every single
+// storefront view. Wrap it in the cache so it runs at most once per revalidate
+// window per partner (only on a cache miss) instead of on every render. An
+// expired custom item lingering for up to a minute is harmless; hammering the DB
+// with a mutation on every page load was pure waste. Busted by
+// revalidateTag(partnerId) after any menu mutation.
+const throttledCleanupExpiredItems = (partnerId: string) =>
+  unstable_cache(
+    async () => {
+      const { cleanupExpiredCustomItems } = await import("@/api/offers");
+      await fetchFromHasura(cleanupExpiredCustomItems, { partner_id: partnerId });
+      return true;
+    },
+    ["cleanup-expired-custom-items", partnerId],
+    { tags: [partnerId, "hotel-data"], revalidate: 60 }
+  )();
+
+// The table-0 QR group (extra-charge rules) changes very rarely but was read
+// from Hasura on every storefront view. Cache the raw response per partner so
+// it's fetched at most once per revalidate window; busted by
+// revalidateTag(partnerId) when QR groups change.
+const getTable0QrCodesCached = (partnerId: string) =>
+  unstable_cache(
+    async () =>
+      fetchFromHasura(GET_QR_CODES_WITH_GROUPS_BY_PARTNER, {
+        partner_id: partnerId,
+      }),
+    ["table0-qr-codes", partnerId],
+    { tags: [partnerId, "hotel-data"], revalidate: 60 }
+  )();
+
 export async function fetchHotelDataById(hotelId: string) {
   const getHotelData = unstable_cache(
     async (id: string) => {
@@ -111,13 +142,10 @@ export async function processHotelPage(
 
   const offers = hoteldata?.offers;
 
-  // Cleanup expired custom menu items
+  // Cleanup expired custom menu items (throttled to once per window per partner)
   if (hoteldata?.id) {
     try {
-      const { cleanupExpiredCustomItems } = await import("@/api/offers");
-      await fetchFromHasura(cleanupExpiredCustomItems, {
-        partner_id: hoteldata.id,
-      });
+      await throttledCleanupExpiredItems(hoteldata.id);
     } catch (error) {
       console.error("Error cleaning up expired custom items:", error);
     }
@@ -259,9 +287,7 @@ export async function processHotelPage(
   let table0QrGroup = null;
   try {
     const qrCodesResponse = hoteldata?.id
-      ? await fetchFromHasura(GET_QR_CODES_WITH_GROUPS_BY_PARTNER, {
-          partner_id: hoteldata.id,
-        })
+      ? await getTable0QrCodesCached(hoteldata.id)
       : null;
 
     if (qrCodesResponse?.qr_codes) {
