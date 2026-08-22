@@ -93,6 +93,12 @@ export function OrderHandlingSettings() {
                                 ringing and the kitchen can start immediately.
                             </p>
                             <p className="text-sm text-muted-foreground">
+                                The bill prints automatically on this dashboard as each order is
+                                accepted. If you have already set up auto-print for the Accepted
+                                status under Bill Printing, that choice is used instead — so a
+                                Bill&nbsp;+&nbsp;KOT setup keeps printing both.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
                                 Online-payment orders are still only accepted once the payment
                                 confirms, never while they are unpaid.
                             </p>

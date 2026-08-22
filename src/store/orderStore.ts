@@ -17,6 +17,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useAuthStore, Captain } from "./authStore";
 import { getAutoPrintDocsForStatus } from "@/lib/printLayout";
+import { claimAutoPrint } from "@/lib/autoPrintOnce";
 import { printKotAndBill } from "@/lib/printOrder";
 import {
   createOrderItemsMutation,
@@ -1207,12 +1208,17 @@ const useOrderStore = create(
               role === "partner" || role === "superadmin"
                 ? getAutoPrintDocsForStatus((userData as any)?.delivery_rules, newStatus)
                 : [];
-            if (docs.length) {
+            // Claim before printing. With auto-accept on, the live subscription
+            // is watching for this same transition, and a partner who taps Accept
+            // just before the server does would otherwise print the bill twice —
+            // once from making the change, once from seeing it.
+            const won = claimAutoPrint(orderId, docs);
+            if (won.length) {
               // printKotAndBill owns the blocked-popup path: it opens what it
               // can, staggers the two dialogs so they don't race, and offers a
               // toast action (a fresh gesture, never blocked) for whatever the
               // popup blocker ate.
-              printKotAndBill(orderId, { docs });
+              printKotAndBill(orderId, { docs: won });
             }
           } catch (e) {
             console.warn("[auto-print] skipped:", e);

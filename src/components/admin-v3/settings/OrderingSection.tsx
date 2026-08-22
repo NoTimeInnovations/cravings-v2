@@ -417,7 +417,7 @@ export function OrderingSection({ tab }: { tab: OrderingTab }) {
         />
         <ToggleRow
           title="Auto-accept orders"
-          desc="New orders go straight to Accepted instead of waiting to be accepted, so the alarm stops and the kitchen can start. Online payments are still only accepted once payment confirms."
+          desc="New orders go straight to Accepted instead of waiting to be accepted, and the bill prints on this dashboard as each one arrives. Online payments are still only accepted once payment confirms."
           checked={draft.auto_accept_orders}
           onChange={(v) => patch({ auto_accept_orders: v })}
         />

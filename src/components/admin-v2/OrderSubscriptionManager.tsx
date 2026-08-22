@@ -7,6 +7,9 @@ import useOrderStore, { Order } from "@/store/orderStore";
 import { Howl } from "howler";
 import { toast } from "sonner";
 import { isDesktopApp } from "@/lib/isDesktopApp";
+import { getAutoPrintDocsForStatus, type AutoPrintDoc } from "@/lib/printLayout";
+import { claimAutoPrint } from "@/lib/autoPrintOnce";
+import { printKotAndBill } from "@/lib/printOrder";
 
 /** Returns a key that changes periodically to trigger re-subscription with fresh 24hr window */
 function getTimeWindowKey() {
@@ -19,6 +22,81 @@ const NEW_ORDER_WINDOW_MS = 5 * 60 * 1000;
 function isJustCreated(order: Order) {
     const created = new Date(order.createdAt ?? "").getTime();
     return Number.isFinite(created) && Date.now() - created <= NEW_ORDER_WINDOW_MS;
+}
+
+/**
+ * Drives the Android app's looping new-order alert.
+ *
+ * The native app rings until an order is accepted, but it has no idea what
+ * "accepted" means — that state lives here, in the live order subscription.
+ * These console lines are the bridge the WebView listens on, the same mechanism
+ * as the existing "PRINTER SETTINGS OPEN" / "REFRESH LOCATION" signals. In a
+ * plain browser they are just log lines and cost nothing.
+ *
+ * Belt and braces only: the app also polls the order's status itself, because
+ * this bridge cannot reach it once the dashboard is closed. What this buys is
+ * an instant stop while the dashboard IS open, rather than waiting for a poll.
+ */
+let lastAlertSignal: "start" | "stop" | null = null;
+
+function signalOrderAlert(signal: "start" | "stop") {
+    // The subscription fires on every order change; only speak up on a real
+    // transition so the log (and the bridge) stays quiet.
+    if (lastAlertSignal === signal) return;
+    lastAlertSignal = signal;
+    console.log(signal === "start" ? "ORDER ALERT START" : "ORDER ALERT STOP");
+}
+
+/**
+ * Auto-print for orders the SERVER moved.
+ *
+ * The existing auto-print hangs off updateOrderStatus, which only ever runs on
+ * the device that made the change — reasonably, since printing means opening
+ * /kot/<id> or /bill/<id> and that needs a browser tab. Auto-accept breaks that
+ * assumption: the accept happens in a Hasura event, so no device made the change
+ * and nothing would ever print. This is the other half of the feature.
+ *
+ * Scoped to partners who have auto-accept ON, deliberately. The same watcher
+ * would happily print for a status changed on another till, which is arguably an
+ * improvement — but it would also start printing for existing partners who never
+ * asked for it, and a surprise bill at the counter is a bad way to find out.
+ *
+ * Only orders created in the last few minutes are considered, so opening the
+ * dashboard never prints a backlog.
+ */
+function autoPrintForServerSideChange(
+  order: Order,
+  previousStatus: string | undefined,
+  userData: any,
+) {
+  const role = userData?.role;
+  if (role !== "partner" && role !== "superadmin") return;
+  const rules = userData?.delivery_rules;
+  // Gate on the toggle this exists to serve.
+  if (!rules?.auto_accept_orders) return;
+  if (!order?.status || order.status === previousStatus) return;
+  if (!isJustCreated(order)) return;
+
+  // What the partner has armed for this status through Settings → Bill
+  // Printing, if anything. That setting predates auto-accept and defaults to
+  // firing on "completed", so most partners have nothing armed on "accepted".
+  const configured = getAutoPrintDocsForStatus(rules, order.status);
+  // Auto-accept promises a printed bill, so the accept itself prints one even
+  // when the auto-print system is off or pointed at a different status. A
+  // partner who HAS armed something for "accepted" keeps their choice — that is
+  // where a KOT-and-bill setup comes from, and overriding it would silently drop
+  // the kitchen ticket.
+  const docs: AutoPrintDoc[] =
+    configured.length > 0
+      ? configured
+      : order.status === "accepted"
+        ? ["bill"]
+        : [];
+  if (!docs.length) return;
+  // Shared with updateOrderStatus, so a manual accept that beat the server to it
+  // prints once, not twice.
+  const won = claimAutoPrint(order.id, docs);
+  if (won.length) printKotAndBill(order.id, { docs: won });
 }
 
 export function OrderSubscriptionManager() {
@@ -45,6 +123,12 @@ export function OrderSubscriptionManager() {
     // loops until this is empty, i.e. until every new order has been accepted
     // (or otherwise moved off `pending` — cancelled counts as dealt with too).
     const alertingOrderIds = useRef<Set<string>>(new Set());
+
+    // Last status this tab saw for each order, so a server-side move (auto-accept)
+    // is recognisable as a TRANSITION rather than just a value. Seeded on the
+    // initial load without printing anything, which is what stops a backlog of
+    // already-accepted orders printing when the dashboard opens.
+    const lastStatusById = useRef<Map<string, string>>(new Map());
 
     // Track time window — periodically refresh to keep the rolling 24hr window current
     const [dateKey, setDateKey] = useState(getTimeWindowKey);
@@ -125,12 +209,21 @@ export function OrderSubscriptionManager() {
                 if (!initialLoadCompleted.current) {
                     paginatedOrders.forEach((order) => {
                         allSeenOrderIds.current.add(order.id);
+                        // Seed only — the first load must never print.
+                        lastStatusById.current.set(order.id, order.status);
                     });
                     initialLoadCompleted.current = true;
                     setLoading(false);
                     settleAlarm(paginatedOrders);
                     // Update store
                     setOrders(paginatedOrders);
+                    // Opening the dashboard silences an alert a push started, but
+                    // deliberately never starts one: a day-old unaccepted order
+                    // should not set the phone ringing just because someone
+                    // opened the app.
+                    if (!paginatedOrders.some((o) => o.status === "pending")) {
+                        signalOrderAlert("stop");
+                    }
                     return;
                 }
 
@@ -148,6 +241,17 @@ export function OrderSubscriptionManager() {
                 );
 
                 paginatedOrders.forEach((order) => {
+                    // Runs BEFORE the status is recorded, so the comparison still
+                    // has the previous value. A brand-new order has none, which
+                    // reads as a transition into its arrival status — the case
+                    // where the server accepted it before this tab ever saw it
+                    // as pending.
+                    autoPrintForServerSideChange(
+                        order,
+                        lastStatusById.current.get(order.id),
+                        userData,
+                    );
+                    lastStatusById.current.set(order.id, order.status);
                     allSeenOrderIds.current.add(order.id);
                 });
 
@@ -158,6 +262,12 @@ export function OrderSubscriptionManager() {
                     // Already looping for an earlier unaccepted order? Let it run —
                     // restarting would cut the tone off mid-loop.
                     if (!soundRef.current?.playing()) soundRef.current?.play();
+                    // Same trigger for the Android app's own looping alert. Rides
+                    // on isJustCreated above, so an old id resurfacing from a
+                    // pagination shift cannot set the phone ringing.
+                    if (genuinelyNewOrders.some((o) => o.status === "pending")) {
+                        signalOrderAlert("start");
+                    }
                     // Stable id → a fresh new-order alert replaces the previous
                     // one instead of stacking another toast on top.
                     toast.info(
@@ -169,6 +279,15 @@ export function OrderSubscriptionManager() {
                 }
 
                 settleAlarm(paginatedOrders);
+
+                // Tell the Android app to stop once nothing is pending. Keyed off
+                // the pending count rather than the accept click, so it settles
+                // just as well when the order is accepted on another device or
+                // cancelled. Not gated on alertingOrderIds: the phone may be
+                // ringing from a push this dashboard never saw arrive.
+                if (!paginatedOrders.some((o) => o.status === "pending")) {
+                    signalOrderAlert("stop");
+                }
 
                 setLoading(false);
                 // Update store
