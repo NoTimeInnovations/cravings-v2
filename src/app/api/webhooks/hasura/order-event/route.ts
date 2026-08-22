@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasuraServer } from "@/lib/hasuraServerClient";
 import { sendOrderWebhook } from "@/app/actions/sendOrderWebhook";
+import {
+  dispatchViaDeliveryBridge,
+  scheduleDelayedDispatch,
+} from "@/app/actions/porterBridge";
+import { dispatchDeliveryPool } from "@/app/actions/deliveryPoolDispatch";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -80,8 +85,9 @@ async function maybeAutoAccept(
   orderId: string,
   partnerId: string,
   status: string,
-): Promise<boolean> {
-  if (!partnerId || status !== "pending") return false;
+): Promise<{ accepted: boolean; rules: Record<string, unknown> }> {
+  const none = { accepted: false, rules: {} as Record<string, unknown> };
+  if (!partnerId || status !== "pending") return none;
   try {
     const p: any = await fetchFromHasuraServer(
       `query AutoAcceptFlag($id: uuid!) {
@@ -94,7 +100,7 @@ async function maybeAutoAccept(
       rules && typeof rules === "object"
         ? !!(rules as Record<string, unknown>).auto_accept_orders
         : false;
-    if (!on) return false;
+    if (!on) return none;
 
     const res: any = await fetchFromHasuraServer(
       `mutation AutoAccept($id: uuid!) {
@@ -105,14 +111,66 @@ async function maybeAutoAccept(
        }`,
       { id: orderId },
     );
-    return (res?.update_orders?.affected_rows ?? 0) > 0;
+    return {
+      accepted: (res?.update_orders?.affected_rows ?? 0) > 0,
+      rules: rules as Record<string, unknown>,
+    };
   } catch (e) {
     // Never fail the event over this. A partner who does not get an auto-accept
     // is left with an order to accept by hand, which is the pre-existing
     // behaviour; failing here would make Hasura retry and re-send order.created.
     console.warn("[order-event] auto-accept failed:", e);
-    return false;
+    return none;
   }
+}
+
+/**
+ * The consequences of accepting, for an accept that no device made.
+ *
+ * Accepting an order is not just a status: it books the rider. All of that
+ * hangs off updateOrderStatus in the order store, which by definition only runs
+ * when a DEVICE changed the status — so an auto-accepted order was reaching
+ * `accepted` with none of it firing. The visible symptom was a missing dispatch
+ * countdown; the real one was that no rider was ever booked.
+ *
+ * Both entry points below re-read the order and gate themselves — the bridge on
+ * the partner's own bridge config and drop coordinates, the pool on
+ * feature_flags — so calling them for an order that wants neither is a cheap
+ * refusal rather than something this route has to predict.
+ *
+ * Fire-and-forget, like the client does. A dispatch that fails must not fail the
+ * event: Hasura would retry it and re-send order.created.
+ */
+function dispatchAfterAutoAccept(orderId: string, rules: Record<string, unknown>) {
+  // Porter / Rapido bridge. Mirrors the trigger logic in orderStore: auto-book
+  // defaults ON, the trigger status is a partner choice, and a delay defers the
+  // booking by stamping porter_dispatch_due_at for the dispatch-due cron — which
+  // is also what the countdown in the order page reads.
+  const autoBook = rules.porter_auto_dispatch !== false;
+  const trigger =
+    rules.porter_dispatch_trigger === "food_ready" ? "food_ready" : "accepted";
+  const delayMin = Math.max(
+    0,
+    Math.min(120, Number(rules.porter_dispatch_delay_min) || 0),
+  );
+  if (autoBook && trigger === "accepted") {
+    const book =
+      delayMin > 0
+        ? scheduleDelayedDispatch(orderId, delayMin)
+        : dispatchViaDeliveryBridge(orderId);
+    void book
+      .then((r: { ok: boolean; message?: string }) => {
+        if (!r.ok) console.warn(`[auto-accept] bridge dispatch: ${r.message}`);
+      })
+      .catch((e) => console.warn("[auto-accept] bridge dispatch threw:", e));
+  }
+
+  // Menuthere delivery pool — independent network, same accept trigger.
+  void dispatchDeliveryPool(orderId)
+    .then((r: { ok: boolean; message?: string }) => {
+      if (!r.ok) console.warn(`[auto-accept] pool dispatch: ${r.message}`);
+    })
+    .catch((e) => console.warn("[auto-accept] pool dispatch threw:", e));
 }
 
 export async function POST(req: NextRequest) {
@@ -175,11 +233,15 @@ export async function POST(req: NextRequest) {
   // doing it in this order means the single order.created the partner receives
   // already carries `accepted` — rather than announcing `pending` and never
   // following up, since nothing server-side sends a status webhook.
-  const autoAccepted = await maybeAutoAccept(
+  const auto = await maybeAutoAccept(
     orderId,
     String(after?.partner_id ?? ""),
     newStatus,
   );
+  // Accepting books the rider. Only on a real transition — the update is
+  // conditional on `pending`, so a retry reports false and cannot double-book.
+  if (auto.accepted) dispatchAfterAutoAccept(orderId, auto.rules);
+  const autoAccepted = auto.accepted;
 
   // sendOrderWebhook re-reads the order from Hasura, so the payload always
   // reflects what was STORED (real invoice number, post-loyalty total), not the
