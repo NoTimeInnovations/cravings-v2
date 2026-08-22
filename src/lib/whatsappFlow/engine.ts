@@ -15,6 +15,7 @@ import {
   answerFields,
   buildFlowToken,
   parseQuestionnaireAnswers,
+  QUESTIONNAIRE_ENTRY_SCREEN,
   type QuestionnaireData,
 } from "@/lib/whatsappFlow/questionnaire";
 import type {
@@ -913,9 +914,9 @@ function buildPayload(to: string, o: Outbound): { payload: Record<string, unknow
     }
     case "flow": {
       // A questionnaire: the message carries a button that opens the published
-      // WhatsApp Flow form. `flow_action: navigate` opens the first screen —
-      // PAGE_0 is what buildQuestionnaireFlowJson always names it. The answers
-      // come back later as their own inbound message (interactive.nfm_reply).
+      // WhatsApp Flow form. `flow_action: navigate` opens the first screen,
+      // named by the same helper the compiler uses. The answers come back later
+      // as their own inbound message (interactive.nfm_reply).
       const body = (o.text || " ").slice(0, 1024);
       const interactive: Record<string, unknown> = {
         type: "flow",
@@ -932,7 +933,7 @@ function buildPayload(to: string, o: Outbound): { payload: Record<string, unknow
             // the WABA's own admins in draft mode, which is how a partner tests
             // one that failed its publish checks.
             mode: o.flowMode || "published",
-            flow_action_payload: { screen: "PAGE_0" },
+            flow_action_payload: { screen: QUESTIONNAIRE_ENTRY_SCREEN },
           },
         },
       };

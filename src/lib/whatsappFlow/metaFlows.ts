@@ -132,6 +132,68 @@ export async function createAndPublishFlow(args: {
     };
   }
 
+  return publishFlow(creds, flowId);
+}
+
+/**
+ * Re-use a Flow we already created but never got published — replace its JSON
+ * and publish it.
+ *
+ * Without this, a failed publish is unrecoverable: the flow name is derived from
+ * the questionnaire's content, so the next save tries to create the SAME name
+ * again and Meta answers "Flow name should be unique within one WhatsApp
+ * business account" forever. A draft is ours and still editable, so updating it
+ * in place is both cheaper and the only way out of that corner.
+ *
+ * Returns null when the draft is gone (deleted in Manager, or never existed), so
+ * the caller can fall back to creating a fresh one.
+ */
+async function updateAndPublishDraft(
+  creds: WabaCredentials,
+  flowId: string,
+  flowJson: Record<string, unknown>,
+): Promise<PublishResult | null> {
+  try {
+    const form = new FormData();
+    form.append("name", "flow.json");
+    form.append("asset_type", "FLOW_JSON");
+    form.append(
+      "file",
+      new Blob([JSON.stringify(flowJson)], { type: "application/json" }),
+      "flow.json",
+    );
+    // No Content-Type header: fetch has to set the multipart boundary itself.
+    const res = await fetch(`${GRAPH}/${flowId}/assets`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${creds.token}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // 100/(#803) = "object does not exist" — the draft is gone, start over.
+      const code = data?.error?.code;
+      if (code === 100 || code === 803) return null;
+      return { error: graphError(data, "WhatsApp rejected the questionnaire.") };
+    }
+    if (Array.isArray(data?.validation_errors) && data.validation_errors.length) {
+      return {
+        flowId,
+        status: "DRAFT",
+        error: describeValidationErrors(data.validation_errors),
+      };
+    }
+  } catch (e: any) {
+    return { error: e?.message || "Could not reach WhatsApp." };
+  }
+
+  return publishFlow(creds, flowId);
+}
+
+/** Publish a Flow that already holds the JSON we want. */
+async function publishFlow(
+  creds: WabaCredentials,
+  flowId: string,
+): Promise<PublishResult> {
   try {
     const res = await fetch(`${GRAPH}/${flowId}/publish`, {
       method: "POST",
@@ -148,7 +210,6 @@ export async function createAndPublishFlow(args: {
   } catch (e: any) {
     return { flowId, status: "DRAFT", error: e?.message || "Could not publish." };
   }
-
   return { flowId, status: "PUBLISHED" };
 }
 
@@ -173,7 +234,15 @@ async function retireFlow(creds: WabaCredentials, flowId: string): Promise<void>
   }
 }
 
-/** Flow names must be unique on a WABA and are only ever seen in Manager. */
+/**
+ * Flow names must be unique on a WABA and are only ever seen in Manager.
+ *
+ * The trailing timestamp is what makes them unique. A name derived purely from
+ * the content used to mean that any flow left behind on Meta — a draft from a
+ * publish that failed, one deleted-then-recreated — blocked every later attempt
+ * with "Flow name should be unique within one WhatsApp business account", with
+ * no way out from the builder.
+ */
 function metaFlowName(flowName: string, nodeId: string, hash: string): string {
   const base = String(flowName || "questionnaire")
     .toLowerCase()
@@ -181,7 +250,8 @@ function metaFlowName(flowName: string, nodeId: string, hash: string): string {
     .replace(/^_+|_+$/g, "")
     .slice(0, 40);
   const node = nodeId.replace(/[^a-zA-Z0-9]+/g, "_").slice(-16);
-  return `mt_${base || "questionnaire"}_${node}_${hash}`.slice(0, 200);
+  const stamp = Date.now().toString(36);
+  return `mt_${base || "questionnaire"}_${node}_${hash}_${stamp}`.slice(0, 200);
 }
 
 export interface SyncWarning {
@@ -239,11 +309,20 @@ export async function syncQuestionnaireNodes(
     }
 
     const previousFlowId = data.metaFlowId;
-    const result = await createAndPublishFlow({
+    const flowJson = buildQuestionnaireFlowJson(data);
+
+    // A Flow we created but never published is still editable, so update it in
+    // place rather than leaving it behind and creating another. Only drafts:
+    // a PUBLISHED Flow is immutable and must be superseded by a new one.
+    let result: PublishResult | null = null;
+    if (previousFlowId && data.metaFlowStatus !== "PUBLISHED") {
+      result = await updateAndPublishDraft(creds, previousFlowId, flowJson);
+    }
+    result ??= await createAndPublishFlow({
       creds,
       name: metaFlowName(flowName, node.id, hash),
       categories: [data.category || "SURVEY"],
-      flowJson: buildQuestionnaireFlowJson(data),
+      flowJson,
     });
 
     if (!result.flowId) {
@@ -265,6 +344,20 @@ export async function syncQuestionnaireNodes(
     if (previousFlowId && previousFlowId !== result.flowId) {
       retireFlow(creds, previousFlowId).catch(() => {});
     }
+  }
+
+  // A questionnaire nothing points at publishes perfectly happily and then never
+  // sends, which reads exactly like the feature being broken. Say so at save
+  // time — it is the one step where "it looks fine but does nothing" is likely,
+  // because the form lives on Meta rather than in the flow.
+  const wired = new Set((graph?.edges || []).map((e) => e.target));
+  for (const node of nodes) {
+    if (wired.has(node.id)) continue;
+    warnings.push({
+      nodeId: node.id,
+      message:
+        "This questionnaire isn't connected to any step yet, so it will never be sent — join it to the step before it.",
+    });
   }
 
   return warnings;

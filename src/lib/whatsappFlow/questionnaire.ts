@@ -501,8 +501,26 @@ export function validateQuestionnaire(data: QuestionnaireData): string | null {
 // ─── Flow JSON compilation ───────────────────────────────────────
 const clamp = (s: unknown, n: number) => String(s ?? "").slice(0, n);
 
-/** Screen ids must be stable across saves — they're referenced by later pages. */
-const screenId = (i: number) => `PAGE_${i}`;
+/**
+ * Screen ids must be stable across saves (later pages reference earlier ones)
+ * AND letters-only: Meta validates screen ids against "alphabets and
+ * underscores", so the obvious `PAGE_0` is rejected with a PATTERN_MISMATCH that
+ * leaves the whole Flow stuck in DRAFT. Hence A, B, … Z, AA, AB.
+ */
+export function questionnaireScreenId(i: number): string {
+  let n = Math.max(0, Math.floor(i));
+  let letters = "";
+  do {
+    letters = String.fromCharCode(65 + (n % 26)) + letters;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return `PAGE_${letters}`;
+}
+
+/** The screen a Flow message opens on (`flow_action_payload.screen`). */
+export const QUESTIONNAIRE_ENTRY_SCREEN = questionnaireScreenId(0);
+
+const screenId = questionnaireScreenId;
 
 function optionSource(f: QuestionField) {
   return (f.options || []).map((o, i) => {
