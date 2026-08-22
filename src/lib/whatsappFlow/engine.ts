@@ -14,6 +14,7 @@ import { findOrCreateUserByPhone, toLocalPhone, ensureCustomerAccount } from "@/
 import {
   answerFields,
   buildFlowToken,
+  nodeIdFromFlowToken,
   parseQuestionnaireAnswers,
   QUESTIONNAIRE_ENTRY_SCREEN,
   type QuestionnaireData,
@@ -136,7 +137,7 @@ const Q_LAST_FLOW_RUNS = `
 `;
 const Q_FLOW = `
   query Flow($id: uuid!) {
-    whatsapp_flows_by_pk(id: $id) { id graph enabled escape_keyword run_ttl_hours }
+    whatsapp_flows_by_pk(id: $id) { id name graph enabled escape_keyword run_ttl_hours }
   }
 `;
 // Sleeping runs whose delay has elapsed — drained by the resume-flow-delays cron.
@@ -548,6 +549,108 @@ function questionnaireOutbound(
     nodeId: node.id,
     formFields: answerFields(q).map((f) => f.label),
   };
+}
+
+// Every questionnaire submission is filed against the partner so the answers can
+// be read back later (admin-v2 / admin-v3 "Responses"). Keyed on the Meta message
+// id so a webhook redelivery can't double-record one submission.
+const M_INSERT_RESPONSE = `
+  mutation InsertQuestionnaireResponse($o: whatsapp_questionnaire_responses_insert_input!) {
+    insert_whatsapp_questionnaire_responses_one(object: $o) { id }
+  }
+`;
+
+/**
+ * File one submission. Fire-and-forget by design: the customer's next step must
+ * not wait on bookkeeping, and a failed insert should never cost them the reply
+ * the flow owes them.
+ */
+function recordQuestionnaireResponse(args: {
+  partnerId: string;
+  flowId: string | null;
+  flowName?: string | null;
+  node: FlowNode;
+  contactPhone: string;
+  contactName?: string | null;
+  waMessageId: string;
+  response: Record<string, unknown>;
+}): void {
+  const q = (args.node.data || {}) as unknown as QuestionnaireData;
+  const { answers, summary } = parseQuestionnaireAnswers(q, args.response);
+  fetchFromHasura(
+    M_INSERT_RESPONSE,
+    {
+      o: {
+        partner_id: args.partnerId,
+        flow_id: args.flowId,
+        flow_name: args.flowName ?? null,
+        node_id: args.node.id,
+        contact_phone: args.contactPhone,
+        contact_name: args.contactName ?? null,
+        wa_message_id: args.waMessageId,
+        flow_token: args.response.flow_token ? String(args.response.flow_token) : null,
+        answers,
+        raw_response: args.response,
+        summary,
+      },
+    },
+    // A duplicate here is the idempotency index working, not a fault.
+    { quiet: true },
+  ).catch((e: any) => {
+    if (!/unique|duplicate/i.test(String(e?.message || e))) {
+      console.error("Questionnaire response insert failed:", e);
+    }
+  });
+}
+
+// Flows that contain a given questionnaire node — used to file a submission that
+// arrives with no run left to resume.
+const Q_FLOW_BY_NODE = `
+  query FlowByNode($p: uuid!) {
+    whatsapp_flows(where: { partner_id: { _eq: $p } }) { id name graph }
+  }
+`;
+
+/**
+ * File a submission whose run is already gone.
+ *
+ * A customer can open the form, wander off, and submit hours later — past the
+ * flow's TTL. There is nothing left to resume, but the answers are exactly as
+ * valuable, and losing them silently is the worst outcome. The flow_token we
+ * stamped on the send carries the node id, which is enough to find the
+ * questionnaire that asked the questions and label the answers properly.
+ */
+async function recordLateQuestionnaireResponse(args: {
+  partnerId: string;
+  contactPhone: string;
+  contactName?: string | null;
+  waMessageId: string;
+  response: Record<string, unknown>;
+}): Promise<void> {
+  const nodeId = nodeIdFromFlowToken(args.response.flow_token);
+  if (!nodeId) return;
+  try {
+    const res = await fetchFromHasura(Q_FLOW_BY_NODE, { p: args.partnerId });
+    for (const flow of res?.whatsapp_flows || []) {
+      const node = (flow.graph?.nodes || []).find(
+        (n: FlowNode) => n.id === nodeId && n.type === "questionnaire",
+      );
+      if (!node) continue;
+      recordQuestionnaireResponse({
+        partnerId: args.partnerId,
+        flowId: flow.id,
+        flowName: flow.name,
+        node,
+        contactPhone: args.contactPhone,
+        contactName: args.contactName,
+        waMessageId: args.waMessageId,
+        response: args.response,
+      });
+      return;
+    }
+  } catch (e) {
+    console.error("Late questionnaire response lookup failed:", e);
+  }
 }
 
 // Walk the graph from `startId`, collecting outbound messages, until we PARK
@@ -1159,10 +1262,25 @@ export async function runFlowForInbound(args: {
       await accountP.catch(() => {});
       return;
     } else {
-      await resumeRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, active);
+      await resumeRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, active, contactName);
       await accountP.catch(() => {});
       return;
     }
+  }
+
+  // A submission with no run left to resume: the customer opened the form and
+  // came back after the run's TTL. File the answers rather than lose them — and
+  // never let the answer text match a trigger and start an unrelated flow.
+  if (input.flowResponse) {
+    await recordLateQuestionnaireResponse({
+      partnerId,
+      contactPhone,
+      contactName,
+      waMessageId,
+      response: input.flowResponse,
+    });
+    await accountP.catch(() => {});
+    return;
   }
 
   // Common path: no active run → reuse the wave already in flight.
@@ -1873,6 +1991,8 @@ async function resumeRun(
   waMessageId: string,
   input: FlowInput,
   active: { id: string; flow_id: string; current_node_id: string | null; variables: any; step_count: number; version: number; resume_at?: string | null; phone_number_id?: string | null },
+  // Only used to label a questionnaire submission with who sent it.
+  contactName: string | null = null,
 ) {
   const flowRes = await fetchFromHasura(Q_FLOW, { id: active.flow_id });
   const flow = flowRes?.whatsapp_flows_by_pk;
@@ -1994,6 +2114,16 @@ async function resumeRun(
       }
       return;
     }
+    recordQuestionnaireResponse({
+      partnerId,
+      flowId: active.flow_id,
+      flowName: flow.name ?? null,
+      node,
+      contactPhone,
+      contactName,
+      waMessageId,
+      response: input.flowResponse,
+    });
     const { variables: answers, summary } = parseQuestionnaireAnswers(q, input.flowResponse);
     Object.assign(state.variables, answers);
     // The submission summary is what a following Condition step compares

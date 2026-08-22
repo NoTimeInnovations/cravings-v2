@@ -3,13 +3,14 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, Globe, Loader2, Pencil, Plus, Power, Trash2 } from "lucide-react";
+import { ArrowLeft, ClipboardList, Globe, Loader2, Pencil, Plus, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { updatePartner } from "@/api/partners";
 import { provisionDefaultFlows } from "@/app/actions/provisionDefaultFlows";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { GlobalFlowsBrowser } from "@/components/admin-v2/whatsapp-flow/GlobalFlowsBrowser";
+import { QuestionnaireResponses } from "@/components/admin-v2/whatsapp-flow/QuestionnaireResponses";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { getFeatures, revertFeatureToString } from "@/lib/getFeatures";
 import { cn } from "@/lib/utils";
@@ -88,7 +89,7 @@ export function AdminV3WhatsAppFlows({
   const [flows, setFlows] = React.useState<FlowListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [tab, setTab] = React.useState<Tab>("all");
-  const [mode, setMode] = React.useState<"list" | "editor">("list");
+  const [mode, setMode] = React.useState<"list" | "editor" | "responses">("list");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
@@ -248,6 +249,14 @@ export function AdminV3WhatsAppFlows({
 
   /* ----------------------------------------------------------------- editor */
 
+  if (mode === "responses") {
+    return (
+      <V3Card className="p-4">
+        <QuestionnaireResponses partnerId={partnerId} onClose={() => setMode("list")} />
+      </V3Card>
+    );
+  }
+
   if (mode === "editor") {
     return (
       <FlowEditor
@@ -288,6 +297,17 @@ export function AdminV3WhatsAppFlows({
         </div>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <AdminV3Button
+            variant="secondary"
+            className="h-[34px] px-3"
+            disabled={!partnerId}
+            onClick={() => setMode("responses")}
+            title="Answers customers have sent through questionnaire steps"
+          >
+            <ClipboardList size={15} strokeWidth={1.7} className="text-zinc-500 dark:text-zinc-400" />
+            Responses
+          </AdminV3Button>
+
           <AdminV3Button
             variant="secondary"
             className="h-[34px] px-3"

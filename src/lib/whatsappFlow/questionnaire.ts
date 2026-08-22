@@ -427,11 +427,19 @@ export function answerFields(data: QuestionnaireData): QuestionField[] {
   return allFields(data).filter((f) => QUESTION_KIND_META[f.kind]?.input);
 }
 
-/** The variables a questionnaire node contributes to the rest of the flow. */
+/**
+ * The variables a questionnaire node contributes to the rest of the flow — the
+ * readable one and its exact-value twin, since a Condition step branching on an
+ * option wants `_raw` (an option's stored value survives re-wording its title).
+ */
 export function questionnaireVariables(data: QuestionnaireData): string[] {
-  return answerFields(data)
-    .map((f) => sanitizeFieldName(f.name))
-    .filter(Boolean);
+  const out: string[] = [];
+  for (const f of answerFields(data)) {
+    const name = sanitizeFieldName(f.name);
+    if (!name) continue;
+    out.push(name, rawVariableName(name));
+  }
+  return out;
 }
 
 // ─── Validation ──────────────────────────────────────────────────
@@ -845,12 +853,28 @@ function safeJsonObject(s: string): Record<string, unknown> | null {
   }
 }
 
+/** One answered question, as stored on the response row and shown in the table. */
+export interface QuestionnaireAnswer {
+  name: string;
+  label: string;
+  kind: QuestionKind;
+  /** Readable form — option titles, "Yes"/"No", "2026-08-22". */
+  value: string;
+  /** Exactly what WhatsApp sent, for exact matching and re-analysis. */
+  raw: string;
+}
+
 export interface QuestionnaireAnswers {
   /** Variables to merge into the run: `<name>` (readable) + `<name>_raw`. */
   variables: Record<string, string>;
+  /** Per-question detail, in the order the questions were asked. */
+  answers: QuestionnaireAnswer[];
   /** "Rating: 5 · Comments: Loved it" — used as the reply text and inbox line. */
   summary: string;
 }
+
+/** The `_raw` twin of an answer variable. One place, so pickers and docs agree. */
+export const rawVariableName = (name: string) => `${name}_raw`;
 
 /**
  * Turn one `nfm_reply.response_json` payload into flow variables.
@@ -865,6 +889,7 @@ export function parseQuestionnaireAnswers(
   response: Record<string, unknown>,
 ): QuestionnaireAnswers {
   const variables: Record<string, string> = {};
+  const answers: QuestionnaireAnswer[] = [];
   const parts: string[] = [];
 
   for (const f of answerFields(data)) {
@@ -872,17 +897,25 @@ export function parseQuestionnaireAnswers(
     if (!name) continue;
     const raw = response[name];
     const shown = displayValue(f, raw);
-    variables[name] = shown;
-    variables[`${name}_raw`] =
+    const exact =
       raw === null || raw === undefined
         ? ""
         : typeof raw === "object"
           ? JSON.stringify(raw)
           : String(raw);
+    variables[name] = shown;
+    variables[rawVariableName(name)] = exact;
+    answers.push({
+      name,
+      label: f.label || name,
+      kind: f.kind,
+      value: shown,
+      raw: exact,
+    });
     if (shown) parts.push(`${f.label || name}: ${shown}`);
   }
 
-  return { variables, summary: parts.join(" · ") };
+  return { variables, answers, summary: parts.join(" · ") };
 }
 
 // ─── Runtime helpers ─────────────────────────────────────────────
@@ -894,6 +927,13 @@ export function parseQuestionnaireAnswers(
  */
 export function buildFlowToken(contactPhone: string, nodeId: string): string {
   return `${contactPhone}:${nodeId}:${Date.now().toString(36)}`;
+}
+
+/** The node id encoded into a flow_token by buildFlowToken, or null. */
+export function nodeIdFromFlowToken(token: unknown): string | null {
+  const parts = String(token ?? "").split(":");
+  // phone : nodeId : stamp — anything else is a token we didn't mint.
+  return parts.length === 3 && parts[1] ? parts[1] : null;
 }
 
 /** True once the node has a Meta Flow matching the questionnaire as authored. */

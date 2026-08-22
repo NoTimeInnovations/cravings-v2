@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Workflow, Loader2, Pencil, Trash2, Power, Globe } from "lucide-react";
+import { Plus, Workflow, Loader2, Pencil, Trash2, Power, Globe, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import type { Flow } from "@/lib/whatsappFlow/types";
 import { getFeatures, revertFeatureToString } from "@/lib/getFeatures";
 import { FlowBuilder } from "@/components/admin-v2/whatsapp-flow/FlowBuilder";
 import { GlobalFlowsBrowser } from "@/components/admin-v2/whatsapp-flow/GlobalFlowsBrowser";
+import { QuestionnaireResponses } from "@/components/admin-v2/whatsapp-flow/QuestionnaireResponses";
 import { provisionDefaultFlows } from "@/app/actions/provisionDefaultFlows";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
@@ -84,7 +85,7 @@ export function AdminV2WhatsAppFlows() {
 
   const [flows, setFlows] = useState<FlowListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<"list" | "builder">("list");
+  const [mode, setMode] = useState<"list" | "builder" | "responses">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [showGlobal, setShowGlobal] = useState(false);
@@ -194,6 +195,12 @@ export function AdminV2WhatsAppFlows() {
     }
   };
 
+  if (mode === "responses") {
+    return (
+      <QuestionnaireResponses partnerId={partnerId} onClose={() => setMode("list")} />
+    );
+  }
+
   if (mode === "builder") {
     return (
       <FlowBuilder
@@ -219,6 +226,14 @@ export function AdminV2WhatsAppFlows() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setMode("responses")}
+            title="Answers customers have sent through questionnaire steps"
+          >
+            <ClipboardList className="mr-2 h-4 w-4 text-violet-600" />
+            Responses
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowGlobal(true)}
