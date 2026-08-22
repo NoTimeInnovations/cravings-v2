@@ -1,5 +1,6 @@
 import {
   AudioLines,
+  ClipboardList,
   Clock,
   CornerUpRight,
   ExternalLink,
@@ -17,6 +18,12 @@ import {
 } from "lucide-react";
 import type { ElementType } from "react";
 
+import {
+  defaultQuestionnaireData,
+  questionnaireSummary,
+  validateQuestionnaire,
+  type QuestionnaireData,
+} from "@/lib/whatsappFlow/questionnaire";
 import type {
   ButtonItem,
   ConditionRule,
@@ -101,6 +108,12 @@ export const NODE_META: Record<FlowNodeType, NodeMeta> = {
     kind: "Choice",
     hint: "Up to three tappable replies, each with its own branch.",
   },
+  questionnaire: {
+    label: "Questionnaire",
+    icon: ClipboardList,
+    kind: "Choice",
+    hint: "A form inside WhatsApp — text boxes, checkboxes, radios, dates.",
+  },
   link_button: {
     label: "Link button",
     icon: ExternalLink,
@@ -154,6 +167,7 @@ export const PALETTE_SEND: FlowNodeType[] = [
   "send_document",
   "send_catalog",
   "link_button",
+  "questionnaire",
 ];
 
 export const PALETTE_LOGIC: FlowNodeType[] = [
@@ -208,6 +222,8 @@ export function defaultData(type: FlowNodeType): Record<string, unknown> {
       };
     case "link_button":
       return { text: "", buttonText: "Open", url: "" };
+    case "questionnaire":
+      return defaultQuestionnaireData() as unknown as Record<string, unknown>;
     case "wait_for_reply":
       return { variableName: "reply", validation: "text", retryText: "" };
     case "condition":
@@ -321,6 +337,8 @@ export function nodeSummary(type: FlowNodeType, data: any): string {
       return data?.buttonText
         ? `Button “${data.buttonText}” → ${truncate(data?.url, 40) || "no link"}`
         : "No button label yet.";
+    case "questionnaire":
+      return questionnaireSummary(data as QuestionnaireData);
     case "wait_for_reply":
       return `Waits, then stores the answer in {{${data?.variableName || "reply"}}}.`;
     case "condition": {
@@ -523,6 +541,10 @@ export function graphProblem(nodes: EditorNode[]): string | null {
       return "The loyalty trigger needs an event.";
     if (n.type === "wait_for_reply" && !d.variableName)
       return "A “Wait for reply” step needs a variable name.";
+    if (n.type === "questionnaire") {
+      const problem = validateQuestionnaire(d as QuestionnaireData);
+      if (problem) return problem;
+    }
     if (n.type === "buttons") {
       const items = (d.items as ButtonItem[]) || [];
       if (items.length === 0) return "A buttons step needs at least one button.";

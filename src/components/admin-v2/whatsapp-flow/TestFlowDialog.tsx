@@ -19,6 +19,7 @@ import {
   AudioLines,
   FileText,
   ShoppingBag,
+  ClipboardList,
   AlertCircle,
 } from "lucide-react";
 import type { FlowGraph } from "@/lib/whatsappFlow/types";
@@ -34,6 +35,7 @@ interface SimStep {
     | "buttons"
     | "cta"
     | "catalog"
+    | "flow"
     | "delay"
     | "wait";
   marker?: boolean;
@@ -45,7 +47,9 @@ interface SimStep {
   buttonText?: string;
   url?: string;
   seconds?: number;
-  waitFor?: "reply" | "choice";
+  waitFor?: "reply" | "choice" | "form";
+  /** questionnaire: the labels of the questions inside the form. */
+  formFields?: string[];
 }
 
 interface SimResult {
@@ -118,7 +122,9 @@ function StepView({ step }: { step: SimStep }) {
         <MessageCircleQuestion className="h-3.5 w-3.5" />
         {step.waitFor === "choice"
           ? "Waits for the customer to tap a button"
-          : "Waits for the customer to reply"}
+          : step.waitFor === "form"
+            ? "Waits for the customer to fill in the form"
+            : "Waits for the customer to reply"}
       </div>
     );
   }
@@ -183,6 +189,33 @@ function StepView({ step }: { step: SimStep }) {
           View catalog
         </div>
       </Bubble>
+    );
+  }
+  if (step.kind === "flow") {
+    return (
+      <div className="flex max-w-[85%] flex-col gap-1 self-start">
+        <Bubble>
+          {step.text ? formatWa(step.text) : ""}
+          {(step.formFields || []).length > 0 && (
+            <ul className="mt-2 space-y-0.5 border-t pt-2 text-[12px] text-gray-500">
+              {(step.formFields || []).slice(0, 8).map((label, i) => (
+                <li key={i} className="truncate">
+                  • {label}
+                </li>
+              ))}
+              {(step.formFields || []).length > 8 && (
+                <li className="text-gray-400">
+                  +{(step.formFields || []).length - 8} more
+                </li>
+              )}
+            </ul>
+          )}
+          <div className="mt-2 flex items-center justify-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-3 py-1.5 text-[13px] font-medium text-violet-700">
+            <ClipboardList className="h-3.5 w-3.5" />
+            {step.buttonText || "Answer"}
+          </div>
+        </Bubble>
+      </div>
     );
   }
   if (step.kind === "buttons") {

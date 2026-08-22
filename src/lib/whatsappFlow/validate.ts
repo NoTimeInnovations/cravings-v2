@@ -5,6 +5,10 @@ import {
   TriggerMatchType,
   TRIGGER_PRIORITY,
 } from "./types";
+import {
+  validateQuestionnaire,
+  type QuestionnaireData,
+} from "./questionnaire";
 
 // Denormalize the trigger node(s) into a flat TriggerDef[] stored on the flow
 // row for fast inbound matching by the engine. Mirrors OpenWA's extractTriggers.
@@ -80,6 +84,15 @@ export function validateGraph(graph: FlowGraph): void {
           'A "Wait for reply" step needs a variable name to store the answer.',
         );
       }
+    }
+
+    if (node.type === "questionnaire") {
+      // Same check the builder runs, so a graph POSTed by anything else can't
+      // store a questionnaire that would fail to compile to Flow JSON later.
+      const problem = validateQuestionnaire(
+        (node.data || {}) as unknown as QuestionnaireData,
+      );
+      if (problem) throw new FlowValidationError(problem);
     }
 
     if (node.type === "buttons") {

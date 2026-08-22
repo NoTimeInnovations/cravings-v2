@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { extractTriggers, validateGraph, FlowValidationError } from "@/lib/whatsappFlow/validate";
+import { syncQuestionnaireNodes } from "@/lib/whatsappFlow/metaFlows";
 import type { FlowGraph } from "@/lib/whatsappFlow/types";
 
 const GET_ONE = `
@@ -77,6 +78,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  let warnings: { nodeId: string; message: string }[] = [];
   if (typeof body.name === "string") changes.name = body.name.trim().slice(0, 255);
   if (body.description !== undefined)
     changes.description = body.description ? String(body.description).slice(0, 512) : null;
@@ -97,6 +99,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
       throw e;
     }
+    // Republish any questionnaire step whose questions changed (a published
+    // WhatsApp Flow is immutable, so an edit means a new one) and stamp the new
+    // flow id onto the node before it is stored. See metaFlows.ts.
+    warnings = await syncQuestionnaireNodes(
+      partnerId,
+      g,
+      typeof body.name === "string" ? body.name : "questionnaire",
+    );
     changes.graph = g;
     changes.triggers = extractTriggers(g);
   }
@@ -106,7 +116,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!res?.update_whatsapp_flows?.affected_rows) {
       return NextResponse.json({ error: "Flow not found" }, { status: 404 });
     }
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      ...(warnings.length ? { warning: warnings.map((w) => w.message).join(" ") } : {}),
+    });
   } catch (e: any) {
     console.error("Update flow failed:", e);
     return NextResponse.json({ error: e?.message || "Failed to update flow" }, { status: 500 });

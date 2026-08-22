@@ -1,5 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { syncQuestionnaireNodes } from "@/lib/whatsappFlow/metaFlows";
+import type { FlowGraph } from "@/lib/whatsappFlow/types";
+
+/**
+ * A published WhatsApp Flow belongs to the WABA it was created on, so the
+ * library copy's flow id means nothing to the partner importing it. Clear the
+ * Meta binding from every questionnaire step so the import republishes the
+ * questions onto THIS partner's WABA instead of pointing at someone else's form.
+ */
+function resetQuestionnaireBindings(graph: FlowGraph): FlowGraph {
+  for (const node of graph?.nodes || []) {
+    if (node.type !== "questionnaire") continue;
+    const data = node.data as Record<string, unknown>;
+    delete data.metaFlowId;
+    delete data.metaFlowHash;
+    delete data.metaFlowStatus;
+    delete data.metaFlowError;
+  }
+  return graph;
+}
 
 // Import a global flow into a partner's own flows. Two modes:
 //   • "replace" — overwrite an existing partner flow (targetFlowId) in place,
@@ -56,9 +76,12 @@ export async function POST(req: NextRequest) {
     const gf = gRes?.whatsapp_global_flows_by_pk;
     if (!gf) return NextResponse.json({ error: "Global flow not found" }, { status: 404 });
 
-    // The flow content copied into the partner, verbatim from the library.
+    // The flow content copied into the partner, verbatim from the library —
+    // except questionnaire steps, which are republished onto this partner's WABA.
+    const graph = resetQuestionnaireBindings(gf.graph || { nodes: [], edges: [] });
+    const warnings = await syncQuestionnaireNodes(partnerId, graph, gf.name || "questionnaire");
     const content = {
-      graph: gf.graph || { nodes: [], edges: [] },
+      graph,
       triggers: gf.triggers || [],
       escape_keyword: gf.escape_keyword ?? null,
       run_ttl_hours: gf.run_ttl_hours ?? 24,
@@ -79,7 +102,11 @@ export async function POST(req: NextRequest) {
       if (!updatedId) {
         return NextResponse.json({ error: "Flow to replace not found" }, { status: 404 });
       }
-      return NextResponse.json({ id: updatedId, mode: "replace" });
+      return NextResponse.json({
+        id: updatedId,
+        mode: "replace",
+        ...(warnings.length ? { warning: warnings.map((w) => w.message).join(" ") } : {}),
+      });
     }
 
     // mode === "add": pick a non-colliding name (case-insensitive) so the new
@@ -107,7 +134,15 @@ export async function POST(req: NextRequest) {
         updated_at: new Date().toISOString(),
       },
     });
-    return NextResponse.json({ id: ins?.insert_whatsapp_flows_one?.id, mode: "add", name }, { status: 201 });
+    return NextResponse.json(
+      {
+        id: ins?.insert_whatsapp_flows_one?.id,
+        mode: "add",
+        name,
+        ...(warnings.length ? { warning: warnings.map((w) => w.message).join(" ") } : {}),
+      },
+      { status: 201 },
+    );
   } catch (e: any) {
     console.error("Import global flow failed:", e);
     return NextResponse.json({ error: e?.message || "Failed to import global flow" }, { status: 500 });

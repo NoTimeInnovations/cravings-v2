@@ -359,6 +359,21 @@ function normalizeFlowInput(msg: any): FlowInput | null {
       text = msg.text?.body ?? "";
       break;
     case "interactive": {
+      // A questionnaire submission: the answers ARE the message. Carried
+      // through as `flowResponse` so the parked questionnaire step can bind each
+      // one to its variable; `text` is the readable summary, which is what a
+      // trigger or a Condition step sees if it ever looks at the words.
+      const submitted = readFlowReply(msg);
+      if (submitted) {
+        const summary = describeFlowAnswers(submitted.answers);
+        return {
+          text: summary,
+          normalized: summary.trim().toLowerCase(),
+          replyId: null,
+          type,
+          flowResponse: submitted.answers,
+        };
+      }
       const ir = msg.interactive?.button_reply || msg.interactive?.list_reply;
       if (!ir) return null;
       text = ir.title ?? "";

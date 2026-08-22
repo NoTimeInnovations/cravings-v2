@@ -30,7 +30,12 @@ import {
   type FlowNodeType,
 } from "@/lib/whatsappFlow/types";
 import { TestFlowDialog } from "@/components/admin-v2/whatsapp-flow/TestFlowDialog";
+import { QuestionnaireEditor } from "@/components/admin-v2/whatsapp-flow/QuestionnaireEditor";
 import { VariableTextInput } from "@/components/admin-v2/whatsapp-flow/VariableTextInput";
+import {
+  questionnaireVariables,
+  type QuestionnaireData,
+} from "@/lib/whatsappFlow/questionnaire";
 
 import { AdminV3Button } from "../ui/primitives";
 import {
@@ -318,6 +323,9 @@ export function FlowEditor({
           });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to save flow");
+      // Saving also publishes questionnaire steps to WhatsApp; a warning means
+      // the flow was stored but that form can't be sent yet.
+      if (data?.warning) toast.warning(data.warning, { duration: 8000 });
       toast.success(isNew ? "Flow created" : "Flow saved");
       onClose();
     } catch (e) {
@@ -748,6 +756,10 @@ function Inspector({
       }
       if (n.type === "wait_for_reply" && d.variableName) set.add(String(d.variableName));
       if (n.type === "set_variable" && d.name) set.add(String(d.name));
+      // A questionnaire contributes one variable per answerable question.
+      if (n.type === "questionnaire") {
+        for (const v of questionnaireVariables(d as QuestionnaireData)) set.add(v);
+      }
     }
     if (hasOrder) ORDER_FLOW_VARIABLES.forEach((v) => set.add(v));
     if (hasLoyalty) LOYALTY_FLOW_VARIABLES.forEach((v) => set.add(v));
@@ -1073,6 +1085,15 @@ function Inspector({
               </div>
             </Field>
           </>
+        )}
+
+        {/* -------------------------------------------------- questionnaire */}
+        {type === "questionnaire" && (
+          <QuestionnaireEditor
+            data={data as QuestionnaireData}
+            onChange={(patch) => onChange(patch as Record<string, unknown>)}
+            variables={availableVariables}
+          />
         )}
 
         {/* -------------------------------------------------- link button */}

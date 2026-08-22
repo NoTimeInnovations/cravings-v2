@@ -61,6 +61,7 @@ import {
   AudioLines,
   ExternalLink,
   ShoppingBag,
+  ClipboardList,
   Play,
 } from "lucide-react";
 import type {
@@ -69,6 +70,13 @@ import type {
   ButtonItem,
   ConditionRule,
 } from "@/lib/whatsappFlow/types";
+import {
+  defaultQuestionnaireData,
+  questionnaireSummary,
+  questionnaireVariables,
+  type QuestionnaireData,
+} from "@/lib/whatsappFlow/questionnaire";
+import { QuestionnaireEditor } from "./QuestionnaireEditor";
 import {
   ORDER_STATUSES,
   ORDER_FLOW_VARIABLES,
@@ -99,6 +107,7 @@ const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; 
   send_document: { label: "Send document", icon: FileText, accent: "#6366f1" },
   send_catalog: { label: "Send catalogue", icon: ShoppingBag, accent: "#0d9488" },
   buttons: { label: "Buttons", icon: ListChecks, accent: "#a855f7" },
+  questionnaire: { label: "Questionnaire", icon: ClipboardList, accent: "#7c3aed" },
   link_button: { label: "Link button", icon: ExternalLink, accent: "#2563eb" },
   wait_for_reply: { label: "Wait for reply", icon: MessageCircleQuestion, accent: "#ec4899" },
   condition: { label: "Condition", icon: GitBranch, accent: "#f97316" },
@@ -120,6 +129,7 @@ const PALETTE: FlowNodeType[] = [
   "send_catalog",
   "buttons",
   "link_button",
+  "questionnaire",
   "wait_for_reply",
   "condition",
   "delay",
@@ -189,6 +199,8 @@ function defaultData(type: FlowNodeType): Record<string, unknown> {
       return { text: "Choose an option:", items: [{ id: genId("opt"), label: "Option 1" }] };
     case "link_button":
       return { text: "", buttonText: "Open", url: "" };
+    case "questionnaire":
+      return defaultQuestionnaireData() as unknown as Record<string, unknown>;
     case "wait_for_reply":
       return { variableName: "reply", validation: "text", retryText: "" };
     case "condition":
@@ -249,6 +261,8 @@ function nodeSummary(type: FlowNodeType, data: any): string {
       return `${(data?.items || []).length} button(s)`;
     case "link_button":
       return data?.buttonText ? `🔗 ${data.buttonText}` : "Link button";
+    case "questionnaire":
+      return questionnaireSummary(data as QuestionnaireData);
     case "wait_for_reply":
       return `→ {{${data?.variableName || "reply"}}}`;
     case "condition":
@@ -524,6 +538,9 @@ function BuilderInner({
           });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to save flow");
+      // The save endpoint publishes questionnaire steps to WhatsApp; a warning
+      // means the flow was stored but that form can't be sent yet.
+      if (data?.warning) toast.warning(data.warning, { duration: 8000 });
       toast.success(
         isGlobal
           ? isNew
@@ -629,8 +646,13 @@ function BuilderInner({
             </ReactFlow>
           </div>
 
-          {/* Inspector */}
-          <div className="w-[310px] shrink-0 overflow-y-auto border-l p-3">
+          {/* Inspector — wider for the questionnaire step, whose editor holds a
+              whole form's worth of fields rather than one message. */}
+          <div
+            className={`${
+              selectedNode?.type === "questionnaire" ? "w-[400px]" : "w-[310px]"
+            } shrink-0 overflow-y-auto border-l p-3`}
+          >
             {selectedNode ? (
               <Inspector
                 node={selectedNode}
@@ -781,6 +803,10 @@ function Inspector({
       }
       if (n.type === "wait_for_reply" && d.variableName) set.add(String(d.variableName));
       if (n.type === "set_variable" && d.name) set.add(String(d.name));
+      // A questionnaire contributes one variable per answerable question.
+      if (n.type === "questionnaire") {
+        for (const v of questionnaireVariables(d as QuestionnaireData)) set.add(v);
+      }
     }
     if (hasOrder) ORDER_FLOW_VARIABLES.forEach((v) => set.add(v));
     if (hasLoyalty) LOYALTY_FLOW_VARIABLES.forEach((v) => set.add(v));
@@ -1002,6 +1028,14 @@ function Inspector({
             </div>
           </Field>
         </>
+      )}
+
+      {type === "questionnaire" && (
+        <QuestionnaireEditor
+          data={data as QuestionnaireData}
+          onChange={(patch) => onChange(patch as Record<string, unknown>)}
+          variables={availableVariables}
+        />
       )}
 
       {type === "link_button" && (

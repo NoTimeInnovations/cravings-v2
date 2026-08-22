@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { extractTriggers, validateGraph, FlowValidationError } from "@/lib/whatsappFlow/validate";
+import { syncQuestionnaireNodes } from "@/lib/whatsappFlow/metaFlows";
 import type { FlowGraph } from "@/lib/whatsappFlow/types";
 
 const LIST = `
@@ -70,6 +71,12 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
+  // Publish any questionnaire step to the partner's WABA before storing the
+  // graph — this stamps the Meta flow id onto the node, which is what the engine
+  // sends. Warnings (rather than a failed save) so a Meta hiccup never costs
+  // the author their work; the node records why it can't be sent yet.
+  const warnings = await syncQuestionnaireNodes(partnerId, g, name);
+
   try {
     const inserted = await fetchFromHasura(INSERT, {
       object: {
@@ -86,7 +93,13 @@ export async function POST(req: NextRequest) {
         updated_at: new Date().toISOString(),
       },
     });
-    return NextResponse.json({ id: inserted?.insert_whatsapp_flows_one?.id }, { status: 201 });
+    return NextResponse.json(
+      {
+        id: inserted?.insert_whatsapp_flows_one?.id,
+        ...(warnings.length ? { warning: warnings.map((w) => w.message).join(" ") } : {}),
+      },
+      { status: 201 },
+    );
   } catch (e: any) {
     console.error("Create flow failed:", e);
     return NextResponse.json({ error: e?.message || "Failed to create flow" }, { status: 500 });

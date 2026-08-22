@@ -11,6 +11,12 @@ import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 import { isStoreOpen, storeHoursFromSettings } from "@/lib/storeHours";
 import { buildOrderLink } from "@/lib/whatsappFlow/orderLink";
 import { findOrCreateUserByPhone, toLocalPhone, ensureCustomerAccount } from "@/lib/whatsappFlow/silentUser";
+import {
+  answerFields,
+  buildFlowToken,
+  parseQuestionnaireAnswers,
+  type QuestionnaireData,
+} from "@/lib/whatsappFlow/questionnaire";
 import type {
   FlowGraph,
   FlowNode,
@@ -52,6 +58,8 @@ export interface FlowInput {
   // WhatsApp message type ("text", "image", "location", …). Lets the "any"
   // trigger fire on media messages that carry no caption (empty normalized).
   type?: string;
+  /** Decoded `interactive.nfm_reply.response_json` — a questionnaire submission. */
+  flowResponse?: Record<string, unknown> | null;
 }
 
 interface RunState {
@@ -63,7 +71,16 @@ interface RunState {
 }
 
 interface Outbound {
-  kind: "text" | "image" | "video" | "audio" | "document" | "buttons" | "cta" | "catalog";
+  kind:
+    | "text"
+    | "image"
+    | "video"
+    | "audio"
+    | "document"
+    | "buttons"
+    | "cta"
+    | "catalog"
+    | "flow";
   text?: string;
   mediaUrl?: string;
   caption?: string;
@@ -73,6 +90,17 @@ interface Outbound {
   url?: string;
   /** send_catalog: the product whose photo fronts the "View catalog" card. */
   thumbnailRetailerId?: string;
+  // ── questionnaire (kind "flow") ──
+  headerText?: string;
+  footerText?: string;
+  /** The Meta Flow id published for this questionnaire. */
+  flowId?: string;
+  /** "published", or "draft" while Meta hasn't published it (admins only). */
+  flowMode?: "published" | "draft";
+  /** Node id — only used to make each send's flow_token traceable. */
+  nodeId?: string;
+  /** Question labels. Preview-only: buildPayload never sends these. */
+  formFields?: string[];
 }
 
 // ─── GraphQL ─────────────────────────────────────────────────────
@@ -495,14 +523,43 @@ function matchButtonChoice(items: ButtonItem[], input: FlowInput): ButtonItem | 
   return null;
 }
 
+// The interactive "flow" message for a questionnaire step, or null when the
+// node has no published Meta Flow to open (never published, or edited and the
+// republish failed). Shared by the forward walk and the re-send path so a
+// questionnaire is always sent the same way.
+function questionnaireOutbound(
+  node: FlowNode,
+  vars: Record<string, unknown>,
+  // The builder's preview draws the form before it has ever been published, so
+  // an author can see what they're building; a real send can't.
+  preview = false,
+): Outbound | null {
+  const q = (node.data || {}) as unknown as QuestionnaireData;
+  if (!q.metaFlowId && !preview) return null;
+  return {
+    kind: "flow",
+    text: interpolate(q.text || "", vars),
+    headerText: interpolate(q.headerText || "", vars),
+    footerText: interpolate(q.footerText || "", vars),
+    buttonText: q.ctaText || "Answer",
+    flowId: q.metaFlowId,
+    flowMode: q.metaFlowStatus === "PUBLISHED" ? "published" : "draft",
+    nodeId: node.id,
+    formFields: answerFields(q).map((f) => f.label),
+  };
+}
+
 // Walk the graph from `startId`, collecting outbound messages, until we PARK
-// (wait_for_reply / buttons), END, or run out of nodes. Mutates `state`.
+// (wait_for_reply / buttons / questionnaire), END, or run out of nodes.
+// Mutates `state`.
 // Returns the parked node id, or null when the run completes.
 function executeForward(
   graph: FlowGraph,
   startId: string | null,
   state: RunState,
   outbound: Outbound[],
+  /** Builder preview: draw steps that a live run couldn't send yet. */
+  preview = false,
 ): { parkedNodeId: string | null; completed: boolean; sleepMs?: number } {
   let nodeId = startId;
   let lastReply = String((state.variables.__lastReply as string) ?? "");
@@ -629,6 +686,26 @@ function executeForward(
         if (!hasBranch) return { parkedNodeId: null, completed: true };
         return { parkedNodeId: node.id, completed: false }; // park awaiting choice
       }
+      case "questionnaire": {
+        // A native WhatsApp Flow form. Park so the submission (which arrives as
+        // a separate inbound message) resumes this run with every answer bound
+        // to a variable. When the form isn't published, degrade to the message
+        // body alone and keep walking — the same "never a dead end" rule the
+        // catalogue step follows, so a half-configured step still says
+        // something instead of silently dropping the rest of the flow.
+        const out = questionnaireOutbound(node, state.variables, preview);
+        if (!out) {
+          const body = interpolate(
+            ((node.data || {}) as any).text || "",
+            state.variables,
+          );
+          if (body.trim()) outbound.push({ kind: "text", text: body });
+          nodeId = firstEdgeTarget(graph, node.id);
+          break;
+        }
+        outbound.push(out);
+        return { parkedNodeId: node.id, completed: false }; // park awaiting the form
+      }
       case "wait_for_reply":
         return { parkedNodeId: node.id, completed: false }; // park awaiting reply
       case "end": {
@@ -674,7 +751,7 @@ function executeForward(
 export type SimStep =
   | (Outbound & { marker?: undefined })
   | { kind: "delay"; marker: true; seconds: number }
-  | { kind: "wait"; marker: true; waitFor: "reply" | "choice" };
+  | { kind: "wait"; marker: true; waitFor: "reply" | "choice" | "form" };
 
 export function simulateFlow(
   graph: FlowGraph,
@@ -692,7 +769,13 @@ export function simulateFlow(
   let guard = 0;
   while (start && guard++ < 100) {
     const outbound: Outbound[] = [];
-    const { parkedNodeId, completed, sleepMs } = executeForward(graph, start, state, outbound);
+    const { parkedNodeId, completed, sleepMs } = executeForward(
+      graph,
+      start,
+      state,
+      outbound,
+      true,
+    );
     for (const o of outbound) steps.push(o as SimStep);
     if (completed) return { steps, endedBy: "complete" };
     if (sleepMs && sleepMs > 0 && parkedNodeId) {
@@ -710,6 +793,10 @@ export function simulateFlow(
     }
     if (node?.type === "buttons") {
       steps.push({ kind: "wait", marker: true, waitFor: "choice" });
+      return { steps, endedBy: "wait" };
+    }
+    if (node?.type === "questionnaire") {
+      steps.push({ kind: "wait", marker: true, waitFor: "form" });
       return { steps, endedBy: "wait" };
     }
     // Send-cap or an unexpected park: treat as done.
@@ -822,6 +909,41 @@ function buildPayload(to: string, o: Outbound): { payload: Record<string, unknow
             },
           },
         },
+      };
+    }
+    case "flow": {
+      // A questionnaire: the message carries a button that opens the published
+      // WhatsApp Flow form. `flow_action: navigate` opens the first screen —
+      // PAGE_0 is what buildQuestionnaireFlowJson always names it. The answers
+      // come back later as their own inbound message (interactive.nfm_reply).
+      const body = (o.text || " ").slice(0, 1024);
+      const interactive: Record<string, unknown> = {
+        type: "flow",
+        body: { text: body },
+        action: {
+          name: "flow",
+          parameters: {
+            flow_message_version: "3",
+            flow_token: buildFlowToken(to, o.nodeId || "questionnaire"),
+            flow_id: o.flowId,
+            flow_cta: (o.buttonText || "Answer").slice(0, 30),
+            flow_action: "navigate",
+            // A questionnaire Meta hasn't published yet can still be opened by
+            // the WABA's own admins in draft mode, which is how a partner tests
+            // one that failed its publish checks.
+            mode: o.flowMode || "published",
+            flow_action_payload: { screen: "PAGE_0" },
+          },
+        },
+      };
+      const header = (o.headerText || "").trim();
+      if (header) interactive.header = { type: "text", text: header.slice(0, 60) };
+      const footer = (o.footerText || "").trim();
+      if (footer) interactive.footer = { text: footer.slice(0, 60) };
+      return {
+        type: "interactive",
+        body,
+        payload: { to, type: "interactive", interactive },
       };
     }
     case "catalog": {
@@ -1018,7 +1140,13 @@ export async function runFlowForInbound(args: {
   if (active) {
     if (active.expires_at && new Date(active.expires_at).getTime() < Date.now()) {
       await fetchFromHasura(M_EXPIRE_RUN, { id: active.id }).catch(() => {});
-    } else if (await matchesSpecificTrigger(partnerId, contactPhone, input.normalized)) {
+    } else if (
+      // A questionnaire submission is an ANSWER, never a new instruction: its
+      // text is the answers themselves, so letting it match a keyword trigger
+      // would abort the run that asked the questions and throw the answers away.
+      !input.flowResponse &&
+      (await matchesSpecificTrigger(partnerId, contactPhone, input.normalized))
+    ) {
       // A specific keyword trigger (exact/contains) restarts its flow even
       // mid-run, so re-sending the trigger word replays the WHOLE flow instead
       // of being treated as a reply to the parked step. (Generic any/welcome
@@ -1403,6 +1531,12 @@ async function startNewRun(
   // {{table_name}} so the reply can name it back to the customer.
   tableLabelOverride?: string,
 ) {
+  // A questionnaire submission only ever answers a run that is already waiting
+  // for it (handled in resumeRun). Arriving here means that run is gone — the
+  // form sat unopened past the run's TTL — so there is nothing to answer, and
+  // matching the answer text against triggers would start an unrelated flow.
+  if (input.flowResponse) return;
+
   const { flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes } =
     await (prefetchedWave ?? runStartRunWave(partnerId, contactPhone, prefetchedToken));
 
@@ -1835,6 +1969,37 @@ async function resumeRun(
     }
     state.variables.__lastReply = choice.value ?? choice.label ?? "";
     nextStart = firstEdgeTarget(graph, node.id, choice.id);
+  } else if (node.type === "questionnaire") {
+    const q = (node.data || {}) as unknown as QuestionnaireData;
+    if (!input.flowResponse) {
+      // They wrote a message instead of filling in the form. Deliberately NOT
+      // the buttons behaviour (re-send and stay parked): a form is a bigger ask
+      // than a button, and an active run that re-sends it on every unrelated
+      // message is how a customer ends up with the same questionnaire five
+      // times. End the run instead, so their next message starts fresh — unless
+      // the author explicitly asked for one nudge.
+      const nudge = q.resendIfIgnored ? questionnaireOutbound(node, state.variables) : null;
+      const alreadyNudged = !!state.variables.__questionnaireNudged;
+      const resend = nudge && !alreadyNudged;
+      if (resend) state.variables.__questionnaireNudged = true;
+      const won = await casUpdate(active, waMessageId, {
+        status: resend ? "active" : "completed",
+        current_node_id: resend ? node.id : null,
+        variables: state.variables,
+        last_interaction_at: new Date().toISOString(),
+      });
+      if (won && resend) {
+        await dispatch(partnerId, phoneNumberId, contactPhone, [nudge!]);
+      }
+      return;
+    }
+    const { variables: answers, summary } = parseQuestionnaireAnswers(q, input.flowResponse);
+    Object.assign(state.variables, answers);
+    // The submission summary is what a following Condition step compares
+    // against when it names no variable, and what {{__lastReply}} interpolates.
+    state.variables.__lastReply = summary;
+    delete state.variables.__questionnaireNudged;
+    nextStart = firstEdgeTarget(graph, node.id);
   } else if (node.type === "end") {
     // Parked at an END node that offered an opt-out button. If the customer
     // tapped it, suppress this flow for them for the author-chosen duration

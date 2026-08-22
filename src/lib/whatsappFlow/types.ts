@@ -20,6 +20,10 @@ export type FlowNodeType =
   | "send_catalog"
   | "buttons"
   | "link_button"
+  /** A native WhatsApp Flow form — text boxes, checkboxes, radios, dates.
+   *  Authored in our builder, compiled to Flow JSON and published to the
+   *  partner's WABA on save (see whatsappFlow/questionnaire.ts). */
+  | "questionnaire"
   | "wait_for_reply"
   | "condition"
   | "delay"
